@@ -27,7 +27,7 @@
 | D-12 | Commit to Solana **after every round** (≤ 5 commits/match, within the 10-commit limit) | ✅ | Visible Solana proof each round |
 | D-13 | Bots run inside the server process, labelled; ranked requires ≥ 4 humans | ✅ | |
 | D-14 | Bonk Factory is stretch; R1 pool = Block Party Dash (VRF still picks variants and modifiers) | ✅ | Time |
-| **D-15** | **Solana.Unity-SDK pinned to upstream `main` commit `1da8fd7f`** instead of tag v1.2.9 | 🟡 (M1, 2026-11-18) | v1.2.9 breaks every IL2CPP/WebGL build (BouncyCastle DLL file name, upstream #257). `1da8fd7f` = v1.2.9 + the fix (2 commits). Alternative: the doc 04 §8 web wallet-link fallback |
+| **D-15** | **Solana.Unity-SDK pinned to upstream `main` commit `1da8fd7f`** instead of tag v1.2.9 | ✅ (2026-11-18) | v1.2.9 breaks every IL2CPP/WebGL build (BouncyCastle DLL file name, upstream #257). `1da8fd7f` = v1.2.9 + the fix (2 commits). Alternative: the doc 04 §8 web wallet-link fallback |
 | **D-16** | **Local transport tests on Apple Silicon use a native macOS dev server**; the Linux x86_64 Mono image is first run on the VPS | ✅ (you chose it in M1) | Mono Linux crashes under Rosetta and QEMU (`x86-codegen.h:410`). Shipped server stays Linux x86_64 Mono. Option kept open: IL2CPP Linux server (runs under emulation, slower builds) |
 
 ## Top risks (live; update daily in PROJECT_STATUS)
@@ -36,7 +36,7 @@
 |---|---|---|---|---|
 | R1 | **7-day window** vs scope | High | High | Day plan + cut order (doc 14 §1); daily gate check |
 | R2 | Prediction feel not good enough by Nov 22 | Med | High | Go/no-go gate; fallback F1 |
-| R3 | UTP WebSockets through a TLS-terminating nginx proxy fails | **Low** (local ✅) | High | **M1 (measured):** 2 Chrome clients over `wss` via nginx 1.24 TLS, same origin, 101 in the access log, 10-min soak, restart + reconnect all pass. **VPS half UNVERIFIED** (Let's Encrypt on sslip.io + real x86_64 image), M1 §4.7. Fallback (UTP secure WebSocket) not needed so far |
+| R3 | UTP WebSockets through a TLS-terminating nginx proxy fails | **Retired** | High | **M1 (measured):** local nginx 1.24 TLS (same origin, 101 in access log, 10-min soak, restart + reconnect) **and the VPS** (Let's Encrypt on `gs1.<VPS_IP>.sslip.io`, 2 Chrome clients, RTT p50 66 / p95 83 ms) all pass. Fallback not needed |
 | R4 | Devnet ER / VRF instability during demo or recording | Med | High | Record proof runs early; Unranked fallback; multiple recorded matches |
 | R5 | Solana.Unity-SDK breaks on Unity 6 WebGL | **Happened** (tag v1.2.9) → **Low** with the fix | Low | **M1 (measured):** v1.2.9 fails the WebGL link (BouncyCastle, upstream #257); upstream fix `1da8fd7f` builds WebGL + server, +4.0 MB compressed, wallet picker opens in Chrome. Real Phantom connect UNVERIFIED. Fallback still: web wallet link (doc 04 §8) |
 | R6 | WebGL build time and memory on 8 GB | Med | Med | **M1 (measured):** release 523 s first / 294 s incremental; dev 714 s first / 238 s warm; peak RSS 1.1–1.5 GB; swap is used when other apps are open, and two licensing time-outs happened under heavy swap. Runtime: wasm heap 96 MB in Lobby (2 GB max). Keep: Editor closed, few apps open, ≤ 2 builds per hour |
@@ -44,5 +44,6 @@
 | R8 | 2 vCPU VPS shared with another site: CPU contention for two 30 Hz Unity servers + Relay + Postgres + web | Med | Med | Measure tick p95 with 2 matches in M6; Docker CPU limits; run 1 game server if needed; upgrade to KVM 4 as last resort |
 | R9 | IP similarity complaints | Low | Med | Originality guardrails + checks (doc 17 §1, doc 08 §8) |
 | R10 | Server-signer trust criticised by judges | Med | Low | Honest-trust line + roadmap in README |
-| R11 | Linux game server image never run before the VPS (Mono cannot run under emulation on the Apple Silicon dev box) | Med | High | First run in M1 §4.7 on the VPS; if Mono fails there too: IL2CPP Linux server |
+| R11 | Linux game server image can only be run on real x86_64 (Mono cannot run under emulation on the Apple Silicon dev box) | Low | Med | **M1:** image runs on the VPS. Keep testing server builds on the VPS (or any x86_64 box) before each deploy; local tests use the Mac dev server |
+| R13 | VPS port clash with the existing site (`127.0.0.1:8787`, `:3100` in use) | **Known** | Med | Pick relay/web ports that are free (check `ss -ltn`) in M6; doc 13 §2 |
 | R12 | Hidden browser tab freezes Unity WebGL (no `requestAnimationFrame`) → UTP 30 s timeout → player dropped | Med | Med | UNVERIFIED. Test in M2; options: longer disconnect timeout, reconnect-within-20 s flow (doc 04 §11) |

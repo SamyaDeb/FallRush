@@ -26,7 +26,7 @@ Both share the movement, hazard and deal code, which is what makes client predic
 | com.unity.nuget.newtonsoft-json | 3.2.2 | resolved (MPPM + SDK) |
 | com.unity.textmeshpro | 5.0.0 (Unity 6 shim to ugui 2.0.0) | pulled by the SDK; TMP Essential Resources imported for the SDK's wallet prefab |
 | com.unity.toolchain.macos-arm64-linux + sdk.linux-x86_64/arm64 + sysroot.base | **1.1.1** | **Added automatically by Unity** on every Linux build (`UnityEditor.LinuxStandalone.Extensions` → `InstallToolchainIfNeeded`); removing them is undone on the next Linux build, so they are pinned and committed. This is *not* the optional IL2CPP package `com.unity.toolchain.macos-arm64-linux-x86_64` 2.0.5 named in v2 — that one is still not installed |
-| com.solana.unity_sdk | git `https://github.com/magicblock-labs/Solana.Unity-SDK.git#1da8fd7fe9e035ad0f6fb627997f3f2a6f134475` | **🟡 pending approval.** Tag v1.2.9 (`3d139411`) **breaks the WebGL build** (§8). `1da8fd7f` = v1.2.9 + upstream fix (DLL renamed to `BouncyCastle.Cryptography.dll`, three broken asmdefs removed); no newer tag exists |
+| com.solana.unity_sdk | git `https://github.com/magicblock-labs/Solana.Unity-SDK.git#1da8fd7fe9e035ad0f6fb627997f3f2a6f134475` | **✅ approved (D-15).** Tag v1.2.9 (`3d139411`) **breaks the WebGL build** (§8). `1da8fd7f` = v1.2.9 + upstream fix (DLL renamed to `BouncyCastle.Cryptography.dll`, three broken asmdefs removed); no newer tag exists |
 
 **Removed from the template:** collab-proxy, visualscripting, timeline, multiplayer.center, ai.navigation.
 
@@ -36,7 +36,7 @@ Both share the movement, hazard and deal code, which is what makes client predic
 
 - **Why:** WebGL clients cannot use UDP. Every client in a match must share one transport.
 - **The server** listens with UTP WebSockets, plain `ws` (`UseWebSockets = true`, `UseEncryption = false`), `SetConnectionData(true, "0.0.0.0", port, "0.0.0.0")`. The first argument `true` stops UTP's own `-port`/`-ip` parsing; our order is `-port` → `GAMESERVER_PORT` → 7777.
-- **TLS** terminates at the VPS's nginx (doc 13 §2). The browser connects with `wss://`, and the server sees plain `ws`. **VERIFIED locally in M1** (nginx 1.24.0 in Docker, self-signed cert, Chrome; `docs/proof/M1-transport.md`). The VPS run is §4.7 of the M1 brief.
+- **TLS** terminates at the VPS's nginx (doc 13 §2). The browser connects with `wss://`, and the server sees plain `ws`. **VERIFIED in M1**: locally (nginx 1.24.0 in Docker, self-signed cert, Chrome) and on the VPS (nginx 1.24 + Let's Encrypt on an sslip.io name, Linux x86_64 image; RTT p50 66 / p95 83 ms). `docs/proof/M1-transport.md`.
 - **Exact WebGL client API for `wss` (from the UTP 2.7.5 / NGO 2.14.0 source):**
   - `UseWebSockets = true; UseEncryption = true; SetConnectionData(true, host, port); ConnectionData.WebSocketPath = path; SetClientSecrets(host)`.
   - UTP's WebGL `WebSocketNetworkInterface` builds `"wss://"` when a secure hostname is set (`SecureNetworkProtocolParameter.Hostname`, filled by `SetClientSecrets`) and `"ws://"` otherwise, then `new WebSocket(url)` in JS — **the browser does TLS**. Hostnames are allowed on 6000.1+ (`HOSTNAME_RESOLUTION_AVAILABLE`).
@@ -171,7 +171,7 @@ See doc 17 §2.3. Per-player cosmetics come from `CosmeticPreset` (index into th
 
 - Optional "Connect Wallet" in the menu. WebGL uses the SDK's web wallet adapter (Phantom / Solflare): `Web3.Instance.LoginWalletAdapter()` on a `Web3` component with `rpcCluster = DevNet` (the SDK sample's own path). Code: `Scripts/Client/Wallet/WalletSmokeTest.cs`, the only assembly referencing the SDK (Editor + WebGL only).
 - **M1 result (2026-11-18):**
-  - **Tag v1.2.9 breaks the WebGL build** on 6000.3: UnityLinker cannot resolve `BouncyCastle.Cryptography` 2.0.0.0 because the SDK ships it as `BouncyCastle.Crypto.dll` (upstream issue #257). **Pinned to upstream `main` `1da8fd7f`** (the fix, v1.2.9 + 2 commits) — 🟡 awaiting approval.
+  - **Tag v1.2.9 breaks the WebGL build** on 6000.3: UnityLinker cannot resolve `BouncyCastle.Cryptography` 2.0.0.0 because the SDK ships it as `BouncyCastle.Crypto.dll` (upstream issue #257). **Pinned to upstream `main` `1da8fd7f`** (the fix, v1.2.9 + 2 commits) — approved (D-15).
   - With `1da8fd7f`: WebGL release ✅, Linux server build ✅ (SDK compiles into the server project but not into our server game code), EditMode ✅. Release size **+4.0 MB** compressed (11.83 → 15.83 MB).
   - In Chrome the wallet picker (Phantom/Solflare) opens without errors or freezes. A real Phantom connect is **UNVERIFIED**.
   - The adapter loads `@magicblock-labs/unity-wallet-adapter@1.2.1` from cdn.jsdelivr.net at runtime; self-host it in M5. The SDK copies prefabs into `Assets/Resources/SolanaUnitySDK/` (shipped in every build) and needs TMP Essential Resources.

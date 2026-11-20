@@ -1,6 +1,6 @@
 # Fall Rush — Project Status
 
-_Last updated: 2026-11-18 (D0, M0 complete; M1 local complete, VPS edge check awaiting approval)_
+_Last updated: 2026-11-18 (D0, M0 + M1 complete)_
 
 **Hackathon:** MagicBlock Blitz V10, running Nov 20 to Nov 27, 2026.
 - **Submission deadline:** Nov 27, 14:00 UTC (19:30 IST).
@@ -48,7 +48,7 @@ _Last updated: 2026-11-18 (D0, M0 complete; M1 local complete, VPS edge check aw
 - No keypairs in git history. Program is live on devnet (upgrade authority is your default wallet).
 - ~~Still open: the devnet run.~~ Done: `docs/proof/M0-devnet.md`.
 
-## Current milestone: M1 (Unity foundation + WebGL ↔ server WebSocket spike) — ✅ local · ⏳ VPS (§4.7 needs your yes)
+## Milestone M1 (Unity foundation + WebGL ↔ server WebSocket spike) — ✅ complete (local + VPS)
 Proof: [`docs/proof/M1-transport.md`](docs/proof/M1-transport.md) · screenshots `docs/proof/m1/`.
 
 | Item | State |
@@ -61,15 +61,15 @@ Proof: [`docs/proof/M1-transport.md`](docs/proof/M1-transport.md) · screenshots
 | `wss` via nginx 1.24 TLS (same origin): 2 clients, 101 in nginx log | ✅ |
 | Protocol mismatch rejection with readable reason; Reconnect after server restart without reload | ✅ |
 | 10-min idle soak, 2 clients, no disconnects | ✅ |
-| Solana.Unity-SDK: WebGL + server build with it | ✅ with upstream fix `1da8fd7f` (🟡 D-15); ❌ with tag v1.2.9 |
-| Linux x86_64 server image runs | ⏳ UNVERIFIED — Mono crashes under Rosetta/QEMU on this Mac; first real run on the VPS |
-| VPS edge check (§4.7) | ⏳ awaiting your approval |
+| Solana.Unity-SDK: WebGL + server build with it | ✅ with upstream fix `1da8fd7f` (D-15 ✅); ❌ with tag v1.2.9 |
+| Linux x86_64 server image runs | ✅ on the VPS (Mono crashes only under Rosetta/QEMU on this Mac) |
+| VPS edge check (§4.7): Let's Encrypt on sslip.io, 2 clients over `wss`, RTT p50 66 / p95 83 ms, container 86 MB / 1.6 % CPU | ✅ — then removed as instructed; existing site unchanged |
 
-**Key measurements:** WebGL release 523 s clean / 294 s incremental, 11.83 MB (15.83 MB with SDK); dev 714 s / 238 s; peak build RSS 1.1–1.5 GB; RTT on localhost p50 ≈ 33 ms (`ws` and `wss`); server 30.0 Hz, work p95 < 2.3 ms (Mac native); wasm heap 96 MB in Lobby.
+**Key measurements:** WebGL release 523 s clean / 294 s incremental, 11.83 MB (15.83 MB with SDK); dev 714 s / 238 s; peak build RSS 1.1–1.5 GB; RTT p50 ≈ 33 ms localhost, **66 ms to the VPS** (ping 38 ms); VPS server 30.0 Hz, work p95 0.6 ms with 2 clients, 86 MB; wasm heap 96 MB in Lobby.
 
 ### Open issues (M1)
-- 🟡 **D-15:** approve pinning Solana.Unity-SDK to `1da8fd7f` (v1.2.9 breaks WebGL), or choose the web wallet-link fallback.
-- **VPS §4.7** (needs your yes): the first real run of the Linux image + Let's Encrypt on sslip.io.
+- **VPS leftovers (kept on purpose):** Hostinger snapshot (auto-expires 2026-11-19 10:15 UTC), the `gs1` Let's Encrypt cert (its renewal will fail without the server block — say if I should `certbot delete` it), the `fallrush-gameserver:m1` image on the VPS.
+- **VPS port clash:** `127.0.0.1:8787` and `:3100` are used by the existing site; change the relay port before M6 (R13).
 - Real Phantom connect in Chrome: UNVERIFIED (steps in the M1 report).
 - Hidden-tab freeze → possible 30 s UTP disconnect (R12), unverified.
 - SDK loads its wallet-adapter JS from jsdelivr at runtime; SDK prefabs sit in `Resources/` (ship in the server build). Revisit in M5.
@@ -77,7 +77,7 @@ Proof: [`docs/proof/M1-transport.md`](docs/proof/M1-transport.md) · screenshots
 - Docker Desktop: Rosetta is now **off** (you turned it off for M1); it can be turned back on, since local tests no longer need amd64 emulation. Your nitroverse/chainpe containers did not restart after the Docker restart.
 
 ### Notes for M2 (from M1)
-- **Frame budget:** server at 30 Hz uses < 1 ms/frame p95 idle (Mac native; VPS numbers pending). The 33 ms budget is almost untouched; measure again with 12 bots.
+- **Frame budget:** on the VPS the server uses 0.4 ms (idle) / 0.6 ms (2 clients) p95 per 33 ms frame at 0.75 CPU. Measure again with 12 bots + movement.
 - **RTT quantisation:** localhost ping ≈ 33 ms = one 30 Hz frame (sends flushed per frame/tick). Prediction must account for 1–2 frames of send latency on top of the network.
 - **WebSockets are TCP:** `Unreliable`/`UnreliableSequenced` still travel in order on one TCP stream, so a lost packet stalls everything behind it (head-of-line). Keep snapshots small (≈ 240 B) and use sequencing to drop stale ones client-side.
 - **WebGL memory:** 96 MB wasm heap in Lobby, 2 GB max; plenty of headroom so far.
@@ -86,10 +86,9 @@ Proof: [`docs/proof/M1-transport.md`](docs/proof/M1-transport.md) · screenshots
 - Dedicated-server player ignores `-batchmode`/`-nographics` ("Unknown arg"); harmless.
 
 ## Next milestones
-- **M1 §4.7:** VPS edge check, after your approval.
 - **M2a:** KinematicMotor + input + server sim + snapshots (docs/14).
 
-## Decisions (approved 2026-11-18; 🟡 D-15 SDK pin pending — see docs/15)
+## Decisions (all approved 2026-11-18, incl. D-15 SDK pin and D-16 Mac dev server — see docs/15)
 | ID | Decision |
 |---|---|
 | D-1b | **Fix first:** if the Nov 22 go/no-go fails, find and fix prediction until Nov 23 12:00 UTC (doc 04 §4.5 checklist); F1 only if it still fails |
@@ -104,7 +103,8 @@ Proof: [`docs/proof/M1-transport.md`](docs/proof/M1-transport.md) · screenshots
 
 ## Your tasks for today
 - [x] **Unity:** 6000.3.28f1 with Web, Linux Mono and Linux Dedicated Server modules; Personal licence active.
-- [ ] Approve or reject 🟡 D-15 (SDK pin) and the M1 §4.7 VPS plan.
+- [x] D-15 (SDK pin) approved; M1 §4.7 VPS plan approved and run.
+- [ ] Try a real Phantom connect (steps in the M1 report) — optional.
 - [x] Register for the event on Luma.
 - [x] Domain: none for now, so use sslip.io hostnames (verified to resolve to the VPS).
 - [x] Hostinger: the CLI is signed in; the `ovelo-vps-admin` key is attached and matches `~/.ssh/ovelo_vps_ed25519`.
@@ -112,7 +112,7 @@ Proof: [`docs/proof/M1-transport.md`](docs/proof/M1-transport.md) · screenshots
 - [ ] Recruit 8–12 playtesters for Nov 25 and Nov 26.
 
 ## Blockers
-- None for M2a. M1 §4.7 waits for your approval.
+- None for M2a.
 
 ## Known bugs
 - None open in our code. Upstream: Solana.Unity-SDK v1.2.9 WebGL link failure (#257), worked around by D-15.

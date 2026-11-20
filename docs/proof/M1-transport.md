@@ -14,9 +14,11 @@ The Linux x86_64 **Mono** dedicated server (`pnpm m1:build:server`, image `fallr
 Caught fatal signal - signo:6
 ```
 
-Mono's x86-64 JIT assumes code and trampolines are within ±2 GB; the emulators' address layout breaks that (also with `MONO_ENV_OPTIONS=--interpreter`). This is an emulation artefact, not a code bug, but it means **the Linux image has not run anywhere yet** (UNVERIFIED until the VPS, §4.7).
+Mono's x86-64 JIT assumes code and trampolines are within ±2 GB; the emulators' address layout breaks that (also with `MONO_ENV_OPTIONS=--interpreter`). This is an emulation artefact, not a code bug.
 
-With your approval, every browser test below ran against a **native macOS dev server**: the same scenes and code (`NetBootstrap`, UTP 2.7.5 WebSocket server, approval, ping), built with `pnpm m1:build:macserver` (macOS player, Mono, arm64) and started headless with `-batchmode -nographics -fallrushServer -fallrushListen 127.0.0.1`. nginx stayed in Docker and proxied to `host.docker.internal:7777` (`pnpm m1:up:mac`). CPU/RAM numbers are therefore **Mac-native**, not VPS numbers.
+**Update:** the same image then ran fine on the real x86_64 VPS (§2b), so the crash is emulation-only.
+
+With your approval, every local browser test below ran against a **native macOS dev server**: the same scenes and code (`NetBootstrap`, UTP 2.7.5 WebSocket server, approval, ping), built with `pnpm m1:build:macserver` (macOS player, Mono, arm64) and started headless with `-batchmode -nographics -fallrushServer -fallrushListen 127.0.0.1`. nginx stayed in Docker and proxied to `host.docker.internal:7777` (`pnpm m1:up:mac`). CPU/RAM numbers are therefore **Mac-native**, not VPS numbers.
 
 ## 1. Tests (§4.5)
 
@@ -54,21 +56,39 @@ With your approval, every browser test below ran against a **native macOS dev se
 | Browser memory in Lobby (dev build) | wasm heap **95.8 MB** (max configured 2048 MB); JS heap 17.5 MB used / 20.8 MB total | `WebAssembly.Memory` hook + CDP `Performance.getMetrics` |
 | RTT `ws` (localhost) | p50 **32–33 ms**, p95 34–50 ms (n=16, 2 tabs) | in-game ping/pong, 500 ms interval |
 | RTT `wss` via nginx (localhost) | p50 **33 ms**, p95 49–50 ms (n=28–60) | same |
-| RTT VPS | **UNVERIFIED** (§4.7 not run) | — |
+| RTT VPS (Mumbai, `wss://gs1.<VPS_IP>.sslip.io`, Let's Encrypt via nginx 1.24) | p50 **66 ms**, p95 **83 ms** (n=60, both tabs); ICMP ping 37.9 ms avg | in-game ping/pong; `ping -c 5` |
 | Server tick | **30.0 Hz** (all windows) | `NetworkTickSystem.Tick` count per 10 s |
 | Server frame interval | p50 33.33 ms, worst p95 34.4 ms | `Time.unscaledDeltaTime`, `targetFrameRate = 30` |
 | Server frame **work** time (0 / 2 clients) | p95 0.54–0.77 ms; worst p95 in the soak 2.27 ms; worst single frame 13.0 ms | PlayerLoop markers (Initialization start → PostLateUpdate end) |
 | Server process, 2 clients idle (Mac native) | CPU avg **1.9 %** (max 2.3 %), RSS ≈ 35 MB | `ps -o %cpu,rss` every 30 s for 10 min |
-| Server container CPU/RSS (`docker stats`) | **UNVERIFIED** — the Linux container cannot run under emulation here; measure on the VPS | — |
+| **VPS container** (`--cpus 0.75 --memory 1g`), 0 clients | CPU 1.5–1.7 %, memory **84 MB**; tick 30.0 Hz; work p95 **0.40 ms**, max 0.74 ms | `docker stats --no-stream` ×3, `[gs] stats` |
+| **VPS container**, 2 clients | CPU 1.6 %, memory **86 MB**; tick 30.0 Hz; work p95 **0.55–0.60 ms**, max 2.05 ms; frame-interval p95 33.4 ms | same |
+| Image transfer to VPS | 27 s (`docker save \| gzip -1 \| ssh docker load`) | wall clock |
 
 **Note on the localhost RTT (≈ 33 ms):** that is one 30 Hz frame. Inference, not separately measured: sends are flushed on frame/tick boundaries and the server is capped at 30 fps, so ping RTT carries up to 1–2 frames of quantisation on top of network time.
+
+## 2b. Hostinger VPS edge check (§4.7, approved 2026-11-18) — **PASS**
+
+| Step | Result |
+|---|---|
+| Read-only check | Docker 29.9.3, certbot 2.9.0, nginx 1.24.0, ufw active (22/80/443), 93 GB free, 6.4 GB RAM available. One existing nginx site (`finity`, proxies to `127.0.0.1:8787` and `:3100`); Ovelo runs in Docker behind cloudflared (not in nginx). Baseline: existing site `https 200`, `http 301` |
+| Snapshot | Created and confirmed (`state: success`). **Hostinger snapshots auto-expire after 24 h** (expires 2026-11-19 10:15 UTC) |
+| Image | `fallrush-gameserver:m1` loaded and run: `--restart unless-stopped -p 127.0.0.1:7777:7777 --cpus 0.75 --memory 1g`. **The Linux x86_64 Mono server runs on real hardware** (container `healthy`, `[gs] listening`); no apt packages beyond `ca-certificates` needed |
+| nginx | One new file `sites-available/fallrush-gs1` + symlink (WebSocket proxy to `127.0.0.1:7777`, unique `map` variable name), `nginx -t` OK, `reload` (never restart) |
+| Let's Encrypt | `certbot --nginx -d gs1.<VPS_IP>.sslip.io` **succeeded** (sslip.io works for issuance); `nginx -t` + reload OK; `curl` upgrade over real TLS → `101 Switching Protocols` |
+| Browser | 2 Chrome tabs at `http://localhost:8080/?server=wss://gs1.<VPS_IP>.sslip.io` → both Lobby, client ids 1/2, 2/12, RTT p50 66 / p95 83 ms (`m1/vps-wss-tab1-lobby.png`, `m1/vps-wss-tab2-lobby.png`, hostname redacted) |
+| Existing site unchanged | `https 200` / `http 301` before, after reload and after removal; `finity` config md5 unchanged; Ovelo containers up throughout |
+| Removal (your instruction) | `docker rm -f fallrush-gs1`, nginx file + symlink removed, `nginx -t`, reload. **Kept:** snapshot, the `gs1` certificate (renewal will fail without its server block — delete with `certbot delete --cert-name gs1.<VPS_IP>.sslip.io` when you say), the image on the VPS |
+| Firewall | Not touched |
+
+**VPS RTT vs ping:** 66 ms vs 38 ms ICMP — the ≈ 28 ms difference matches the ≈ 33 ms one-frame quantisation seen on localhost.
 
 ## 3. Solana.Unity-SDK (R5)
 
 - **Tag v1.2.9 (`3d139411`) breaks the WebGL build** on 6000.3:
   `Fatal error in Unity CIL Linker — Mono.Cecil.AssemblyResolutionException: Failed to resolve assembly: 'BouncyCastle.Cryptography, Version=2.0.0.0'`.
   The SDK ships the assembly `BouncyCastle.Cryptography` 2.0.0.0 in a file named `BouncyCastle.Crypto.dll`; `Solana.Unity.Wallet/KeyStore/Dex` reference it by assembly name and the IL2CPP linker resolves by file name. Upstream issue **#257** (open). Read with `dnfile` from the DLL metadata.
-- **Upstream `main` commit `1da8fd7f`** (2025-10-20, "FIX asmdef issues and bouncy castle dll errors"; v1.2.9 + 2 commits: DLL rename, three broken asmdefs removed, docs) **fixes it**: WebGL release ✅, Linux server ✅ (0 errors), EditMode 52/52 ✅. 🟡 Pin pending your approval.
+- **Upstream `main` commit `1da8fd7f`** (2025-10-20, "FIX asmdef issues and bouncy castle dll errors"; v1.2.9 + 2 commits: DLL rename, three broken asmdefs removed, docs) **fixes it**: WebGL release ✅, Linux server ✅ (0 errors), EditMode 52/52 ✅. Pin **approved** (D-15 ✅, 2026-11-18).
 - At runtime the WebGL adapter loads `https://cdn.jsdelivr.net/npm/@magicblock-labs/unity-wallet-adapter@1.2.1` (third-party script). Consider self-hosting it in M5.
 - The SDK copies prefabs into `Assets/Resources/SolanaUnitySDK/` and a template into `Assets/WebGLTemplates/xNFT` (our template stays `Default`). `Resources/` ships in the server build too.
 
