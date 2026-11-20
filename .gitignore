@@ -32,3 +32,6 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+
+# ---- Unity M1 ----
+.m1-logs/

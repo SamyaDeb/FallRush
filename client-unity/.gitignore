@@ -1,0 +1,36 @@
+# Unity generated
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Bb]uilds/
+/[Bb]uild/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+# IDE
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.sln
+*.slnx
+*.unityproj
+*.suo
+*.user
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+# crash / misc
+sysinfo.txt
+crashlytics-build.properties
+/Assets/StreamingAssets/aa.meta
+*.apk
+*.aab
+*.unitypackage
+# Multiplayer Play Mode virtual player clones
+/Library/VP/
