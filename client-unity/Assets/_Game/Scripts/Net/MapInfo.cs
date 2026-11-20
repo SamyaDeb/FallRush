@@ -16,6 +16,12 @@ namespace FallRush.Net
         [Tooltip("Client-only placeholder material for player capsules (URP Lit; colour set per slot with a property block).")]
         public Material playerMaterial;
 
+        [Tooltip("Client-only unlit material (URP Unlit) for the Rushling screen face and effects.")]
+        public Material unlitMaterial;
+
+        public HazardSweeper[] sweepers = new HazardSweeper[0];
+        public HazardPlatform[] platforms = new HazardPlatform[0];
+
         public static MapInfo Current { get; private set; }
 
         private void OnEnable() => Current = this;
@@ -24,6 +30,31 @@ namespace FallRush.Net
         {
             if (Current == this)
                 Current = null;
+        }
+
+        /// <summary>The map's hazards (same order on both sides) and the platform colliders the motor world moves.</summary>
+        public HazardSet BuildHazards(out Collider[] platformColliders)
+        {
+            var sw = new SweeperDef[sweepers?.Length ?? 0];
+            for (var i = 0; i < sw.Length; i++)
+                sw[i] = sweepers[i].Resolve();
+            var pl = new PlatformDef[platforms?.Length ?? 0];
+            platformColliders = new Collider[pl.Length];
+            for (var i = 0; i < pl.Length; i++)
+            {
+                pl[i] = platforms[i].Resolve();
+                platformColliders[i] = platforms[i].motorCollider;
+            }
+
+            return new HazardSet(sw, pl);
+        }
+
+        /// <summary>PhysX-backed motor world for this map (server simulation or client prediction).</summary>
+        public PhysxMotorWorld CreateWorld(Transform probeParent, MovementConfig cfg, out HazardSet hazards)
+        {
+            hazards = BuildHazards(out var cols);
+            var probe = PhysxMotorWorld.CreateProbe(probeParent, cfg.Radius, cfg.Height);
+            return new PhysxMotorWorld(gameObject.scene.GetPhysicsScene(), PhysxMotorWorld.GameplayMask(), probe, hazards, cols);
         }
 
         public Vec3[] SpawnPoints()

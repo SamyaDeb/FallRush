@@ -6,7 +6,8 @@
         "FallRush.Net",
         "Unity.Netcode.Runtime",
         "UnityEngine.UI",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "Unity.Cinemachine"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

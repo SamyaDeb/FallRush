@@ -5,7 +5,7 @@ namespace FallRush.Shared
         public float Distance;
         public Vec3 Point;
         public Vec3 Normal;
-        /// <summary>Opaque surface id (moving platforms in M2b); −1 for static geometry.</summary>
+        /// <summary>Moving-surface index (a <see cref="HazardSet"/> platform), or −1 for static geometry.</summary>
         public int SurfaceId;
     }
 
@@ -24,5 +24,14 @@ namespace FallRush.Shared
 
         /// <summary>If the capsule overlaps geometry, returns the smallest translation that separates it.</summary>
         bool ComputePenetration(Vec3 feet, float radius, float height, out Vec3 correction);
+
+        /// <summary>
+        /// Poses moving geometry for <paramref name="tick"/> (<c>pose = f(params, tick)</c>, <see cref="HazardMath"/>).
+        /// Called once before the players of that tick are stepped; a no-op for static worlds.
+        /// </summary>
+        void BeginTick(uint tick);
+
+        /// <summary>How far moving surface <paramref name="surfaceId"/> moved from the previous tick to the current one (platform carry).</summary>
+        bool SurfaceDelta(int surfaceId, out Vec3 delta);
     }
 }

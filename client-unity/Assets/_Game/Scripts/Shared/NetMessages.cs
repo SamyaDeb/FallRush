@@ -25,10 +25,10 @@ namespace FallRush.Shared
         };
     }
 
-    /// <summary>Per-recipient snapshot header (16 bytes).</summary>
+    /// <summary>Per-recipient snapshot header (17 bytes).</summary>
     public struct SnapHeader
     {
-        public const int Size = 4 + 4 + 1 + 1 + 5 + 1;
+        public const int Size = 4 + 4 + 1 + 1 + 6 + 1;
         public const byte NoSlot = 255;
         /// <summary><see cref="InputLead"/> value meaning "no input received in this window".</summary>
         public const sbyte LeadUnknown = sbyte.MinValue;
@@ -40,7 +40,7 @@ namespace FallRush.Shared
         public sbyte InputLead;
         public byte OwnSlot;
         // Owner-only motor timers, so a client rewind restores the complete MotorState.
-        public byte OwnCoyote, OwnJumpBuffer, OwnDiveCooldown, OwnLand, OwnImmunity;
+        public byte OwnCoyote, OwnJumpBuffer, OwnDiveCooldown, OwnLand, OwnImmunity, OwnSurface;
         public byte Count;
     }
 
@@ -48,7 +48,7 @@ namespace FallRush.Shared
     /// Binary codecs for the M2 movement messages (little-endian; strict decode, no exceptions on bad input).
     /// <list type="bullet">
     /// <item><c>in</c> (C→S): <c>u8 count (1–3)</c> + count × <see cref="InputCmd"/> (13 B), newest first. 40 B with 3.</item>
-    /// <item><c>snap</c> (S→C): <see cref="SnapHeader"/> (16 B) + count × <see cref="PlayerState"/> (22 B). 280 B with 12.</item>
+    /// <item><c>snap</c> (S→C): <see cref="SnapHeader"/> (17 B) + count × <see cref="PlayerState"/> (22 B). 281 B with 12.</item>
     /// </list>
     /// </summary>
     public static class NetMessages
@@ -145,6 +145,7 @@ namespace FallRush.Shared
             dst[o++] = h.OwnDiveCooldown;
             dst[o++] = h.OwnLand;
             dst[o++] = h.OwnImmunity;
+            dst[o++] = h.OwnSurface;
             dst[o++] = h.Count;
             return o;
         }
@@ -202,6 +203,7 @@ namespace FallRush.Shared
             h.OwnDiveCooldown = src[o++];
             h.OwnLand = src[o++];
             h.OwnImmunity = src[o++];
+            h.OwnSurface = src[o++];
             h.Count = src[o++];
 
             if (h.Count > Protocol.MaxPlayers)

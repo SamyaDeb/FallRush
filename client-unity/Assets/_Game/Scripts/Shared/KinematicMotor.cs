@@ -21,6 +21,7 @@ namespace FallRush.Shared
             public bool Landed;
             public bool SteppedUp;
             public bool JumpCancelled;
+            public bool Carried;
         }
 
         public readonly MovementConfig Cfg;
@@ -47,6 +48,14 @@ namespace FallRush.Shared
             var wasGrounded = s.Has(MotorState.Grounded);
 
             Depenetrate(ref pos, world);
+
+            // ---- platform carry: ride the surface we stood on at the end of the last tick ----
+            if (wasGrounded && s.Surface != 0 && world.SurfaceDelta(s.Surface - 1, out var carry) && carry.SqrMagnitude > 0f)
+            {
+                var v0 = vel;
+                SlideMove(ref pos, ref v0, carry, groundedMode: true, allowStep: false, world);
+                Last.Carried = true;
+            }
 
             // ---- input ----
             float wx = cmd.MoveX / 127f, wz = cmd.MoveY / 127f;
@@ -181,6 +190,7 @@ namespace FallRush.Shared
 
             // ---- ground probe + snap ----
             var groundedNow = false;
+            var surface = 0;
             if (!jumped && !dived && vel.Y <= 0f)
             {
                 var probe = (wasGrounded ? c.SnapDistance : 0f) + c.Skin * 2f;
@@ -195,6 +205,7 @@ namespace FallRush.Shared
                     pos.Y -= g.Distance - c.Skin;
                     groundedNow = true;
                     vel.Y = 0f;
+                    surface = g.SurfaceId >= 0 && g.SurfaceId < 255 ? g.SurfaceId + 1 : 0;
                 }
             }
 
@@ -220,6 +231,7 @@ namespace FallRush.Shared
                 s.JumpBufferTicks--;
 
             s.Set(MotorState.Grounded, groundedNow);
+            s.Surface = (byte)surface;
             s.Position = pos;
             s.Velocity = vel;
         }

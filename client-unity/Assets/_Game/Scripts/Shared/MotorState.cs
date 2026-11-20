@@ -29,6 +29,7 @@ namespace FallRush.Shared
         public byte DiveCooldownTicks;
         public byte LandTicks;              // dive-landing stun remaining
         public byte ImmunityTicks;          // post-hit immunity (M2b hazards)
+        public byte Surface;                // moving surface stood on at the end of the last step: 0 = static/none, else SurfaceId + 1
 
         public bool Has(byte flag) => (Flags & flag) != 0;
 
@@ -86,13 +87,13 @@ namespace FallRush.Shared
             VelX == o.VelX && VelY == o.VelY && VelZ == o.VelZ &&
             Yaw == o.Yaw && Flags == o.Flags && StunTicks == o.StunTicks &&
             CoyoteTicks == o.CoyoteTicks && JumpBufferTicks == o.JumpBufferTicks &&
-            DiveCooldownTicks == o.DiveCooldownTicks && LandTicks == o.LandTicks && ImmunityTicks == o.ImmunityTicks;
+            DiveCooldownTicks == o.DiveCooldownTicks && LandTicks == o.LandTicks && ImmunityTicks == o.ImmunityTicks && Surface == o.Surface;
 
         public override bool Equals(object obj) => obj is MotorState s && Equals(s);
 
         public override int GetHashCode() => PosX ^ (PosY << 7) ^ (PosZ << 13) ^ (VelX << 3) ^ (VelY << 11) ^ (VelZ << 17) ^ (Flags << 24);
 
         public override string ToString() =>
-            $"pos=({PosX},{PosY},{PosZ})mm vel=({VelX},{VelY},{VelZ})cm/s yaw={Yaw} flags=0x{Flags:X2} stun={StunTicks} coyote={CoyoteTicks} buf={JumpBufferTicks} diveCd={DiveCooldownTicks} land={LandTicks}";
+            $"pos=({PosX},{PosY},{PosZ})mm vel=({VelX},{VelY},{VelZ})cm/s yaw={Yaw} flags=0x{Flags:X2} stun={StunTicks} coyote={CoyoteTicks} buf={JumpBufferTicks} diveCd={DiveCooldownTicks} land={LandTicks} imm={ImmunityTicks} surf={Surface}";
     }
 }

@@ -14,29 +14,28 @@ namespace FallRush.Net
 
     /// <summary>
     /// Client side of the M2 movement protocol. Lives on the NetworkManager object on clients.
-    /// <para>M2a: samples input at the 30 Hz tick chosen by <see cref="TickSync"/>, sends <c>in</c> (newest 3 commands),
-    /// receives <c>snap</c> into a small ring, and serves interpolated states for every player — including the local one,
-    /// so in M2a local control feels the full round trip (prediction is M2b).</para>
+    /// <list type="bullet">
+    /// <item>Samples input at the 30 Hz tick chosen by <see cref="TickSync"/>, sends <c>in</c> (newest 3 commands) and
+    /// predicts the local player at once (<see cref="ClientPrediction"/>, M2b).</item>
+    /// <item>Receives <c>snap</c>: our own entry reconciles the prediction; every entry goes to the remote-player
+    /// <see cref="Interpolation"/>.</item>
+    /// <item>The prediction world is the loaded map's PhysX scene with its hazards (<see cref="MapInfo.CreateWorld"/>).</item>
+    /// </list>
     /// </summary>
+    [DefaultExecutionOrder(-50)]
     public sealed class ClientSim : MonoBehaviour
     {
-        public const int SnapRing = 32;
-        public const float InterpDelaySeconds = 0.1f;
         private const NetworkDelivery InputDelivery = NetworkDelivery.Unreliable;
 
         public static ClientSim Instance { get; private set; }
 
-        public struct Snap
-        {
-            public uint Tick;
-            public double ReceivedAt;
-            public SnapHeader Header;
-            public int Count;
-            public PlayerState[] Players;
-        }
-
         public readonly TickSync Clock = new TickSync(MovementConfig.Default.TickRate);
+        public readonly Interpolation Remote = new Interpolation(1.0 / MovementConfig.Default.TickRate);
         public IInputSource InputSource;
+
+        /// <summary>Local prediction; null until the map is loaded.</summary>
+        public ClientPrediction Prediction { get; private set; }
+        public HazardSet Hazards => Prediction?.Hazards;
 
         /// <summary>True while the map is loaded and we should be sending input.</summary>
         public bool Active { get; set; }
@@ -44,17 +43,14 @@ namespace FallRush.Net
         public int OwnSlot { get; private set; } = SnapHeader.NoSlot;
         public uint LastAckSeq { get; private set; }
         public uint Seq { get; private set; }
+        public SnapHeader LastHeader { get; private set; }
 
         // ---- stats (HUD) ----
         public long BytesIn, BytesOut, SnapsIn, InputsOut, BadSnaps, OldSnaps;
         public float BytesInPerSec { get; private set; }
         public float BytesOutPerSec { get; private set; }
         public float SnapsPerSec { get; private set; }
-        public float RenderDelayMs { get; private set; }
 
-        private readonly Snap[] _ring = new Snap[SnapRing];
-        private int _newest = -1;
-        private int _stored;
         private readonly PlayerState[] _scratch = new PlayerState[Protocol.MaxPlayers];
         private readonly byte[] _snapBuf = new byte[NetMessages.SnapMaxBytes + 8];
         private readonly byte[] _inBuf = new byte[NetMessages.InputMaxBytes];
@@ -64,14 +60,12 @@ namespace FallRush.Net
         private double _lastNow;
         private double _statsAt;
         private long _statBytesIn, _statBytesOut, _statSnaps;
-        private double _offsetEma; // (server tick time − local time), smoothed
-        private bool _offsetInit;
+        private MapInfo _predictionMap;
+        private PhysxMotorWorld _world;
 
         private void Awake()
         {
             Instance = this;
-            for (var i = 0; i < SnapRing; i++)
-                _ring[i].Players = new PlayerState[Protocol.MaxPlayers];
             _nm = GetComponent<NetworkManager>();
             _nm.OnClientStarted += OnClientStarted;
         }
@@ -95,16 +89,18 @@ namespace FallRush.Net
         public void ResetSession()
         {
             Clock.Reset();
+            Remote.Reset();
+            Prediction?.Reset();
             OwnSlot = SnapHeader.NoSlot;
             LastAckSeq = 0;
             Seq = 0;
             _recentCount = 0;
-            _newest = -1;
-            _stored = 0;
-            _offsetInit = false;
         }
 
-        private static double Now => Time.realtimeSinceStartupAsDouble;
+        public static double Now => Time.realtimeSinceStartupAsDouble;
+
+        /// <summary>Fraction (0..1) of the current client tick elapsed — render interpolation of the predicted player.</summary>
+        public float TickFraction => (float)Clock.Fraction;
 
         private void OnSnap(ulong sender, FastBufferReader reader)
         {
@@ -125,41 +121,48 @@ namespace FallRush.Net
                 return;
             }
 
-            if (_newest >= 0 && h.ServerTick <= _ring[_newest].Tick)
+            var now = Now;
+            if (!Remote.Add(h.ServerTick, new ReadOnlySpan<PlayerState>(_scratch, 0, h.Count), now))
             {
                 OldSnaps++;
                 return;
             }
 
-            var now = Now;
-            var next = (_newest + 1) % SnapRing;
-            ref var slot = ref _ring[next];
-            Array.Copy(_scratch, slot.Players, h.Count);
-            slot.Tick = h.ServerTick;
-            slot.ReceivedAt = now;
-            slot.Header = h;
-            slot.Count = h.Count;
-            _newest = next;
-            if (_stored < SnapRing)
-                _stored++;
             SnapsIn++;
             OwnSlot = h.OwnSlot;
             LastAckSeq = h.AckSeq;
+            LastHeader = h;
 
             var rtt = PingService.Instance != null ? PingService.Instance.P50Ms : float.NaN;
             Clock.OnSnapshot(h.ServerTick, h.InputLead, rtt, now);
 
-            var offset = h.ServerTick * Clock.Dt - now;
-            if (!_offsetInit)
+            if (Prediction != null && Active && h.OwnSlot != SnapHeader.NoSlot)
             {
-                _offsetEma = offset;
-                _offsetInit = true;
+                for (var i = 0; i < h.Count; i++)
+                {
+                    if (_scratch[i].Slot != h.OwnSlot)
+                        continue;
+                    Prediction.Reconcile(h.ServerTick, in _scratch[i], in h, now);
+                    break;
+                }
             }
-            else
-            {
-                // Follow later (= fresher) arrivals quickly, earlier ones slowly.
-                _offsetEma += (offset - _offsetEma) * (offset > _offsetEma ? 0.2 : 0.02);
-            }
+        }
+
+        private void EnsurePrediction()
+        {
+            var map = MapInfo.Current;
+            if (map == _predictionMap)
+                return;
+            _predictionMap = map;
+            Prediction = null;
+            _world = null;
+            if (map == null)
+                return;
+            Physics.simulationMode = SimulationMode.Script; // queries only; nothing is simulated on clients either
+            var cfg = MovementConfig.Default;
+            _world = map.CreateWorld(transform, cfg, out var hazards);
+            Prediction = new ClientPrediction(cfg, _world, hazards);
+            Debug.Log($"[net] prediction ready map={map.gameObject.scene.name} hazards={hazards.Sweepers.Length}+{hazards.Platforms.Length}");
         }
 
         private void Update()
@@ -167,6 +170,7 @@ namespace FallRush.Net
             var now = Now;
             var dt = _lastNow > 0 ? now - _lastNow : 0;
             _lastNow = now;
+            EnsurePrediction();
 
             if (_nm != null && _nm.IsConnectedClient && !_nm.IsServer)
             {
@@ -181,6 +185,9 @@ namespace FallRush.Net
                         Clock.NextTick();
                 }
             }
+
+            Remote.BeginFrame(now, (float)dt);
+            Prediction?.UpdateSmoothing((float)dt);
 
             if (now - _statsAt >= 1.0)
             {
@@ -214,89 +221,52 @@ namespace FallRush.Net
             BytesOut += len;
             InputsOut++;
             LastSentCmd = cmd;
+
+            Prediction?.Predict(in cmd);
         }
 
         public InputCmd LastSentCmd { get; private set; }
 
-        public bool HasSnapshots => _newest >= 0;
-        public ref readonly Snap Newest => ref _ring[_newest];
+        public bool HasSnapshots => Remote.HasData;
+        public ref readonly Interpolation.Snap Newest => ref Remote.Newest;
 
-        /// <summary>Local time → server tick (fractional) used for rendering, from the smoothed arrival offset.</summary>
-        public double RenderTick(double now, float delaySeconds) => (now + _offsetEma - delaySeconds) / Clock.Dt;
+        public double LatestSnapshotAge => Remote.HasData ? Now - Remote.Newest.ReceivedAt : double.NaN;
 
-        public double LatestSnapshotAge => _newest >= 0 ? Now - _ring[_newest].ReceivedAt : double.NaN;
+        /// <summary>Interpolation delay currently applied to remote players (ms).</summary>
+        public float RenderDelayMs => Remote.Delay * 1000f;
 
         /// <summary>
-        /// Interpolated state of <paramref name="slotId"/> at render time (no extrapolation: clamps to the newest snapshot).
+        /// Render state of <paramref name="slotId"/>: the local player from prediction (when ready), everyone else
+        /// interpolated (doc 04 §4.4).
         /// </summary>
-        public bool TrySample(int slotId, out Vector3 feet, out Vector3 vel, out byte flags, out byte yaw)
+        public bool TrySample(int slotId, out Vector3 feet, out Vector3 vel, out byte flags, out byte yaw, out byte stun)
         {
             feet = vel = Vector3.zero;
-            flags = yaw = 0;
-            if (_newest < 0)
-                return false;
-            var now = Now;
-            var rt = RenderTick(now, InterpDelaySeconds);
-            RenderDelayMs = (float)((_ring[_newest].Tick - rt) * Clock.Dt * 1000.0);
-
-            // Find a (older) and b (newer) with a.Tick ≤ rt ≤ b.Tick.
-            var bIdx = _newest;
-            var aIdx = -1;
-            for (var k = 1; k < _stored; k++)
+            flags = yaw = stun = 0;
+            if (slotId == OwnSlot && Prediction != null && Prediction.HasState && Active)
             {
-                var i = (_newest - k + SnapRing) % SnapRing;
-                if (_ring[i].Tick <= rt)
-                {
-                    aIdx = i;
-                    break;
-                }
-
-                bIdx = i;
-            }
-
-            if (!Find(in _ring[bIdx], slotId, out var pb))
-                return false;
-            if (aIdx < 0 || rt >= _ring[_newest].Tick || !Find(in _ring[aIdx], slotId, out var pa))
-            {
-                Write(in pb, out feet, out vel);
-                flags = pb.Flags;
-                yaw = pb.Yaw;
+                var p = Prediction.RenderPosition(TickFraction);
+                var s = Prediction.State;
+                feet = new Vector3(p.X, p.Y, p.Z);
+                var v = s.Velocity;
+                vel = new Vector3(v.X, v.Y, v.Z);
+                flags = s.Flags;
+                yaw = s.Yaw;
+                stun = s.StunTicks;
                 return true;
             }
 
-            var span = (double)(_ring[bIdx].Tick - _ring[aIdx].Tick);
-            var t = span > 0 ? (float)((rt - _ring[aIdx].Tick) / span) : 1f;
-            Write(in pa, out var fa, out var va);
-            Write(in pb, out var fb, out var vb);
-            // Big jumps (respawn teleports) snap instead of sliding across the map.
-            feet = (fb - fa).sqrMagnitude > 4f ? fb : Vector3.LerpUnclamped(fa, fb, t);
-            vel = Vector3.LerpUnclamped(va, vb, t);
-            flags = t < 0.5f ? pa.Flags : pb.Flags;
-            yaw = t < 0.5f ? pa.Yaw : pb.Yaw;
+            if (!Remote.Sample(slotId, out var f, out var rv, out var near))
+                return false;
+            feet = new Vector3(f.X, f.Y, f.Z);
+            vel = new Vector3(rv.X, rv.Y, rv.Z);
+            flags = near.Flags;
+            yaw = near.Yaw;
+            stun = near.StunTicks;
             return true;
         }
 
-        public bool IsSlotPresent(int slotId) => _newest >= 0 && Find(in _ring[_newest], slotId, out _);
-
-        private static bool Find(in Snap s, int slotId, out PlayerState p)
-        {
-            for (var i = 0; i < s.Count; i++)
-            {
-                if (s.Players[i].Slot == slotId)
-                {
-                    p = s.Players[i];
-                    return true;
-                }
-            }
-
-            p = default;
-            return false;
-        }
-
-        private static void Write(in PlayerState p, out Vector3 feet, out Vector3 vel)
-        {
-            feet = new Vector3(p.PosX * 0.001f, p.PosY * 0.001f, p.PosZ * 0.001f);
-            vel = new Vector3(p.VelX * 0.01f, p.VelY * 0.01f, p.VelZ * 0.01f);
-        }
+        /// <summary>Hazard render time: the local predicted timeline (fractional tick), so what you touch is where it is drawn.</summary>
+        public double HazardRenderTick => Prediction != null && Prediction.HasState ? Prediction.Tick - 1 + TickFraction : Remote.RenderTick;
     }
 }

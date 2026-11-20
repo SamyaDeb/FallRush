@@ -23,10 +23,13 @@ namespace FallRush.Tests
         private struct Box
         {
             public Vec3 Min, Max;
+            public int Surface; // −1 static, else HazardSet platform index
         }
 
         private readonly List<HalfSpace> _planes = new List<HalfSpace>();
         private readonly List<Box> _boxes = new List<Box>();
+        private HazardSet _hazards;
+        private uint _tick;
 
         /// <summary>Solid ground below y = <paramref name="y"/>.</summary>
         public AnalyticWorld Ground(float y = 0f) => Plane(Vec3.Up, y);
@@ -49,15 +52,59 @@ namespace FallRush.Tests
 
         public AnalyticWorld AddBox(Vec3 min, Vec3 max)
         {
-            _boxes.Add(new Box { Min = min, Max = max });
+            _boxes.Add(new Box { Min = min, Max = max, Surface = -1 });
             return this;
+        }
+
+        /// <summary>Adds every platform of <paramref name="hazards"/> as a moving box posed by <see cref="BeginTick"/>.</summary>
+        public AnalyticWorld AddPlatforms(HazardSet hazards)
+        {
+            _hazards = hazards;
+            for (var i = 0; i < hazards.Platforms.Length; i++)
+                _boxes.Add(new Box { Surface = i });
+            BeginTick(0);
+            return this;
+        }
+
+        public void BeginTick(uint tick)
+        {
+            _tick = tick;
+            if (_hazards == null)
+                return;
+            for (var i = 0; i < _boxes.Count; i++)
+            {
+                var b = _boxes[i];
+                if (b.Surface < 0)
+                    continue;
+                ref readonly var d = ref _hazards.Platforms[b.Surface];
+                var c = HazardMath.PlatformCenter(in d, tick);
+                var half = new Vec3(d.HalfXMm * 0.001f, d.HalfYMm * 0.001f, d.HalfZMm * 0.001f);
+                b.Min = c - half;
+                b.Max = c + half;
+                _boxes[i] = b;
+            }
+        }
+
+        public bool SurfaceDelta(int surfaceId, out Vec3 delta)
+        {
+            if (_hazards == null)
+            {
+                delta = Vec3.Zero;
+                return false;
+            }
+
+            return _hazards.PlatformDelta(surfaceId, _tick, out delta);
         }
 
         // ------------------------------------------------------------------ distance
 
         /// <summary>Signed distance from the capsule (feet, r, h) to the world; closest point on the surface and its normal.</summary>
-        private float CapsuleDistance(Vec3 feet, float r, float h, out Vec3 normal, out Vec3 point)
+        private float CapsuleDistance(Vec3 feet, float r, float h, out Vec3 normal, out Vec3 point) =>
+            CapsuleDistance(feet, r, h, out normal, out point, out _);
+
+        private float CapsuleDistance(Vec3 feet, float r, float h, out Vec3 normal, out Vec3 point, out int surface)
         {
+            surface = -1;
             var y0 = feet.Y + r;
             var y1 = feet.Y + h - r;
             var best = float.MaxValue;
@@ -98,6 +145,7 @@ namespace FallRush.Tests
                     best = d;
                     normal = n;
                     point = cp;
+                    surface = bx.Surface;
                 }
             }
 
@@ -174,13 +222,13 @@ namespace FallRush.Tests
             var t = 0f;
             for (var i = 0; i < MaxIterations; i++)
             {
-                var d = CapsuleDistance(feet + dir * t, radius, height, out var n, out var pt);
+                var d = CapsuleDistance(feet + dir * t, radius, height, out var n, out var pt, out var surf);
                 if (d < HitEps)
                 {
                     // Only a hit if we are moving into the surface (sliding along it is not).
                     if (Vec3.Dot(n, dir) < -1e-5f || d < -HitEps)
                     {
-                        hit = new MotorHit { Distance = Math.Max(0f, t), Normal = n, Point = pt, SurfaceId = -1 };
+                        hit = new MotorHit { Distance = Math.Max(0f, t), Normal = n, Point = pt, SurfaceId = surf };
                         return true;
                     }
 

@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using FallRush.Net;
 using FallRush.Shared;
@@ -9,72 +10,54 @@ using UnityEngine.UI;
 namespace FallRush.Client
 {
     /// <summary>
-    /// M2a client view of <c>Map_Sandbox</c>: placeholder capsules (r 0.31, h 1.0 = the collision capsule) for every
-    /// player in the snapshots, interpolated 100 ms behind the server, the local one included (no prediction yet).
-    /// F3 toggles the netcode HUD. Created at runtime by <see cref="ClientMapBootstrap"/> (no client code in the map scene,
-    /// so the server build has no missing-script references).
+    /// Client view of <c>Map_Sandbox</c> (M2b): Bolt v1 Rushlings for every player (the local one predicted, the rest
+    /// interpolated), the Cinemachine follow camera, hazard visuals on the predicted timeline, the F3 netcode HUD, a
+    /// "lagging" icon, and the options panel (Esc). Created at runtime by <see cref="ClientMapBootstrap"/> (no client code
+    /// in the map scene, so the server build has no missing-script references).
+    /// <para>Photo mode for proof screenshots: <c>-fallrushPhoto silhouette|closeup</c> (doc 17 §2.1 silhouette test).</para>
     /// </summary>
     public sealed class SandboxView : MonoBehaviour
     {
-        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
-
-        // Placeholder per-slot colours (palette-ish; doc 17 §3.1). No gameplay meaning.
-        private static readonly Color[] SlotColors =
-        {
-            UiKit.Hex(0xFF3EA5), UiKit.Hex(0x3FA9F5), UiKit.Hex(0xFFD21F), UiKit.Hex(0x5BE3B5),
-            UiKit.Hex(0x7B2FF7), UiKit.Hex(0xFF8A3D), UiKit.Hex(0x2EC4B6), UiKit.Hex(0xE84855),
-            UiKit.Hex(0x9B5CFF), UiKit.Hex(0x8AC926), UiKit.Hex(0x1982C4), UiKit.Hex(0xF4A261),
-        };
-
-        private Transform[] _bodies;
+        private RushlingVisuals[] _rushlings;
         private TextMesh[] _labels;
+        private bool[] _wasRespawning;
         private Transform _cameraTarget;
-        private OrbitCameraPlaceholder _rig;
+        private FollowCamera _cam;
         private PlayerInputSampler _sampler;
         private GameObject _hud;
         private Text _hudText;
         private GameObject _overlay;
         private Text _overlayText;
+        private GameObject _lagIcon;
+        private GameObject _options;
+        private Text _optionsText;
         private readonly StringBuilder _sb = new StringBuilder(1024);
         private float _hudNext;
         private float _fpsAcc;
         private int _fpsFrames;
         private float _fps;
+        private MapInfo _map;
+        private string _photo;
+        private Vector3 _lastOwnFeet;
+        private bool _hasOwn;
 
         private void Start()
         {
-            var map = MapInfo.Current;
-            var mat = map != null ? map.playerMaterial : null;
-            _bodies = new Transform[Protocol.MaxPlayers];
+            _map = MapInfo.Current;
+            var lit = _map != null ? _map.playerMaterial : null;
+            var unlit = _map != null ? _map.unlitMaterial : null;
+            _rushlings = new RushlingVisuals[Protocol.MaxPlayers];
             _labels = new TextMesh[Protocol.MaxPlayers];
-            var mpb = new MaterialPropertyBlock();
+            _wasRespawning = new bool[Protocol.MaxPlayers];
             for (var i = 0; i < Protocol.MaxPlayers; i++)
             {
-                var root = new GameObject($"Player{i}").transform;
+                var root = new GameObject($"Rushling{i}").transform;
                 root.SetParent(transform, false);
-                var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                Destroy(body.GetComponent<Collider>());
-                body.name = "Capsule";
-                body.transform.SetParent(root, false);
-                body.transform.localPosition = new Vector3(0f, 0.5f, 0f);
-                body.transform.localScale = new Vector3(0.62f, 0.5f, 0.62f); // Unity capsule r 0.5 h 2 → r 0.31 h 1.0
-                var nose = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Destroy(nose.GetComponent<Collider>());
-                nose.transform.SetParent(root, false);
-                nose.transform.localPosition = new Vector3(0f, 0.72f, 0.3f);
-                nose.transform.localScale = new Vector3(0.36f, 0.18f, 0.06f);
-                foreach (var r in root.GetComponentsInChildren<Renderer>())
-                {
-                    if (mat != null)
-                        r.sharedMaterial = mat;
-                    mpb.SetColor(BaseColorId, r.transform == nose.transform ? UiKit.Ink : SlotColors[i]);
-                    r.SetPropertyBlock(mpb);
-                    r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                }
+                var vis = root.gameObject.AddComponent<RushlingVisuals>();
+                vis.Build(i, lit, unlit);
 
                 var label = new GameObject("Label").AddComponent<TextMesh>();
-                label.transform.SetParent(root, false);
-                label.transform.localPosition = new Vector3(0f, 1.45f, 0f);
+                label.transform.SetParent(transform, false);
                 label.font = UiKit.Font;
                 label.GetComponent<MeshRenderer>().sharedMaterial = UiKit.Font.material;
                 label.fontSize = 64;
@@ -85,8 +68,10 @@ namespace FallRush.Client
                 label.alignment = TextAlignment.Center;
                 _labels[i] = label;
 
-                root.gameObject.SetActive(false);
-                _bodies[i] = root;
+                vis.SetVisible(false);
+                label.gameObject.SetActive(false);
+                _wasRespawning[i] = true;
+                _rushlings[i] = vis;
             }
 
             _cameraTarget = new GameObject("CameraTarget").transform;
@@ -98,10 +83,10 @@ namespace FallRush.Client
                 cam.tag = "MainCamera";
             }
 
-            _rig = cam.gameObject.AddComponent<OrbitCameraPlaceholder>();
-            _rig.target = _cameraTarget;
+            _cam = FollowCamera.Create(cam, _cameraTarget, PhysxMotorWorld.GameplayMask());
+            _cam.transform.SetParent(transform, false);
             _sampler = gameObject.AddComponent<PlayerInputSampler>();
-            _sampler.cameraRig = _rig;
+            _sampler.cameraRig = _cam;
 
             BuildHud();
 
@@ -116,6 +101,10 @@ namespace FallRush.Client
             if (NetBootstrap.Instance != null)
                 NetBootstrap.Instance.StateChanged += OnNetState;
             OnNetState();
+
+            _photo = PhotoArg();
+            if (_photo != null)
+                EnterPhotoMode(cam);
         }
 
         private void OnDestroy()
@@ -143,7 +132,6 @@ namespace FallRush.Client
                 _overlayText.text = boot != null ? $"Disconnected\n{boot.LastDisconnectReason}" : "No NetBootstrap";
                 Cursor.lockState = CursorLockMode.None;
             }
-
         }
 
         private void Update()
@@ -154,35 +142,75 @@ namespace FallRush.Client
                 _hud.SetActive(!_hud.activeSelf);
             if (kb != null && kb.escapeKey.wasPressedThisFrame)
                 Cursor.lockState = CursorLockMode.None;
-            if (mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked && !_overlay.activeSelf)
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            var pointerOverUi = _options.activeSelf && es != null && es.IsPointerOverGameObject();
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked && !_overlay.activeSelf && !pointerOverUi)
                 Cursor.lockState = CursorLockMode.Locked; // WebGL: pointer lock needs this user gesture
+            var showOptions = Cursor.lockState != CursorLockMode.Locked && !_overlay.activeSelf && _photo == null;
+            if (_options.activeSelf != showOptions)
+                _options.SetActive(showOptions);
 
             var cs = ClientSim.Instance;
             if (cs == null)
                 return;
+            var dt = Time.deltaTime;
             var own = cs.OwnSlot;
+            var camT = Camera.main != null ? Camera.main.transform : null;
             for (var i = 0; i < Protocol.MaxPlayers; i++)
             {
-                var root = _bodies[i];
-                if (!cs.TrySample(i, out var feet, out _, out var flags, out var yaw))
+                var vis = _rushlings[i];
+                if (!cs.TrySample(i, out var feet, out var vel, out var flags, out var yaw, out var stun) ||
+                    (flags & MotorState.Respawning) != 0)
                 {
-                    if (root.gameObject.activeSelf)
-                        root.gameObject.SetActive(false);
+                    if (!_wasRespawning[i])
+                    {
+                        vis.SetVisible(false);
+                        _labels[i].gameObject.SetActive(false);
+                        _wasRespawning[i] = true;
+                    }
+
                     continue;
                 }
 
-                if (!root.gameObject.activeSelf)
-                    root.gameObject.SetActive(true);
-                root.SetPositionAndRotation(feet, Quaternion.Euler(0f, yaw * (360f / 256f), 0f));
+                if (_wasRespawning[i])
+                {
+                    vis.SetVisible(true);
+                    _labels[i].gameObject.SetActive(_photo == null);
+                    if (_photo == "silhouette")
+                        vis.SetSilhouette(true);
+                    _wasRespawning[i] = false;
+                }
+
+                vis.Drive(feet, vel, flags, yaw, stun, dt);
                 var bot = (flags & MotorState.Bot) != 0;
                 var text = i == own ? "YOU" : bot ? "BOT" : $"P{i + 1}";
-                if (_labels[i].text != text)
-                    _labels[i].text = text;
-                if (Camera.main != null)
-                    _labels[i].transform.rotation = Camera.main.transform.rotation;
+                var label = _labels[i];
+                if (label.text != text)
+                    label.text = text;
+                label.transform.position = feet + Vector3.up * 1.45f;
+                if (camT != null)
+                    label.transform.rotation = camT.rotation;
+
                 if (i == own)
-                    _cameraTarget.position = feet;
+                {
+                    var target = feet + Vector3.up * 0.8f;
+                    if (_hasOwn && (feet - _lastOwnFeet).sqrMagnitude > 16f)
+                        _cam.Warp(target - _cameraTarget.position); // respawn teleport
+                    _cameraTarget.position = target;
+                    _lastOwnFeet = feet;
+                    _hasOwn = true;
+                    if (vis.DiveStartedThisFrame)
+                        _cam.DiveKick();
+                    if (vis.StunStartedThisFrame)
+                        _cam.Shake(0.12f);
+                }
             }
+
+            UpdateHazardVisuals(cs);
+
+            var lagging = cs.Remote.Lagging;
+            if (_lagIcon.activeSelf != lagging)
+                _lagIcon.SetActive(lagging);
 
             _fpsAcc += Time.unscaledDeltaTime;
             _fpsFrames++;
@@ -194,6 +222,46 @@ namespace FallRush.Client
                 _hudNext = Time.unscaledTime + 0.25f;
                 if (_hud.activeSelf)
                     RefreshHud(cs);
+            }
+        }
+
+        private void LateUpdate()
+        {
+            if (_photo != null)
+                PhotoCamera();
+        }
+
+        /// <summary>Client FPS over the last 0.25 s (HUD; logged by the gate script).</summary>
+        public float Fps => _fps;
+
+        /// <summary>Hazards are drawn on the local predicted timeline, the same tick the motor collides with.</summary>
+        private void UpdateHazardVisuals(ClientSim cs)
+        {
+            if (_map == null || cs.Prediction == null)
+                return;
+            var t = cs.HazardRenderTick;
+            if (t < 1)
+                return;
+            for (var i = 0; i < _map.sweepers.Length; i++)
+            {
+                var sw = _map.sweepers[i];
+                if (sw == null || sw.barVisual == null)
+                    continue;
+                var d = cs.Hazards.Sweepers[i];
+                sw.barVisual.rotation = Quaternion.Euler(0f, HazardMath.SweeperYawDegrees(in d, t), 0f);
+            }
+
+            for (var i = 0; i < _map.platforms.Length; i++)
+            {
+                var pl = _map.platforms[i];
+                if (pl == null || pl.visual == null)
+                    continue;
+                var d = cs.Hazards.Platforms[i];
+                var t0 = (uint)Math.Floor(t);
+                var a = HazardMath.PlatformCenter(in d, t0);
+                var b = HazardMath.PlatformCenter(in d, t0 + 1);
+                var f = (float)(t - t0);
+                pl.visual.position = new Vector3(a.X + (b.X - a.X) * f, a.Y + (b.Y - a.Y) * f, a.Z + (b.Z - a.Z) * f);
             }
         }
 
@@ -213,17 +281,31 @@ namespace FallRush.Client
                         bots++;
             }
 
+            var p = cs.Prediction;
+            var r = cs.Remote;
+            var now = ClientSim.Now;
             _sb.Clear();
-            _sb.Append("<b>NET (F3)</b>  M2a: no prediction\n");
+            _sb.Append("<b>NET (F3)</b>  M2b: predicted\n");
             _sb.Append("RTT p50 ").Append(ping != null ? ping.P50Ms.ToString("F0") : "-").Append(" / p95 ").Append(ping != null ? ping.P95Ms.ToString("F0") : "-").Append(" ms\n");
             _sb.Append("server tick ").Append(serverTick).Append("  predicted ").Append(clock.PredictedTick)
                 .Append(" (+").Append((long)clock.PredictedTick - serverTick).Append(")\n");
             _sb.Append("input lead ").Append(clock.LastReportedLead).Append(" / target ").Append(clock.TargetLead)
                 .Append(" ticks (").Append((clock.TargetLead * clock.Dt * 1000.0).ToString("F0")).Append(" ms)  rate ").Append(clock.Rate.ToString("F3"))
                 .Append("  resyncs ").Append(clock.Resyncs).Append('\n');
-            _sb.Append("corrections/5s: n/a (M2b)  replay: n/a\n");
+            if (p != null)
+            {
+                _sb.Append("corrections/5s ").Append(p.CorrectionsSince(now, 5.0)).Append("  total ").Append(p.Corrections)
+                    .Append("  last ").Append((p.LastCorrection * 100f).ToString("F1")).Append(" cm  max ").Append((p.MaxCorrection * 100f).ToString("F1")).Append(" cm\n");
+                _sb.Append("replay last ").Append(p.LastReplay).Append(" max ").Append(p.MaxReplay).Append(" ticks  match ").Append(p.Matches)
+                    .Append("  silent ").Append(p.SilentResyncs).Append("  hazard mismatch ").Append(p.HazardMismatches).Append('\n');
+                _sb.Append("drift mean ").Append((p.Snapshots > 0 ? p.SumDriftMm / p.Snapshots : 0).ToString("F2")).Append(" mm  max ").Append(p.MaxDriftMm.ToString("F1"))
+                    .Append(" mm  smoothing ").Append((p.RenderOffset.Magnitude * 100f).ToString("F1")).Append(" cm\n");
+            }
+
             _sb.Append("snap ").Append(cs.SnapsPerSec.ToString("F1")).Append(" Hz  age ")
-                .Append((cs.LatestSnapshotAge * 1000.0).ToString("F0")).Append(" ms  interp delay ").Append(cs.RenderDelayMs.ToString("F0")).Append(" ms\n");
+                .Append((cs.LatestSnapshotAge * 1000.0).ToString("F0")).Append(" ms  interp ").Append((r.Delay * 1000f).ToString("F0"))
+                .Append(" ms (target ").Append((r.TargetDelay * 1000f).ToString("F0")).Append(", late p95 ").Append(r.LatenessP95Ms.ToString("F0")).Append(")")
+                .Append(r.Lagging ? "  LAGGING" : r.Extrapolating ? "  extrap" : "").Append('\n');
             _sb.Append("payload in ").Append((cs.BytesInPerSec / 1024f).ToString("F2")).Append(" KB/s  out ").Append((cs.BytesOutPerSec / 1024f).ToString("F2")).Append(" KB/s\n");
             _sb.Append("players ").Append(players).Append(" (").Append(bots).Append(" BOT)  my slot ").Append(cs.OwnSlot == SnapHeader.NoSlot ? "-" : cs.OwnSlot.ToString())
                 .Append("  ack ").Append(cs.LastAckSeq).Append("/").Append(cs.Seq).Append('\n');
@@ -241,7 +323,7 @@ namespace FallRush.Client
             rt.SetParent(canvas, false);
             rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 1f);
             rt.anchoredPosition = new Vector2(12f, -12f);
-            rt.sizeDelta = new Vector2(560f, 250f);
+            rt.sizeDelta = new Vector2(640f, 320f);
             _hud.GetComponent<Image>().color = new Color(0.08f, 0.03f, 0.18f, 0.72f);
             var t = new GameObject("Text", typeof(RectTransform), typeof(Text)).GetComponent<Text>();
             var trt = (RectTransform)t.transform;
@@ -257,11 +339,28 @@ namespace FallRush.Client
             t.alignment = TextAnchor.UpperLeft;
             _hudText = t;
 
-            var hint = UiKit.Label(canvas, "Click to capture mouse · WASD move · Space jump · Shift/LMB dive · Esc release · F3 net HUD", 16, UiKit.Ink);
+            // "Lagging" icon (doc 04 §4.4): no snapshot for > 150 ms past the interpolation buffer.
+            _lagIcon = new GameObject("LagIcon", typeof(RectTransform), typeof(Image));
+            var lrt = (RectTransform)_lagIcon.transform;
+            lrt.SetParent(canvas, false);
+            lrt.anchorMin = lrt.anchorMax = lrt.pivot = new Vector2(1f, 1f);
+            lrt.anchoredPosition = new Vector2(-16f, -16f);
+            lrt.sizeDelta = new Vector2(150f, 44f);
+            _lagIcon.GetComponent<Image>().color = UiKit.SunYellow;
+            var lt = UiKit.Label(lrt, "! LAGGING", 22, UiKit.Ink, FontStyle.Bold);
+            var ltr = (RectTransform)lt.transform;
+            ltr.anchorMin = Vector2.zero;
+            ltr.anchorMax = Vector2.one;
+            ltr.offsetMin = ltr.offsetMax = Vector2.zero;
+            _lagIcon.SetActive(false);
+
+            var hint = UiKit.Label(canvas, "Click to capture mouse · WASD move · Space jump · Shift/LMB dive · Esc options · F3 net HUD", 16, UiKit.Ink);
             var hrt = (RectTransform)hint.transform;
             hrt.anchorMin = hrt.anchorMax = hrt.pivot = new Vector2(0.5f, 0f);
             hrt.anchoredPosition = new Vector2(0f, 10f);
             hrt.sizeDelta = new Vector2(1000f, 28f);
+
+            BuildOptions(canvas);
 
             var panel = UiKit.Panel(canvas, new Vector2(620f, 320f), UiKit.CloudWhite);
             _overlay = panel.gameObject;
@@ -273,6 +372,89 @@ namespace FallRush.Client
                 SceneManager.LoadScene(NetBootstrap.MenuScene);
             });
             _overlay.SetActive(false);
+        }
+
+        private void BuildOptions(Transform canvas)
+        {
+            var panel = UiKit.Panel(canvas, new Vector2(460f, 400f), UiKit.CloudWhite);
+            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(1f, 0f);
+            panel.anchoredPosition = new Vector2(-16f, 48f);
+            _options = panel.gameObject;
+            UiKit.Label(panel, "OPTIONS", 24, UiKit.Grape, FontStyle.Bold);
+            _optionsText = UiKit.Label(panel, string.Empty, 18, UiKit.Ink, FontStyle.Normal, 60);
+            UiKit.Button(panel, "Sensitivity −", UiKit.SkyLight, () => Bump(-0.02f));
+            UiKit.Button(panel, "Sensitivity +", UiKit.SkyLight, () => Bump(0.02f));
+            UiKit.Button(panel, "Toggle invert Y", UiKit.SunYellow, () =>
+            {
+                GameSettings.InvertY = !GameSettings.InvertY;
+                GameSettings.Save();
+                RefreshOptions();
+            });
+            UiKit.Button(panel, "Toggle reduced motion", UiKit.Mint, () =>
+            {
+                GameSettings.ReducedMotion = !GameSettings.ReducedMotion;
+                GameSettings.Save();
+                RefreshOptions();
+            });
+            foreach (var le in panel.GetComponentsInChildren<LayoutElement>())
+                if (le.minHeight >= 64)
+                    le.minHeight = 44;
+            RefreshOptions();
+            _options.SetActive(false);
+        }
+
+        private void Bump(float d)
+        {
+            GameSettings.Sensitivity += d;
+            GameSettings.Save();
+            RefreshOptions();
+        }
+
+        private void RefreshOptions()
+        {
+            _optionsText.text = $"Sensitivity {GameSettings.Sensitivity:F2} °/count · Invert Y {(GameSettings.InvertY ? "ON" : "off")}\n" +
+                                $"Reduced motion {(GameSettings.ReducedMotion ? "ON (no shake, no FOV kick)" : "off")}\nClick the game to play";
+        }
+
+        // ------------------------------------------------------------------ photo mode (proof screenshots)
+
+        private static string PhotoArg()
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (var i = 0; i < args.Length - 1; i++)
+                if (string.Equals(args[i], "-fallrushPhoto", StringComparison.OrdinalIgnoreCase))
+                    return args[i + 1].ToLowerInvariant();
+            return null;
+        }
+
+        private void EnterPhotoMode(Camera cam)
+        {
+            var brain = cam.GetComponent<Unity.Cinemachine.CinemachineBrain>();
+            if (brain != null)
+                brain.enabled = false;
+            _hud.SetActive(false);
+            cam.fieldOfView = _photo == "silhouette" ? 12f : 35f;
+            foreach (var c in GetComponentsInChildren<Canvas>(true))
+                c.enabled = false;
+            if (_photo != "silhouette")
+                return;
+            // Pure black figures on white: hide the map.
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = Color.white;
+            foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                if (!r.transform.IsChildOf(transform))
+                    r.enabled = false;
+        }
+
+        private void PhotoCamera()
+        {
+            var cam = Camera.main;
+            if (cam == null || !_hasOwn)
+                return;
+            var c = _lastOwnFeet + Vector3.up * 0.55f;
+            var off = _photo == "silhouette" ? new Vector3(20f, 1.2f, 0f) : new Vector3(1.9f, 1.0f, 2.3f);
+            // Silhouette: side-on from 20 m (the run script moves along Z, so the profile shows arms and key).
+            cam.transform.SetPositionAndRotation(c + off, Quaternion.LookRotation(-off));
         }
     }
 

@@ -17,12 +17,51 @@ namespace FallRush.Net
         private readonly int _mask;
         private readonly CapsuleCollider _probe;
         private readonly Collider[] _overlaps = new Collider[16];
+        private readonly HazardSet _hazards;
+        private readonly Collider[] _platforms;
+        private uint _tick;
+        private bool _posed;
 
-        public PhysxMotorWorld(PhysicsScene scene, int layerMask, CapsuleCollider probe)
+        /// <param name="platforms">Collider of each <see cref="HazardSet.Platforms"/> entry (same order), moved by <see cref="BeginTick"/>.</param>
+        public PhysxMotorWorld(PhysicsScene scene, int layerMask, CapsuleCollider probe, HazardSet hazards = null, Collider[] platforms = null)
         {
             _scene = scene;
             _mask = layerMask;
             _probe = probe;
+            _hazards = hazards ?? HazardSet.Empty;
+            _platforms = platforms ?? System.Array.Empty<Collider>();
+            if (_platforms.Length != _hazards.Platforms.Length)
+                throw new System.ArgumentException($"{_platforms.Length} platform colliders for {_hazards.Platforms.Length} platform defs");
+        }
+
+        public uint PosedTick => _tick;
+
+        /// <summary>Moves the platform colliders to their pose at <paramref name="tick"/> and syncs PhysX (queries only; nothing is simulated).</summary>
+        public void BeginTick(uint tick)
+        {
+            if (_posed && tick == _tick)
+                return;
+            _tick = tick;
+            _posed = true;
+            if (_platforms.Length == 0)
+                return;
+            for (var i = 0; i < _platforms.Length; i++)
+            {
+                var c = HazardMath.PlatformCenter(in _hazards.Platforms[i], tick);
+                _platforms[i].transform.position = V(c);
+            }
+
+            Physics.SyncTransforms();
+        }
+
+        public bool SurfaceDelta(int surfaceId, out Vec3 delta) => _hazards.PlatformDelta(surfaceId, _tick, out delta);
+
+        private int SurfaceOf(Collider c)
+        {
+            for (var i = 0; i < _platforms.Length; i++)
+                if (ReferenceEquals(_platforms[i], c))
+                    return i;
+            return -1;
         }
 
         /// <summary>Creates the hidden capsule used by <see cref="Physics.ComputePenetration"/> (layer Ignore Raycast, outside the query mask).</summary>
@@ -55,7 +94,7 @@ namespace FallRush.Net
             var p2 = new Vector3(f.x, f.y + height - radius, f.z);
             if (_scene.CapsuleCast(p1, p2, radius, V(dir), out var rh, maxDistance, _mask, QueryTriggerInteraction.Ignore))
             {
-                hit = new MotorHit { Distance = rh.distance, Point = V(rh.point), Normal = V(rh.normal), SurfaceId = -1 };
+                hit = new MotorHit { Distance = rh.distance, Point = V(rh.point), Normal = V(rh.normal), SurfaceId = SurfaceOf(rh.collider) };
                 return true;
             }
 
@@ -67,7 +106,7 @@ namespace FallRush.Net
         {
             if (_scene.Raycast(V(origin), V(dir), out var rh, maxDistance, _mask, QueryTriggerInteraction.Ignore))
             {
-                hit = new MotorHit { Distance = rh.distance, Point = V(rh.point), Normal = V(rh.normal), SurfaceId = -1 };
+                hit = new MotorHit { Distance = rh.distance, Point = V(rh.point), Normal = V(rh.normal), SurfaceId = SurfaceOf(rh.collider) };
                 return true;
             }
 

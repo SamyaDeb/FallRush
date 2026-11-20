@@ -31,6 +31,7 @@ namespace FallRush.Shared
         private readonly KinematicMotor _motor;
         private readonly IMotorWorld _world;
         private readonly Vec3[] _spawns;
+        private readonly HazardSet _hazards;
         private float _botAreaCx, _botAreaCz, _botAreaHx = 10f, _botAreaHz = 10f;
 
         /// <summary>Last simulated tick (0 before the first step). Commands for <c>Tick + 1</c> are due next.</summary>
@@ -41,11 +42,15 @@ namespace FallRush.Shared
         public int HumanCount { get; private set; }
         public int BotCount { get; private set; }
         public long PushEvents { get; private set; }
+        public long HazardHits { get; private set; }
 
-        public SimCore(MovementConfig cfg, IMotorWorld world, Vec3[] spawns)
+        public HazardSet Hazards => _hazards;
+
+        public SimCore(MovementConfig cfg, IMotorWorld world, Vec3[] spawns, HazardSet hazards = null)
         {
             Cfg = cfg;
             _world = world;
+            _hazards = hazards ?? HazardSet.Empty;
             _motor = new KinematicMotor(cfg);
             if (spawns == null || spawns.Length < MaxSlots)
                 throw new ArgumentException($"need {MaxSlots} spawn points", nameof(spawns));
@@ -146,7 +151,7 @@ namespace FallRush.Shared
         {
             Tick++;
             var dt = Cfg.Dt;
-            var killY = Cfg.KillY;
+            _world.BeginTick(Tick);
 
             for (var i = 0; i < MaxSlots; i++)
             {
@@ -167,12 +172,11 @@ namespace FallRush.Shared
                     continue;
                 }
 
-                _motor.Step(ref p.State, in cmd, dt, _world);
-
-                if (p.State.PosY * 0.001f < killY)
+                var r = PlayerStep.Run(_motor, ref p.State, in cmd, Tick, _world, _hazards);
+                if ((r & PlayerStep.Result.HazardHit) != 0)
+                    HazardHits++;
+                if ((r & PlayerStep.Result.FellOut) != 0)
                 {
-                    p.State.Velocity = Vec3.Zero;
-                    p.State.Flags = MotorState.Respawning;
                     p.RespawnTicks = Cfg.RespawnTicks;
                     p.Respawns++;
                 }
@@ -271,6 +275,7 @@ namespace FallRush.Shared
             h.OwnDiveCooldown = s.DiveCooldownTicks;
             h.OwnLand = s.LandTicks;
             h.OwnImmunity = s.ImmunityTicks;
+            h.OwnSurface = s.Surface;
             var input = _inputs[slot];
             if (input != null)
             {

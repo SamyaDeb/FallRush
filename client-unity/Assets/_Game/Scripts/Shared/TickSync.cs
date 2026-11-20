@@ -54,6 +54,9 @@ namespace FallRush.Shared
 
         public double Dt => _dt;
 
+        /// <summary>Elapsed fraction (0..1) of the current tick: how far real time is past the last sampled tick.</summary>
+        public double Fraction => Initialized ? Math.Max(0.0, Math.Min(1.0, _acc / _dt)) : 0.0;
+
         /// <summary>Estimated current server tick (fractional), from the newest snapshot plus elapsed time.</summary>
         public double ServerTickEstimate(double now) => LastServerTick + (now - LastServerTickAt) / _dt;
 

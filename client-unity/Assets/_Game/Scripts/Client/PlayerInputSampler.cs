@@ -12,7 +12,7 @@ namespace FallRush.Client
     /// </summary>
     public sealed class PlayerInputSampler : MonoBehaviour, IInputSource
     {
-        public OrbitCameraPlaceholder cameraRig;
+        public FollowCamera cameraRig;
 
         private bool _jumpEdge;
         private bool _diveEdge;

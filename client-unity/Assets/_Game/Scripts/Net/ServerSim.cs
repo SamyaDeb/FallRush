@@ -66,9 +66,8 @@ namespace FallRush.Net
             Physics.simulationMode = SimulationMode.Script;
             Physics.SyncTransforms();
             var cfg = MovementConfig.Default;
-            var probe = PhysxMotorWorld.CreateProbe(transform, cfg.Radius, cfg.Height);
-            var world = new PhysxMotorWorld(map.gameObject.scene.GetPhysicsScene(), PhysxMotorWorld.GameplayMask(), probe);
-            Core = new SimCore(cfg, world, map.SpawnPoints());
+            var world = map.CreateWorld(transform, cfg, out var hazards);
+            Core = new SimCore(cfg, world, map.SpawnPoints(), hazards);
             Core.SetBotArea(map.botAreaCenter.x, map.botAreaCenter.z, map.botAreaHalfExtents.x, map.botAreaHalfExtents.y);
 
             var snapHz = ArgInt("-fallrushSnapHz", "GAMESERVER_SNAP_HZ", 15);
@@ -83,7 +82,7 @@ namespace FallRush.Net
             foreach (var id in nm.ConnectedClientsIds)
                 OnClientConnected(id); // anyone who connected while the map was loading
 
-            Debug.Log($"[gs] sim ready map={map.gameObject.scene.name} movement={MovementConfigData.File} sha256={MovementConfigData.Sha256Hex.Substring(0, 16)}… snapHz={30 / SnapshotEveryTicks} bots={Core.BotCount} (TEST bots, target {BotTarget})");
+            Debug.Log($"[gs] sim ready map={map.gameObject.scene.name} movement={MovementConfigData.File} sha256={MovementConfigData.Sha256Hex.Substring(0, 16)}… snapHz={30 / SnapshotEveryTicks} hazards={hazards.Sweepers.Length} sweeper(s) + {hazards.Platforms.Length} platform(s) bots={Core.BotCount} (TEST bots, target {BotTarget})");
         }
 
         private void OnDestroy()

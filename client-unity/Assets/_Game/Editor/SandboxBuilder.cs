@@ -18,6 +18,9 @@ using UnityEngine.SceneManagement;
 /// <item>Ledge course at 1 m with gaps 1.0 / 1.4 / 1.8 m at x = 23.</item>
 /// <item>Jump-height walls 1.5 m (clearable) and 1.7 m (not) at x = 32.</item>
 /// <item>Fall-off edge at x = +40 (fall → respawn after 1 s) and a 0.3 m-wide, 12 m narrow beam out to an island.</item>
+/// <item>M2b hazard course along z = −28 (west of the spawn): a rotating sweeper bar (pivot x = −30, z = −31, arm 4.5 m,
+/// bar 0.3–0.6 m high, 5 s per turn) and a moving platform over the void past the −X edge (x = −46 ± 3.5 m, 6 s period)
+/// shuttling to an island at x = −56. Hazard poses are <c>HazardMath</c> functions of the tick.</item>
 /// </list>
 /// Menu: Fall Rush/Setup/Build Map_Sandbox · batch: <c>-executeMethod SandboxBuilder.Run</c>.
 /// </summary>
@@ -27,7 +30,7 @@ public static class SandboxBuilder
     public const string MaterialsDir = ProjectSetup.Root + "/Materials/Sandbox";
     public const int GameplayLayer = 8;
 
-    private static Material _walk, _feature, _block, _mint, _beam, _player, _label;
+    private static Material _walk, _feature, _block, _mint, _beam, _player, _label, _hazardY, _hazardM, _unlit, _platform;
     private static Font _font;
     private static int _layer;
 
@@ -116,11 +119,20 @@ public static class SandboxBuilder
         Box(geo, "Island", new Vector3(56f, -0.5f, 20f), new Vector3(8f, 1f, 8f), _walk);
         Label(geo, "BEAM 0.3 m · FALL-OFF EDGE → respawn", new Vector3(42f, 2f, 20f));
 
+        var hz = new GameObject("Hazards").transform;
+        var sweeper = BuildSweeper(hz, geo);
+        var platform = BuildPlatform(hz, geo);
+        Label(geo, "SWEEPER (jump the bar)", new Vector3(-30f, 2.6f, -36f));
+        Label(geo, "MOVING PLATFORM → ISLAND", new Vector3(-42f, 2.4f, -24f));
+
         var info = new GameObject("MapInfo").AddComponent<MapInfo>();
         info.spawns = spawns;
         info.botAreaCenter = new Vector3(0f, 0f, -30f);
         info.botAreaHalfExtents = new Vector2(14f, 8f);
         info.playerMaterial = _player;
+        info.unlitMaterial = _unlit;
+        info.sweepers = new[] { sweeper };
+        info.platforms = new[] { platform };
 
         if (!EditorSceneManager.SaveScene(scene, ScenePath))
             throw new IOException($"Failed to save {ScenePath}");
@@ -135,6 +147,95 @@ public static class SandboxBuilder
         AssetDatabase.SaveAssets();
         Debug.Log($"[setup] built {ScenePath} (layer {PhysxMotorWorld.GameplayLayerName}={_layer})");
     }
+
+    // ------------------------------------------------------------------ M2b hazards
+
+    public static readonly Vector3 SweeperPivot = new Vector3(-30f, 0f, -31f);
+    public static readonly Vector3 PlatformCenter = new Vector3(-46f, -0.25f, -28f);
+
+    private static HazardSweeper BuildSweeper(Transform hz, Transform geo)
+    {
+        var root = new GameObject("Sweeper").transform;
+        root.SetParent(hz, false);
+        root.position = SweeperPivot;
+        var sw = root.gameObject.AddComponent<HazardSweeper>();
+        sw.seed = 1;
+        sw.def = new SweeperDef
+        {
+            PivotXMm = Mm(SweeperPivot.x), PivotYMm = Mm(SweeperPivot.y), PivotZMm = Mm(SweeperPivot.z),
+            ArmMm = 4500, BarRadiusMm = 150, BarHeightMm = 450, PeriodTicks = 150,
+            KnockbackCms = 900, KnockUpCms = 500, StunTicks = 15, ImmunityTicks = 30,
+        };
+
+        // The post is static geometry (the motor collides with it); the bar is analytic (no collider).
+        Box(geo, "SweeperPost", SweeperPivot + new Vector3(0f, 0.6f, 0f), new Vector3(0.6f, 1.2f, 0.6f), _hazardM);
+
+        var bar = new GameObject("BarVisual").transform;
+        bar.SetParent(root, false);
+        bar.localPosition = new Vector3(0f, 0.45f, 0f);
+        // Hazard stripes: alternating yellow / magenta segments along the 9 m bar (its +arm is local +Z).
+        const int segments = 12;
+        const float length = 9f;
+        for (var i = 0; i < segments; i++)
+        {
+            var z = -length * 0.5f + (i + 0.5f) * (length / segments);
+            var seg = Box(bar, $"Seg_{i:00}", Vector3.zero, new Vector3(0.3f, 0.3f, length / segments), i % 2 == 0 ? _hazardY : _hazardM);
+            Object.DestroyImmediate(seg.GetComponent<BoxCollider>());
+            seg.layer = 0;
+            seg.isStatic = false;
+            seg.transform.localPosition = new Vector3(0f, 0f, z);
+        }
+
+        sw.barVisual = bar;
+        return sw;
+    }
+
+    private static HazardPlatform BuildPlatform(Transform hz, Transform geo)
+    {
+        var size = new Vector3(3f, 0.5f, 3f);
+        var root = new GameObject("MovingPlatform").transform;
+        root.SetParent(hz, false);
+        var pl = root.gameObject.AddComponent<HazardPlatform>();
+        pl.seed = 2;
+        pl.def = new PlatformDef
+        {
+            CenterXMm = Mm(PlatformCenter.x), CenterYMm = Mm(PlatformCenter.y), CenterZMm = Mm(PlatformCenter.z),
+            HalfXMm = Mm(size.x * 0.5f), HalfYMm = Mm(size.y * 0.5f), HalfZMm = Mm(size.z * 0.5f),
+            TravelXMm = 3500, PeriodTicks = 180,
+        };
+
+        // Motor collider: Gameplay layer, kinematic body, moved per simulated tick by PhysxMotorWorld.BeginTick.
+        var col = new GameObject("MotorCollider");
+        col.layer = _layer;
+        col.transform.SetParent(root, false);
+        col.transform.position = PlatformCenter;
+        var bc = col.AddComponent<BoxCollider>();
+        bc.size = size;
+        var rb = col.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity = false;
+
+        // Visual: no collider, posed by the client at render time.
+        var vis = Box(root, "Visual", PlatformCenter, size, _platform);
+        Object.DestroyImmediate(vis.GetComponent<BoxCollider>());
+        vis.layer = 0;
+        vis.isStatic = false;
+        var rim = Box(vis.transform, "MintRim", Vector3.zero, Vector3.one, _mint);
+        Object.DestroyImmediate(rim.GetComponent<BoxCollider>());
+        rim.layer = 0;
+        rim.isStatic = false;
+        rim.transform.localPosition = new Vector3(0f, 0.505f, 0f);
+        rim.transform.localScale = new Vector3(0.9f, 0.01f, 0.9f);
+
+        pl.motorCollider = bc;
+        pl.visual = vis.transform;
+
+        // Island the platform shuttles to.
+        Box(geo, "PlatformIsland", new Vector3(-56f, -0.5f, -28f), new Vector3(8f, 1f, 8f), _walk);
+        return pl;
+    }
+
+    private static int Mm(float m) => Mathf.RoundToInt(m * 1000f);
 
     private static void EnsureGameplayLayer()
     {
@@ -166,6 +267,11 @@ public static class SandboxBuilder
         _mint = Mat("SpawnMint", UiColor(0x5BE3B5));
         _beam = Mat("Beam", new Color(0.82f, 0.78f, 0.97f));
         _player = Mat("PlayerPlaceholder", Color.white);
+        // doc 17 §3.1: everything that hurts is yellow/magenta striped; the platform is walkable (light).
+        _hazardY = Mat("HazardYellow", UiColor(0xFFD21F));
+        _hazardM = Mat("HazardMagenta", UiColor(0xFF3EA5));
+        _platform = Mat("Platform", new Color(0.86f, 0.95f, 0.93f));
+        _unlit = UnlitMat("CharacterUnlit", Color.white);
     }
 
     private static Color UiColor(int rgb) => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
@@ -185,6 +291,24 @@ public static class SandboxBuilder
 
         m.SetColor("_BaseColor", color);
         m.SetFloat("_Smoothness", 0.15f);
+        EditorUtility.SetDirty(m);
+        return m;
+    }
+
+    private static Material UnlitMat(string name, Color color)
+    {
+        var path = $"{MaterialsDir}/{name}.mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m == null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null)
+                throw new System.InvalidOperationException("URP Unlit shader not found");
+            m = new Material(shader);
+            AssetDatabase.CreateAsset(m, path);
+        }
+
+        m.SetColor("_BaseColor", color);
         EditorUtility.SetDirty(m);
         return m;
     }
