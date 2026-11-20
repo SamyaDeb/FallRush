@@ -208,3 +208,15 @@ Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part B · screensh
 | docker | 29.2 | |
 | Unity | 6000.3.28f1 (`8f082d2fe476`) | + WebGL, Linux Mono, Linux Server modules; `unity` CLI 1.0.0 at `~/.unity/bin/unity` |
 | nginx (local edge) | 1.24.0 (Docker) | matches the VPS line |
+
+## Milestone M3 (obstacle kit + race round) — 🟡 in progress (2026-11-19, stopped at the usage limit)
+**Done and measured (details: `docs/proof/m3-map-qa.md`, git log):**
+- M3a: 8 hazard types (integer-first maths, Q30 sine table), effects in `PlayerStep.Run`, telegraphs, allowlists; point-aware carry (turn table 2 mm grid → 0.00 mm after one turn), conveyor, spring, doors; round-relative time; `RoundParams` (dev seed); `modifiers_v1.json` (sha256 `09eef853…`) + hash test; `MapDefinition` + map content hash + client refusal; kit row in `Map_Sandbox`; protocol v3 (`snap` 294 B for 12; `round` 59 B, `evt` 14 B, `rstate` 16 + 5/finisher).
+- Self-test hazard_vectors_v1 digest `fc06826c…`: **PASS EditMode, Mac arm64 player, WebGL (headless Chrome)**. Linux: not run yet (VPS step pending).
+- M3b: `RaceRules`, waypoint bot, `Map_BlockPartyDash`, server race loop, race HUD/results/spectate, map QA runner. **EditMode 207/207.**
+- Map QA (100 runs × A/B × 5 modifiers): 0 soft-locks, every route reaches its next checkpoint, 0 ticks with all doors closed, N qualified 1000/1000, deterministic. **Duration target NOT MET:** median 31–34 s (reference bots, no noise) vs 75–95 s target.
+- Gate, corrections per 5 s while racing (non-push / push): localhost 0.00–0.08 / 0.21–1.04 with push prediction (2.73 → 0.73 mean total vs off); 150 ms + jitter + 2 % loss 0.23–0.38 / 0.86–1.32 (**crowd pushes miss the < 1 bar**). Hazard mismatches 0 everywhere. Server sim step p95 0.28–0.32 ms (Mac, 12 occupants).
+- WebGL M3a release: 960 s build, 16.17 MB (M2 16.03).
+- Motor change: air control no longer brakes above run speed (spring hops).
+
+**Left:** VPS run + Linux self-test (Hostinger snapshot blocked: CLI OAuth token expired, run `hostinger auth login`); image `fallrush-gameserver:m3` built locally; final WebGL release build + FPS in the heaviest section; screenshots; docs 01/04/08/11/15 + README + `docs/proof/M3-race.md`.

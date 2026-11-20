@@ -246,6 +246,12 @@ namespace FallRush.Shared
                 if (s.Has(MotorState.Respawning))
                     continue;
                 TryCheckpoint(i, ref r, in s, tick);
+                if (r.Finished)
+                {
+                    // Frozen at the finish: no velocity (it is no longer simulated).
+                    ref var fs = ref sim.Slots[i].State;
+                    fs.VelX = fs.VelY = fs.VelZ = 0;
+                }
             }
 
             if (endPending)

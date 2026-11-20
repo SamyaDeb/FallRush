@@ -17,6 +17,7 @@ namespace FallRush.Net
         public bool AutoLog = true;
 
         private long _lastHazCorr;
+        private ClientPrediction _pred;
         private long _lastCorr, _lastPushCorr, _lastSnapsRec, _lastMatches, _lastSilent, _lastHazMis, _lastRespawns, _lastReplayTicks, _lastReplayCount;
         private double _lastSumCorr;
         private long _lastFrames, _lastExtrap, _lastFrozen;
@@ -50,6 +51,13 @@ namespace FallRush.Net
             var r = cs.Remote;
             if (p == null)
                 return;
+            if (!ReferenceEquals(p, _pred))
+            {
+                // A new round rebuilt the prediction: its counters start from zero.
+                _pred = p;
+                _lastCorr = _lastPushCorr = _lastSnapsRec = _lastMatches = _lastSilent = _lastHazMis = _lastRespawns = _lastReplayTicks = _lastReplayCount = _lastHazCorr = 0;
+                _lastSumCorr = 0;
+            }
             var corr = p.Corrections - _lastCorr;
             var pushCorr = p.PushCorrections - _lastPushCorr;
             var snaps = p.Snapshots - _lastSnapsRec;

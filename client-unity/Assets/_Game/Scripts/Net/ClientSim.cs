@@ -105,6 +105,46 @@ namespace FallRush.Net
         private readonly byte[] _msgBuf = new byte[512];
         private RoundParams _predictionRound;
 
+        /// <summary>R14 experiment: <c>-fallrushPredictPush</c> / <c>?pushpred=1</c> (or 0 to force off).</summary>
+        public static bool PredictPushesEnabled
+        {
+            get
+            {
+                var q = NetTargets.GetQueryParam(Application.absoluteURL, "pushpred");
+                if (q == "1") return true;
+                if (q == "0") return false;
+                foreach (var a in Environment.GetCommandLineArgs())
+                    if (string.Equals(a, "-fallrushPredictPush", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                return DefaultPredictPushes;
+            }
+        }
+
+        /// <summary>Default for the push prediction (set from the M3 measurement).</summary>
+        public const bool DefaultPredictPushes = true; // M3 measurement: localhost crowd race, corrections + pushes per 5 s 2.73 → 0.73 (proof M3 §G)
+
+        /// <summary>Remote feet at <paramref name="tick"/>: the newest snapshot extrapolated with its velocity (≤ 12 ticks).</summary>
+        private int RemoteFeetAt(uint tick, Vec3[] buf)
+        {
+            if (!Remote.HasData)
+                return 0;
+            ref readonly var n = ref Remote.Newest;
+            var ahead = (int)(tick - n.Tick);
+            if (ahead < 0) ahead = 0;
+            if (ahead > 12) ahead = 12;
+            var t = ahead / 30f;
+            var c = 0;
+            for (var i = 0; i < n.Count; i++)
+            {
+                ref readonly var p = ref n.Players[i];
+                if (p.Slot == OwnSlot || (p.Flags & MotorState.Respawning) != 0 || (p.Race & PlayerState.RaceFinished) != 0)
+                    continue;
+                buf[c++] = new Vec3(p.PosX * 0.001f + p.VelX * 0.01f * t, p.PosY * 0.001f, p.PosZ * 0.001f + p.VelZ * 0.01f * t);
+            }
+
+            return c;
+        }
+
         /// <summary>Scene name for a map id (dev sandbox = 255).</summary>
         public static string SceneFor(byte mapId) => mapId == MapPoolV1.BlockPartyDash ? NetBootstrap.BlockPartyDashScene : NetBootstrap.SandboxScene;
 
@@ -288,7 +328,7 @@ namespace FallRush.Net
             Physics.simulationMode = SimulationMode.Script; // queries only; nothing is simulated on clients either
             var cfg = MovementConfig.For(round.Modifier);
             _world = map.CreateWorld(transform, cfg, in round, out var hazards);
-            Prediction = new ClientPrediction(cfg, _world, hazards);
+            Prediction = new ClientPrediction(cfg, _world, hazards) { PredictPushes = PredictPushesEnabled, RemoteFeet = RemoteFeetAt };
             Debug.Log($"[net] prediction ready map={map.gameObject.scene.name} mapHash={MapContent.Short(map.ContentHash)} round: {round} hazards={hazards.Count}");
         }
 

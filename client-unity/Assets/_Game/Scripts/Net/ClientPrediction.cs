@@ -68,6 +68,16 @@ namespace FallRush.Net
         public KinematicMotor.StepEvents LastEvents { get; private set; }
         public PlayerStep.Result LastResult { get; private set; }
 
+        /// <summary>
+        /// R14 experiment (M3): also predict the server's player–player soft separation for the local player, against the
+        /// remote players' positions extrapolated from the newest snapshot to the predicted tick (<see cref="RemoteFeet"/>).
+        /// </summary>
+        public bool PredictPushes;
+
+        /// <summary>Fills remote players' estimated feet at <c>tick</c>; returns the count (no own slot, no finished / respawning players).</summary>
+        public Func<uint, Vec3[], int> RemoteFeet;
+        private readonly Vec3[] _remotes = new Vec3[Protocol.MaxPlayers];
+
         /// <summary>Set during a round's intro / countdown: a server teleport (everyone back on their spawn) is adopted, not counted.</summary>
         public bool TeleportsExpected;
 
@@ -374,7 +384,45 @@ namespace FallRush.Net
         private PlayerStep.Result StepOne(ref MotorState s, in InputCmd cmd, uint tick)
         {
             _world.BeginTick(tick);
-            return PlayerStep.Run(_motor, ref s, in cmd, tick, _world, _hazards);
+            var r = PlayerStep.Run(_motor, ref s, in cmd, tick, _world, _hazards);
+            if (PredictPushes && RemoteFeet != null && !s.Has(MotorState.Respawning))
+                PredictSeparation(ref s, tick);
+            return r;
+        }
+
+        /// <summary>The server's soft separation (SimCore.Separate) for the local player only, against estimated remotes.</summary>
+        private void PredictSeparation(ref MotorState s, uint tick)
+        {
+            var n = RemoteFeet(tick, _remotes);
+            if (n <= 0)
+                return;
+            var cfg = _motor.Cfg;
+            var minD = cfg.Radius * 2f;
+            var maxStep = cfg.PushMaxSpeed * cfg.Dt;
+            var me = s.Position;
+            var push = Vec3.Zero;
+            for (var i = 0; i < n; i++)
+            {
+                var o = _remotes[i];
+                var dy = me.Y - o.Y;
+                if (dy >= 1f || dy <= -1f)
+                    continue;
+                var dx = me.X - o.X;
+                var dz = me.Z - o.Z;
+                var d2 = dx * dx + dz * dz;
+                if (d2 >= minD * minD || d2 < 1e-8f)
+                    continue;
+                var d = (float)Math.Sqrt(d2);
+                var m = Math.Min((minD - d) * 0.5f, maxStep * 0.5f);
+                push += new Vec3(dx / d * m, 0f, dz / d * m);
+            }
+
+            var l2 = push.SqrMagnitude;
+            if (l2 <= 0f)
+                return;
+            if (l2 > maxStep * maxStep)
+                push *= maxStep / (float)Math.Sqrt(l2);
+            _motor.Displace(ref s, push, _world);
         }
 
         private static InputCmd Repeat(in InputCmd last, uint tick)
