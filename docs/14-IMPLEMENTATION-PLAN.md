@@ -1,6 +1,6 @@
 # 14 — Implementation Plan (Blitz V10 build: Nov 18 → Nov 27)
 
-**Status:** v2 (2026-11-18). This replaces the missing `14-CODEX-IMPLEMENTATION.md`.
+**Status:** v3 (2026-11-19): re-planned game first (Phase A), then platform (Phase B). v2 (2026-11-18) replaced the missing `14-CODEX-IMPLEMENTATION.md`.
 
 **Owners:**
 - **C** = Claude (code, integration, tests, docs)
@@ -12,26 +12,39 @@
 
 ## 1. Calendar (all times UTC; deadline Fri Nov 27 14:00 UTC = 19:30 IST)
 
+**Re-planned 2026-11-19 (your decision): game first, platform second.** We were ~3 days ahead (M0–M3 done on D0–D1). Phase A finishes a **polished, complete game** locally, with the MagicBlock moments (VRF deal, chain chip, receipt) already designed into the game behind an adapter. Phase B then plugs in the backend, the chain and the VPS. Everything M5/M6 needs was built as a one-line swap (deal seed source, jsonl event log → outbox, chain chip states), so Phase A work is not thrown away.
+
+### Phase A: the polished game (local, no backend, no VPS)
+
 | Day | Date | Milestones | Exit check |
 |---|---|---|---|
-| D0 | Wed 18 | Docs v2 ✔ · **U:** install Unity 6000.3.28f1 + Web + Linux Dedicated Server modules; register on Luma; pick the Fall Rush subdomains on the Hostinger VPS; fund a devnet keypair | You have approved the docs |
-| D1 | Thu 19 | **M0** repo + chain spike (local stack) · **M1** Unity project, NGO/UTP WebSocket, WebGL ↔ Linux server connectivity spike (local Docker) | M0: lifecycle test green locally · M1: WebGL client in the browser connects to the server container |
-| D2 | Fri 20 (kickoff 14:00) | M0 on devnet · **M2a** KinematicMotor + input + server sim + snapshots · **U:** Bolt model blockout (capsule shell, screen face) | Devnet signatures saved · 2 clients move around |
-| D3 | Sat 21 | **M2b** prediction + reconciliation + interpolation + camera + Rushling procedural animation | Feel test at 150 ms |
-| D4 | Sun 22 | **M3** obstacle kit (HazardMath + 8 types), checkpoints, respawn, **Block Party Dash** greybox, race rules · **⚑ Netcode go/no-go** (doc 04 §4.5) | Bot race completes; prediction holds against spinners |
-| D5 | Mon 23 | **M4** match director: lobby, 4-round flow, Goo Tower, Star Scramble, Crumble Shelf greyboxes, bots, disconnects · **U:** greybox polish in ProBuilder | 12-bot match completes ×10 |
-| D6 | Tue 24 | **M5** Rush Relay (identity, directory, outbox) + **M6** full `fall_rush` program + chain worker + VRF deal driving the game · deploy to the Hostinger VPS | Devnet ranked match: receipt on Solana matches the DB |
-| D7 | Wed 25 | **M7** art & juice pass (toon shader, palette, props, UI, audio, VFX, claw, capsule machine) · **M8** web: home, /play, /live (ER feed), /receipt · **Playtest 1** (≥ 8 humans) | Playtest bug list |
-| D8 | Thu 26 | Fix the playtest bugs · **P1:** Fan Picks (session keys) + Crown Capsule mint · **Playtest 2 (recorded)** | Two clean recorded matches |
+| D0–D1 | Wed 18 – Thu 19 | ✔ M0 chain spike (local + devnet) · ✔ M1 transport · ✔ M2 netcode · ✔ M3 kit + race · **M4** full match (in progress) | M4: 20 unattended matches, reconnect, WebGL full match |
+| D1–D2 | Thu 19 – Fri 20 (kickoff 14:00) | **G1 Gameplay polish** (§2 G1) · **U:** play full matches, give feel notes | Matches feel good to you; Final lasts 60–120 s |
+| D2–D4 | Fri 20 – Sun 22 | **G2 Look** (art) + **G3 Juice** (UI, audio, VFX, signature moments) (§2 G2, G3) · **U:** approve the look, pick music mood | 60 FPS WebGL on the M2 Air in the heaviest map; screenshots and a capture you're happy to show |
+| **D4 end** | **Sun 22, 23:59** | **⚑ Game freeze**: after this, only bug fixes and integration changes in game code | The game is complete and polished locally |
+
+### Phase B: platform (backend, MagicBlock chain, VPS, web)
+
+| Day | Date | Milestones | Exit check |
+|---|---|---|---|
+| D5 | Mon 23 | **M5** Rush Relay (identity, join tickets, directory, outbox fed by the M4 jsonl events) | Relay restart with no duplicates |
+| D5–D6 | Mon 23 – Tue 24 | **M6** full `fall_rush` + chain worker + **VRF deal driving the game** + ER events + **Hostinger VPS deploy** (compose + nginx + certbot) | Ranked devnet match on the public URL: receipt on Solana matches the DB |
+| D7 | Wed 25 | **M8** web: home, /play, /live (ER feed), /receipt · **Playtest 1** (≥ 8 humans on the public URL) | Playtest bug list |
+| D8 | Thu 26 | Fix the playtest bugs · **P1:** Fan Picks (session keys) + Crown Capsule mint, only if Phase B is green · **Playtest 2 (recorded)** | Two clean recorded matches |
 | D9 | Fri 27 | 08:00 freeze · README, PROOF.md, video edit (U+C) · submit by **12:00** | Submitted |
+
+**Why the chain can wait until D5:** M0 already proved the risky parts on devnet (delegate, VRF in the ER, per-round commit, commit + undelegate; 22/22 steps). M6 extends a working spike; it is not new research. **It cannot slip past D6**: the judges weigh the MagicBlock integration, and Playtest 1 needs the public URL.
 
 **Cut order if behind** (cut from the top first):
 1. Bonk Factory (already stretch)
 2. Crown Capsule mint
 3. Fan Picks on-chain (keep guest picks in the DB)
-4. Per-round commits (keep the single final commit)
-5. Star Scramble → reuse the Block Party Dash route as a "time trial" skill round
-6. Desktop builds
+4. G3 extras (claw animation, crown ceremony detail) → simple versions
+5. Per-round commits (keep the single final commit)
+6. Star Scramble → reuse the Block Party Dash route as a "time trial" skill round
+7. Desktop builds
+
+**If Phase A runs late:** the game freeze moves at most to **Mon 23 12:00**, and the cut comes from G3 first, never from M5/M6.
 
 **Never cut:**
 - the ER lifecycle
@@ -102,6 +115,28 @@
   - intermission, results and champion screens
 - **Verify:** 10 unattended 12-bot matches complete; the reconnect test passes.
 
+### G1: gameplay polish (Phase A, after M4)
+
+- **Build:**
+  - fixes from the M4 findings (Crumble Shelf too short: longer wobble and/or respawning top-shelf tiles; connection retries through lossy links);
+  - tuning from your play sessions: movement constants, camera, bot difficulty, course and round lengths, hazard timings;
+  - menu and lobby feel: name entry, settings (sensitivity, invert Y, FOV, reduced motion, volume), controls screen, pause/leave confirm;
+  - first-time hints per round mode ("Reach the finish", "Climb! Goo rising");
+  - **MagicBlock-ready game UI:** a `IChainAdapter` interface with a `PracticeChainAdapter` (today's local seed + "● Server" chip); the Deal screen designed to show a VRF signature and seed, the chain chip with all four states (`● Server`, `◆ Rollup ✓`, `⬢ Solana ✓`, `! Pending`) driven by fake states in practice, and the receipt screen laid out for explorer links. M6 implements the adapter; no game code changes then.
+- **Verify:** soak 20/20 still green; your feel sign-off; the Final 60–120 s in bot QA.
+
+### G2: look (Phase A, the art part of the old M7)
+
+Per doc 17 §2–3: toon shader (cel ramp, rim, character outline), palette, sky and baked lighting, blob shadows, Bolt final + cosmetic presets ("My Rushling"), props and set dressing on all five maps (toy blocks, capsule-machine tower, factory/shelf details), readable hazard materials (stripes, telegraph glow).
+
+**Verify:** 60 FPS WebGL on the M2 Air in the heaviest map (doc 17 §3.2 budgets: tris, draw calls, texture memory); WebGL release size recorded; the originality check (doc 08 §8).
+
+### G3: juice (Phase A, the feel part of the old M7)
+
+Per doc 17 §4–6: the UI kit (chunky panels, buttons with squash), HUD styling, transitions; audio (music per phase, SFX per action and hazard, cues with subtitles); VFX (dust, landing puffs, hit stars, confetti, goo glitter, tile crumble); signature moments: the **Chaos Capsule machine** on the Deal screen (spins while the deal is pending, pops the modifier; built to show the VRF result in M6), the **claw** that picks up eliminated Rushlings, the **crown ceremony**.
+
+**Verify:** a full match captured in WebGL at 60 FPS; your sign-off; **game freeze**.
+
 ### M5: Rush Relay
 
 - **Build:** Fastify app, migrations, identity, join tickets, directory, internal events API, outbox; server `RelayClient`.
@@ -115,13 +150,12 @@
   - `ChainAdapter` + worker
   - Deal integrated into the server (Deal screen)
   - Hostinger VPS deploy (compose + nginx + certbot)
+- Implements `IChainAdapter` from G1 (VRF deal → Deal screen, ER events → chain chip, receipt links); game code otherwise unchanged.
 - **Verify:** ranked devnet match end-to-end; the receipt equals the DB; `PROOF.md` exported.
 
-### M7: art & juice
+### M7: art & juice → moved into Phase A as **G2 (look)** and **G3 (juice)** (re-plan 2026-11-19)
 
-Per doc 17: toon shader, palette, Bolt final, cosmetic presets, props, UI kit, audio, VFX, capsule machine, claw elimination, crown ceremony.
-
-**Verify:** 60 FPS WebGL on M2 in the heaviest map; playtest 1.
+Only the playtest-driven art fixes remain in Phase B (D8).
 
 ### M8: web
 
