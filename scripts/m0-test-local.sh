@@ -38,6 +38,7 @@ if [ -n "$(stack_procs)" ]; then
 fi
 trap cleanup EXIT INT TERM
 
+if [ "${M0_SKIP_BUILD:-0}" != 1 ]; then
 echo "== 1/5 anchor build (features: localnet) =="
 (cd "$PROG" && anchor build -- --features localnet) > "$LOGS/build.log" 2>&1 || { tail -60 "$LOGS/build.log"; exit 1; }
 echo "build ok ($(grep -c '^warning' "$LOGS/build.log") warnings, log: .m0-logs/build.log)"
@@ -48,6 +49,7 @@ echo "== 2/5 deal parity (Rust + TS) =="
 grep "test result" "$LOGS/parity-rust.log" | sed 's/^/rust: /'
 (cd "$ROOT/packages/shared" && pnpm -s test) > "$LOGS/parity-ts.log" 2>&1 || { tail -40 "$LOGS/parity-ts.log"; exit 1; }
 grep -E "^ℹ (tests|pass|fail) " "$LOGS/parity-ts.log" | tr '\n' ' ' | sed 's/^/ts: /'; echo
+fi
 
 echo "== 3/5 start mb-stack =="
 WALLET_PUBKEY=$(solana-keygen pubkey "$HOME/.config/solana/id.json")
@@ -77,6 +79,11 @@ sleep 3
 kill -0 "$VRF_PID" 2>/dev/null || { echo "base vrf-oracle died:"; tail -40 "$LOGS/vrf-oracle.log"; exit 1; }
 kill -0 "$VRF_ER_PID" 2>/dev/null || { echo "ER vrf-oracle died:"; tail -40 "$LOGS/vrf-oracle-er.log"; exit 1; }
 echo "oracles running"
+
+if [ "${M0_STACK_ONLY:-0}" = 1 ]; then
+  echo "M0_STACK_ONLY=1: stack is up (base 8899, ER 7799). Ctrl+C / kill to stop."
+  wait "$MB_PID"; exit 0
+fi
 
 echo "== 5/5 lifecycle test =="
 # shellcheck source=scripts/local-env.sh

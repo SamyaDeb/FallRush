@@ -6,7 +6,7 @@
     "build:localnet": "anchor build -- --features localnet",
     "build:devnet": "anchor build",
     "test:rust": "cargo test -p fall_rush --test deal_parity",
-    "test:lifecycle": "TS_NODE_TRANSPILE_ONLY=true ts-mocha -p ./tsconfig.json -t 1000000 --exit tests/lifecycle.ts"
+    "test:lifecycle": "NODE_OPTIONS=--no-experimental-strip-types TS_NODE_TRANSPILE_ONLY=true ts-mocha -p ./tsconfig.json -t 1000000 --exit tests/lifecycle.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.32.1",

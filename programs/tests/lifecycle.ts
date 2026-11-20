@@ -3,9 +3,8 @@
  * Structure follows magicblock-examples (counter/anchor, roll-dice-delegated): one base-layer
  * provider, one ER provider, env from scripts/local-env.sh. Run via `pnpm m0:test:local`.
  */
-import * as anchor from "@coral-xyz/anchor";
-import { AnchorError, AnchorProvider, Program, Wallet } from "@coral-xyz/anchor";
-import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { AnchorError, AnchorProvider, LangErrorCode, Program, Wallet } from "@coral-xyz/anchor";
+import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, Transaction } from "@solana/web3.js";
 import { GetCommitmentSignature } from "@magicblock-labs/ephemeral-rollups-sdk";
 import { expect } from "chai";
 import { randomBytes } from "node:crypto";
@@ -35,22 +34,38 @@ const COMMIT_TIMEOUT_MS = 60_000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const statusOf = (s: object) => Object.keys(s)[0];
 
-/** Asserts the promise rejects with the named Anchor error code (custom or framework). */
-async function expectError(p: Promise<unknown>, code: string) {
+/** Error name → numeric code, for custom (IDL) and framework (LangErrorCode) errors. */
+const ERROR_CODES: Record<string, number> = {
+  ...(LangErrorCode as unknown as Record<string, number>),
+  ...Object.fromEntries((idlJson as any).errors.map((e: any) => [e.name.charAt(0).toUpperCase() + e.name.slice(1), e.code])),
+};
+
+/**
+ * Asserts the promise rejects with the named error. Anchor surfaces it either as an AnchorError
+ * (parsed from logs) or as a ProgramError carrying only the numeric code (seen on the ER), so
+ * compare by number.
+ */
+async function expectError(p: Promise<unknown>, name: string) {
+  const want = ERROR_CODES[name];
+  if (want === undefined) throw new Error(`unknown error name ${name}`);
   let err: any;
   try {
     await p;
   } catch (e) {
     err = e;
   }
-  if (!err) throw new Error(`expected ${code}, but the transaction succeeded`);
+  if (!err) throw new Error(`expected ${name}, but the transaction succeeded`);
   const logs: string[] = err.logs ?? err.transactionLogs ?? err.simulationResponse?.logs ?? [];
   const parsed = err instanceof AnchorError ? err : logs.length ? AnchorError.parse(logs) : null;
-  const got = parsed?.error.errorCode.code ?? err.error?.errorCode?.code;
-  if (got === code) return;
-  const text = `${err}\n${logs.join("\n")}`;
-  if (text.includes(`Error Code: ${code}.`)) return;
-  throw new Error(`expected ${code}, got ${got ?? "(unparsed)"}:\n${text.slice(0, 3000)}`);
+  const got: number | undefined = parsed?.error.errorCode.number ?? err.error?.errorCode?.number ?? (typeof err.code === "number" ? err.code : undefined);
+  if (got === want) return;
+  throw new Error(`expected ${name} (${want}), got ${got ?? "(no code)"}:\n${`${err}\n${logs.join("\n")}`.slice(0, 3000)}`);
+}
+
+/** Waits until the cluster hands out a new blockhash, so a deliberate retry is not byte-identical. */
+async function freshBlockhash(conn: Connection) {
+  const { blockhash } = await conn.getLatestBlockhash();
+  await pollUntil("new blockhash", 10_000, async () => ((await conn.getLatestBlockhash()).blockhash !== blockhash ? true : undefined));
 }
 
 async function pollUntil<T>(what: string, timeoutMs: number, fn: () => Promise<T | undefined>): Promise<T> {
@@ -60,6 +75,30 @@ async function pollUntil<T>(what: string, timeoutMs: number, fn: () => Promise<T
     if (v !== undefined) return v;
     if (Date.now() - start > timeoutMs) throw new Error(`timeout after ${timeoutMs}ms waiting for ${what}`);
     await sleep(500);
+  }
+}
+
+/** Signs, sends (with preflight) and confirms by polling statuses; throws with logs on failure. */
+async function sendAndPoll(conn: Connection, wallet: Wallet, tx: Transaction, signers: Keypair[], opts: { skipPreflight?: boolean }) {
+  tx.feePayer = tx.feePayer ?? wallet.publicKey;
+  tx.recentBlockhash = (await conn.getLatestBlockhash("confirmed")).blockhash;
+  if (signers.length) tx.partialSign(...signers);
+  const signed = await wallet.signTransaction(tx);
+  const sig = await conn.sendRawTransaction(signed.serialize(), { skipPreflight: opts.skipPreflight ?? false, preflightCommitment: "confirmed" });
+  const start = Date.now();
+  for (;;) {
+    const st = (await conn.getSignatureStatuses([sig])).value[0];
+    if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized")) {
+      if (st.err) {
+        const t = await conn.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+        const e: any = new Error(`tx ${sig} failed: ${JSON.stringify(st.err)}`);
+        e.logs = t?.meta?.logMessages ?? [];
+        throw e;
+      }
+      return sig;
+    }
+    if (Date.now() - start > 30_000) throw new Error(`tx ${sig} not confirmed within 30 s`);
+    await sleep(50);
   }
 }
 
@@ -77,6 +116,22 @@ describe("fall_rush M0 lifecycle (local MagicBlock stack)", () => {
   const adminProgram = new Program<FallRush>(idlJson as any, new AnchorProvider(baseConn, admin, { commitment: "confirmed" }));
   const base = new Program<FallRush>(idlJson as any, new AnchorProvider(baseConn, new Wallet(gameAuthority), { commitment: "confirmed" }));
   const er = new Program<FallRush>(idlJson as any, new AnchorProvider(erConn, new Wallet(gameAuthority), { commitment: "confirmed" }));
+  // ER txs are confirmed by polling getSignatureStatuses. Reason (measured in M0): the local ER
+  // (ephemeral-validator 0.14.10) intermittently never delivers the websocket signature
+  // notification, although the tx executed in the same second; web3's legacy confirm then waits
+  // its full 30 s. Polling still fails hard if the tx does not land within 30 s.
+  const erConfirmMs: number[] = [];
+  {
+    const provider = er.provider as AnchorProvider;
+    provider.sendAndConfirm = async (tx: any, signers: any[] = [], opts: any = {}) => {
+      const t0 = Date.now();
+      try {
+        return await sendAndPoll(erConn, provider.wallet as Wallet, tx, signers, opts);
+      } finally {
+        erConfirmMs.push(Date.now() - t0);
+      }
+    };
+  }
   const attackerBase = new Program<FallRush>(idlJson as any, new AnchorProvider(baseConn, new Wallet(attacker), { commitment: "confirmed" }));
   const programId = base.programId;
 
@@ -106,7 +161,12 @@ describe("fall_rush M0 lifecycle (local MagicBlock stack)", () => {
     }
   });
 
-  after(() => console.log("  timings (ms):", timings));
+  after(() => {
+    const sorted = [...erConfirmMs].sort((a, b) => a - b);
+    const pct = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))];
+    console.log("  timings (ms):", timings);
+    if (sorted.length) console.log(`  ER send→confirm over ${sorted.length} txs (incl. expected failures): p50 ${pct(50)} p95 ${pct(95)} max ${sorted[sorted.length - 1]}`);
+  });
 
   it("initialize_config rejects foreign hashes and non-upgrade-authority admins", async () => {
     const good = {
@@ -216,7 +276,8 @@ describe("fall_rush M0 lifecycle (local MagicBlock stack)", () => {
     await er.methods.startRound(1, seq).accountsPartial(gameplay).rpc();
     mirror(TAG.START_ROUND, 1, NO_SLOT);
 
-    // duplicate and skipped seq
+    // duplicate (a worker retry of the same event, new blockhash) and skipped seq
+    await freshBlockhash(erConn);
     await expectError(er.methods.startRound(1, seq - 1).accountsPartial(gameplay).rpc(), "InvalidSequence");
     await expectError(er.methods.recordQualified(1, 0, 1, seq + 1).accountsPartial(gameplay).rpc(), "InvalidSequence");
     // wrong signer on a gameplay instruction (fee payer is the game authority, attacker signs as authority)
@@ -248,13 +309,15 @@ describe("fall_rush M0 lifecycle (local MagicBlock stack)", () => {
     timings.completeRoundErConfirm = Date.now() - t0;
     mirror(TAG.COMPLETE_ROUND, 1, NO_SLOT, [roundTargets(PLAYERS)[0]]);
     const expectedSeq = seq;
-    const commitSig = await GetCommitmentSignature(sig, erConn);
-    console.log(`    [ER] complete_round(1) ${sig}\n    [Solana] commit ${commitSig}`);
+    // Poll Solana and resolve the SDK commit signature in parallel, timing each separately.
+    const sigP = GetCommitmentSignature(sig, erConn).then((s) => ((timings.getCommitmentSignature = Date.now() - t0), s));
     const m = await pollUntil("committed round 1 on Solana", COMMIT_TIMEOUT_MS, async () => {
       const acc = await base.account.match.fetch(matchPda, "confirmed");
       return acc.currentRound === 1 && acc.eventSeq === expectedSeq ? acc : undefined;
     });
     timings.commitLandedOnSolana = Date.now() - t0;
+    const commitSig = await sigP;
+    console.log(`    [ER] complete_round(1) ${sig}\n    [Solana] commit ${commitSig}`);
     expect(statusOf(m.status)).to.eq("roundResolved");
     expect(Buffer.from(m.transcriptHash).equals(transcript)).to.eq(true);
     const info = await baseConn.getAccountInfo(matchPda, "confirmed");
