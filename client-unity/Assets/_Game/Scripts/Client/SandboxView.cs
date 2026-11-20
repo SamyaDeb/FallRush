@@ -42,8 +42,13 @@ namespace FallRush.Client
         private bool _hasOwn;
         private HazardViewDriver _hazardViews;
 
-        /// <summary>Spectate: follow this slot instead of our own (RaceHud sets it once we finished); −1 = own.</summary>
+        private static MatchProbeBot s_MatchBot; // WebGL ?bot=match: one bot for the whole match (survives scene loads)
+
+        /// <summary>Spectate: follow this slot instead of our own (MatchHud sets it while spectating); −1 = own.</summary>
         public int FollowSlot = -1;
+
+        /// <summary>M4: the camera looks at this point instead of a player (round-intro fly-through, champion podium).</summary>
+        public Vector3? FocusPoint;
 
         private void Start()
         {
@@ -93,6 +98,8 @@ namespace FallRush.Client
             _sampler.cameraRig = _cam;
 
             BuildHud();
+            var showHud = NetTargets.GetQueryParam(Application.absoluteURL, "hud") == "1" || Array.Exists(Environment.GetCommandLineArgs(), a => a == "-fallrushHud");
+            _hud.SetActive(showHud); // M4: the match HUD is the default; F3 shows the netcode HUD
 
             var cs = ClientSim.Instance;
             if (cs != null)
@@ -110,7 +117,10 @@ namespace FallRush.Client
                 RaceProbeBot raceBot = null;
                 if (bot == "race" && (NetBootstrap.Instance == null || !NetBootstrap.Instance.IsProbe))
                     cs.InputSource = raceBot = new RaceProbeBot(cs, (uint)System.Environment.TickCount);
-                if (course != null || raceBot != null || NetTargets.GetQueryParam(url, "gate") == "1")
+                MatchProbeBot matchBot = null;
+                if (bot == "match" && (NetBootstrap.Instance == null || !NetBootstrap.Instance.IsProbe))
+                    cs.InputSource = matchBot = s_MatchBot ??= new MatchProbeBot(cs, (uint)System.Environment.TickCount);
+                if (course != null || raceBot != null || matchBot != null || NetTargets.GetQueryParam(url, "gate") == "1")
                 {
                     var gate = gameObject.AddComponent<GateLogger>();
                     gate.Tag = "gate";
@@ -146,7 +156,7 @@ namespace FallRush.Client
         private void OnNetState()
         {
             var boot = NetBootstrap.Instance;
-            var down = boot == null || boot.State == ClientState.Disconnected;
+            var down = boot == null || boot.State == ClientState.Disconnected && !boot.Reconnecting;
             _overlay.SetActive(down);
             if (down)
             {
@@ -226,6 +236,15 @@ namespace FallRush.Client
                     if (vis.StunStartedThisFrame)
                         _cam.Shake(0.12f);
                 }
+            }
+
+            if (FocusPoint.HasValue)
+            {
+                var target = FocusPoint.Value;
+                if ((target - _cameraTarget.position).sqrMagnitude > 400f)
+                    _cam.Warp(target - _cameraTarget.position);
+                _cameraTarget.position = target;
+                _lastOwnFeet = target;
             }
 
             UpdateHazardVisuals(cs);
@@ -502,9 +521,7 @@ namespace FallRush.Client
             if (boot == null || boot.IsServerRole || (boot.IsProbe && !SimProbe.ViewEnabled))
                 return;
             var view = new GameObject("SandboxView").AddComponent<SandboxView>();
-            var map = MapInfo.Current;
-            if (map != null && map.definition != null && map.definition.IsRace)
-                view.gameObject.AddComponent<RaceHud>().View = view;
+            view.gameObject.AddComponent<MatchHud>().View = view; // M4: every match screen (replaces M3's RaceHud)
         }
     }
 }

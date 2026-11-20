@@ -444,6 +444,7 @@ namespace FallRush.Net
 
         public void Connect()
         {
+            _userLeft = false;
             if (IsServerRole)
                 return;
             if (State == ClientState.Connecting || State == ClientState.Connected)
@@ -529,6 +530,45 @@ namespace FallRush.Net
             _reconnect = null;
         }
 
+        // ---- M4-6: automatic reconnect with the token (every 2 s for up to 20 s) after an unexpected drop in a match ----
+        public const float ReconnectWindowSeconds = 20f, ReconnectEverySeconds = 2f;
+        public bool Reconnecting { get; private set; }
+        public float ReconnectSecondsLeft => Reconnecting ? Mathf.Max(0f, _reconnectUntil - Time.realtimeSinceStartup) : 0f;
+        private float _reconnectUntil;
+        private bool _userLeft;
+        private Coroutine _auto;
+
+        /// <summary>Was the client in a match (or its lobby) when the connection dropped? Then it retries with its token.</summary>
+        private bool ShouldAutoReconnect() =>
+            !_userLeft && !IsProbe && ClientSim.Instance != null && ClientSim.Instance.Match != null && SessionToken.Load() != null &&
+            ClientSim.Instance.MapMismatch == null;
+
+        private IEnumerator AutoReconnect()
+        {
+            Reconnecting = true;
+            _reconnectUntil = Time.realtimeSinceStartup + ReconnectWindowSeconds;
+            StateChanged?.Invoke();
+            while (Time.realtimeSinceStartup < _reconnectUntil)
+            {
+                yield return new WaitForSecondsRealtime(ReconnectEverySeconds);
+                if (State == ClientState.Connected)
+                    break;
+                Debug.Log($"[net] reconnecting with the token ({ReconnectSecondsLeft:F0} s left)");
+                Reconnect();
+                var wait = Time.realtimeSinceStartup + ReconnectEverySeconds;
+                while (State != ClientState.Connected && Time.realtimeSinceStartup < wait)
+                    yield return null;
+                if (State == ClientState.Connected)
+                    break;
+            }
+
+            Reconnecting = false;
+            _auto = null;
+            if (State != ClientState.Connected)
+                LastDisconnectReason = "Could not reconnect within 20 s: you were eliminated (disconnected). Back to the menu to play again.";
+            StateChanged?.Invoke();
+        }
+
         private void HandleClientStopped(bool wasHost)
         {
             if (Manager.IsServer)
@@ -542,6 +582,8 @@ namespace FallRush.Net
             LastDisconnectReason = reason;
             Debug.Log($"[net] disconnected: {reason}");
             SetState(ClientState.Disconnected);
+            if (_auto == null && !Reconnecting && ShouldAutoReconnect())
+                _auto = StartCoroutine(AutoReconnect());
         }
 
         /// <summary>Client-side refusal (e.g. map hash mismatch): disconnect and show <paramref name="reason"/>.</summary>
@@ -554,6 +596,14 @@ namespace FallRush.Net
 
         public void Disconnect()
         {
+            _userLeft = true;
+            if (_auto != null)
+            {
+                StopCoroutine(_auto);
+                _auto = null;
+                Reconnecting = false;
+            }
+
             if (Manager.IsListening)
                 Manager.Shutdown();
         }

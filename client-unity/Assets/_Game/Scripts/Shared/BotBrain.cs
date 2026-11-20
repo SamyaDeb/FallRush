@@ -47,8 +47,11 @@ namespace FallRush.Shared
         private readonly HazardSet _hz;
         private readonly MovementConfig _cfg;
         private readonly WaypointBot _wp;
-        private readonly IRoundRules _rules;
-        private readonly SimCore _sim;
+        /// <summary>Where another Rushling is (false = not in the round): a player sees this in the snapshots.</summary>
+        public delegate bool OthersFn(int slot, out MotorState state);
+
+        private readonly Func<int> _checkpoints;
+        private readonly OthersFn _others;
         private readonly float[] _sectionY;
         private uint _rng;
         private readonly double _wobblePhase;
@@ -68,16 +71,29 @@ namespace FallRush.Shared
         // stats
         public int Jumps, Hesitations, Retargets;
 
+        /// <summary>Server bot: rules + the sim it runs in.</summary>
         public BotBrain(int slot, BotTier tier, uint seed, IRoundRules rules, SimCore sim, BotRoute[] routes)
+            : this(slot, tier, seed, rules.Mode, sim.Hazards, sim.Cfg, routes,
+                () => rules is RaceRules race ? race.Racers[slot].Checkpoint : 0,
+                (int i, out MotorState st) =>
+                {
+                    st = sim.Slots[i].State;
+                    return sim.Slots[i].Active && rules.InRound(i);
+                })
+        {
+        }
+
+        /// <summary>Any driver (the client probe): mode, hazards, motor config, routes, our checkpoint count, the others.</summary>
+        public BotBrain(int slot, BotTier tier, uint seed, string mode, HazardSet hz, MovementConfig cfg, BotRoute[] routes, Func<int> checkpoints, OthersFn others)
         {
             Slot = slot;
             Tier = tier;
             S = For(tier);
-            _mode = rules.Mode;
-            _rules = rules;
-            _sim = sim;
-            _hz = sim.Hazards;
-            _cfg = sim.Cfg;
+            _mode = mode;
+            _checkpoints = checkpoints;
+            _others = others;
+            _hz = hz;
+            _cfg = cfg;
             _rng = seed * 0x9E3779B1u + (uint)slot * 0x85EBCA6Bu + 7u;
             if (_rng == 0)
                 _rng = 1;
@@ -130,7 +146,7 @@ namespace FallRush.Shared
             switch (_mode)
             {
                 case "Race":
-                    plan = _wp.Next(tick, in s, _rules is RaceRules race ? race.Racers[Slot].Checkpoint : 0);
+                    plan = _wp.Next(tick, in s, _checkpoints != null ? _checkpoints() : 0);
                     break;
                 case "Survival":
                     // Section by the height of the last ground contact (a jump must not switch to the next side's route).
@@ -388,9 +404,8 @@ namespace FallRush.Shared
                 // Others closer to it make it less attractive.
                 for (var i = 0; i < SimCore.MaxSlots; i++)
                 {
-                    if (i == Slot || !_sim.Slots[i].Active || !_rules.InRound(i))
+                    if (i == Slot || _others == null || !_others(i, out var o))
                         continue;
-                    ref readonly var o = ref _sim.Slots[i].State;
                     long ox = x - o.PosX, oz = z - o.PosZ;
                     if (ox * ox + oz * oz < dx * dx + dz * dz)
                         score -= 0.25;
@@ -542,9 +557,8 @@ namespace FallRush.Shared
                     var crowd = 0.0;
                     for (var o = 0; o < SimCore.MaxSlots; o++)
                     {
-                        if (o == Slot || !_sim.Slots[o].Active || !_rules.InRound(o))
+                        if (o == Slot || _others == null || !_others(o, out var os))
                             continue;
-                        ref readonly var os = ref _sim.Slots[o].State;
                         long ox = x - os.PosX, oz = z - os.PosZ;
                         var od = Math.Sqrt((double)ox * ox + (double)oz * oz);
                         if (od < 3000)

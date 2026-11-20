@@ -76,7 +76,9 @@ namespace FallRush.Net
                       $"interp delay={r.Delay * 1000:F0}ms target={r.TargetDelay * 1000:F0}ms lateP95={r.LatenessP95Ms:F0}ms extrap={(frames > 0 ? 100.0 * (r.ExtrapolatedFrames - _lastExtrap) / frames : 0):F1}% frozen={(frames > 0 ? 100.0 * (r.FrozenFrames - _lastFrozen) / frames : 0):F1}% lagEvents={r.LagEvents} " +
                       $"remoteStutter p50={stP50:F2} p95={stP95:F2}m/s course={(Course != null ? $"{Course.Current} laps={Course.Laps} falls={Course.Falls}" : "-")} " +
                       $"phase={cs.Phase} cp={cs.OwnRace & PlayerState.RaceCheckpointMask} finished={(cs.OwnRace & PlayerState.RaceFinished) != 0} race={(Race != null && Race.Bot != null ? $"{Race.Bot.CurrentRouteName}#{Race.Bot.Waypoint} rounds={Race.Laps}" : "-")} hazardCorr={p.HazardCorrections - _lastHazCorr} " +
-                      $"pos=({st.PosX * 0.001f:F1},{st.PosY * 0.001f:F1},{st.PosZ * 0.001f:F1})");
+                      $"pos=({st.PosX * 0.001f:F1},{st.PosY * 0.001f:F1},{st.PosZ * 0.001f:F1}) " +
+                      $"m4 match={(cs.Match != null ? cs.Match.Phase.ToString() : "-")} round={(cs.Match != null ? cs.Match.Round : 0)} map={(cs.Round.HasValue ? MapPoolV1.KeyOf(cs.Round.Value.MapId) : "-")} slot={cs.MatchSlot} out={cs.OwnOutOfSim} " +
+                      $"rxIn={cs.RxReceived} rxLate={cs.RxLate} rxLateMax={cs.RxLateMaxTicks} rxGaps={cs.RxGaps} matchBytes={cs.MatchBytesIn} rxBytes={cs.RxBytesIn} bytesIn={cs.BytesIn} events={cs.MatchEvents.Count}");
             _lastCorr = p.Corrections;
             _lastPushCorr = p.PushCorrections;
             _lastSnapsRec = p.Snapshots;

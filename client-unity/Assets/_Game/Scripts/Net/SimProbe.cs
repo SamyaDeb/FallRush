@@ -26,6 +26,7 @@ namespace FallRush.Net
         private int _phase;
         private CourseBot _course;
         private RaceProbeBot _race;
+        private MatchProbeBot _match;
         private GateLogger _gate;
         private float _hideAt = float.MaxValue;
         private int _hideSecs;
@@ -103,6 +104,8 @@ namespace FallRush.Net
                     _course = new CourseBot(ClientSim.Instance);
                 if (_script == "race")
                     _race = new RaceProbeBot(ClientSim.Instance, (uint)Environment.TickCount);
+                if (_script == "match")
+                    _match ??= new MatchProbeBot(ClientSim.Instance, (uint)Environment.TickCount, GetArg("-fallrushProbeTier") == "reference" ? BotTier.Reference : BotTier.Normal);
                 _gate = gameObject.AddComponent<GateLogger>();
                 _gate.Course = _course;
                 _gate.Race = _race;
@@ -115,6 +118,8 @@ namespace FallRush.Net
                 Debug.Log($"[probe] disconnected: {boot.LastDisconnectReason}");
                 Application.Quit(2);
             }
+
+            // Keep the probe in its scene flow: the lobby room has no input script (it stands), rounds use the script.
         }
 
         public void Sample(ref InputCmd cmd)
@@ -130,6 +135,12 @@ namespace FallRush.Net
             if (_race != null)
             {
                 _race.Sample(ref cmd);
+                return;
+            }
+
+            if (_match != null)
+            {
+                _match.Sample(ref cmd);
                 return;
             }
 

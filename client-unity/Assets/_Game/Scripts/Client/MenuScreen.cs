@@ -21,9 +21,9 @@ namespace FallRush.Client
             var panel = UiKit.Panel(canvas, new Vector2(760, 560), UiKit.CloudWhite);
 
             UiKit.Label(panel, "FALL RUSH", 72, UiKit.Magenta, FontStyle.Bold, 90);
-            UiKit.Label(panel, "M1 transport spike", 22, UiKit.Grape);
+            UiKit.Label(panel, "Practice match (M4): you + bots, 4 rounds", 22, UiKit.Grape);
             _target = UiKit.Label(panel, string.Empty, 20, UiKit.Ink, FontStyle.Normal, 56);
-            UiKit.Button(panel, "Play (connect)", UiKit.SunYellow, OnPlay);
+            UiKit.Button(panel, "Play (Quick Play)", UiKit.SunYellow, OnPlay);
             _walletButton = UiKit.Button(panel, "Connect Wallet (smoke test)", UiKit.Mint, OnConnectWallet);
             _wallet = UiKit.Label(panel, string.Empty, 18, UiKit.Ink, FontStyle.Normal, 48);
             UiKit.Label(panel, $"build {Application.version} · protocol v{Protocol.Version}", 16, UiKit.Grape);
