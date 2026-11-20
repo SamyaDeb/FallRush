@@ -84,6 +84,108 @@ namespace FallRush.Net
                 return;
             ResetSession();
             _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Snap, OnSnap);
+            _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Round, OnRound);
+            _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.RaceState, OnRaceState);
+            _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Event, OnEvent);
+        }
+
+        // ---------------------------------------------------------------- round (v3)
+
+        /// <summary>The current round from the server (<c>round</c> message), or null before the first one.</summary>
+        public RoundParams? Round { get; private set; }
+        public byte[] ServerMapHash { get; private set; }
+        /// <summary>Set when our own map content hash differs from the server's: we refuse to play this round.</summary>
+        public string MapMismatch { get; private set; }
+        public RaceStateMessage RaceState { get; private set; }
+        public bool HasRaceState { get; private set; }
+        public uint LastEventSeq { get; private set; }
+        public long EventsReceived { get; private set; }
+        public event Action<RaceEvent> RaceEventReceived;
+        public event Action RoundChanged;
+        private readonly byte[] _msgBuf = new byte[512];
+        private RoundParams _predictionRound;
+
+        /// <summary>Scene name for a map id (dev sandbox = 255).</summary>
+        public static string SceneFor(byte mapId) => mapId == MapPoolV1.BlockPartyDash ? NetBootstrap.BlockPartyDashScene : NetBootstrap.SandboxScene;
+
+        private void OnRound(ulong sender, FastBufferReader reader)
+        {
+            var len = reader.Length - reader.Position;
+            if (len != RoundMessage.Size)
+            {
+                Debug.LogWarning($"[net] bad round message ({len} B)");
+                return;
+            }
+
+            var buf = _msgBuf;
+            reader.ReadBytesSafe(ref buf, len);
+            if (!RoundMessage.TryDecode(new ReadOnlySpan<byte>(buf, 0, len), out var m))
+            {
+                Debug.LogWarning("[net] undecodable round message");
+                return;
+            }
+
+            Round = m.P;
+            ServerMapHash = m.MapHash;
+            Debug.Log($"[net] round: {m.P} serverMapHash={MapContent.Short(m.MapHash)}");
+            CheckMapHash();
+            RoundChanged?.Invoke();
+        }
+
+        /// <summary>A client whose own map content hash differs from the server's refuses the round (readable error, disconnect).</summary>
+        private void CheckMapHash()
+        {
+            var map = MapInfo.Current;
+            if (map == null || ServerMapHash == null || !Round.HasValue || map.MapId != Round.Value.MapId)
+                return;
+            var mine = map.ContentHash;
+            for (var i = 0; i < 32; i++)
+            {
+                if (mine[i] == ServerMapHash[i])
+                    continue;
+                MapMismatch = $"Map data mismatch for {map.gameObject.scene.name}: server {MapContent.Short(ServerMapHash)}, this build {MapContent.Short(mine)}. Reload the page to get the current build.";
+                Debug.LogError($"[net] REFUSING ROUND: {MapMismatch}");
+                Active = false;
+                NetBootstrap.Instance?.DisconnectWithReason(MapMismatch);
+                return;
+            }
+
+            MapMismatch = null;
+        }
+
+        private void OnRaceState(ulong sender, FastBufferReader reader)
+        {
+            var len = reader.Length - reader.Position;
+            if (len <= 0 || len > _msgBuf.Length)
+                return;
+            var buf = _msgBuf;
+            reader.ReadBytesSafe(ref buf, len);
+            if (!RaceStateMessage.TryDecode(new ReadOnlySpan<byte>(buf, 0, len), out var m))
+            {
+                Debug.LogWarning("[net] undecodable rstate");
+                return;
+            }
+
+            RaceState = m;
+            HasRaceState = true;
+            if (m.LastEventSeq > LastEventSeq)
+                LastEventSeq = m.LastEventSeq;
+        }
+
+        private void OnEvent(ulong sender, FastBufferReader reader)
+        {
+            var len = reader.Length - reader.Position;
+            if (len != RaceEvent.Size)
+                return;
+            var buf = _msgBuf;
+            reader.ReadBytesSafe(ref buf, len);
+            if (!RaceEvent.TryDecode(new ReadOnlySpan<byte>(buf, 0, len), out var e))
+                return;
+            if (e.Seq <= LastEventSeq && LastEventSeq != 0)
+                return; // already covered by an rstate after a reconnect
+            LastEventSeq = e.Seq;
+            EventsReceived++;
+            RaceEventReceived?.Invoke(e);
         }
 
         public void ResetSession()
@@ -95,6 +197,11 @@ namespace FallRush.Net
             LastAckSeq = 0;
             Seq = 0;
             _recentCount = 0;
+            Round = null;
+            ServerMapHash = null;
+            MapMismatch = null;
+            HasRaceState = false;
+            LastEventSeq = 0;
         }
 
         public static double Now => Time.realtimeSinceStartupAsDouble;
@@ -151,19 +258,31 @@ namespace FallRush.Net
         private void EnsurePrediction()
         {
             var map = MapInfo.Current;
-            if (map == _predictionMap)
+            var round = Round ?? default;
+            if (map == _predictionMap && (map == null || Prediction == null || SameRound(round, _predictionRound)))
                 return;
+            if (map != _predictionMap)
+                CheckMapHash();
             _predictionMap = map;
+            _predictionRound = round;
             Prediction = null;
             _world = null;
-            if (map == null)
+            if (map == null || MapMismatch != null)
                 return;
+            if (Round.HasValue && Round.Value.MapId != map.MapId)
+                return; // wrong map loaded for this round; wait
             Physics.simulationMode = SimulationMode.Script; // queries only; nothing is simulated on clients either
-            var cfg = MovementConfig.Default;
-            _world = map.CreateWorld(transform, cfg, out var hazards);
+            var cfg = MovementConfig.For(round.Modifier);
+            _world = map.CreateWorld(transform, cfg, in round, out var hazards);
             Prediction = new ClientPrediction(cfg, _world, hazards);
-            Debug.Log($"[net] prediction ready map={map.gameObject.scene.name} hazards={hazards.Sweepers.Length}+{hazards.Platforms.Length}");
+            Debug.Log($"[net] prediction ready map={map.gameObject.scene.name} mapHash={MapContent.Short(map.ContentHash)} round: {round} hazards={hazards.Count}");
         }
+
+        private static bool SameRound(in RoundParams a, in RoundParams b) =>
+            a.MapId == b.MapId && a.Variant == b.Variant && a.Modifier == b.Modifier && a.HazardSeed == b.HazardSeed && a.RoundStartTick == b.RoundStartTick;
+
+        /// <summary>The round's current phase as the client knows it (rstate), or Sandbox.</summary>
+        public RoundPhase Phase => HasRaceState ? RaceState.Phase : RoundPhase.Sandbox;
 
         private void Update()
         {
@@ -206,6 +325,11 @@ namespace FallRush.Net
         {
             var cmd = new InputCmd { Seq = ++Seq, Tick = Clock.NextTick() };
             InputSource?.Sample(ref cmd);
+            if (InputLocked(cmd.Tick))
+            {
+                cmd.MoveX = cmd.MoveY = 0;
+                cmd.Buttons = 0; // intro / countdown: the server ignores input for ticks before the RUSH tick
+            }
 
             // newest first, keep 3
             for (var i = Math.Min(_recentCount, NetMessages.MaxInputCmds - 1); i > 0; i--)
@@ -226,6 +350,15 @@ namespace FallRush.Net
         }
 
         public InputCmd LastSentCmd { get; private set; }
+
+        /// <summary>Race rule shared with the server: commands for ticks before the round's RUSH tick are neutral.</summary>
+        public bool InputLocked(uint tick)
+        {
+            if (!Round.HasValue || !HasRaceState)
+                return false;
+            var ph = RaceState.Phase;
+            return (ph == RoundPhase.Intro || ph == RoundPhase.Countdown) && tick < Round.Value.RoundStartTick || ph == RoundPhase.Ended;
+        }
 
         public bool HasSnapshots => Remote.HasData;
         public ref readonly Interpolation.Snap Newest => ref Remote.Newest;

@@ -2,10 +2,16 @@ using System;
 
 namespace FallRush.Shared
 {
-    /// <summary>One player in a snapshot (22 bytes): doc 04 §4.1 with i32 mm positions.</summary>
+    /// <summary>One player in a snapshot (23 bytes, protocol v3): doc 04 §4.1 with i32 mm positions and the race byte.</summary>
     public struct PlayerState
     {
-        public const int Size = 1 + 12 + 6 + 1 + 1 + 1;
+        public const int Size = 1 + 12 + 6 + 1 + 1 + 1 + 1;
+
+        // Race byte (v3): low nibble = checkpoints reached (0..15), then status bits.
+        public const byte RaceCheckpointMask = 0x0F;
+        public const byte RaceFinished = 1 << 4;
+        public const byte RaceQualified = 1 << 5;
+        public const byte RaceEliminated = 1 << 6;
 
         public byte Slot;
         public int PosX, PosY, PosZ;
@@ -13,9 +19,12 @@ namespace FallRush.Shared
         public byte Yaw;
         public byte Flags;
         public byte StunTicks;
+        /// <summary>Per-player round state (<see cref="RaceCheckpointMask"/>, <see cref="RaceFinished"/>, …); 0 outside races.</summary>
+        public byte Race;
 
-        public static PlayerState From(byte slot, in MotorState m, byte extraFlags = 0) => new PlayerState
+        public static PlayerState From(byte slot, in MotorState m, byte extraFlags = 0, byte race = 0) => new PlayerState
         {
+            Race = race,
             Slot = slot,
             PosX = m.PosX, PosY = m.PosY, PosZ = m.PosZ,
             VelX = m.VelX, VelY = m.VelY, VelZ = m.VelZ,
@@ -52,7 +61,8 @@ namespace FallRush.Shared
     /// Binary codecs for the M2 movement messages (little-endian; strict decode, no exceptions on bad input).
     /// <list type="bullet">
     /// <item><c>in</c> (C→S): <c>u8 count (1–3)</c> + count × <see cref="InputCmd"/> (13 B), newest first. 40 B with 3.</item>
-    /// <item><c>snap</c> (S→C): <see cref="SnapHeader"/> (18 B) + count × <see cref="PlayerState"/> (22 B). 282 B with 12.</item>
+    /// <item><c>snap</c> (S→C): <see cref="SnapHeader"/> (18 B) + count × <see cref="PlayerState"/> (23 B). 294 B with 12.</item>
+    /// <item><c>round</c>, <c>rstate</c>, <c>evt</c> (S→C, reliable, v3): <see cref="RoundMessage"/>, <see cref="RaceStateMessage"/>, <see cref="RaceEvent"/>.</item>
     /// </list>
     /// </summary>
     public static class NetMessages
@@ -176,6 +186,7 @@ namespace FallRush.Shared
                 dst[o++] = p.Yaw;
                 dst[o++] = p.Flags;
                 dst[o++] = p.StunTicks;
+                dst[o++] = p.Race;
             }
 
             return o;
@@ -249,6 +260,7 @@ namespace FallRush.Shared
                 p.Yaw = src[o++];
                 p.Flags = src[o++];
                 p.StunTicks = src[o++];
+                p.Race = src[o++];
                 if (p.Slot >= Protocol.MaxPlayers)
                 {
                     error = $"snap: bad slot {p.Slot}";
@@ -264,13 +276,13 @@ namespace FallRush.Shared
 
         // ---------------- little-endian helpers ----------------
 
-        private static void WriteU16(Span<byte> d, ref int o, ushort v)
+        internal static void WriteU16(Span<byte> d, ref int o, ushort v)
         {
             d[o++] = (byte)v;
             d[o++] = (byte)(v >> 8);
         }
 
-        private static void WriteU32(Span<byte> d, ref int o, uint v)
+        internal static void WriteU32(Span<byte> d, ref int o, uint v)
         {
             d[o++] = (byte)v;
             d[o++] = (byte)(v >> 8);
@@ -278,22 +290,22 @@ namespace FallRush.Shared
             d[o++] = (byte)(v >> 24);
         }
 
-        private static void WriteI32(Span<byte> d, ref int o, int v) => WriteU32(d, ref o, (uint)v);
+        internal static void WriteI32(Span<byte> d, ref int o, int v) => WriteU32(d, ref o, (uint)v);
 
-        private static ushort ReadU16(ReadOnlySpan<byte> s, ref int o)
+        internal static ushort ReadU16(ReadOnlySpan<byte> s, ref int o)
         {
             var v = (ushort)(s[o] | (s[o + 1] << 8));
             o += 2;
             return v;
         }
 
-        private static uint ReadU32(ReadOnlySpan<byte> s, ref int o)
+        internal static uint ReadU32(ReadOnlySpan<byte> s, ref int o)
         {
             var v = (uint)(s[o] | (s[o + 1] << 8) | (s[o + 2] << 16) | (s[o + 3] << 24));
             o += 4;
             return v;
         }
 
-        private static int ReadI32(ReadOnlySpan<byte> s, ref int o) => (int)ReadU32(s, ref o);
+        internal static int ReadI32(ReadOnlySpan<byte> s, ref int o) => (int)ReadU32(s, ref o);
     }
 }

@@ -5,7 +5,7 @@ namespace FallRush.Shared
         public float Distance;
         public Vec3 Point;
         public Vec3 Normal;
-        /// <summary>Moving-surface index (a <see cref="HazardSet"/> platform), or −1 for static geometry.</summary>
+        /// <summary>Surface id (<see cref="HazardSet"/>: platform, turn table, conveyor or spring pad), or −1 for plain static geometry.</summary>
         public int SurfaceId;
     }
 
@@ -31,7 +31,10 @@ namespace FallRush.Shared
         /// </summary>
         void BeginTick(uint tick);
 
-        /// <summary>How far moving surface <paramref name="surfaceId"/> moved from the previous tick to the current one (platform carry).</summary>
-        bool SurfaceDelta(int surfaceId, out Vec3 delta);
+        /// <summary>
+        /// How surface <paramref name="surfaceId"/> moves a rider standing at <paramref name="feet"/> from the previous tick to
+        /// the current one: linear platform carry, rotational turn-table carry (point-aware), conveyor belt push.
+        /// </summary>
+        bool SurfaceDelta(int surfaceId, Vec3 feet, out Vec3 delta);
     }
 }

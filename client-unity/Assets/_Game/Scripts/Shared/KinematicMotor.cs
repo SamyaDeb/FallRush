@@ -22,6 +22,7 @@ namespace FallRush.Shared
             public bool SteppedUp;
             public bool JumpCancelled;
             public bool Carried;
+            public bool Inherited;
         }
 
         public readonly MovementConfig Cfg;
@@ -49,12 +50,17 @@ namespace FallRush.Shared
 
             Depenetrate(ref pos, world);
 
-            // ---- platform carry: ride the surface we stood on at the end of the last tick ----
-            if (wasGrounded && s.Surface != 0 && world.SurfaceDelta(s.Surface - 1, out var carry) && carry.SqrMagnitude > 0f)
+            // ---- surface carry: ride the surface we stood on at the end of the last tick (platform, turn table, belt) ----
+            var carry = Vec3.Zero;
+            if (wasGrounded && s.Surface != 0 && world.SurfaceDelta(s.Surface - 1, pos, out carry) && carry.SqrMagnitude > 0f)
             {
                 var v0 = vel;
                 SlideMove(ref pos, ref v0, carry, groundedMode: true, allowStep: false, world);
                 Last.Carried = true;
+            }
+            else
+            {
+                carry = Vec3.Zero;
             }
 
             // ---- input ----
@@ -144,6 +150,15 @@ namespace FallRush.Shared
                 s.CoyoteTicks = 0;
                 diving = dived = true;
                 Last.Dived = true;
+            }
+
+            // Jump-off inheritance (M3): leaving a moving surface by a jump or a dive keeps its horizontal velocity
+            // (platform, turn-table rim, belt). Walking off an edge does not. Deterministic, so prediction stays exact.
+            if ((jumped || dived) && Last.Carried)
+            {
+                vel.X += carry.X / dt;
+                vel.Z += carry.Z / dt;
+                Last.Inherited = true;
             }
 
             var grounded = wasGrounded && !jumped && !dived;

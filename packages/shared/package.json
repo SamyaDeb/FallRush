@@ -9,7 +9,8 @@
     "gen-vectors": "tsx scripts/gen-vectors.ts",
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit -p .",
-    "gen:movement": "tsx scripts/gen-movement-cs.ts"
+    "gen:movement": "tsx scripts/gen-movement-cs.ts",
+    "gen:modifiers": "tsx scripts/gen-modifiers-cs.ts"
   },
   "devDependencies": {
     "@types/node": "24.10.1",

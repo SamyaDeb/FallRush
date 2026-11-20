@@ -63,17 +63,36 @@ namespace FallRush.Net
             sim.Init(nm, map);
         }
 
+        public MapInfo Map { get; private set; }
+        public RoundParams Round { get; private set; }
+        public byte[] MapHash { get; private set; }
+        /// <summary>Non-null when the map's resolved defs failed the allowlist: the round is refused (nothing is simulated).</summary>
+        public string Refused { get; private set; }
+        private PhysxMotorWorld _world;
+        private readonly byte[] _roundBuf = new byte[RoundMessage.Size];
+
         private void Init(NetworkManager nm, MapInfo map)
         {
             Instance = this;
             _nm = nm;
+            Map = map;
 
             Physics.simulationMode = SimulationMode.Script;
             Physics.SyncTransforms();
-            var cfg = MovementConfig.Default;
-            var world = map.CreateWorld(transform, cfg, out var hazards);
-            Core = new SimCore(cfg, world, map.SpawnPoints(), hazards);
+            MapHash = map.ContentHash;
+            var p = ChooseRoundParams(map);
+            p.RoundStartTick = 0; // free play: hazard time = server tick (M3b race rounds set the RUSH tick)
+            var cfg = MovementConfig.For(p.Modifier);
+            _world = map.CreateWorld(transform, cfg, in p, out var hazards);
+            Core = new SimCore(cfg, _world, map.SpawnPoints(), hazards, map.SpawnYaws());
             Core.SetBotArea(map.botAreaCenter.x, map.botAreaCenter.z, map.botAreaHalfExtents.x, map.botAreaHalfExtents.y);
+            Round = p;
+            var problems = HazardAllowlist.Validate(hazards);
+            if (problems.Count > 0)
+            {
+                Refused = string.Join("; ", problems);
+                Debug.LogError($"[gs] ROUND REFUSED map={map.gameObject.scene.name} {p}: {problems.Count} hazard parameter(s) outside the allowlist: {Refused}");
+            }
 
             var snapHz = ArgInt("-fallrushSnapHz", "GAMESERVER_SNAP_HZ", 15);
             SnapshotEveryTicks = snapHz >= 30 ? 1 : 2;
@@ -87,7 +106,58 @@ namespace FallRush.Net
             foreach (var id in nm.ConnectedClientsIds)
                 OnClientConnected(id); // anyone who connected while the map was loading
 
-            Debug.Log($"[gs] sim ready map={map.gameObject.scene.name} movement={MovementConfigData.File} sha256={MovementConfigData.Sha256Hex.Substring(0, 16)}… snapHz={30 / SnapshotEveryTicks} hazards={hazards.Sweepers.Length} sweeper(s) + {hazards.Platforms.Length} platform(s) bots={Core.BotCount} (TEST bots, target {BotTarget})");
+            Debug.Log($"[gs] sim ready map={map.gameObject.scene.name} mapHash={MapContent.Short(MapHash)} ({Sha256.Hex(MapHash)}) round: {p} movement={MovementConfigData.File} sha256={MovementConfigData.Sha256Hex.Substring(0, 16)}… modifiers={ModifiersData.Sha256Hex.Substring(0, 16)}… snapHz={30 / SnapshotEveryTicks} hazards={hazards.Count} ({hazards.Sweepers.Length} spinner, {hazards.Platforms.Length} platform, {hazards.Conveyors.Length} conveyor, {hazards.Pads.Length} pad, {hazards.TurnTables.Length} turn table, {hazards.Doors.Length} door, {hazards.Mallets.Length} mallet, {hazards.Bumpers.Length} bumper) bots={Core.BotCount} (TEST bots, target {BotTarget})");
+        }
+
+        /// <summary>
+        /// Round parameter source. M3: the dev seed (<c>-fallrushSeed</c>, <c>-fallrushVariant</c>, <c>-fallrushModifier</c>;
+        /// env <c>GAMESERVER_SEED</c>/<c>_VARIANT</c>/<c>_MODIFIER</c>); unset variant/modifier are derived from the seed.
+        /// TODO(M6): one-line swap to the VRF deal for this round.
+        /// </summary>
+        public static RoundParams ChooseRoundParams(MapInfo map)
+        {
+            var seedArg = ArgStr("-fallrushSeed", "GAMESERVER_SEED");
+            ulong seed = 0x00C0FFEE;
+            if (!string.IsNullOrEmpty(seedArg))
+            {
+                if (seedArg.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                    ulong.TryParse(seedArg.Substring(2), System.Globalization.NumberStyles.HexNumber, null, out seed);
+                else
+                    ulong.TryParse(seedArg, out seed);
+            }
+
+            var variant = -1;
+            var v = ArgStr("-fallrushVariant", "GAMESERVER_VARIANT");
+            if (!string.IsNullOrEmpty(v))
+                variant = v == "B" || v == "b" || v == "1" ? 1 : 0;
+            var modifier = -1;
+            var m = ArgStr("-fallrushModifier", "GAMESERVER_MODIFIER");
+            if (!string.IsNullOrEmpty(m) && ModifierEffects.TryParse(m, out var mid))
+                modifier = mid;
+            var p = RoundParams.FromDevSeed(map.MapId, seed, variant, modifier);
+            if (modifier < 0 && (map.definition == null || !map.definition.IsRace))
+                p.Modifier = 0; // sandbox: no random modifier unless asked
+            return p;
+        }
+
+        /// <summary>Sends the round message (params + map hash) to one client (reliable).</summary>
+        public void SendRound(ulong clientId)
+        {
+            var msg = new RoundMessage { P = Round, MapHash = MapHash };
+            var n = msg.Encode(_roundBuf);
+            using var w = new FastBufferWriter(n, Allocator.Temp);
+            w.WriteBytesSafe(_roundBuf, n);
+            _nm.CustomMessagingManager.SendNamedMessage(Protocol.Msg.Round, clientId, w, NetworkDelivery.ReliableSequenced);
+        }
+
+        private static string ArgStr(string arg, string env)
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (var i = 0; i < args.Length - 1; i++)
+                if (string.Equals(args[i], arg, StringComparison.OrdinalIgnoreCase))
+                    return args[i + 1];
+            var e = Environment.GetEnvironmentVariable(env);
+            return string.IsNullOrEmpty(e) ? null : e;
         }
 
         private void OnDestroy()
@@ -135,6 +205,7 @@ namespace FallRush.Net
             _violationWindowStart[slot] = Core.Tick;
             _violationsAtWindowStart[slot] = 0;
             _lastInputTick[slot] = 0;
+            SendRound(clientId);
             Debug.Log($"[gs] slot {slot} → client={clientId} humans={Core.HumanCount} bots={Core.BotCount}");
         }
 
@@ -196,6 +267,8 @@ namespace FallRush.Net
 
         private void OnTick()
         {
+            if (Refused != null)
+                return; // allowlist failure: the round does not start
             var t0 = Stopwatch.GetTimestamp();
             Core.Step();
             if (Core.Tick % (uint)SnapshotEveryTicks == 0)

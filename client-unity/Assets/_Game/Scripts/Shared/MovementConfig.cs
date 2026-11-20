@@ -11,7 +11,26 @@ namespace FallRush.Shared
     /// </summary>
     public sealed class MovementConfig
     {
-        public static readonly MovementConfig Default = new MovementConfig();
+        public static readonly MovementConfig Default = new MovementConfig(ModifierEffects.Get(ModifierEffects.NoneId));
+        private static readonly MovementConfig[] ByModifier = new MovementConfig[16];
+
+        /// <summary>
+        /// The motor constants under a modifier (MoonBounce: gravity ×0.7, apex ×1.25; ButterFloors: ground decel ×0.4).
+        /// Scaled in integer mm before the float conversion, so the server and every client build the same floats.
+        /// Modifiers that do not touch the motor return <see cref="Default"/>.
+        /// </summary>
+        public static MovementConfig For(int modifierId)
+        {
+            var m = ModifierEffects.Get(modifierId);
+            if (!m.AffectsMotor)
+                return Default;
+            if (m.Id < 0 || m.Id >= ByModifier.Length)
+                return new MovementConfig(m);
+            return ByModifier[m.Id] ??= new MovementConfig(m);
+        }
+
+        /// <summary>The modifier this config was built for (0 = None).</summary>
+        public readonly int ModifierId;
 
         public readonly int TickRate = D.TickRateHz;
         public readonly float Dt;
@@ -27,20 +46,21 @@ namespace FallRush.Shared
 
         public readonly int CoyoteTicks, JumpBufferTicks, DiveCooldownTicks, DiveLandStunTicks, DiveCancelWindowTicks, RespawnTicks;
 
-        private MovementConfig()
+        private MovementConfig(in ModifierEffects m)
         {
+            ModifierId = m.AffectsMotor ? m.Id : ModifierEffects.NoneId;
             Dt = 1f / TickRate;
             Radius = Mm(D.Capsule_Radius);
             Height = Mm(D.Capsule_Height);
             Skin = Mm(D.Capsule_Skin);
             MaxSpeed = Mm(D.Run_MaxSpeed);
             GroundAccel = Mm(D.Run_GroundAccel);
-            GroundDecel = Mm(D.Run_GroundDecel);
+            GroundDecel = Mm(Scale(D.Run_GroundDecel, m.GroundDecelPermille));
             AirAccel = GroundAccel * (D.Run_AirControlPermille / 1000f);
-            Gravity = Mm(D.Gravity_Accel);
+            Gravity = Mm(Scale(D.Gravity_Accel, m.GravityPermille));
             FallMultiplier = D.Gravity_FallMultiplierPermille / 1000f;
             MaxFallSpeed = Mm(D.Gravity_MaxFallSpeed);
-            JumpApex = Mm(D.Jump_ApexHeight);
+            JumpApex = Mm(Scale(D.Jump_ApexHeight, m.JumpApexPermille));
             JumpSpeed = (float)Math.Sqrt(2f * Gravity * JumpApex);
             DiveHorizontal = Mm(D.Dive_HorizontalSpeed);
             DiveVertical = Mm(D.Dive_VerticalSpeed);
@@ -61,6 +81,8 @@ namespace FallRush.Shared
         }
 
         private static float Mm(int v) => v / 1000f;
+
+        private static int Scale(int v, int permille) => permille == 1000 ? v : (int)HazardMath.RoundDiv((long)v * permille, 1000);
 
         /// <summary>Round half up: 100 ms → 3, 120 ms → 4 (3.6), 350 ms → 11 (10.5), 150 ms → 5 (4.5).</summary>
         public static int MsToTicks(int ms, int tickRate) => (ms * tickRate * 2 + 1000) / 2000;

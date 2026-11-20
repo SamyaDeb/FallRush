@@ -29,6 +29,7 @@ namespace FallRush.Net
         private float _hideAt = float.MaxValue;
         private int _hideSecs;
         private float _startedAt;
+        private bool _loadWhenRound;
 
         public static string TargetFromArgs() => GetArg(Arg);
 
@@ -104,7 +105,7 @@ namespace FallRush.Net
                 _gate.Course = _course;
                 _gate.AutoLog = false; // logged together with the [probe] line
                 ClientSim.Instance.InputSource = this;
-                SceneManager.LoadScene(NetBootstrap.SandboxScene);
+                _loadWhenRound = true; // the round message says which map to load
             }
             else if (boot.State == ClientState.Disconnected)
             {
@@ -136,6 +137,14 @@ namespace FallRush.Net
         {
             var now = Time.realtimeSinceStartup;
             var cs = ClientSim.Instance;
+            if (_loadWhenRound && cs != null && cs.Round.HasValue)
+            {
+                _loadWhenRound = false;
+                var scene = ClientSim.SceneFor(cs.Round.Value.MapId);
+                Debug.Log($"[probe] round {cs.Round.Value} → loading {scene}");
+                SceneManager.LoadScene(scene);
+            }
+
             if (cs != null && !cs.Active && MapInfo.Current != null)
                 cs.Active = true;
 

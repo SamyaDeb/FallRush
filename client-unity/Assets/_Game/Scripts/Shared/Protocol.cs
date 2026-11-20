@@ -10,7 +10,7 @@ namespace FallRush.Shared
     public static class Protocol
     {
         /// <summary>Bump on any incompatible change to messages or approval payload.</summary>
-        public const ushort Version = 2; // v2 (M2): in/snap movement messages
+        public const ushort Version = 3; // v3 (M3): snap race byte, round / rstate / evt messages
 
         /// <summary>Hard cap on players per game server (doc 01: 12-player matches).</summary>
         public const int MaxPlayers = 12;
@@ -38,6 +38,15 @@ namespace FallRush.Shared
 
             /// <summary>S→C, 15 Hz (30 Hz option): <see cref="SnapHeader"/> + N × <see cref="PlayerState"/>. Delivery: UnreliableSequenced.</summary>
             public const string Snap = "snap";
+
+            /// <summary>S→C, reliable: <see cref="RoundMessage"/> (round params + map content hash), on connect and per round.</summary>
+            public const string Round = "round";
+
+            /// <summary>S→C, reliable: <see cref="RaceStateMessage"/> (full round state), on connect and on every phase change.</summary>
+            public const string RaceState = "rstate";
+
+            /// <summary>S→C, reliable: <see cref="RaceEvent"/> (checkpoint / finish / qualify / round end) with a sequence number.</summary>
+            public const string Event = "evt";
         }
 
         public struct Hello

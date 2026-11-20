@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "fall-rush-modifiers",
+  "mapPool": "map_pool_v1.json",
+  "units": "ratio permille, angle deg; 1000 = unchanged",
+  "notes": "Effect values of the Chaos Capsule modifiers (GDD 8). Ids and keys equal map_pool_v1.json. Not on-chain yet (M6: ruleset/map-pool v2).",
+  "modifiers": [
+    { "id": 0, "key": "None",         "scope": "none",   "gravityPermille": 1000, "jumpApexPermille": 1000, "groundDecelPermille": 1000, "hazardSpeedPermille": 1000, "telegraphPermille": 1000, "knockbackPermille": 1000, "fovDeltaDeg": 0,  "fogPermille": 0 },
+    { "id": 1, "key": "MoonBounce",   "scope": "motor",  "gravityPermille": 700,  "jumpApexPermille": 1250, "groundDecelPermille": 1000, "hazardSpeedPermille": 1000, "telegraphPermille": 1000, "knockbackPermille": 1000, "fovDeltaDeg": 0,  "fogPermille": 0 },
+    { "id": 2, "key": "ButterFloors", "scope": "motor",  "gravityPermille": 1000, "jumpApexPermille": 1000, "groundDecelPermille": 400,  "hazardSpeedPermille": 1000, "telegraphPermille": 1000, "knockbackPermille": 1000, "fovDeltaDeg": 0,  "fogPermille": 0 },
+    { "id": 3, "key": "TurboToys",    "scope": "hazard", "gravityPermille": 1000, "jumpApexPermille": 1000, "groundDecelPermille": 1000, "hazardSpeedPermille": 1200, "telegraphPermille": 1000, "knockbackPermille": 1000, "fovDeltaDeg": 0,  "fogPermille": 0 },
+    { "id": 4, "key": "BigBonk",      "scope": "hazard", "gravityPermille": 1000, "jumpApexPermille": 1000, "groundDecelPermille": 1000, "hazardSpeedPermille": 1000, "telegraphPermille": 1000, "knockbackPermille": 1400, "fovDeltaDeg": 0,  "fogPermille": 0 },
+    { "id": 5, "key": "TinyTilt",     "scope": "visual", "gravityPermille": 1000, "jumpApexPermille": 1000, "groundDecelPermille": 1000, "hazardSpeedPermille": 1000, "telegraphPermille": 1000, "knockbackPermille": 1000, "fovDeltaDeg": -8, "fogPermille": 25 }
+  ]
+}

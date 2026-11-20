@@ -29,6 +29,22 @@ namespace FallRush.Net
         public const string MenuScene = "Menu";
         public const string LobbyScene = "Lobby";
         public const string SandboxScene = "Map_Sandbox";
+        public const string BlockPartyDashScene = "Map_BlockPartyDash";
+        private const string MapArg = "-fallrushMap"; // server: Sandbox (default) | BlockPartyDash; env GAMESERVER_MAP
+
+        /// <summary>True for a loadable round map scene (<c>Map_*</c>).</summary>
+        public static bool IsMapScene(string sceneName) => sceneName != null && sceneName.StartsWith("Map_", StringComparison.Ordinal);
+
+        /// <summary>The server's map scene from <c>-fallrushMap</c> / <c>GAMESERVER_MAP</c>.</summary>
+        public static string ServerMapScene()
+        {
+            var v = GetArgValue(MapArg) ?? Environment.GetEnvironmentVariable("GAMESERVER_MAP");
+            if (string.IsNullOrEmpty(v))
+                return SandboxScene;
+            if (v.StartsWith("Map_", StringComparison.Ordinal))
+                return v;
+            return string.Equals(v, "BlockPartyDash", StringComparison.OrdinalIgnoreCase) || v == "bpd" ? BlockPartyDashScene : SandboxScene;
+        }
         public const int ServerDisconnectTimeoutMs = 90000;
         public const int ClientPacketQueueSize = 1024;
         private const string ServerFpsArg = "-fallrushServerFps"; // server frame cap override (30–240)
@@ -122,7 +138,7 @@ namespace FallRush.Net
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (scene.name != SandboxScene)
+            if (!IsMapScene(scene.name))
                 return;
             Physics.SyncTransforms();
             if (IsServerRole && Manager.IsServer)
@@ -130,7 +146,7 @@ namespace FallRush.Net
                 var map = MapInfo.Current;
                 if (map == null)
                 {
-                    Debug.LogError("[gs] Map_Sandbox has no MapInfo");
+                    Debug.LogError($"[gs] {scene.name} has no MapInfo");
                     return;
                 }
 
@@ -212,7 +228,7 @@ namespace FallRush.Net
 
             if (Manager.StartServer())
             {
-                SceneManager.LoadScene(SandboxScene);
+                SceneManager.LoadScene(ServerMapScene());
                 Debug.Log($"[gs] listening id={id} ws://{listen}:{ListenPort}{Transport.ConnectionData.WebSocketPath ?? "/"} (port from {portSource}) protocol={Protocol.Version} build={Application.version} tickRate={Manager.NetworkConfig.TickRate} targetFps={Application.targetFrameRate}");
             }
             else
@@ -283,7 +299,8 @@ namespace FallRush.Net
             }
 
             // Client side: read the reason now; it is cleared once the NetworkManager shuts down.
-            _pendingDisconnectReason = Manager.DisconnectReason;
+            if (!string.IsNullOrEmpty(Manager.DisconnectReason) || _pendingDisconnectReason == null)
+                _pendingDisconnectReason = Manager.DisconnectReason;
         }
 
         // =====================================================================
@@ -411,6 +428,14 @@ namespace FallRush.Net
             LastDisconnectReason = reason;
             Debug.Log($"[net] disconnected: {reason}");
             SetState(ClientState.Disconnected);
+        }
+
+        /// <summary>Client-side refusal (e.g. map hash mismatch): disconnect and show <paramref name="reason"/>.</summary>
+        public void DisconnectWithReason(string reason)
+        {
+            _pendingDisconnectReason = reason;
+            if (Manager.IsListening)
+                Manager.Shutdown();
         }
 
         public void Disconnect()

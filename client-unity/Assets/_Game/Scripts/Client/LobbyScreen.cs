@@ -104,8 +104,19 @@ namespace FallRush.Client
                 _rtt.text = boot.State == ClientState.Connected ? "RTT: measuring…" : string.Empty;
 
             _reconnect.gameObject.SetActive(boot.State == ClientState.Disconnected);
-            _enter.gameObject.SetActive(boot.State == ClientState.Connected);
-            if (_autoplay && boot.State == ClientState.Connected)
+            var cs = ClientSim.Instance;
+            var hasRound = cs != null && cs.Round.HasValue;
+            _enter.gameObject.SetActive(boot.State == ClientState.Connected && hasRound);
+            if (hasRound)
+            {
+                var r = cs.Round.Value;
+                var label = r.MapId == MapPoolV1.BlockPartyDash
+                    ? $"Enter Block Party Dash ({(r.Variant == 0 ? "A" : "B")}, {ModifierEffects.Get(r.Modifier).Key})"
+                    : "Enter Sandbox + obstacle kit";
+                UiKit.SetButtonText(_enter, label);
+            }
+
+            if (_autoplay && boot.State == ClientState.Connected && hasRound)
             {
                 _autoplay = false;
                 OnEnter();
@@ -114,7 +125,12 @@ namespace FallRush.Client
 
         private void OnReconnect() => NetBootstrap.Instance?.Reconnect();
 
-        private static void OnEnter() => SceneManager.LoadScene(NetBootstrap.SandboxScene);
+        private static void OnEnter()
+        {
+            // The server's round message names the map (Map_Sandbox or Map_BlockPartyDash).
+            var cs = ClientSim.Instance;
+            SceneManager.LoadScene(cs != null && cs.Round.HasValue ? ClientSim.SceneFor(cs.Round.Value.MapId) : NetBootstrap.SandboxScene);
+        }
 
         private void OnBack()
         {

@@ -23,16 +23,17 @@ namespace FallRush.Shared
         }
 
         public readonly Slot[] Slots = new Slot[MaxSlots];
-        public readonly MovementConfig Cfg;
+        public MovementConfig Cfg { get; private set; }
 
         private readonly InputSanitizer[] _inputs = new InputSanitizer[MaxSlots];
         private readonly TestBotInput[] _bots = new TestBotInput[MaxSlots];
         private readonly Vec3[] _push = new Vec3[MaxSlots];
         private readonly bool[] _pushedSinceSnap = new bool[MaxSlots];
-        private readonly KinematicMotor _motor;
-        private readonly IMotorWorld _world;
-        private readonly Vec3[] _spawns;
-        private readonly HazardSet _hazards;
+        private KinematicMotor _motor;
+        private IMotorWorld _world;
+        private Vec3[] _spawns;
+        private byte[] _spawnYaws = new byte[MaxSlots];
+        private HazardSet _hazards;
         private float _botAreaCx, _botAreaCz, _botAreaHx = 10f, _botAreaHz = 10f;
 
         /// <summary>Last simulated tick (0 before the first step). Commands for <c>Tick + 1</c> are due next.</summary>
@@ -46,16 +47,52 @@ namespace FallRush.Shared
         public long HazardHits { get; private set; }
 
         public HazardSet Hazards => _hazards;
+        public IMotorWorld World => _world;
+        public KinematicMotor Motor => _motor;
 
-        public SimCore(MovementConfig cfg, IMotorWorld world, Vec3[] spawns, HazardSet hazards = null)
+        /// <summary>Round rules (race, M3b); null = free play (sandbox). Called around every step.</summary>
+        public ISimRules Rules;
+        /// <summary>Per-slot input override for bots (waypoint bots, M3b); null = <see cref="TestBotInput"/>.</summary>
+        public Func<int, uint, MotorState, InputCmd> BotInput;
+        /// <summary>Hazard hits per slot (QA statistics).</summary>
+        public readonly int[] HitsBySlot = new int[MaxSlots];
+        public readonly int[] FallsBySlot = new int[MaxSlots];
+
+        /// <summary>
+        /// New round: motor constants (modifier), world and hazards (variant, seed, round start) and spawns. Slots, inputs and
+        /// connections stay. Every active player is put back on their spawn.
+        /// </summary>
+        public void Reconfigure(MovementConfig cfg, IMotorWorld world, HazardSet hazards, Vec3[] spawns, byte[] spawnYaws = null)
         {
             Cfg = cfg;
+            _motor = new KinematicMotor(cfg);
             _world = world;
             _hazards = hazards ?? HazardSet.Empty;
-            _motor = new KinematicMotor(cfg);
             if (spawns == null || spawns.Length < MaxSlots)
                 throw new ArgumentException($"need {MaxSlots} spawn points", nameof(spawns));
             _spawns = spawns;
+            _spawnYaws = spawnYaws ?? new byte[MaxSlots];
+            Array.Clear(HitsBySlot, 0, MaxSlots);
+            Array.Clear(FallsBySlot, 0, MaxSlots);
+            for (var i = 0; i < MaxSlots; i++)
+            {
+                if (!Slots[i].Active)
+                    continue;
+                Slots[i].State = SpawnState(i);
+                Slots[i].RespawnTicks = 0;
+            }
+        }
+
+        /// <summary>Teleports <paramref name="slot"/> (respawn at a checkpoint, round start).</summary>
+        public void Place(int slot, Vec3 feet, byte yaw)
+        {
+            Slots[slot].State = new MotorState { Position = feet, Yaw = yaw };
+            Slots[slot].RespawnTicks = 0;
+        }
+
+        public SimCore(MovementConfig cfg, IMotorWorld world, Vec3[] spawns, HazardSet hazards = null, byte[] spawnYaws = null)
+        {
+            Reconfigure(cfg, world, hazards, spawns, spawnYaws);
         }
 
         public void SetBotArea(float cx, float cz, float halfX, float halfZ)
@@ -144,7 +181,7 @@ namespace FallRush.Shared
 
         public MotorState SpawnState(int slot)
         {
-            var s = new MotorState { Position = _spawns[slot], Yaw = 0 };
+            var s = new MotorState { Position = _spawns[slot], Yaw = _spawnYaws[slot] };
             return s;
         }
 
@@ -154,6 +191,7 @@ namespace FallRush.Shared
             Tick++;
             var dt = Cfg.Dt;
             _world.BeginTick(Tick);
+            Rules?.BeginTick(this, Tick);
 
             for (var i = 0; i < MaxSlots; i++)
             {
@@ -163,28 +201,44 @@ namespace FallRush.Shared
 
                 InputCmd cmd;
                 if (p.Bot)
-                    cmd = _bots[i].Next(Tick, in p.State);
+                    cmd = BotInput != null ? BotInput(i, Tick, p.State) : _bots[i].Next(Tick, in p.State);
                 else
                     cmd = _inputs[i].Consume(Tick, out _);
+
+                if (Rules != null && !Rules.AcceptsInput(this, i))
+                    cmd = new InputCmd { Seq = cmd.Seq, Tick = cmd.Tick, CamYaw = cmd.CamYaw }; // countdown / finished: inputs ignored
 
                 if (p.State.Has(MotorState.Respawning))
                 {
                     if (--p.RespawnTicks <= 0)
-                        p.State = SpawnState(i);
+                    {
+                        if (Rules == null || !Rules.Respawn(this, i))
+                            p.State = SpawnState(i);
+                    }
+
                     continue;
                 }
 
+                if (Rules != null && !Rules.Simulates(this, i))
+                    continue; // finished racers stand at the finish, out of the simulation
+
                 var r = PlayerStep.Run(_motor, ref p.State, in cmd, Tick, _world, _hazards);
                 if ((r & PlayerStep.Result.HazardHit) != 0)
+                {
                     HazardHits++;
+                    HitsBySlot[i]++;
+                }
+
                 if ((r & PlayerStep.Result.FellOut) != 0)
                 {
                     p.RespawnTicks = Cfg.RespawnTicks;
                     p.Respawns++;
+                    FallsBySlot[i]++;
                 }
             }
 
             Separate(dt);
+            Rules?.EndTick(this, Tick);
 
             for (var i = 0; i < MaxSlots; i++)
                 _inputs[i]?.BeginTick();
@@ -201,12 +255,12 @@ namespace FallRush.Shared
             for (var i = 0; i < MaxSlots; i++)
             {
                 ref var a = ref Slots[i];
-                if (!a.Active || a.State.Has(MotorState.Respawning))
+                if (!a.Active || a.State.Has(MotorState.Respawning) || (Rules != null && !Rules.Collides(this, i)))
                     continue;
                 for (var j = i + 1; j < MaxSlots; j++)
                 {
                     ref var b = ref Slots[j];
-                    if (!b.Active || b.State.Has(MotorState.Respawning))
+                    if (!b.Active || b.State.Has(MotorState.Respawning) || (Rules != null && !Rules.Collides(this, j)))
                         continue;
                     var dyMm = a.State.PosY - b.State.PosY;
                     if (dyMm >= 1000 || dyMm <= -1000)
@@ -260,7 +314,7 @@ namespace FallRush.Shared
             {
                 if (!Slots[i].Active)
                     continue;
-                dst[n++] = PlayerState.From((byte)i, in Slots[i].State, Slots[i].Bot ? MotorState.Bot : (byte)0);
+                dst[n++] = PlayerState.From((byte)i, in Slots[i].State, Slots[i].Bot ? MotorState.Bot : (byte)0, Rules != null ? Rules.RaceByte(i) : (byte)0);
             }
 
             return n;
@@ -293,5 +347,33 @@ namespace FallRush.Shared
 
             return h;
         }
+    }
+}
+
+namespace FallRush.Shared
+{
+    /// <summary>Round rules hooked into <see cref="SimCore.Step"/> (M3b: <c>RaceRules</c>). Engine-free.</summary>
+    public interface ISimRules
+    {
+        /// <summary>Before any player of <paramref name="tick"/> is stepped (phase changes).</summary>
+        void BeginTick(SimCore sim, uint tick);
+
+        /// <summary>After the players and the separation of <paramref name="tick"/> (checkpoints, finish, timer).</summary>
+        void EndTick(SimCore sim, uint tick);
+
+        /// <summary>False during the countdown and for finished players: the command is replaced by a neutral one.</summary>
+        bool AcceptsInput(SimCore sim, int slot);
+
+        /// <summary>False for players taken out of the simulation (finished racers).</summary>
+        bool Simulates(SimCore sim, int slot);
+
+        /// <summary>False for players that are out of player–player collisions (finished racers).</summary>
+        bool Collides(SimCore sim, int slot);
+
+        /// <summary>Respawn after a fall (at the last checkpoint); false = the default spawn.</summary>
+        bool Respawn(SimCore sim, int slot);
+
+        /// <summary>The snapshot race byte for <paramref name="slot"/> (<see cref="PlayerState.Race"/>).</summary>
+        byte RaceByte(int slot);
     }
 }

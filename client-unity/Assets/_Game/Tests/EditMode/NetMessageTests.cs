@@ -12,8 +12,8 @@ namespace FallRush.Tests
             Assert.That(InputCmd.Size, Is.EqualTo(13));
             Assert.That(NetMessages.InputMaxBytes, Is.EqualTo(40));
             Assert.That(SnapHeader.Size, Is.EqualTo(18));
-            Assert.That(PlayerState.Size, Is.EqualTo(22));
-            Assert.That(NetMessages.SnapMaxBytes, Is.EqualTo(18 + 12 * 22));
+            Assert.That(PlayerState.Size, Is.EqualTo(23)); // v3: + race byte
+            Assert.That(NetMessages.SnapMaxBytes, Is.EqualTo(18 + 12 * 23));
         }
 
         private static InputCmd C(uint seq, uint tick, int mx, int my, byte b, ushort yaw) =>
@@ -53,7 +53,7 @@ namespace FallRush.Tests
 
         private static PlayerState P(byte slot, int x, int y, int z) => new PlayerState
         {
-            Slot = slot, PosX = x, PosY = y, PosZ = z, VelX = -32767, VelY = 1234, VelZ = -1, Yaw = 200, Flags = 0x81, StunTicks = 15,
+            Slot = slot, PosX = x, PosY = y, PosZ = z, VelX = -32767, VelY = 1234, VelZ = -1, Yaw = 200, Flags = 0x81, StunTicks = 15, Race = (byte)(0x30 | (slot & 0x0F)),
         };
 
         [Test]
@@ -69,7 +69,7 @@ namespace FallRush.Tests
             };
             var buf = new byte[NetMessages.SnapMaxBytes];
             var len = NetMessages.EncodeSnap(buf, h, players);
-            Assert.That(len, Is.EqualTo(282));
+            Assert.That(len, Is.EqualTo(294)); // protocol v3 (M3): 18 + 12 × 23
 
             var outPlayers = new PlayerState[12];
             Assert.That(NetMessages.TryDecodeSnap(buf.AsSpan(0, len), out var h2, outPlayers, out var err), Is.True, err);
@@ -97,6 +97,7 @@ namespace FallRush.Tests
                 Assert.That(outPlayers[i].Yaw, Is.EqualTo(200));
                 Assert.That(outPlayers[i].Flags, Is.EqualTo(0x81));
                 Assert.That(outPlayers[i].StunTicks, Is.EqualTo(15));
+                Assert.That(outPlayers[i].Race, Is.EqualTo(players[i].Race));
             }
         }
 
@@ -111,7 +112,7 @@ namespace FallRush.Tests
                 Assert.That(NetMessages.TryDecodeSnap(buf.AsSpan(0, l), out _, dst, out _), Is.False, $"prefix {l}");
             Assert.That(NetMessages.TryDecodeSnap(buf.AsSpan(0, len + 1), out _, dst, out _), Is.False, "trailing");
 
-            var bad = new byte[18 + 13 * 22];
+            var bad = new byte[18 + 13 * 23];
             Array.Copy(buf, bad, len);
             bad[17] = 13; // count
             Assert.That(NetMessages.TryDecodeSnap(bad, out _, new PlayerState[13], out _), Is.False);

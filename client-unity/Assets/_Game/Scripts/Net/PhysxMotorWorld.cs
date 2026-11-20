@@ -19,50 +19,86 @@ namespace FallRush.Net
         private readonly Collider[] _overlaps = new Collider[16];
         private readonly HazardSet _hazards;
         private readonly Collider[] _platforms;
+        private readonly Collider[] _doors;
+        private readonly System.Collections.Generic.Dictionary<int, int> _surfaceOf = new System.Collections.Generic.Dictionary<int, int>();
         private uint _tick;
         private bool _posed;
 
         /// <param name="platforms">Collider of each <see cref="HazardSet.Platforms"/> entry (same order), moved by <see cref="BeginTick"/>.</param>
         public PhysxMotorWorld(PhysicsScene scene, int layerMask, CapsuleCollider probe, HazardSet hazards = null, Collider[] platforms = null)
+            : this(scene, layerMask, probe, hazards, new MapInfo.Colliders { Platforms = platforms ?? System.Array.Empty<Collider>() })
+        {
+        }
+
+        /// <param name="cols">Colliders of the hazard set in <see cref="HazardSet"/> order: platforms and doors are posed per tick;
+        /// platforms, turn tables, conveyors and spring pads map to surface ids.</param>
+        public PhysxMotorWorld(PhysicsScene scene, int layerMask, CapsuleCollider probe, HazardSet hazards, MapInfo.Colliders cols)
         {
             _scene = scene;
             _mask = layerMask;
             _probe = probe;
             _hazards = hazards ?? HazardSet.Empty;
-            _platforms = platforms ?? System.Array.Empty<Collider>();
-            if (_platforms.Length != _hazards.Platforms.Length)
-                throw new System.ArgumentException($"{_platforms.Length} platform colliders for {_hazards.Platforms.Length} platform defs");
+            cols ??= new MapInfo.Colliders();
+            _platforms = cols.Platforms ?? System.Array.Empty<Collider>();
+            _doors = cols.Doors ?? System.Array.Empty<Collider>();
+            Check(_platforms.Length, _hazards.Platforms.Length, "platform");
+            Check(_doors.Length, _hazards.Doors.Length, "door");
+            Check(cols.TurnTables?.Length ?? 0, _hazards.TurnTables.Length, "turn table");
+            Check(cols.Conveyors?.Length ?? 0, _hazards.Conveyors.Length, "conveyor");
+            Check(cols.Pads?.Length ?? 0, _hazards.Pads.Length, "spring pad");
+            for (var i = 0; i < _platforms.Length; i++)
+                Map(_platforms[i], _hazards.PlatformSurface(i));
+            for (var i = 0; i < _hazards.TurnTables.Length; i++)
+                Map(cols.TurnTables[i], _hazards.TurnTableSurface(i));
+            for (var i = 0; i < _hazards.Conveyors.Length; i++)
+                Map(cols.Conveyors[i], _hazards.ConveyorSurface(i));
+            for (var i = 0; i < _hazards.Pads.Length; i++)
+                Map(cols.Pads[i], _hazards.PadSurface(i));
+        }
+
+        private static void Check(int cols, int defs, string what)
+        {
+            if (cols != defs)
+                throw new System.ArgumentException($"{cols} {what} colliders for {defs} {what} defs");
+        }
+
+        private void Map(Collider c, int surface)
+        {
+            if (c != null)
+                _surfaceOf[c.GetInstanceID()] = surface;
         }
 
         public uint PosedTick => _tick;
+        public HazardSet Hazards => _hazards;
 
-        /// <summary>Moves the platform colliders to their pose at <paramref name="tick"/> and syncs PhysX (queries only; nothing is simulated).</summary>
+        /// <summary>Poses platforms and doors at <paramref name="tick"/> (round-relative hazard time) and syncs PhysX (queries only; nothing is simulated).</summary>
         public void BeginTick(uint tick)
         {
             if (_posed && tick == _tick)
                 return;
             _tick = tick;
             _posed = true;
-            if (_platforms.Length == 0)
+            if (_platforms.Length == 0 && _doors.Length == 0)
                 return;
+            var t = _hazards.Time(tick);
             for (var i = 0; i < _platforms.Length; i++)
             {
-                var c = HazardMath.PlatformCenter(in _hazards.Platforms[i], tick);
+                var c = HazardMath.PlatformCenter(in _hazards.Platforms[i], t);
                 _platforms[i].transform.position = V(c);
+            }
+
+            for (var i = 0; i < _doors.Length; i++)
+            {
+                _hazards.DoorCenterMm(i, tick, out var x, out var y, out var z);
+                _doors[i].transform.position = new Vector3(x * 0.001f, y * 0.001f, z * 0.001f);
             }
 
             Physics.SyncTransforms();
         }
 
-        public bool SurfaceDelta(int surfaceId, out Vec3 delta) => _hazards.PlatformDelta(surfaceId, _tick, out delta);
+        public bool SurfaceDelta(int surfaceId, Vec3 feet, out Vec3 delta) => _hazards.SurfaceDelta(surfaceId, _tick, feet, out delta);
 
-        private int SurfaceOf(Collider c)
-        {
-            for (var i = 0; i < _platforms.Length; i++)
-                if (ReferenceEquals(_platforms[i], c))
-                    return i;
-            return -1;
-        }
+        private int SurfaceOf(Collider c) => c != null && _surfaceOf.TryGetValue(c.GetInstanceID(), out var id) ? id : -1;
 
         /// <summary>Creates the hidden capsule used by <see cref="Physics.ComputePenetration"/> (layer Ignore Raycast, outside the query mask).</summary>
         public static CapsuleCollider CreateProbe(Transform parent, float radius, float height)
