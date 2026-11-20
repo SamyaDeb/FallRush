@@ -300,7 +300,7 @@ namespace FallRush.Client
             var r = cs.Remote;
             var now = ClientSim.Now;
             _sb.Clear();
-            _sb.Append("<b>NET (F3)</b>  M2b: predicted\n");
+            _sb.Append("<b>NET (F3)</b>  M3: predicted (pushes too)\n");
             _sb.Append("RTT p50 ").Append(ping != null ? ping.P50Ms.ToString("F0") : "-").Append(" / p95 ").Append(ping != null ? ping.P95Ms.ToString("F0") : "-").Append(" ms\n");
             _sb.Append("server tick ").Append(serverTick).Append("  predicted ").Append(clock.PredictedTick)
                 .Append(" (+").Append((long)clock.PredictedTick - serverTick).Append(")\n");

@@ -23,6 +23,7 @@ namespace FallRush.Net
         private readonly NetworkManager _nm;
         private readonly WaypointBot[] _bots = new WaypointBot[SimCore.MaxSlots];
         private readonly byte[] _buf = new byte[512];
+        private bool _stateDirty;
         private uint _firstHumanInputTick;
         private uint _waitingSince;
         private uint _endedAt;
@@ -48,7 +49,7 @@ namespace FallRush.Net
                 IntroTicks = Mathf.RoundToInt(def.introSeconds * 30f),
                 CountdownTicks = Mathf.RoundToInt(def.countdownSeconds * 30f),
             };
-            Rules.PhaseChanged += _ => BroadcastState();
+            Rules.PhaseChanged += _ => _stateDirty = true; // sent after this tick's events (AfterStep), so rstate never runs ahead of evt
             sim.Core.Rules = Rules;
             sim.Core.BotInput = BotInput;
         }
@@ -129,6 +130,10 @@ namespace FallRush.Net
                     : null;
             Debug.Log($"[gs] race round {_roundNo} start: {p} players={players} (humans={core.HumanCount}, bots={core.BotCount}) rush@{rush}");
             _sim.BroadcastRound();
+            foreach (var e in Rules.Pending)
+                SendEvent(e);
+            Rules.Pending.Clear();
+            _stateDirty = false;
             BroadcastState();
         }
 
@@ -140,6 +145,12 @@ namespace FallRush.Net
                 foreach (var e in Rules.Pending)
                     SendEvent(e);
                 Rules.Pending.Clear();
+            }
+
+            if (_stateDirty)
+            {
+                _stateDirty = false;
+                BroadcastState();
             }
 
             if (Rules.Phase == RoundPhase.Ended && Rules.Result != null && !ReferenceEquals(LastResult, Rules.Result))

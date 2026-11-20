@@ -67,6 +67,27 @@ Each obstacle is a prefab with a `HazardDefinition` ScriptableObject plus an opt
 - A stun cooldown of **0.5 s immunity after a stun ends** prevents stun-locks.
 - Knockback is applied as a velocity override, not as accumulated forces.
 
+### 2.1 As built (M3, 2026-11-19)
+
+Code: `client-unity/Assets/_Game/Scripts/Shared/Hazards/`. Hazard time `t = serverTick − roundStartTick` in **ticks** (not seconds). Every pose is integer-first: a literal Q30 quarter-wave sine table (`HazardTrig.g.cs`) with integer interpolation, positions in mm, contacts in integer mm; floats only to normalise a push direction. Effects run inside `PlayerStep.Run` in this order: door push-out → motor (carried through `IMotorWorld.SurfaceDelta`) → knock hazards → spring pads → fall volume.
+
+| Type | Def fields (units) | Pose | Effect as built | Telegraph (client) |
+|---|---|---|---|---|
+| `SPINNER_BAR` | pivot mm, arm mm, bar radius/height mm, period ticks (sign = direction), phase16, knock fields, `Tangential` | `angle = φ + t/T` (phase16) | knock_soft: push 6 m/s along the bar's travel (away from it if you ran into its back) + 3.5 m/s up, stun 11 ticks (0.35 s), immunity 26 | bar stripes; constant motion |
+| `MOVING_PLATFORM` | centre/half mm, period, phase16, sine travel **or** 2–8 closed Catmull-Rom knots (mm) | integer Horner (Q16) | carry in exact mm; **jumping or diving off keeps its horizontal velocity** (walking off does not) | mint rim |
+| `CONVEYOR` | box mm, pitch cdeg, belt mm/s (3D) | static | belt displacement per tick `round(v·t/30) − round(v·(t−1)/30)` mm (no drift) | chevrons light up in a travelling wave at belt speed |
+| `SPRING_PAD` | top centre mm, half extents, launch cm/s | static | grounded on it → velocity override, once per landing | yellow arrows |
+| `TURN_TABLE` | top centre mm, radius, thickness, period, phase16 | `angle = φ + t/T` | point-aware rotational carry; the rider's table-frame offset snaps to a 2 mm grid, so an idle rider returns to the same mm after a turn; facing is not rotated | spokes |
+| `GATE_DOOR` | closed centre/half mm, lift mm, closed/opening/open/closing ticks, offset, telegraph, phase16, `Mode` (0 cycle, 1 start gate) | piecewise integer lift | posed collider (solid whenever in the way; passable once lifted above head height); a closing door pushes a player inside out along its normal to the side they are on | body flashes magenta for `TelegraphTicks` (15) before and while closing |
+| `MALLET_SWING` | pivot mm, swing axis, arm, head radius/half-width, amplitude phase16, period, phase16, telegraph, knock fields | `angle = A·sin(2π·t/T + φ)` (integer) | knock_hard: push 9 m/s along the head's travel + 5 m/s up, stun 18 (0.6 s), immunity 33 | head glows during the 15 ticks before each pass through the bottom |
+| `BUMPER` | base mm, radius, height, contact margin 40 mm, knock fields | static (solid collider) | radial knock_soft | stripe bands |
+
+- **Immunity:** 0.5 s (15 ticks) after a stun ends; no knock while immune. Tested with a crossfire of two spinners and a mallet: never fewer than 15 control ticks between hits.
+- **Dive under the high bar:** a diving / dive-landed Rushling presents a 0.5 m hit height to the analytic knock hazards (its 80° dive pose); the motor capsule stays upright.
+- **Seeded phase:** `φ = PhaseFromSeed(FNV-1a32(seed_le8 ‖ obstacleId))` mapped into `[phaseMin16, phaseMax16]`. TODO(M6): `H(vrf_seed ‖ round ‖ obstacleId)`.
+- **Allowlists** (`HazardAllowlist.cs`, checked on resolved defs incl. the modifier; out of range → round refused): spinner |T| 60–600, tip ≤ 12 m/s; platform ≤ 200 mm/tick; conveyor ≤ 5 m/s; spring vy 3–20 m/s, |vxz| ≤ 12; turn table rim ≤ 4 m/s; door cycle 60–900, open ≥ 15, telegraph 9–90, lift ≥ 1.3 m, closing ≤ 200 mm/tick; mallet amplitude 10–75°, |T| 60–600; knock ≤ 14 m/s, stun ≤ 24, immunity ≥ stun + 15.
+- **Variants:** each component holds def A and an optional def B, resolved from the same scene. **Modifiers:** `modifiers_v1.json`; TurboToys periods `round_half_up(P·1000/1200)` whole ticks, belts ×1.2, telegraphs unchanged.
+
 ## 3. Map 1A — **Block Party Dash** (Race)
 
 **Layout:** a sunny toy-block sky course.
@@ -85,6 +106,19 @@ Each obstacle is a prefab with a `HazardDefinition` ScriptableObject plus an opt
 
 - **Length:** about 160 m; best line ≈ 45 s, average 75–95 s.
 - **Fall volume:** below y = −10, respawn at the last checkpoint.
+
+### 3.1 As built (M3, `Editor/BlockPartyDashBuilder.cs`)
+
+Course line ≈ 166 m (checkpoints at 47.0 / 115.3 / 132.3 m, finish 166.4 m along it). Kill-Y −10 m.
+- **Start deck** z −12…8, 12 staggered spawns (3 rows × 4, 2.5 m apart), start gate (`GATE_DOOR` mode 1) opens at RUSH over 10 ticks.
+- **S1 Block Hop** z 8…37: left lane 6 static 3 m blocks (1.5 m gaps), middle lane 6 bobbing blocks (variant A vertical ±0.6 m, B lateral ±1.2 m, period 120, seeded phase), right lane 5 static 2.4 m blocks (3.6 m gaps). **CP1** z 39.
+- **S2 Spinner Alley** z 45…85: 10 m bridge with 3 spinner bars (arm 5 m, period 171 = ω 1.1 rad/s; low 0.35 m jump, high 0.95 m dive under, mid 0.5 m jump; variant A directions + − +, B − + −) and two 1 m edge beams outside the bars' reach (safe, slow, narrow).
+- **S3 Conveyor Climb** z 85…105, +3 m: left a 10.6° conveyor ramp running down at **3.5 m/s** (tuned from 2.5); right two spring pads over void (pad 1 (0, 11, 7.5) m/s onto a block at +1.5 m, pad 2 (0, 11, **9**) m/s onto the deck). **CP2** z 107.
+- **S4 Gate wall** z 117: five 3 m doors between 2 m pillars; cycle **210** ticks (closed 141, opening 6, open 45, closing 18), offsets 42 apart (variant A left→right, B reversed) → always ≥ 1 open. **CP3** z 124.
+- **S5 Finish ramp** z 135…155 (+2 m), 7 bumpers (r 0.7 m), checkered arch, **finish** z 158.
+- Two or more routes per section; bottlenecks ≥ 10 m wide except the optional beams. Greybox palette per doc 17 §3.1 (hazards striped yellow/magenta, goals mint/checkered). Map content hash `6780ef6c…`.
+- **Timer cap 110 s** (the upper end of the target; QA medians are far below it, see §9).
+- **Not done:** formal colourblind simulation and a tris/draw-call count (doc 17 §3.2); the originality check needs two people (yours).
 
 ## 4. Map 1B — **Bonk Factory** (Race)
 
@@ -153,3 +187,8 @@ Each obstacle is a prefab with a `HazardDefinition` ScriptableObject plus an opt
   - Run each map × each variant × each allowed modifier **100 times** on the server build.
   - Assert: no soft-lock, a finish is reachable, goo never overtakes the reference route, there is no tick where every route is blocked, and the median duration is within target.
 - **Determinism test:** for 1,000 random `(hazard_seed, tick)` pairs, the C# hazard pose equals the precomputed vectors (EditMode test). This also guards against float drift between macOS and Linux builds.
+
+### 9.1 As built (M3)
+
+`FallRushDevServer -batchmode -nographics -fallrushServer -fallrushMap BlockPartyDash -fallrushQA 100 -fallrushQAOut map-qa.md` (`Net/MapQa.cs`): variants A/B × allowed modifiers × 100 runs, 12 waypoint bots at reference speed (no noise), random spawn order and route choice per run seed, real PhysX world, no networking. 1,000 races take ≈ 70 s on the M2 Air.
+**Result (2026-11-19, `docs/proof/m3-map-qa.md`):** 0 soft-locks, every route reaches its next checkpoint, 0 ticks with every door closed, exactly N qualified 1000/1000, deterministic per run seed. **Median duration 31–34 s: the 75–95 s target is NOT MET** by noise-free bots; human times are UNVERIFIED (see the M3 proof for the tuning log).

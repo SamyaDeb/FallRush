@@ -88,10 +88,12 @@ NGO is used for:
 |---|---|---|---|---|
 | `in` | C→S, every client tick (30 Hz) | Unreliable | `count u8 (1–3)` + count × `InputCmd`, newest first. `InputCmd` = `seq u32, tick u32, moveX i8, moveY i8, buttons u8, camYaw u16` (13 B) | **40 B** |
 | `snap` | S→C, every 2nd tick (15 Hz; `-fallrushSnapHz 30` for every tick) | UnreliableSequenced | header (18 B): `serverTick u32, ackSeq u32, inputLead i8, ownSlot u8, own state 6×u8 (coyote, jumpBuffer, diveCooldown, landTicks, immunity, surface), ownEvents u8 (bit0 = pushed by another player since your last snapshot), count u8` + count × `PlayerState` (22 B): `slot u8, pos 3×i32 mm, vel 3×i16 cm/s, yaw u8, flags u8, stunTicks u8` | **282 B** for 12 |
-| `evt` | S→C | ReliableSequenced | Match / round / checkpoint / qualify / eliminate / tile-drop / star / chain-status events with a `seq` (M4) | — |
+| `evt` | S→C | ReliableSequenced | **M3:** `seq u32, type u8, tick u32, slot u8, arg i32` (checkpoint / finished / qualified / eliminated / respawned / round end / phase) | **14 B** |
+| `round` | S→C, on connect + every new round | ReliableSequenced | **M3:** `RoundParams` (map, variant, modifier, round, hazard seed u64, round start tick, qualify, players, intro/countdown ticks, timer) + 32 B map content hash | **59 B** |
+| `rstate` | S→C, on connect + after every phase change | ReliableSequenced | **M3:** last event seq, phase, phase start tick, RUSH end tick, qualify / qualified / finisher counts + finishers (slot, tick) | 16 + 5 per finisher |
 | `hello` | C→S (approval payload) | Reliable | protocolVersion, buildVersion, cosmeticPreset | 4–36 B |
 
-- **Protocol version 2** (M2). A v1 client is rejected with the readable M1 message.
+- **Protocol version 3** (M3; v2 in M2). An older client is rejected with the readable M1 message. **M3:** `PlayerState` gains a race byte (checkpoints reached in the low nibble, finished / qualified / eliminated bits): 23 B, **`snap` 294 B for 12**.
 - **`moveX/moveY`** are the stick after the client rotated it by `camYaw`, i.e. world X/Z in ±127 with length ≤ 127. The server does no trigonometry on input. `camYaw` only sets the dive direction when there is no move input.
 - **`buttons`:** bit0 jump held, bit1 jump pressed (edge), bit2 dive held, bit3 dive pressed (edge). The client accumulates edges between ticks, so a tap is never lost.
 - **Changes vs the v2 text:**
@@ -113,6 +115,16 @@ NGO is used for:
 
 **Position encoding (corrected 2026-11-18):** v2 had `3×i16 at cm/4`, which covers only ±82 m. A 75–110 s race at up to 7 m/s needs a course of up to ~500 m, so positions are `i32` millimetres (±2,147 km).
 - **The authoritative state *is* the wire precision.** `MotorState` stores pos in mm and vel in cm/s as integers, and `KinematicMotor.Step` quantises at the end of every step (round half away from zero). The state the client receives is exactly the state the server keeps simulating, so reconciliation never chases rounding error.
+
+### 4.1.1 Rounds, hazard time and the map hash (M3, as built)
+
+- **Hazard time is round-relative:** `t = serverTick − RoundParams.RoundStartTick` (`HazardSet.Time`). `Map_Sandbox` starts at tick 0, so its M2 behaviour is unchanged. On race maps the start is the **RUSH tick**, so hazards run at negative `t` during the intro and countdown. While the server waits for players, the start is `0x7FFF0000`, so the start gate stays closed.
+- **`RoundParams`** (`Shared/RoundParams.cs`) are server-owned and sent in `round`. **Source in M3:** `-fallrushSeed` / `-fallrushVariant` / `-fallrushModifier` / `-fallrushMap` (env `GAMESERVER_SEED`, `_VARIANT`, `_MODIFIER`, `_MAP`). Unset variant/modifier are derived from the seed using the `map_pool_v1` tables (C# mirror `MapPoolV1`, checked against the JSON by a test). M6 swaps this for the VRF deal in `ServerSim.ChooseRoundParams`. Race rounds loop with seed + 1.
+- **Map content hash** (`Shared/MapContent.cs`, own SHA-256 in `Shared/Sha256.cs`) covers both variants' resolved defs (phase excluded, phase ranges included), checkpoints + respawn spots, spawns, kill-Y and the course line. A client whose own hash differs disconnects with "Map data mismatch … Reload the page". Recorded per map in `Tests/Vectors/map_hashes_v1.txt` and checked by a test; stable across rebuilds. Current: Block Party Dash `6780ef6c…`, Sandbox `2ae7d388…`.
+- **Allowlist:** the server validates the resolved defs (variant + modifier) when a round starts. Out of range → `[gs] ROUND REFUSED …` and nothing is simulated.
+- **Countdown:** inputs for ticks before RUSH (intro/countdown) are neutral on both sides. A teleport during intro/countdown is adopted, not counted.
+- **Finished racers** are out of the simulation and collisions. The client stops predicting itself and spectates.
+- **Push prediction (R14, M3 measurement):** the client also applies the server's soft separation to itself, against remotes extrapolated from the newest snapshot (≤ 12 ticks). It is on by default (`ClientSim.DefaultPredictPushes`; `?pushpred=0` turns it off). Localhost crowd race: corrections + pushes 2.73 → 0.73 per 5 s (`docs/proof/M3-race.md`).
 
 ### 4.2 Server tick (30 Hz, `ServerSim` → `SimCore`)
 
@@ -255,7 +267,9 @@ Snapshot interpolation at `renderTime = serverTimeEstimate − interpDelay` (`Ne
 - On the next step, if the player was grounded on a surface, the motor first collide-and-slides by `IMotorWorld.SurfaceDelta` (the platform's mm-quantised displacement from tick − 1 to tick), then runs as usual.
 - No Unity physics callback is involved, and the platform is a kinematic collider that is never simulated.
 - Carried riders keep their offset to within 3 mm per tick (EditMode test).
-- Jumping off does not inherit the platform's velocity (M3 can add it).
+- ~~Jumping off does not inherit the platform's velocity~~ **M3:** jumping or diving off any moving surface keeps its horizontal velocity (carry / dt); walking off does not.
+- **M3 surfaces:** `IMotorWorld.SurfaceDelta(surfaceId, feet, out delta)` is point-aware. One id space covers platforms, turn tables, conveyors and spring pads. Turn tables rotate the rider about their axis (2 mm table-frame grid, exact return after a turn); conveyors add an exact mm belt delta per tick.
+- **M3 air control:** above the run speed, air control only steers; it no longer brakes a spring launch back to 7 m/s when you hold forward (found by the map QA).
 
 **State struct:** `MotorState` holds `pos i32×3 mm, vel i16×3 cm/s, yaw u8, flags u8, stunTicks u8, coyote, jumpBuffer, diveCooldown, landTicks, immunity, surface` (all u8). It is blittable and compared bit-for-bit in the determinism tests. `lastCheckpoint` lives in round rules (M3), not in the motor.
 
@@ -326,6 +340,13 @@ Snapshot interpolation at `renderTime = serverTimeEstimate − interpDelay` (`Ne
 - **Ranked rule:** ranked on-chain matches require ≥ 4 humans; bots are allowed and disclosed.
 - **Also used for** map QA (doc 08 §9).
 - **M2 stand-in:** `Shared/TestBotInput.cs`, a tiny deterministic wanderer (hops, rare dives) used only to fill 12 slots for load and feel tests (`-fallrushBots 12`). It goes through the same sanitiser and motor and is flagged BOT in snapshots and the HUD. It is not BotBrain.
+
+**M3 waypoint bot (`Shared/WaypointBot.cs`, the base of M4's BotBrain):**
+- Follows authored routes (`MapInfo.botRoutes`, 2–5 per section, server-only, not hashed). Steering produces `InputCmd`s through the same sanitiser and motor as humans. Bots are labelled BOT.
+- Actions: `Run`, `Jump` (gap edge; counts once passed), `Land` (block centre, reached only when grounded), `WaitClear`, `Door` (waits until the door stays open long enough), `JumpToPlatform` / `Platform` (moving blocks, read from the pose function), `Dive`.
+- Reactive layer: jumps a low/mid spinner bar or dives under a high one, predicted 3–6 ticks ahead from the pose functions.
+- Recovery: re-acquires the route after a knockback, respawn or 6 s without progress.
+- Reference speed: no noise. The probe and WebGL `?bot=race` drive the same bot from the predicted state.
 
 ## 10. Builds
 
@@ -398,6 +419,8 @@ Snapshot interpolation at `renderTime = serverTimeEstimate − interpDelay` (`Ne
 - the client view (`-fallrushProbeView` screenshot);
 - the gate (`scripts/m2-probe.sh … course`, `scripts/m2-netem.sh`, `scripts/m2-summarize.py`; WebGL `?bot=course`);
 - R12 (`-fallrushProbeHide 20:60`).
+
+**M3 (207 green at the end of M3):** `KitTests`, `KitPredictionTests` (twin bit-identical through every hazard type × modifiers), `MapSceneTests` (committed scene hashes + allowlist), `RaceRulesTests` (qualify, timer ranking, checkpoint skip/teleport, respawn after 30 ticks, countdown lock, start gate), `BlockPartyDashTests` (a full 12-bot race on the real scene, PhysX, run in EditMode instead of PlayMode, reason in the M3 proof). Cross-platform `hazard_vectors_v1`: the EditMode test, plus `-fallrushSelfTest` (Mac, Linux) and `?selftest=1` (WebGL). All four agree on digest `fc06826c…`.
 
 **PlayMode (later):**
 - checkpoint order

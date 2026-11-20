@@ -86,3 +86,24 @@ Server flags:
 | `-fallrushBots N` | `GAMESERVER_BOTS` | 0 | fill to N occupants with test bots |
 | `-fallrushSnapHz 15\|30` | `GAMESERVER_SNAP_HZ` | 15 | snapshot rate |
 | `-fallrushServerFps N` | — | 60 | server frame cap |
+
+## M3: run it (obstacle kit + Block Party Dash race)
+
+```bash
+pnpm m1:build:macserver                       # Mac dev server (also the headless probe/QA binary)
+bash scripts/m1-unity.sh bpd -executeMethod BlockPartyDashBuilder.Run   # rebuild the race map (Editor closed)
+bash scripts/m1-unity.sh sandbox -executeMethod SandboxBuilder.Run      # rebuild Map_Sandbox + kit row
+
+# Play the kit row: server on the sandbox, then Editor Play (Boot) or the WebGL build → Lobby → "Enter Sandbox + obstacle kit"; walk north to z ≈ 54
+bash scripts/m1-macserver.sh start -fallrushBots 4 [-fallrushModifier TurboToys]
+# Race: 12 occupants, the round starts 5 s after your first input; Tab spectates after you finish
+bash scripts/m1-macserver.sh start -fallrushMap BlockPartyDash -fallrushBots 12 [-fallrushSeed 7 -fallrushVariant B -fallrushModifier MoonBounce]
+pnpm m1:up:mac                                 # local nginx: http://localhost:8080 (WebGL) → Play → Enter Block Party Dash
+
+# Measurements
+FallRushDevServer -batchmode -nographics -fallrushServer -fallrushMap BlockPartyDash -fallrushQA 100 -fallrushQAOut map-qa.md   # map QA
+bash scripts/m3-gate.sh ws://127.0.0.1:7777 200 m3-local                                       # 3 race probes
+FallRushDevServer -batchmode -nographics -fallrushSelfTest     # determinism self-test (WebGL: ?selftest=1; Linux: docker run --rm fallrush-gameserver:m3 -fallrushSelfTest)
+pnpm gen:modifiers                                             # after editing modifiers_v1.json
+```
+Proof: `docs/proof/M3-race.md`.

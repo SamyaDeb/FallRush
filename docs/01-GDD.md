@@ -69,6 +69,8 @@ The rule needs P ≥ 4. With fewer players, use a practice ruleset (no on-chain 
 - **Timer expiry** with fewer than *N* finishers: the remaining places go by ranking key (checkpoint index ↓, distance to next checkpoint ↑, time reached last checkpoint ↑, slot index ↑).
 - **Falling:** respawn at the last checkpoint after 1.0 s.
 
+- **As built (M3):** timer cap 110 s after RUSH. "Distance to the next checkpoint" is measured **along the course polyline** (the map's centre line through the checkpoints), not straight-line. Qualify count `ceil(P × 0.66)` (one place in code, `RoundParams.RaceQualifyCount`, TODO M4/M6: read the ruleset). Inputs are ignored during intro/countdown and after you finish; finished racers leave collisions and spectate (Tab).
+
 ### 5.2 Survival (Goo Tower)
 
 - Glittery goo rises at a fixed server velocity. Touching goo eliminates you.
@@ -149,6 +151,8 @@ The model is **kinematic**: a custom capsule motor runs the same C# code on the 
 | Tiny Tilt | Camera FOV −8°, fog in (visual only) | Race |
 
 Modifier tables are versioned in the map pool, and the pool hash is committed on-chain before the VRF request.
+
+**As built (M3):** values in `packages/shared/config/modifiers_v1.json` (sha256 `09eef853…`, not on-chain yet): MoonBounce gravity 24 → 16.8 m/s², apex 1.6 → 2.0 m (measured 2.000 m); ButterFloors ground decel 45 → 18 m/s² (stop from 7 m/s: 5 → 12 ticks); TurboToys hazard periods ÷ 1.2 rounded half-up to whole ticks (150 → 125), belts × 1.2, telegraphs unchanged; BigBonk mallet/bumper knockback × 1.4; TinyTilt FOV −8°, exponential fog 0.025 (client only).
 
 ## 9. Fairness & the VRF deal
 

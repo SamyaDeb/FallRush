@@ -1,6 +1,6 @@
 # Fall Rush — Project Status
 
-_Last updated: 2026-11-18 (D0, M0 + M1 + M2 complete; M2 verified independently: 153/153 EditMode, VPS clean)_
+_Last updated: 2026-11-19 (M3 built: 207/207 EditMode, map QA, gate data; see M3 section)_
 
 **Hackathon:** MagicBlock Blitz V10, running Nov 20 to Nov 27, 2026.
 - **Submission deadline:** Nov 27, 14:00 UTC (19:30 IST).
@@ -154,8 +154,39 @@ Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part B · screensh
   - Server CPU on the 2-vCPU VPS with two game servers is still open.
 - **Protocol:** still v2, with header 18 B / `snap` 282 B for 12 (M2b added surface + ownEvents; v2 was never deployed beyond the dev machine).
 
+## Milestone M3 (obstacle kit + race round) — ✅ built; gate partly met (2026-11-19)
+Proof: [`docs/proof/M3-race.md`](docs/proof/M3-race.md) · QA table [`docs/proof/m3-map-qa.md`](docs/proof/m3-map-qa.md) · screenshots `docs/proof/m3/`. You waived the M3a checkpoint and the VPS approval for this milestone.
+
+| Item | State |
+|---|---|
+| 8 hazard types (pure integer-first poses, effects in `PlayerStep.Run`, telegraphs, allowlists), point-aware carry, conveyor, spring, doors, round-relative time, `RoundParams`, variants, modifiers (`modifiers_v1.json` `09eef853…` + hash test) | ✅ |
+| `MapDefinition` + map content hash + client refusal; kit row in `Map_Sandbox` | ✅ |
+| Protocol v3: `snap` 294 B for 12, `round` 59 B, `evt` 14 B, `rstate` 16 + 5/finisher | ✅ |
+| Determinism self-test `hazard_vectors_v1` (digest `fc06826c…`) | ✅ Editor, Mac arm64, WebGL, **Linux x86_64 (VPS)**: all PASS |
+| `RaceRules` (countdown, ordered checkpoints + reachability, respawn 30 ticks on free spots, N qualify, timer ranking along the course, `RaceResult`), waypoint bot, `Map_BlockPartyDash`, race HUD + results + spectate | ✅ |
+| EditMode tests | ✅ **207/207** (M2: 153); full race on the real scene as an EditMode test (reason in proof) |
+| Map QA 2 variants × 5 modifiers × 100 runs | ✅ 0 soft-locks, all routes finish, doors never all closed, N = 8 every race, deterministic · ❌ **median 31–34 s vs 75–95 s target** (noise-free bots) |
+| Gate: non-push corrections / 5 s while racing | ✅ localhost ≤ 0.08 · 150 ms + loss ≤ 0.38 · hazard mismatches 0 |
+| Gate incl. crowd pushes | ❌ localhost 0.21–1.12, 150 ms 1.2–1.7 (push prediction on: 2.73 → 0.73 mean on localhost) |
+| VPS gate (b) | ⚠️ link degraded during the run (85 % ICMP loss): server healthy (sim p95 0.20–0.25 ms, 3.2 % CPU, 99 MB), netcode numbers **not valid** → re-run |
+| WebGL release | ✅ 411 s, **16.22 MB** (M2 16.03), 59 FPS with 12 Rushlings racing |
+| VPS left clean | ✅ container + nginx file removed, `finity` md5 `c6a6cca8` / https 200, Ovelo up; images `m2` + `m3` kept; **no snapshot** (Hostinger CLI token expired) → `/etc/nginx` backup tarball in `/root` |
+
+### Decisions for you (M3)
+- 🟡 **Course length / difficulty:** reference bots finish in ~31 s. Lengthen now, or wait for M4 noisy bots + the playtest?
+- 🟡 **Pushes (R14):** keep push prediction on; additionally soften pushes (2.5 → 1.5 m/s) or accept ~1 push correction per 5 s in crowds?
+- 🟡 **Motor change:** air control no longer brakes above run speed (spring hops). `movement_v1.json` values unchanged.
+- Run `hostinger auth login` so the next VPS step can take its snapshot; re-run the VPS gate on a healthy link.
+- Optional: `certbot delete` the old gs1 cert is still pending from M1/M2 (it was reused in M3).
+
+### Notes for M4 / M6 (from M3)
+- **M4 MatchDirector inputs:** `RaceRules.Result` (`RaceResult`: ordered slots, qualified flags, finish ticks, checkpoints) and `RoundParams` (round index is fixed to 1 in M3). Events already flow as `evt` with `seq`. `ServerRace` loops rounds; replace it with the director.
+- **M4 BotBrain:** build it on `WaypointBot` (routes per map in `MapInfo.botRoutes`); add noise/mistakes. Bots are fast today, which shortens rounds.
+- **M4 other maps:** reuse `KitBuilder`; GOO_PLANE / CRUMBLE_TILE / STAR_PICKUP are not in the kit yet. Scene loading is still local per client (round message names the map).
+- **M6:** per-obstacle phase is `FNV-1a(seed_le8 ‖ obstacleId)` → replace with `H(vrf_seed ‖ round ‖ obstacleId)`; `HazardSeed` is u64 in `round` (widen to 32 B). Put `modifiers_v1` and the map content hashes into a ruleset/map-pool v2 committed on-chain.
+
 ## Next milestones
-- **M3:** obstacle kit + Block Party Dash race (`docs/14`), prompt `docs/prompts/M3-PROMPT.md` (M3a kit → checkpoint → M3b race). Ready to run.
+- **M4:** match director + Goo Tower / Star Scramble / Crumble Shelf + BotBrain (`docs/14`).
 
 ## M2 kickoff notes (done; kept for history)
 - Agreed 2026-11-18: VPS check first (✅ done in M1 §4.7), SDK pin (D-15 ✅), **one M2 prompt with an M2a → M2b checkpoint**, and **Bolt v1 built in Unity from shapes** (no Blender).
@@ -187,7 +218,7 @@ Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part B · screensh
 - [ ] Recruit 8–12 playtesters for Nov 25 and Nov 26.
 
 ## Blockers
-- None. M3 prompt next (discuss first).
+- None blocking. VPS re-run waits for a healthy link + `hostinger auth login`.
 
 ## Known bugs
 - None open in our code. Upstream: Solana.Unity-SDK v1.2.9 WebGL link failure (#257), worked around by D-15.
@@ -208,15 +239,3 @@ Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part B · screensh
 | docker | 29.2 | |
 | Unity | 6000.3.28f1 (`8f082d2fe476`) | + WebGL, Linux Mono, Linux Server modules; `unity` CLI 1.0.0 at `~/.unity/bin/unity` |
 | nginx (local edge) | 1.24.0 (Docker) | matches the VPS line |
-
-## Milestone M3 (obstacle kit + race round) — 🟡 in progress (2026-11-19, stopped at the usage limit)
-**Done and measured (details: `docs/proof/m3-map-qa.md`, git log):**
-- M3a: 8 hazard types (integer-first maths, Q30 sine table), effects in `PlayerStep.Run`, telegraphs, allowlists; point-aware carry (turn table 2 mm grid → 0.00 mm after one turn), conveyor, spring, doors; round-relative time; `RoundParams` (dev seed); `modifiers_v1.json` (sha256 `09eef853…`) + hash test; `MapDefinition` + map content hash + client refusal; kit row in `Map_Sandbox`; protocol v3 (`snap` 294 B for 12; `round` 59 B, `evt` 14 B, `rstate` 16 + 5/finisher).
-- Self-test hazard_vectors_v1 digest `fc06826c…`: **PASS EditMode, Mac arm64 player, WebGL (headless Chrome)**. Linux: not run yet (VPS step pending).
-- M3b: `RaceRules`, waypoint bot, `Map_BlockPartyDash`, server race loop, race HUD/results/spectate, map QA runner. **EditMode 207/207.**
-- Map QA (100 runs × A/B × 5 modifiers): 0 soft-locks, every route reaches its next checkpoint, 0 ticks with all doors closed, N qualified 1000/1000, deterministic. **Duration target NOT MET:** median 31–34 s (reference bots, no noise) vs 75–95 s target.
-- Gate, corrections per 5 s while racing (non-push / push): localhost 0.00–0.08 / 0.21–1.04 with push prediction (2.73 → 0.73 mean total vs off); 150 ms + jitter + 2 % loss 0.23–0.38 / 0.86–1.32 (**crowd pushes miss the < 1 bar**). Hazard mismatches 0 everywhere. Server sim step p95 0.28–0.32 ms (Mac, 12 occupants).
-- WebGL M3a release: 960 s build, 16.17 MB (M2 16.03).
-- Motor change: air control no longer brakes above run speed (spring hops).
-
-**Left:** VPS run + Linux self-test (Hostinger snapshot blocked: CLI OAuth token expired, run `hostinger auth login`); image `fallrush-gameserver:m3` built locally; final WebGL release build + FPS in the heaviest section; screenshots; docs 01/04/08/11/15 + README + `docs/proof/M3-race.md`.
