@@ -1,6 +1,6 @@
 # Fall Rush — Project Status
 
-_Last updated: 2026-11-19 (M3 built: 207/207 EditMode, map QA, gate data; see M3 section)_
+_Last updated: 2026-11-19 (M4 built: full match, 254/254 EditMode, map QA PASS, soak 20/20; see M4 section)_
 
 **Hackathon:** MagicBlock Blitz V10, running Nov 20 to Nov 27, 2026.
 - **Submission deadline:** Nov 27, 14:00 UTC (19:30 IST).
@@ -187,8 +187,45 @@ Proof: [`docs/proof/M3-race.md`](docs/proof/M3-race.md) · QA table [`docs/proof
 - **M4 other maps:** reuse `KitBuilder`; GOO_PLANE / CRUMBLE_TILE / STAR_PICKUP are not in the kit yet. Scene loading is still local per client (round message names the map).
 - **M6:** per-obstacle phase is `FNV-1a(seed_le8 ‖ obstacleId)` → replace with `H(vrf_seed ‖ round ‖ obstacleId)`; `HazardSeed` is u64 in `round` (widen to 32 B). Put `modifiers_v1` and the map content hashes into a ruleset/map-pool v2 committed on-chain.
 
+## Milestone M4 (full match) — ✅ built locally (2026-11-19)
+Proof: [`docs/proof/M4-match.md`](docs/proof/M4-match.md) · map QA [`docs/proof/m4-map-qa.md`](docs/proof/m4-map-qa.md) · screenshots `docs/proof/m4/`. One run, no checkpoint; **no VPS action** (deferred to M6).
+
+| Item | State |
+|---|---|
+| C# `Deal` / `RoundTargets` / `Transcript` (+ roster hash, M4 proposal) = TS byte for byte (all deal vectors, P 4…20, three scripted transcripts) | ✅ |
+| `MatchDirector`: lobby → countdown → roster lock → deal → 4 × (intro → active → result → intermission) → champion → finalizing (no-op) → receipt → lobby, abort; jsonl event log; deterministic | ✅ |
+| Survival / Skill / Final rules with every GDD tiebreak; minimum-advance 0 / 1 / < N | ✅ |
+| GOO_PLANE, CRUMBLE_TILE, STAR_PICKUP, falling blocks; reactive `rx` with seq + full resync; prediction exact (EditMode twins: 0 corrections) | ✅ |
+| `Map_Lobby`, `Map_GooTower`, `Map_StarScramble`, `Map_CrumbleShelf` built from code, hashes recorded | ✅ (originality / colourblind checks: yours) |
+| `BotBrain` (tiers, per mode, BOT everywhere) | ✅ |
+| Every screen + spectate + subtitles | ✅ greybox |
+| 20 s grace + reconnect token → same slot; `DISCONNECT` after the grace | ✅ EditMode + real processes |
+| Protocol v4 (`match` ≤ 452 B, `mevt`, `rx`, `ready`, `ctl`, hello name + token); `snap` 294 B for 12 | ✅ |
+| EditMode | ✅ **254 / 254** (M3: 207) |
+| Map QA 100 runs | ✅ PASS all maps; bot medians: Race 97.5 s ✓, Skill 60 s ✓, **Survival 66 s, Final 27–32 s (below the GDD targets)** |
+| Soak: 20 complete 12-bot matches (sim speed 8) | ✅ **20 / 20**, transcripts re-verified from the logs, RSS 176 → 179 MB |
+| Real clients: localhost / 150 ms + loss (non-push corrections per 5 s) | ✅ 0.00 / 0.18; hazard mismatches 0; reactive late 0 |
+| WebGL release: full match, FPS, self-test | ✅ 59 FPS every map, 16.45 MB, v1 + v2 PASS — after fixing a release-only halt (exception support None → Explicitly Thrown) |
+
+### Decisions for you (M4)
+- **Round lengths with bots:** Goo Tower ≈ 66 s and Crumble Shelf ≈ 30 s are under the GDD targets (90–120 / 60–120). The Final is short because a tile holds you only 0.6 s (GDD). Options: a longer wobble (e.g. 1.0 s), tiles that come back on the top shelf, a bigger grid; for Goo Tower a 4th lap or slower belts. Decide after the playtest (human times are unknown).
+- Doc 15 M4-12…14 are my calls (🟡): Goo Tower tuning, QA bot counts, bot noise off during precise moves. Also proof §J.
+- The feel, fun, fairness and readability of the three new maps and the screens are yours.
+
+### Notes for M5 (from M4)
+- **Outbox input:** `match-logs/match-<id>.jsonl` (header: seed, roster with placeholder user ids, roster hash, deal, targets, transcript init; one line per event with the transcript after it; end line). `scripts/m4-verify-log.py` shows how to re-verify it.
+- **Identity:** the 16-byte reconnect token (server-issued, `sessionStorage`) is the stand-in for the Relay's signed guest token; replace `SessionToken` + `MatchDirector.FindResumeSlot`. Real user ids go into the roster hash (`RosterHash.PlaceholderUserId` = TODO(M5)); move `rosterHash` into `packages/shared/src`.
+- Initial connect at 150 ms + loss failed once (10 × 1 s); give WebGL more attempts.
+
+### Notes for M6 (from M4)
+- **Seed swap:** `MatchDirector.SeedSource` (M4: `-fallrushSeed` or random 32 B) → the VRF output; the Deal screen's DEALING phase is where the VRF wait goes (doc 05 §3 polls ≤ 25 s).
+- **Events → ER:** forward the jsonl events unchanged (tag → instruction, doc 06 §10 order); reason codes M4-9; `ABORT` reasons 1 / 2.
+- **`FINALIZING`** is a 1-tick no-op: put `finalize_match` (commit + undelegate) and the wait for Solana there; the chain chip is fixed at `● Server` (TODO(M6)).
+- Hazard seed: `Deal.HazardSeed` (u64 per round) → `H(vrf_seed ‖ round ‖ obstacleId)` with 32 bytes; widen `RoundMessage.HazardSeed`.
+- Re-run on the VPS: WebGL ↔ Linux server gate + a full match (the production pairing was not measured in M4).
+
 ## Next milestones
-- **M4:** match director + Goo Tower / Star Scramble / Crumble Shelf + BotBrain (`docs/14`), prompt `docs/prompts/M4-PROMPT.md` (one run, no checkpoint pause; no VPS; decisions M4-1…M4-11 made by Claude). Ready to run.
+- **M5:** Rush Relay (identity, directory, outbox from the M4 jsonl log). **M6:** chain integration (VRF seed swap, ER events, finalize) + the VPS deploy (`docs/14`).
 
 ## M2 kickoff notes (done; kept for history)
 - Agreed 2026-11-18: VPS check first (✅ done in M1 §4.7), SDK pin (D-15 ✅), **one M2 prompt with an M2a → M2b checkpoint**, and **Bolt v1 built in Unity from shapes** (no Blender).

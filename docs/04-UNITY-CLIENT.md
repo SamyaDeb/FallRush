@@ -393,7 +393,7 @@ Snapshot interpolation at `renderTime = serverTimeEstimate − interpDelay` (`Ne
   ```
 
   Mono backend, then a Docker image `fallrush-gameserver` (ubuntu base). `-standaloneBuildSubtarget Server` is verified in the 6000.3 command-line docs.
-- **WebGL:** `Build.WebGL` (Brotli compression, no exceptions in release / "Explicitly Thrown" in dev, code stripping Medium, memory settings default).
+- **WebGL:** `Build.WebGL` (Brotli compression, "Explicitly Thrown Exceptions Only" in release and dev — **M4: release was None until a release-only halt at the Crumble Shelf load**, docs/proof/M4-match.md §H — code stripping Medium, memory settings default). M4 release: 16.45 MB, 384–799 s; 59 FPS in every map in Chrome (Playwright window).
   - Build on the M2 with the Editor closed (memory).
   - Host the build behind the Next.js site at `/play`.
 - **M2 commands:**

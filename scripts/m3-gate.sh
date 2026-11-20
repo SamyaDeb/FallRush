@@ -2,7 +2,8 @@
 # LOCAL MEASUREMENT (M3b gate): 3 headless race clients (SimProbe script "race": the waypoint bot on the predicted state)
 # against a server at <url>; logs .m1-logs/probe-<label>-<n>.log; prints the summary.
 # usage: scripts/m3-gate.sh <ws-url> <secs> <label> [extra probe args...]
-#   e.g. local:  scripts/m1-macserver.sh start -fallrushMap BlockPartyDash -fallrushBots 12 && scripts/m3-gate.sh ws://127.0.0.1:7777 150 m3-local
+#   e.g. local:  scripts/m1-macserver.sh start -fallrushMap BlockPartyDash && scripts/m3-gate.sh ws://127.0.0.1:7777 150 m3-local
+#   M4: -fallrushMap BlockPartyDash is a one-round dev match (lobby → deal → the race, which crowns its winner → lobby); for full matches use scripts/m4-match-run.sh
 #        netem:  scripts/m2-netem.sh start 75 15 2 && scripts/m3-gate.sh ws://127.0.0.1:7778 150 m3-netem
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

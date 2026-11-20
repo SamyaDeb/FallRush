@@ -59,7 +59,8 @@ Status: **M2b done locally**: client prediction + reconciliation, remote interpo
 # once (Editor closed): build the local server (includes Map_Sandbox)
 pnpm m1:build:macserver
 # server with 12 occupants (11 TEST bots + you), 15 Hz snapshots, 60 fps frame cap
-bash scripts/m1-macserver.sh start -fallrushBots 12
+# (M4: without -fallrushMap the server runs matches; free play needs -fallrushMap Sandbox)
+bash scripts/m1-macserver.sh start -fallrushMap Sandbox -fallrushBots 12
 ```
 
 To play, use either:
@@ -95,15 +96,56 @@ bash scripts/m1-unity.sh bpd -executeMethod BlockPartyDashBuilder.Run   # rebuil
 bash scripts/m1-unity.sh sandbox -executeMethod SandboxBuilder.Run      # rebuild Map_Sandbox + kit row
 
 # Play the kit row: server on the sandbox, then Editor Play (Boot) or the WebGL build → Lobby → "Enter Sandbox + obstacle kit"; walk north to z ≈ 54
-bash scripts/m1-macserver.sh start -fallrushBots 4 [-fallrushModifier TurboToys]
-# Race: 12 occupants, the round starts 5 s after your first input; Tab spectates after you finish
-bash scripts/m1-macserver.sh start -fallrushMap BlockPartyDash -fallrushBots 12 [-fallrushSeed 7 -fallrushVariant B -fallrushModifier MoonBounce]
+bash scripts/m1-macserver.sh start -fallrushMap Sandbox -fallrushBots 4 [-fallrushModifier TurboToys]
+# Race (M4: a one-round dev match: lobby → deal → the race, which crowns its winner → lobby); Tab spectates
+bash scripts/m1-macserver.sh start -fallrushMap BlockPartyDash [-fallrushSeed 7 -fallrushVariant B -fallrushModifier MoonBounce]
 pnpm m1:up:mac                                 # local nginx: http://localhost:8080 (WebGL) → Play → Enter Block Party Dash
 
 # Measurements
-FallRushDevServer -batchmode -nographics -fallrushServer -fallrushMap BlockPartyDash -fallrushQA 100 -fallrushQAOut map-qa.md   # map QA
+FallRushDevServer -batchmode -nographics -fallrushMap BlockPartyDash -fallrushQA 100 -fallrushQATier m3 -fallrushQAOut map-qa.md   # M3 map QA (waypoint bots)
 bash scripts/m3-gate.sh ws://127.0.0.1:7777 200 m3-local                                       # 3 race probes
 FallRushDevServer -batchmode -nographics -fallrushSelfTest     # determinism self-test (WebGL: ?selftest=1; Linux: docker run --rm fallrush-gameserver:m3 -fallrushSelfTest)
 pnpm gen:modifiers                                             # after editing modifiers_v1.json
 ```
 Proof: `docs/proof/M3-race.md`.
+
+## M4: run it (a full match: lobby → deal → 4 rounds → champion → receipt → lobby)
+Status: **M4 built locally** (no VPS: deferred to M6). Proof: [`docs/proof/M4-match.md`](docs/proof/M4-match.md), map QA [`docs/proof/m4-map-qa.md`](docs/proof/m4-map-qa.md).
+
+```bash
+pnpm m1:build:macserver                                   # Mac dev server (Editor closed); also the probe / QA binary
+bash scripts/m1-macserver.sh start                        # a match server: Map_Lobby first; bots fill to 12 when the countdown ends
+```
+
+**Play a full match yourself**
+- **Editor:** open `client-unity` in Unity 6000.3.28f1 → `Assets/_Game/Scenes/Boot.unity` → Play → **Play (Quick Play)**. You land in the lobby room; press **Start now (host)** or wait 20 s. Everything after that is automatic; Tab cycles the camera while you spectate; Esc = options; F3 = netcode HUD.
+- **Browser:** `pnpm m1:build:webgl:release` (Editor closed, ~7–20 min) → `pnpm m1:up:mac` → `http://localhost:8080/?autoplay=1` (add `&name=You`; `&bot=match` lets a bot play for you; `&hud=1` shows the netcode HUD; `&selftest=1` prints the determinism self-test).
+- **At 150 ms + jitter + 2 % loss:** `bash scripts/m2-netem.sh start 75 15 2`, then `?server=ws://localhost:7778&autoplay=1`.
+- **Reconnect:** close the tab / kill the client mid-round and come back within 20 s in the same tab (sessionStorage token): same slot, still alive. After 20 s you are eliminated (disconnected) at the end of the round.
+
+**Server flags (M4)**
+
+| Flag | Env var | Default | Meaning |
+|---|---|---|---|
+| `-fallrushMap X` | `GAMESERVER_MAP` | match | `Sandbox` = M2 free play; a pool map (`BlockPartyDash`, `GooTower`, `StarScramble`, `CrumbleShelf`) = a one-round dev match on it |
+| `-fallrushRounds N` | `GAMESERVER_ROUNDS` | 4 | play only the deal's first N rounds (the last one crowns 1) |
+| `-fallrushSeed hex64\|text` | `GAMESERVER_SEED` | random per match | the practice match seed (match k uses sha256^(k−1)) |
+| `-fallrushVariant A\|B`, `-fallrushModifier Name` | `GAMESERVER_VARIANT` / `_MODIFIER` | from the deal | dev overrides (where allowed) |
+| `-fallrushMatches N` | `GAMESERVER_MATCHES` | 0 | soak: start without humans, quit after N matches |
+| `-fallrushSimSpeed N` | `GAMESERVER_SIM_SPEED` | 1 | soak: ticks per network tick while nobody is connected |
+| `-fallrushMatchSize N` | `GAMESERVER_MATCH_SIZE` | 12 | bots fill to N (4–12) |
+| `-fallrushMatchLogDir dir` | `GAMESERVER_MATCH_LOG_DIR` | `./match-logs` | the jsonl event logs (M5 outbox input) |
+
+**Measurements and QA**
+
+```bash
+bash scripts/m4-qa.sh 100                       # map QA: every new map × variant × modifier × 100 runs (reference + normal bots), BPD normal → docs/proof/m4-map-qa.md
+bash scripts/m4-soak.sh 20 8                    # 20 unattended 12-bot matches back to back (sim speed 8), RSS samples, every jsonl log re-verified
+python3 scripts/m4-verify-log.py match-logs/    # independent check of event logs: roster hash, deal, transcript, program order
+bash scripts/m4-match-run.sh local              # 3 probe clients (BotBrain on their predicted state) + 9 bots, one full match, per-round corrections
+bash scripts/m2-netem.sh start 75 15 2 && bash scripts/m4-match-run.sh netem ws://127.0.0.1:7778
+bash scripts/m4-reconnect-run.sh                # kill a probe mid-round 2: back in 10 s (same slot) / 30 s (DISCONNECT)
+pnpm --filter @fall-rush/shared gen-transcript-vectors   # regenerate the TS transcript vectors (C# parity tests read them)
+bash scripts/m1-unity.sh goo -executeMethod GooTowerBuilder.Run        # rebuild a map (also LobbyBuilder, StarScrambleBuilder, CrumbleShelfBuilder)
+```
+

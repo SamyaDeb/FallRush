@@ -8,7 +8,7 @@ HZ="${1:-15}"; FPS="${2:-30}"; SECS="${3:-60}"; LABEL="${4:-m2}"
 LOG="$ROOT/.m1-logs/macserver.log"
 bash "$ROOT/scripts/m1-macserver.sh" stop >/dev/null 2>&1 || true
 : > "$LOG"
-bash "$ROOT/scripts/m1-macserver.sh" start -fallrushBots 12 -fallrushSnapHz "$HZ" -fallrushServerFps "$FPS" >/dev/null
+bash "$ROOT/scripts/m1-macserver.sh" start -fallrushMap Sandbox -fallrushBots 12 -fallrushSnapHz "$HZ" -fallrushServerFps "$FPS" >/dev/null # M4: no -fallrushMap = a match
 PID="$(cat "$ROOT/.m1-logs/macserver.pid")"
 bash "$ROOT/scripts/m2-probe.sh" ws://127.0.0.1:7777 "$((SECS + 40))" run "$LABEL" > "$ROOT/.m1-logs/probe-$LABEL.summary" &
 PROBE=$!

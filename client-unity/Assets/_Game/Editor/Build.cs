@@ -84,7 +84,7 @@ public static class Build
         {
             ProjectSetup.ApplyPlayerSettings();
             PlayerSettings.WebGL.exceptionSupport = release
-                ? WebGLExceptionSupport.None
+                ? WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly // M4: was None; a release-only halt at the Crumble Shelf load (proof M4 §H) — exceptions now reported, caught ones survive
                 : WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
 
             var options = new BuildPlayerOptions
