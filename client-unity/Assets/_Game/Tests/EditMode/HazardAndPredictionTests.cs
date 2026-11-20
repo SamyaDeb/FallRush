@@ -296,6 +296,26 @@ namespace FallRush.Tests
         private static float SnapDistance() => ClientPrediction.SnapDistance;
 
         [Test]
+        public void ServerPush_IsReportedOncePerSnapshot_InTheRecipientHeader()
+        {
+            var spawns = new Vec3[12];
+            for (var i = 0; i < 12; i++)
+                spawns[i] = new Vec3(i < 2 ? 0.1f * i : 5f * i, 0.05f, 0f); // slots 0 and 1 overlap
+            var sim = new SimCore(Cfg, new AnalyticWorld().Ground(), spawns);
+            var a = sim.AddHuman(1);
+            var b = sim.AddHuman(2);
+            sim.Step();
+            Assert.That(sim.HeaderFor(a, 2).OwnEvents & SnapHeader.EventPushed, Is.Not.Zero);
+            Assert.That(sim.HeaderFor(a, 2).OwnEvents, Is.Zero, "cleared once reported");
+            Assert.That(sim.HeaderFor(b, 2).OwnEvents & SnapHeader.EventPushed, Is.Not.Zero, "per recipient");
+            for (var t = 0; t < 30; t++)
+                sim.Step();
+            sim.HeaderFor(a, 2);
+            sim.Step();
+            Assert.That(sim.HeaderFor(a, 2).OwnEvents, Is.Zero, "separated: no more pushes");
+        }
+
+        [Test]
         public void Smoothing_BlendsTheOffsetOut_In120ms()
         {
             var p = new ClientPrediction(Cfg, new AnalyticWorld().Ground(), HazardSet.Empty) { RenderOffset = new Vec3(0.5f, 0f, 0f) };

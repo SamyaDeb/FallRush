@@ -294,11 +294,11 @@ namespace FallRush.Client
                 .Append("  resyncs ").Append(clock.Resyncs).Append('\n');
             if (p != null)
             {
-                _sb.Append("corrections/5s ").Append(p.CorrectionsSince(now, 5.0)).Append("  total ").Append(p.Corrections)
+                _sb.Append("corrections/5s ").Append(p.CorrectionsSince(now, 5.0)).Append("  total ").Append(p.Corrections).Append(" + push ").Append(p.PushCorrections)
                     .Append("  last ").Append((p.LastCorrection * 100f).ToString("F1")).Append(" cm  max ").Append((p.MaxCorrection * 100f).ToString("F1")).Append(" cm\n");
                 _sb.Append("replay last ").Append(p.LastReplay).Append(" max ").Append(p.MaxReplay).Append(" ticks  match ").Append(p.Matches)
                     .Append("  silent ").Append(p.SilentResyncs).Append("  hazard mismatch ").Append(p.HazardMismatches).Append('\n');
-                _sb.Append("drift mean ").Append((p.Snapshots > 0 ? p.SumDriftMm / p.Snapshots : 0).ToString("F2")).Append(" mm  max ").Append(p.MaxDriftMm.ToString("F1"))
+                _sb.Append("drift mean ").Append((p.DriftSamples > 0 ? p.SumDriftMm / p.DriftSamples : 0).ToString("F2")).Append(" mm  max ").Append(p.MaxDriftMm.ToString("F1"))
                     .Append(" mm  smoothing ").Append((p.RenderOffset.Magnitude * 100f).ToString("F1")).Append(" cm\n");
             }
 

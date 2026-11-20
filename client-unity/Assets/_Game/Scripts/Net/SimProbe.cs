@@ -28,6 +28,7 @@ namespace FallRush.Net
         private float _hideAt = float.MaxValue;
         private int _hideSecs;
         private float _startedAt;
+        private long _lastPushCorr;
         private long _lastCorr, _lastSnapsRec, _lastMatches, _lastSilent, _lastHazMis, _lastRespawns, _lastReplayTicks, _lastReplayCount;
         private double _lastSumCorr;
         private long _lastFrames, _lastExtrap, _lastFrozen;
@@ -180,6 +181,7 @@ namespace FallRush.Net
             if (p == null)
                 return;
             var corr = p.Corrections - _lastCorr;
+            var pushCorr = p.PushCorrections - _lastPushCorr;
             var snaps = p.Snapshots - _lastSnapsRec;
             var replayCount = p.ReplayCount - _lastReplayCount;
             var replayTicks = p.ReplayTicksTotal - _lastReplayTicks;
@@ -189,14 +191,15 @@ namespace FallRush.Net
             if (_stutter.Count > 0)
                 _stutter.Percentiles(0.5f, 0.95f, out stP50, out stP95);
             var st = p.State;
-            Debug.Log($"[probe] pred corrections={corr} per5s={corr * 5f / span:F2} meanCorr={(corr > 0 ? sumCorr / corr * 100 : 0):F1}cm maxCorr={p.MaxCorrection * 100:F1}cm " +
+            Debug.Log($"[probe] pred corrections={corr} per5s={corr * 5f / span:F2} pushCorrections={pushCorr} meanCorr={(corr > 0 ? sumCorr / corr * 100 : 0):F1}cm maxCorr={p.MaxCorrection * 100:F1}cm " +
                       $"snaps={snaps} match={p.Matches - _lastMatches} silent={p.SilentResyncs - _lastSilent} hazMismatch={p.HazardMismatches - _lastHazMis} respawns={p.Respawns - _lastRespawns} " +
                       $"replay mean={(replayCount > 0 ? (double)replayTicks / replayCount : 0):F1} last={p.LastReplay} max={p.MaxReplay} " +
-                      $"drift meanMm={(p.Snapshots > 0 ? p.SumDriftMm / p.Snapshots : 0):F2} maxMm={p.MaxDriftMm:F1} subMm={p.SubMmMismatches} predHits={p.PredictedHits} " +
+                      $"drift meanMm={(p.DriftSamples > 0 ? p.SumDriftMm / p.DriftSamples : 0):F2} maxMm={p.MaxDriftMm:F1} subMm={p.SubMmMismatches} predHits={p.PredictedHits} " +
                       $"interp delay={r.Delay * 1000:F0}ms target={r.TargetDelay * 1000:F0}ms lateP95={r.LatenessP95Ms:F0}ms extrap={(frames > 0 ? 100.0 * (r.ExtrapolatedFrames - _lastExtrap) / frames : 0):F1}% frozen={(frames > 0 ? 100.0 * (r.FrozenFrames - _lastFrozen) / frames : 0):F1}% lagEvents={r.LagEvents} " +
                       $"remoteStutter p50={stP50:F2} p95={stP95:F2}m/s course={(_course != null ? $"{_course.Current} laps={_course.Laps} falls={_course.Falls}" : "-")} " +
                       $"pos=({st.PosX * 0.001f:F1},{st.PosY * 0.001f:F1},{st.PosZ * 0.001f:F1})");
             _lastCorr = p.Corrections;
+            _lastPushCorr = p.PushCorrections;
             _lastSnapsRec = p.Snapshots;
             _lastMatches = p.Matches;
             _lastSilent = p.SilentResyncs;

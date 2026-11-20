@@ -36,6 +36,10 @@ namespace FallRush.Net
         public long InputMessages;
         public long InputBytes;
         public long Kicks;
+        /// <summary>Snapshots not sent because the client stopped sending input (hidden tab / stalled, R12).</summary>
+        public long SnapshotsPausedIdle;
+        /// <summary>After this many ticks without input from a client that did send before, pause its snapshots (R12).</summary>
+        public const int PauseSnapshotsAfterTicks = 30;
         /// <summary>Input counters of players who already left (so 10 s deltas never go negative).</summary>
         public InputCounters Retired;
         public readonly RollingSamples StepMs = new RollingSamples(1024);
@@ -49,6 +53,7 @@ namespace FallRush.Net
         private readonly PlayerState[] _players = new PlayerState[Protocol.MaxPlayers];
         private readonly long[] _violationWindowStart = new long[Protocol.MaxPlayers];
         private readonly long[] _violationsAtWindowStart = new long[Protocol.MaxPlayers];
+        private readonly uint[] _lastInputTick = new uint[Protocol.MaxPlayers]; // 0 = no input yet
 
         public static void Install(NetworkManager nm, MapInfo map)
         {
@@ -129,6 +134,7 @@ namespace FallRush.Net
 
             _violationWindowStart[slot] = Core.Tick;
             _violationsAtWindowStart[slot] = 0;
+            _lastInputTick[slot] = 0;
             Debug.Log($"[gs] slot {slot} → client={clientId} humans={Core.HumanCount} bots={Core.BotCount}");
         }
 
@@ -183,6 +189,7 @@ namespace FallRush.Net
             // Oldest first, so seq freshness accepts them in order.
             for (var i = count - 1; i >= 0; i--)
                 input.Offer(_inCmds[i], Core.NextTick);
+            _lastInputTick[slot] = Core.Tick == 0 ? 1u : Core.Tick;
         }
 
         private void OnTick()
@@ -206,6 +213,16 @@ namespace FallRush.Net
                 ref var p = ref Core.Slots[slot];
                 if (!p.Active || p.Bot)
                     continue;
+                // R12: a client that was sending input but went quiet (hidden browser tab: no frames at all) would
+                // otherwise come back to a backlog of hundreds of snapshots that overflows its transport receive queue.
+                // Pause until its input resumes; its first new command restarts the stream on the next snapshot tick.
+                var last = _lastInputTick[slot];
+                if (last != 0 && Core.Tick - last > PauseSnapshotsAfterTicks)
+                {
+                    SnapshotsPausedIdle++;
+                    continue;
+                }
+
                 var h = Core.HeaderFor(slot, count);
                 NetMessages.EncodeSnapHeader(_snapHeader, h);
                 using var w = new FastBufferWriter(size, Allocator.Temp);

@@ -28,6 +28,7 @@ namespace FallRush.Shared
         private readonly InputSanitizer[] _inputs = new InputSanitizer[MaxSlots];
         private readonly TestBotInput[] _bots = new TestBotInput[MaxSlots];
         private readonly Vec3[] _push = new Vec3[MaxSlots];
+        private readonly bool[] _pushedSinceSnap = new bool[MaxSlots];
         private readonly KinematicMotor _motor;
         private readonly IMotorWorld _world;
         private readonly Vec3[] _spawns;
@@ -123,6 +124,7 @@ namespace FallRush.Shared
             else
                 HumanCount--;
             Slots[slot] = default;
+            _pushedSinceSnap[slot] = false;
             _inputs[slot] = null;
             _bots[slot] = null;
         }
@@ -245,6 +247,7 @@ namespace FallRush.Shared
                 if (l2 > maxStep * maxStep)
                     v *= maxStep / (float)Math.Sqrt(l2);
                 _motor.Displace(ref Slots[i].State, v, _world);
+                _pushedSinceSnap[i] = true;
                 PushEvents++;
             }
         }
@@ -276,6 +279,11 @@ namespace FallRush.Shared
             h.OwnLand = s.LandTicks;
             h.OwnImmunity = s.ImmunityTicks;
             h.OwnSurface = s.Surface;
+            if (_pushedSinceSnap[slot])
+            {
+                h.OwnEvents |= SnapHeader.EventPushed;
+                _pushedSinceSnap[slot] = false; // one header per recipient per snapshot
+            }
             var input = _inputs[slot];
             if (input != null)
             {

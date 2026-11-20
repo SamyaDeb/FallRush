@@ -75,7 +75,8 @@ namespace FallRush.Net
         public long Snapshots;          // snapshots reconciled
         public long Matches;            // bit-identical at S
         public long SilentResyncs;      // differed by ≤ threshold, same flags: replayed without counting
-        public long Corrections;        // > threshold or flags/stun differ (respawns excluded)
+        public long Corrections;        // > threshold or flags/stun differ, with no server-only cause (respawns and pushes excluded)
+        public long PushCorrections;    // same, but the server reported a player–player push since the last snapshot (not predicted by design)
         public long HazardMismatches;   // stun start/state differed at S (predicted hit ≠ server hit)
         public long Respawns;           // server respawn teleports adopted (not corrections)
         public long Adopted;            // state taken wholesale (start, history miss)
@@ -87,7 +88,8 @@ namespace FallRush.Net
         public float MaxCorrection;
         public double SumCorrection;
         public float LastErrorAtS;      // m, |auth − predicted| at S on the last mismatch
-        public double SumDriftMm;       // over all reconciled snapshots (0 on matches): mean = SumDriftMm / Snapshots
+        public double SumDriftMm;       // position error at S over unexplained mismatches (no push, no respawn)
+        public long DriftSamples;
         public float MaxDriftMm;
         public long SubMmMismatches;    // mismatches whose position error was < 1 mm (float drift between platforms)
         public long PredictedHits;      // sweeper hits in fresh prediction (not replays)
@@ -124,6 +126,15 @@ namespace FallRush.Net
             {
                 _lastCmd = cmd;
                 return; // cannot happen with TickSync (ticks never go back); keep it safe
+            }
+
+            if (cmd.Tick - Tick > HistorySize / 2)
+            {
+                // Long stall (hidden tab, R12): don't simulate seconds of gap in one frame. Wait for the next
+                // snapshot and adopt it (the server simulated the gap with neutral input anyway).
+                HasState = false;
+                _lastCmd = cmd;
+                return;
             }
 
             // A clock re-sync skipped ticks: simulate them the way the server will (repeat, then neutral).
@@ -189,20 +200,30 @@ namespace FallRush.Net
                 return;
             }
 
-            LastMismatchTick = serverTick;
-            LastMismatchAuth = a;
-            LastMismatchPredicted = p;
             var err = (a.Position - p.Position).Magnitude;
-            var errMm = err * 1000f;
-            SumDriftMm += errMm;
-            if (errMm > MaxDriftMm)
-                MaxDriftMm = errMm;
-            if (errMm < 1f)
-                SubMmMismatches++;
-            LastErrorAtS = err;
-
             // Fell out / teleported to a spawn: not a prediction error (the client never predicts the respawn point).
             var respawn = a.Has(MotorState.Respawning) || p.Has(MotorState.Respawning);
+            var pushed = (h.OwnEvents & SnapHeader.EventPushed) != 0;
+            if (!respawn)
+            {
+                LastMismatchTick = serverTick;
+                LastMismatchAuth = a;
+                LastMismatchPredicted = p;
+                var errMm = err * 1000f;
+                if (!pushed)
+                {
+                    // Drift statistics only where nothing server-only happened: this is the motor/world divergence.
+                    SumDriftMm += errMm;
+                    DriftSamples++;
+                    if (errMm > MaxDriftMm)
+                        MaxDriftMm = errMm;
+                    if (errMm < 1f)
+                        SubMmMismatches++;
+                }
+
+                LastErrorAtS = err;
+            }
+
             var flagsDiffer = ((a.Flags ^ p.Flags) & ~MotorState.Bot) != 0 || a.StunTicks != p.StunTicks;
             if ((a.StunTicks > 0) != (p.StunTicks > 0) || (a.ImmunityTicks > 0) != (p.ImmunityTicks > 0))
                 HazardMismatches++;
@@ -218,7 +239,12 @@ namespace FallRush.Net
                 return;
             }
 
-            if (err > CorrectionThreshold || flagsDiffer)
+            if ((err > CorrectionThreshold || flagsDiffer) && pushed)
+            {
+                PushCorrections++;
+                _correctionTimes[_correctionHead++ % CorrectionLog] = now;
+            }
+            else if (err > CorrectionThreshold || flagsDiffer)
             {
                 Corrections++;
                 LastCorrection = shift;

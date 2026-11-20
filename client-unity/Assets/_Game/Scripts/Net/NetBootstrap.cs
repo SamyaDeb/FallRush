@@ -29,6 +29,8 @@ namespace FallRush.Net
         public const string MenuScene = "Menu";
         public const string LobbyScene = "Lobby";
         public const string SandboxScene = "Map_Sandbox";
+        public const int ServerDisconnectTimeoutMs = 90000;
+        public const int ClientPacketQueueSize = 1024;
         private const string ServerFpsArg = "-fallrushServerFps"; // server frame cap override (30–240)
         public const int DefaultServerFps = 60;
         private const string ServerArg = "-fallrushServer";
@@ -90,6 +92,8 @@ namespace FallRush.Net
             Manager = GetComponent<NetworkManager>();
             Transport = GetComponent<UnityTransport>();
             Transport.UseWebSockets = true;
+            // R12: same driver as NGO's, with a TCP-appropriate reliable resend timer (see WebSocketDriverConstructor).
+            UnityTransport.s_DriverConstructor = new WebSocketDriverConstructor();
             Application.runInBackground = true;
 
             IsServerRole = IsDedicatedServerBuild || HasArg(ServerArg);
@@ -190,6 +194,10 @@ namespace FallRush.Net
             Transport.SetConnectionData(true, listen, ListenPort, listen);
             Transport.UseWebSockets = true;
             Transport.UseEncryption = false; // TLS terminates at nginx (doc 04 §2).
+            // R12 (hidden browser tab): a hidden tab runs no frames, so the client sends nothing. UTP's default 30 s
+            // disconnect timeout would drop it; 90 s keeps a tab hidden for a minute. A closed tab or a dead browser
+            // still disconnects at once (the WebSocket's TCP connection closes).
+            Transport.DisconnectTimeoutMS = ServerDisconnectTimeoutMs;
 
             Manager.ConnectionApprovalCallback = ApproveConnection;
             Manager.OnClientConnectedCallback += HandleClientConnected;
@@ -337,6 +345,10 @@ namespace FallRush.Net
             var t = Target;
 
             Transport.UseWebSockets = true;
+            // R12: after a hidden tab (or any long stall) the whole backlog of snapshots arrives in one frame. With the
+            // default 128-packet queue UTP's desktop WebSocket layer aborts ("Insufficient space in receive queue",
+            // ProtocolError) — measured with a 10 s main-thread stall. 1024 drains ~60 s of backlog (≈ 3 MB).
+            Transport.MaxPacketQueueSize = ClientPacketQueueSize;
             // wss: UTP's WebGL WebSocket interface uses "wss://" when a secure hostname is set
             // (SecureNetworkProtocolParameter.Hostname via SetClientSecrets); the browser performs TLS.
             Transport.UseEncryption = t.Secure;

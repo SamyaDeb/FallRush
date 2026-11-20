@@ -10,7 +10,8 @@ namespace FallRush.Shared
     /// at <see cref="TargetLead"/> ticks by running its tick clock up to ±<see cref="MaxDilation"/> faster or slower,
     /// and re-syncs in one jump when it is more than <see cref="ResyncTicks"/> off.</para>
     /// <para><b>Result.</b> predictedTick ≈ serverTickNow + (RTT/2 + send/receive quantisation)/dt + TargetLead.</para>
-    /// <para><b>Adaptive target.</b> Starts at 2; +1 (max 6) whenever a command arrived late; −1 (min 1) after 10 s whose minimum lead never dipped below the target.</para>
+    /// <para><b>Adaptive target.</b> Starts at 2; when a command arrived late by k ticks, +max(1, k) (max 6) and the clock
+    /// jumps forward to the new target at once; −1 (min 1) after 10 s whose minimum lead never dipped below the target.</para>
     /// <para>Pure C#: the caller passes real elapsed seconds; no UnityEngine.Time inside.</para>
     /// </summary>
     public sealed class TickSync
@@ -111,12 +112,17 @@ namespace FallRush.Shared
 
             if (lead < 0)
             {
+                // Late by |lead| ticks: raise the target by that much (not just 1) and catch the clock up at once.
+                // Dilation alone would take ~1.7 s per 3 ticks, and every command in between would be late too
+                // (M2b gate, 150 ms + jitter + loss: 10–13 start-up corrections per client with the +1 rule).
                 LateReports++;
-                if (TargetLead < MaxTarget)
-                    TargetLead++;
+                TargetLead = Math.Min(MaxTarget, TargetLead + Math.Max(1, -lead));
+                PredictedTick += (uint)(TargetLead - lead);
+                Rate = 1f;
                 _holdUntil = now + HoldSeconds;
                 _windowStart = now;
                 _windowMinLead = int.MaxValue;
+                return;
             }
             else if (now - _windowStart >= LowerAfterSeconds)
             {

@@ -23,10 +23,13 @@ namespace FallRush.Net
 
         public enum Phase : byte
         {
-            ToStart, RunWest, WaitEdge, BoardWest, RideWest, ToIsland, IslandWait, BoardEast, RideEast, ToMain, RunEast,
+            ToStart, RunWest, TakeHit, WaitEdge, BoardWest, RideWest, ToIsland, IslandWait, BoardEast, RideEast, ToMain, RunEast,
         }
 
         private readonly ClientSim _sim;
+        private float _laneZ = LaneZ;
+        private bool _tookHit;
+        private const float SweeperLaneX = -30f; // where the bar crosses the lane (pivot x)
         private uint _jumpUntil;
         private uint _phaseTick;
 
@@ -57,13 +60,15 @@ namespace FallRush.Net
                 return;
             }
 
+            if (_sim.OwnSlot != SnapHeader.NoSlot)
+                _laneZ = LaneZ + ((_sim.OwnSlot % 3) - 1) * 0.9f; // three lanes 0.9 m apart (capsules are 0.62 m wide)
             var p = s.Position;
             var grounded = s.Has(MotorState.Grounded);
             var onPlatform = grounded && s.Surface != 0;
             var hz = pred.Hazards;
             var platX = hz.Platforms.Length > 0 ? HazardMath.PlatformCenter(in hz.Platforms[0], tick).X : -46f;
 
-            float tx = p.X, tz = LaneZ;
+            float tx = p.X, tz = _laneZ;
             var move = true;
             var jump = false;
 
@@ -71,14 +76,29 @@ namespace FallRush.Net
             {
                 case Phase.ToStart:
                     tx = EastX;
-                    if (Near(p, EastX, LaneZ, 1.2f))
+                    if (Near(p, EastX, _laneZ, 1.2f))
                         Set(Phase.RunWest, tick);
                     break;
                 case Phase.RunWest:
                     tx = MainEdgeX;
                     jump = SweeperAhead(pred, in s, tick);
+                    // Odd laps stop in the bar's path and wait to be hit: exercises predicted knockback + stun.
+                    if ((Laps & 1) == 1 && p.X <= SweeperLaneX && !_tookHit)
+                        Set(Phase.TakeHit, tick);
                     if (p.X <= MainEdgeX + 0.4f)
                         Set(Phase.WaitEdge, tick);
+                    break;
+                case Phase.TakeHit:
+                    tx = SweeperLaneX;
+                    move = System.Math.Abs(p.X - SweeperLaneX) > 0.3f && s.StunTicks == 0;
+                    if (s.StunTicks > 0)
+                        _tookHit = true;
+                    if ((_tookHit && s.StunTicks == 0) || tick - _phaseTick > 240)
+                    {
+                        _tookHit = true;
+                        Set(Phase.RunWest, tick);
+                    }
+
                     break;
                 case Phase.WaitEdge:
                     tx = MainEdgeX;
@@ -97,7 +117,7 @@ namespace FallRush.Net
                     break;
                 case Phase.RideWest:
                     tx = platX;
-                    move = System.Math.Abs(p.X - platX) > 0.3f || System.Math.Abs(p.Z - LaneZ) > 0.3f;
+                    move = System.Math.Abs(p.X - platX) > 0.3f || System.Math.Abs(p.Z - _laneZ) > 0.3f;
                     if (onPlatform && platX <= NearIslandCenterX)
                     {
                         tx = IslandX;
@@ -129,7 +149,7 @@ namespace FallRush.Net
                     break;
                 case Phase.RideEast:
                     tx = platX;
-                    move = System.Math.Abs(p.X - platX) > 0.3f || System.Math.Abs(p.Z - LaneZ) > 0.3f;
+                    move = System.Math.Abs(p.X - platX) > 0.3f || System.Math.Abs(p.Z - _laneZ) > 0.3f;
                     if (onPlatform && platX >= NearMainCenterX)
                     {
                         tx = MainEdgeX + 2f;
@@ -149,6 +169,7 @@ namespace FallRush.Net
                     if (p.X >= EastX - 0.5f)
                     {
                         Laps++;
+                        _tookHit = false;
                         Set(Phase.RunWest, tick);
                     }
 
