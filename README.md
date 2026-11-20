@@ -53,7 +53,7 @@ pnpm m1:down
 Server env: `GAMESERVER_PORT` (default 7777; `-port N` wins), `GAMESERVER_ID`. Proof and measurements: [`docs/proof/M1-transport.md`](docs/proof/M1-transport.md).
 
 ## M2: run it (networked movement)
-Status: **M2a done** (shared motor, server sim, snapshots, sandbox map, no prediction yet). **M2b is next**: prediction, interpolation, camera and Bolt v1. Proof and numbers are in [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md). Movement constants live in `packages/shared/config/movement_v1.json`; after editing it, run `pnpm gen:movement`.
+Status: **M2b done locally**: client prediction + reconciliation, remote interpolation, the Cinemachine camera, Bolt v1, a sweeper bar and a moving platform. Gate data for localhost and 150 ms is in; the VPS run waits for approval. Proof and numbers are in [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md). Movement constants live in `packages/shared/config/movement_v1.json`; after editing it, run `pnpm gen:movement`.
 
 ```bash
 # once (Editor closed): build the local server (includes Map_Sandbox)
@@ -64,15 +64,19 @@ bash scripts/m1-macserver.sh start -fallrushBots 12
 
 To play, use either:
 - **The Editor:** open `client-unity` in Unity 6000.3.28f1 → `Assets/_Game/Scenes/Boot.unity` → Play → **Play (connect)** → **Enter Sandbox (M2)**.
-- **A browser:** a **fresh** WebGL build (`pnpm m1:build:webgl`, with the Editor closed), served by `pnpm m1:up:mac`, at `http://localhost:8080/?server=ws://localhost:7777&autoplay=1`. An old M1 build is rejected as protocol v1.
+- **A browser:** a **fresh** WebGL build (`pnpm m1:build:webgl:release`, with the Editor closed), served by `pnpm m1:up:mac`, at `http://localhost:8080/?autoplay=1` → **Play (connect)**. An old M1 build is rejected as protocol v1. Add `&bot=course` to watch the scripted course runner (it logs `[gate]` lines to the console).
+- **At 150 ms RTT + jitter + 2 % loss:** `bash scripts/m2-netem.sh start 75 15 2`, then open `http://localhost:8080/?server=ws://localhost:7778&autoplay=1` (or point the Editor's server field at `ws://127.0.0.1:7778`). Stop it with `bash scripts/m2-netem.sh stop`.
 
-Controls: click to capture the mouse · WASD move · Space jump · Shift/LMB dive · Esc release · **F3** netcode HUD.
+Controls: click to capture the mouse · WASD move · Space jump · Shift/LMB dive · Esc releases the mouse and shows Options (sensitivity, invert Y, reduced motion) · **F3** netcode HUD. The hazard course is west of the spawn (run left): the striped sweeper bar, then the moving platform to the island.
 
 ```bash
 bash scripts/m1-macserver.sh stop          # stop the local server
 # measurements (Editor closed):
 bash scripts/m2-measure.sh 15 60 60 mylabel                 # 12 occupants, headless probe client, nettop bytes
 bash scripts/m2-probe.sh ws://127.0.0.1:7777 20 flood flood # input-flood kick test
+bash scripts/m2-probe.sh ws://127.0.0.1:7777 120 course a1   # gate: scripted course runner (run 3 in parallel)
+bash scripts/m2-probe.sh ws://127.0.0.1:7777 135 course r12 -fallrushProbeHide 20:60   # R12 hidden-tab simulation
+python3 scripts/m2-summarize.py a1                         # one gate line per client
 ```
 
 Server flags:

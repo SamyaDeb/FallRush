@@ -85,7 +85,7 @@ Proof: [`docs/proof/M1-transport.md`](docs/proof/M1-transport.md) · screenshots
 - `UNITY_SERVER` asmdef constraints strip client code; Multiplayer Roles must still be used for components on shared prefabs.
 - Dedicated-server player ignores `-batchmode`/`-nographics` ("Unknown arg"); harmless.
 
-## Milestone M2a (shared motor + input + server sim + snapshots) — ✅ at checkpoint, waiting for your "continue"
+## Milestone M2a (shared motor + input + server sim + snapshots) — ✅ complete ("continue" received)
 Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part A · screenshot `docs/proof/m2/m2a-sandbox-hud.png`.
 
 | Item | State |
@@ -119,8 +119,41 @@ Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part A · screensh
   `ruleset_v1.json` and anything on-chain were **not touched** in M2.
 - **M6:** per-IP connection/rate limiting at nginx (the in-game kick handles a single flooding client).
 
+## Milestone M2b (prediction, hazards, camera, Bolt v1, gate) — ✅ local, ⏳ VPS condition waiting for your approval
+Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part B · screenshots `docs/proof/m2/m2b-*.png`.
+
+| Item | State |
+|---|---|
+| `Net/ClientPrediction` (tick-keyed history, rewind + replay, 120 ms smoothing, snap > 2 m) + `Net/Interpolation` (100–150 ms adaptive, ≤ 150 ms extrapolation, then frozen + "! LAGGING") | ✅ |
+| `Shared/HazardMath`: rotating sweeper (knockback + 0.5 s stun) + sine platform (carried through `IMotorWorld`), predicted on the client | ✅ 0 hazard mismatches |
+| Cinemachine 3.1.7 follow camera (orbit 7/3 m, deoccluder, look-ahead, +6° dive FOV, shake), options: sensitivity, invert Y, reduced motion | ✅ (feel: your call) |
+| Bolt v1 (`RushlingVisuals` + `ProcMesh`): dome/seam/hinge, shell + bolt emblem, glyph face, goggles, key, peg feet, verlet noodle arms, squash/lean/wobble/stun pop/dive pose; silhouette shot | ✅ (look: your call) |
+| R12 hidden tab | ✅ 10/30/60 s survive (desktop stall test); real Chrome tab UNVERIFIED |
+| Gate: corrections per 5 s while running the course | **localhost 0.00 · 150 ms + jitter + 2 % loss 0.08–0.17 (start-up only) · WebGL vs Mac ≈ 0.23 (~0 cm, flag-only)** · VPS pending |
+| EditMode tests | ✅ **149/149** |
+| WebGL release | 1,196 s, **16.03 MB** (M1 15.83 MB) |
+| Linux server image `fallrush-gameserver:m2` | built (68 MB); runs only on x86_64 (VPS) |
+
+### Gate read (M2b, before VPS)
+**Recommendation: go.** The fix window was not needed. The pass bar (< 1 correction per 5 s while running the course) was met on localhost and at 150 ms RTT with jitter and TCP loss, and hazard prediction is exact. **The feel verdict is yours**, and the VPS run is still to come.
+
+### Notes for M3 / M4 / M6 (from M2b)
+- **M3:**
+  - New hazard types = a def struct + pose/effect function in `HazardMath`, plus a scene authoring component (one class per file: Unity binds MonoBehaviours by file name; a two-class file broke the player build).
+  - Platforms carry riders but don't add their velocity on jump-off.
+  - Rotating platforms need angular carry (`SurfaceDelta` with a point).
+- **M4:**
+  - Pushes are server-only → push corrections (R14). Consider predicting separation against interpolated remotes.
+  - The server pauses snapshots for a client that stopped sending input (1 s) and resumes on its next input.
+  - `ServerDisconnectTimeoutMs` is 90 s, so an AFK hidden tab keeps its slot that long.
+- **M6:**
+  - Keep `WebSocketDriverConstructor` (reliable resend 10–30 s) for every WebSocket build.
+  - Server CPU on the 2-vCPU VPS with two game servers is still open.
+- **Protocol:** still v2, with header 18 B / `snap` 282 B for 12 (M2b added surface + ownEvents; v2 was never deployed beyond the dev machine).
+
 ## Next milestones
-- **M2b (after your "continue"):** client prediction + reconciliation, remote interpolation, Cinemachine camera, Bolt v1, hazards for the gate, R12 hidden-tab test, go/no-go data (localhost / VPS / 150 ms).
+- **M2b VPS condition (b):** waiting for your approval of the command list in the M2b report.
+- **M3:** obstacle kit + Block Party Dash race (`docs/14`).
 
 ## Next: M2 (networked movement), prompt `docs/prompts/M2-PROMPT.md`
 - Agreed 2026-11-18: VPS check first (✅ done in M1 §4.7), SDK pin (D-15 ✅), **one M2 prompt with an M2a → M2b checkpoint**, and **Bolt v1 built in Unity from shapes** (no Blender).

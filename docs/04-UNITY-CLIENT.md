@@ -87,7 +87,7 @@ NGO is used for:
 | Name | Direction | Delivery | Payload | Size |
 |---|---|---|---|---|
 | `in` | C→S, every client tick (30 Hz) | Unreliable | `count u8 (1–3)` + count × `InputCmd`, newest first. `InputCmd` = `seq u32, tick u32, moveX i8, moveY i8, buttons u8, camYaw u16` (13 B) | **40 B** |
-| `snap` | S→C, every 2nd tick (15 Hz; `-fallrushSnapHz 30` for every tick) | UnreliableSequenced | header (16 B): `serverTick u32, ackSeq u32, inputLead i8, ownSlot u8, own timers 5×u8 (coyote, jumpBuffer, diveCooldown, landTicks, immunity), count u8` + count × `PlayerState` (22 B): `slot u8, pos 3×i32 mm, vel 3×i16 cm/s, yaw u8, flags u8, stunTicks u8` | **280 B** for 12 |
+| `snap` | S→C, every 2nd tick (15 Hz; `-fallrushSnapHz 30` for every tick) | UnreliableSequenced | header (18 B): `serverTick u32, ackSeq u32, inputLead i8, ownSlot u8, own state 6×u8 (coyote, jumpBuffer, diveCooldown, landTicks, immunity, surface), ownEvents u8 (bit0 = pushed by another player since your last snapshot), count u8` + count × `PlayerState` (22 B): `slot u8, pos 3×i32 mm, vel 3×i16 cm/s, yaw u8, flags u8, stunTicks u8` | **282 B** for 12 |
 | `evt` | S→C | ReliableSequenced | Match / round / checkpoint / qualify / eliminate / tile-drop / star / chain-status events with a `seq` (M4) | — |
 | `hello` | C→S (approval payload) | Reliable | protocolVersion, buildVersion, cosmeticPreset | 4–36 B |
 
@@ -97,6 +97,8 @@ NGO is used for:
 - **Changes vs the v2 text:**
   - `in` starts with a `count` byte instead of `lastSeq`, since the newest command already carries it.
   - The `snap` header adds `inputLead` (clock-sync feedback, §4.3) and the owner's 5 motor timers. Without the timers a client rewind could not restore the complete `MotorState`.
+  - M2b adds `surface` (the moving platform the owner stands on, so a rewind restores platform carry) and `ownEvents` (server-only pushes, so the client can tell an expected correction from a prediction error). Still protocol v2: v2 was never deployed outside the dev machine.
+- **Server snapshot pause (R12, M2b):** a client that had sent input but has sent nothing for 30 ticks (1 s; a hidden browser tab runs no frames) gets no snapshots until its input resumes. Otherwise it wakes up to hundreds of queued snapshots.
 - **`flags`:** grounded 1, diving 2, dive-landing 4, respawning 8, BOT 128.
 - **Measured (M2a, one client, 12 occupants):**
 
@@ -125,7 +127,7 @@ NGO is used for:
 2. **Step (PreUpdate tick):** for each occupied slot, take the command for exactly this tick, then run `KinematicMotor.Step(ref state, cmd, 1/30, PhysxMotorWorld)`.
    - **Missing command:** repeat the last one, with edges cleared, for up to 3 ticks; then neutral.
    - **Bots:** the same motor, fed by `TestBotInput`.
-3. *(M2b/M3)* Hazards via `HazardMath.Pose(def, seed, tick)` → knockback/stun.
+3. **Hazards (M2b, `Shared/HazardMath.cs`):** before the players of tick T are stepped, `world.BeginTick(T)` poses moving geometry (platform colliders) at `f(def, seed, T)`. The motor rides platforms through `IMotorWorld.SurfaceDelta`. After each motor step, `HazardSet.ApplySweepers` tests the capsule against each rotating bar analytically: knockback 9 m/s + 5 m/s up, stun 15 ticks (0.5 s), immunity 30 ticks. `Shared/PlayerStep.Run` (motor → sweepers → fall volume) is the one function both the server and client prediction call.
 4. **Fall volume:** `y < killY` (−20 m) → `respawning` for 30 ticks (1.0 s) → spawn point. Then player–player **soft separation**: each overlapping pair is pushed apart at ≤ 2.5 m/s, with no stun. It is server-only, not predicted, and goes through the motor's collide-and-slide (`Displace`).
    - *(M3/M4)* Checkpoints, finish, goo, tiles and stars come later → `RoundRules`.
 5. **Snapshot** every 2nd tick (15 Hz) to each human: one shared body plus a per-recipient header. 30 Hz is a flag; the M2b gate data decides.
@@ -135,40 +137,48 @@ NGO is used for:
 
 **Logs every 10 s** (the M1 `ServerStats` pattern):
 - `[gs] stats`: tick rate, frame interval, frame work p50/p95/max.
-- `[gs] sim`: humans/bots, sim step p50/p95, snapshots and payload B/s per client, input messages/payload, accepted/late/repeated/neutral/burst, violations (far/flood/malformed), kicks.
+- `[gs] sim`: humans/bots, sim step p50/p95, snapshots and payload B/s per client, input messages/payload, accepted/late/repeated/neutral/burst, violations (far/flood/malformed), kicks, snapshots paused for idle clients, pushes, hazard hits.
 
 ### 4.3 Client tick clock and prediction (local player only)
 
 **Tick agreement (M2a, `Shared/TickSync.cs`):** a command stamped `tick = T` is applied by the server **at step T**, so the client must run ahead of the server.
 - **Server feedback:** on arrival the server records `lead = cmd.tick − nextServerTick` and puts the window minimum in each snapshot (`inputLead`).
 - **Dilation:** the client runs its 30 Hz clock at `rate = 1 − 0.02·(lead − target)`, clamped to ±6 %, so `lead` settles at `target`. When `lead` is more than 8 ticks off it re-syncs in one jump: forward, or a pause when ahead. Ticks never go backwards. Reports in flight are ignored for 0.5 s after a jump.
-- **Adaptive target:** starts at 2 ticks. +1 (max 6) after a late command; −1 (min 1) after 10 s in which the lead never dipped below the target.
+- **Adaptive target:** starts at 2 ticks. A command late by k ticks → target += max(1, k) (max 6) and the clock jumps straight to the new target (M2b; with +1 steps, 150 ms + jitter + loss gave 10–13 start-up corrections per client, now 2–4). −1 (min 1) after 10 s in which the lead never dipped below the target.
 - **Start:** `predTick = serverTick + ceil(RTT/dt) + target`. The clock keeps running before input starts (lobby, map load), so the first commands are on time.
 - **Steady state:** `predTick ≈ serverTickNow + (RTT/2 + send/receive quantisation)/dt + target`. That is the "RTT/2 + one tick" of the spec, with the quantisation measured rather than guessed.
 - **Measured (M2a, localhost):** lead holds at target 2 (67 ms), 0 late commands, 0 re-syncs over 60 s windows. The closed-loop EditMode test at 20/75/150 ms one-way latency with jitter converges to target 2 with 0 late commands after 10 s.
 
-**Prediction (M2b, `Net/ClientPrediction.cs`; history keyed by tick):**
+**Prediction (M2b, as built: `Net/ClientPrediction.cs`; history keyed by tick, 128 ticks):**
 
 ```
-each client tick T: cmd = Input.Sample(); send cmd(tick=T); state = Motor.Step(state, cmd, 1/30, LocalWorld(T)); history[T] = (cmd, state)
-on snap(S):          auth = snap[mySlot] + own timers; drop history < S;
-                     if |history[S].pos − auth.pos| > 0.05 m or flags/stun differ:
-                         state = auth; replay cmds S+1 … predTick through Motor.Step   (reconcile)
-                     ackSeq ≠ seq of history[S].cmd → the server used a repeated input at S (expect a correction)
-                     visual offset smoothing: render pos blends the error to 0 over 0.1–0.15 s; snap only above ~2 m
+each client tick T: cmd = Input.Sample(); send cmd(tick=T); world.BeginTick(T); state = PlayerStep.Run(state, cmd, T); history[T] = (cmd, state)
+on snap(S):          auth = snap[mySlot] + owner fields from the header
+                     history[S] bit-identical to auth → nothing (the normal case: 99.7 % of snapshots in the localhost gate)
+                     otherwise rewind: state = auth; replay T = S+1 … newest through PlayerStep.Run
+                       (ticks with no command sent are replayed the way the server fills them: last command, edges cleared, ×3, then neutral)
+                     count a correction if |Δpos| > 5 cm or flags/stun differ; smaller differences are fixed silently.
+                     ownEvents.pushed → counted as a push correction (not predicted by design); respawns are teleports, not corrections.
+visual smoothing:    the jump of the predicted present goes into RenderOffset, decaying exp(−3t/0.12 s) (5 % left after 120 ms); > 2 m snaps
+render:              lerp(state[T−1], state[T], tick fraction) + RenderOffset  (one tick behind the newest prediction, always smooth)
+long stall (> 64 ticks without sampling): drop the prediction and adopt the next snapshot (R12)
 ```
 
-**`LocalWorld(tick)`** evaluates hazards at the predicted tick with the same `HazardMath`. Deterministic hazards are what make prediction against moving obstacles accurate.
+**`LocalWorld(tick)`** is the same PhysX scene with the platform colliders posed for the predicted tick (`PhysxMotorWorld.BeginTick` → `Physics.SyncTransforms`). The sweeper is analytic (`HazardMath.SweeperContact`). Hazard **visuals** are drawn on the local predicted timeline (`ClientSim.HazardRenderTick`), so what you collide with is where it is drawn. Remote players near a hazard are drawn ≈ RTT/2 + 100 ms in the past relative to it (standard trade-off, visible only at high RTT).
 
-**Not predicted:**
-- **Knockback from hazards is predicted.** It is deterministic.
-- **Pushes from other players are not predicted.** The server corrects them, and the smoothing hides it.
+**Not predicted:** pushes from other players (server-only soft separation). **Predicted:** sweeper knockback + stun, platform carry, falling out (the respawn teleport arrives from the server).
 
-**M2a rendering (no prediction):** every player, including the local one, is drawn from snapshots 100 ms behind the newest (`ClientSim.TrySample`, clamped, no extrapolation). Local control therefore feels the full RTT + 100 ms until M2b.
+**Measured (M2b gate, `docs/proof/M2-netcode.md` Part B):**
+- **Bit-identical across 1,800-tick server twins** (EditMode, analytic world) at lead 1/3/6 and downlink delay 2/5 ticks, including sweeper hits and platform rides.
+- **Same binary (Mac Mono client and server):** 0 corrections in 3 × 120 s.
+- **WebGL (wasm) vs Mac (Mono) server:** mean position error on mismatching snapshots 3.7 mm (max 200 mm, once at start-up); most fixed silently; about 1 counted correction per 10 s with ~0 cm visible shift (flag-only).
 
 ### 4.4 Remote players
 
-Snapshot interpolation at `renderTime = serverTimeEstimate − interpDelay` (100 ms, adaptive). No extrapolation beyond 150 ms. After that, freeze and show a "lagging" icon.
+Snapshot interpolation at `renderTime = serverTimeEstimate − interpDelay` (`Net/Interpolation.cs`, M2b).
+- **Server time estimate:** the smoothed (server tick time − local arrival time) of the freshest snapshots. Earlier-than-expected arrivals pull it forward fast (0.2), late ones drift it back slowly (0.01).
+- **Adaptive delay:** `clamp(snapInterval + 1 tick + lateness_p95(last 64 snapshots), 100 ms, 150 ms)`, slewing at ≤ 5 % of real time. Measured: 105–125 ms on localhost, 141–150 ms at 150 ms RTT + jitter + loss.
+- **Starvation:** extrapolate horizontally with the snapshot velocity for ≤ 150 ms; then freeze and show the "! LAGGING" icon.
 
 ### 4.5 Go / no-go gate (end of day Sun Nov 22)
 
@@ -237,26 +247,56 @@ Snapshot interpolation at `renderTime = serverTimeEstimate − interpDelay` (100
 - **Trigger and impulse:** the press edge, when not stunned, diving or in a dive landing, and cooldown is 0. Horizontal speed becomes `max(9, current speed along the dive dir)`, vertical 3 m/s; cooldown 30 ticks.
 - **Landing:** 11-tick ground stun with no input. A fresh jump press within the first 5 ticks after touchdown cancels it and jumps. Buffered presses from before landing don't count.
 
-**Moving platforms (M2b):** carry comes from `HazardMath` at this tick through `IMotorWorld` (`MotorHit.SurfaceId`), never from a Unity physics callback.
+**Moving platforms (M2b, as built):**
+- `IMotorWorld.BeginTick(tick)` poses moving geometry.
+- The ground probe records `MotorHit.SurfaceId` → `MotorState.Surface` (0 = static).
+- On the next step, if the player was grounded on a surface, the motor first collide-and-slides by `IMotorWorld.SurfaceDelta` (the platform's mm-quantised displacement from tick − 1 to tick), then runs as usual.
+- No Unity physics callback is involved, and the platform is a kinematic collider that is never simulated.
+- Carried riders keep their offset to within 3 mm per tick (EditMode test).
+- Jumping off does not inherit the platform's velocity (M3 can add it).
 
-**State struct:** `MotorState` holds `pos i32×3 mm, vel i16×3 cm/s, yaw u8, flags u8, stunTicks u8, coyote, jumpBuffer, diveCooldown, landTicks, immunity` (all u8). It is blittable and compared bit-for-bit in the determinism tests. `lastCheckpoint` lives in round rules (M3), not in the motor.
+**State struct:** `MotorState` holds `pos i32×3 mm, vel i16×3 cm/s, yaw u8, flags u8, stunTicks u8, coyote, jumpBuffer, diveCooldown, landTicks, immunity, surface` (all u8). It is blittable and compared bit-for-bit in the determinism tests. `lastCheckpoint` lives in round rules (M3), not in the motor.
 
 **Chaos modifiers (M5):** applied as multipliers on a `MovementConfig` instance.
 
 ## 6. Rushling visuals (client only)
 
-`RushlingVisuals` reads the interpolated or predicted state and drives:
-- squash/stretch springs
-- lean
-- noodle-arm verlet chains (tube mesh)
-- foot stepping
-- key spin
-- the screen-face atlas
-- stun pop
+**Bolt v1 as built (M2b):** `Client/RushlingVisuals.cs` + `Client/ProcMesh.cs`. Everything is generated in code at start-up, with no imported meshes or textures. Screenshots: `docs/proof/m2/m2b-bolt-closeup.png`, `m2b-bolt-silhouette-20m.png`.
+- **Body inside the 0.31 × 1.0 collision capsule:**
+  - white lathe dome on a back hinge, with the seam ring and the hinge block;
+  - coloured lower shell (per-slot preset, 8 colours; slot 0 = Bolt magenta) with an extruded yellow lightning-bolt emblem (our own 8-point shape);
+  - peg feet in the bottom 8 cm.
+- **Screen face:** a rounded-square patch following the dome. It uses a 128×128 code-drawn 4×4 atlas with mint LED glyphs: idle `^ ^`, running `• •`, jumping `O O`, diving `> <`, stunned spirals, falling `O ◡ O`, and blink. The glyph is picked by UV offset (`_BaseMap_ST` through the face's only `MaterialPropertyBlock`).
+- **Goggles:** strap ring plus two lens discs with rims, pushed up on the forehead.
+- **Wind-up key:** purple shaft plus two loops on the back. It spins at 60 + 110 °/s per m/s, ×3 while diving.
+- **Noodle arms:**
+  - 6-point verlet chains anchored at the shoulders, with damping, gravity, a pose spring and 3 distance-constraint iterations;
+  - the pose hangs out and down, flails when airborne, and reaches ahead on a dive;
+  - rendered as a Catmull-Rom tube of 8 segments × 6 sides (radius 4.5 cm, parallel-transport frames), with mitten spheres at the tips;
+  - visual only: no collision, clamped above the floor.
+- **Motion:**
+  - squash/stretch spring: landing (1.15, 0.8) scaled by impact, jump (0.9, 1.12); about 0.18 s, slightly underdamped;
+  - lean toward smoothed acceleration, ≤ 18°, critically damped;
+  - wobble spring kicked by landings and hazard hits;
+  - stun pop: the lid hinges open 25° and 3 stars orbit for 0.6 s;
+  - dive pitch 80° (60 ° of it held during the dive landing);
+  - two-point foot stepping (stride 0.2 m, 0.09 s arc).
+- **Rendering:**
+  - URP Lit + URP Unlit (`Materials/Sandbox/CharacterUnlit.mat`), one shared material per colour, so the SRP Batcher stays on;
+  - no shadows or probes;
+  - about 1.6k triangles per Rushling (12 lathe/torus/extrude parts plus 2 × 96-triangle arms).
+- **Stripped from the server:** `FallRush.Client` has `defineConstraints: !UNITY_SERVER`, and the Linux server build's `Managed/` contains no `FallRush.Client.dll` (checked).
+- **No allocations in the animation loop:** springs on fields, arm vertex/normal arrays reused (`mesh.vertices = sameArray`), no LINQ, closures or strings per frame. This is UNVERIFIED with the profiler.
+- **Not yet (M3+):** toon ramp shader, blob shadow, `CosmeticPreset` from the server (per-slot colour for now), hit-stop and BONK.
 
-See doc 17 §2.3. Per-player cosmetics come from `CosmeticPreset` (index into the SO tables), assigned by the server.
-
-**Performance budget:** 12 Rushlings × (2 arms × 6 points verlet + tube mesh 8×6) is CPU-light. Arm meshes are updated with `Mesh.SetVertices` on a reused buffer.
+**Camera (`Client/FollowCamera.cs`, Cinemachine 3.1.7):**
+- `CinemachineCamera` + `CinemachineOrbitalFollow`: Sphere orbit, radius 7.6 m at 23.2° elevation (≈ 7 m back / 3 m up), WorldSpace binding, so the horizontal axis is the world yaw the move input is rotated by.
+- `CinemachineRotationComposer`: look-ahead 0.2 s, smoothing 8, ignore Y.
+- `CinemachineDeoccluder`: Gameplay layer, pull forward, radius 0.3, damping 0.5 / 0.1.
+- `CinemachineCameraOffset`: 0.25 s shake on stun.
+- +6° FOV kick on dive.
+- Mouse drives the axes directly while the pointer is locked.
+- Options panel (Esc): sensitivity, invert Y, reduced motion (no shake, no FOV kick), stored in PlayerPrefs.
 
 ## 7. Screens & HUD (doc 17 §5)
 
@@ -304,6 +344,9 @@ See doc 17 §2.3. Per-player cosmetics come from `CosmeticPreset` (index into th
   - `scripts/m2-probe.sh <ws-url> <secs> run|idle|flood`: headless scripted client.
   - `scripts/m2-measure.sh <snapHz> <serverFps> <secs> <label>`: 12-occupant measurement.
   - Both server builds now include `Map_Sandbox`.
+  - **M2b:** `scripts/m2-probe.sh <url> <secs> course <label> [-fallrushProbeHide 20:60]` (course runner; hidden-tab simulation); `scripts/m2-netem.sh start 75 15 2` (tc-netem TCP relay on `ws://127.0.0.1:7778`); `python3 scripts/m2-summarize.py <labels…>`; WebGL `?autoplay=1&bot=course` (logs `[gate]` lines to the console); photo mode `-fallrushPhoto silhouette|closeup` with `-fallrushProbeView`.
+  - **M2b WebGL release (measured):** 1,196.5 s build / 1,226.9 s wall (M1: 641 s with the SDK; this run swapped, 3.5 GB of swap in use), **16.03 MB** (`wasm.br` 10.10 MB, `data.br` 5.80 MB, `framework.js.br` 83 KB, `loader.js` 27 KB) vs 15.83 MB in M1 (+0.20 MB for prediction, hazards, Cinemachine and Bolt).
+  - **Linux server (M2b):** 16.2 s build, 95 MB output, image `fallrush-gameserver:m2` (`docker build --platform linux/amd64 -f infra/gameserver.Dockerfile …`).
 - **Real commands (M1):** `pnpm m1:build:webgl` (dev), `pnpm m1:build:webgl:release`, `pnpm m1:build:server`, `pnpm m1:test:unity`, plus `pnpm m1:build:macserver` (Apple Silicon local test server). All go through `scripts/m1-unity.sh`: refuses to run while a Unity Editor is open, logs to `.m1-logs/`, wraps Unity in `/usr/bin/time -l`.
 - **Measured on the M2 Air (details: `docs/proof/M1-transport.md`):** WebGL release 523 s first / 294 s incremental; dev 714 s first / 238 s warm; Linux server 158 s first / 47–62 s incremental; peak RSS 1.1–1.5 GB; swap is used while other apps are open.
 - **Brotli serving decision:** Decompression Fallback **off**; nginx adds `Content-Encoding: br` + the right `Content-Type` per file (verified). Unity 6000.3 **never compresses development builds** (manual: "Development builds aren't compressed"), so dev builds serve raw `.wasm`/`.data`/`.js`. `chmod -R a+rX` the build output (Unity writes `.br` files as 0600).
@@ -311,7 +354,7 @@ See doc 17 §2.3. Per-player cosmetics come from `CosmeticPreset` (index into th
 
 ## 11. Tests
 
-**EditMode (130 green at the M2a checkpoint; `pnpm m1:test:unity`):**
+**EditMode (149 green at the end of M2b; 130 at the M2a checkpoint; `pnpm m1:test:unity`):**
 - **M1:** protocol hello round-trip and mismatch; `NetTargets`; `RollingSamples`.
 - **`MovementConfigTests`:**
   - the C# constants hash equals the generated sha256;
@@ -328,7 +371,7 @@ See doc 17 §2.3. Per-player cosmetics come from `CosmeticPreset` (index into th
   - quantisation round-trip (10k random); `Yaw256`.
 - **`PhysxMotorTests`** (real BoxColliders + PhysX queries): flat run, apex, slopes, steps, jump onto a 1.5 m wall but not 1.7 m, determinism.
 - **`NetMessageTests`:**
-  - sizes (13/40/16/22/280 B);
+  - sizes (13/40/18/22/282 B);
   - `in` and `snap` round-trips with extreme values;
   - rejection of every truncated prefix, trailing bytes, bad count and bad slot;
   - 20k random-buffer fuzz with no exceptions.
@@ -337,12 +380,22 @@ See doc 17 §2.3. Per-player cosmetics come from `CosmeticPreset` (index into th
   - init, dilation, re-sync, burst cap;
   - stale start without a target ratchet; target lowering;
   - closed loop at 20/75/150 ms one-way latency with jitter.
+- **`HazardAndPredictionTests` (M2b):**
+  - `Sin16` within 4e-6 of `sin` over all 65,536 phases; phase periodicity;
+  - platform deltas sum exactly to the displacement in mm;
+  - sweeper contact for a standing player but not one jumping over it; knockback/stun/immunity;
+  - a rider carried by the platform for 180 ticks;
+  - **prediction vs a server twin**, bit-identical through sweeper hits (lead 1/3/6 × delay 2/5) and while riding;
+  - a dropped command is corrected and every later snapshot matches; smoothing decays in 120 ms; server push reported once per snapshot;
+  - interpolation: steady 15 Hz → 100 ms with no extrapolation; a stall extrapolates, then freezes with lagging; jitter raises the delay, capped at 150 ms.
 - **`SimCoreTests`:** 12 bots for 60 s, deterministic across two instances; humans replace bots; stacked players separate at ≤ 2.5 m/s; fall → respawn after exactly 30 ticks; snapshot header carries the owner's timers and ack.
 
 **Not EditMode-testable (verified by running):**
 - the server loop with 12 occupants (Mac dev server + headless probe, `scripts/m2-measure.sh`);
 - flood kick (`scripts/m2-probe.sh … flood`);
-- the client view (`-fallrushProbeView` screenshot).
+- the client view (`-fallrushProbeView` screenshot);
+- the gate (`scripts/m2-probe.sh … course`, `scripts/m2-netem.sh`, `scripts/m2-summarize.py`; WebGL `?bot=course`);
+- R12 (`-fallrushProbeHide 20:60`).
 
 **PlayMode (later):**
 - checkpoint order

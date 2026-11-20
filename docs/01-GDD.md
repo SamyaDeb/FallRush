@@ -122,7 +122,7 @@ The model is **kinematic**: a custom capsule motor runs the same C# code on the 
 | Player–player | soft separation push (max 2.5 m/s), no stun; prevents stacking exploits |
 
 **Where the values live (M2):**
-- Today they are in `packages/shared/config/movement_v1.json`: integers in mm, mm/s and ms, with their own sha256, loaded by Unity through generated constants and checked by a hash test. The table above is unchanged by M2a.
+- Today they are in `packages/shared/config/movement_v1.json`: integers in mm, mm/s and ms, with their own sha256, loaded by Unity through generated constants and checked by a hash test. The table above is unchanged by M2a and M2b (sha256 `1d966e17…`; nothing was retuned, because the gate passed with the GDD values and the feel verdict is still open).
 - **M2a added** four constants the table did not name:
   - max fall speed 30 m/s;
   - ground snap 0.25 m;
