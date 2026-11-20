@@ -96,6 +96,19 @@ namespace FallRush.Client
                 if (NetBootstrap.Instance == null || !NetBootstrap.Instance.IsProbe)
                     cs.InputSource = _sampler; // the probe keeps its scripted input
                 cs.Active = true;
+
+                // MEASUREMENT (WebGL gate runs): ?bot=course plays the scripted course; ?gate=1 (or bot) logs [gate] lines.
+                var url = Application.absoluteURL;
+                var bot = NetTargets.GetQueryParam(url, "bot");
+                CourseBot course = null;
+                if (bot == "course" && (NetBootstrap.Instance == null || !NetBootstrap.Instance.IsProbe))
+                    cs.InputSource = course = new CourseBot(cs);
+                if (course != null || NetTargets.GetQueryParam(url, "gate") == "1")
+                {
+                    var gate = gameObject.AddComponent<GateLogger>();
+                    gate.Tag = "gate";
+                    gate.Course = course;
+                }
             }
 
             if (NetBootstrap.Instance != null)
@@ -146,7 +159,8 @@ namespace FallRush.Client
             var pointerOverUi = _options.activeSelf && es != null && es.IsPointerOverGameObject();
             if (mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked && !_overlay.activeSelf && !pointerOverUi)
                 Cursor.lockState = CursorLockMode.Locked; // WebGL: pointer lock needs this user gesture
-            var showOptions = Cursor.lockState != CursorLockMode.Locked && !_overlay.activeSelf && _photo == null;
+            var probe = NetBootstrap.Instance != null && NetBootstrap.Instance.IsProbe; // scripted view: no pointer lock
+            var showOptions = Cursor.lockState != CursorLockMode.Locked && !_overlay.activeSelf && _photo == null && !probe;
             if (_options.activeSelf != showOptions)
                 _options.SetActive(showOptions);
 
@@ -323,7 +337,7 @@ namespace FallRush.Client
             rt.SetParent(canvas, false);
             rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 1f);
             rt.anchoredPosition = new Vector2(12f, -12f);
-            rt.sizeDelta = new Vector2(640f, 320f);
+            rt.sizeDelta = new Vector2(600f, 262f);
             _hud.GetComponent<Image>().color = new Color(0.08f, 0.03f, 0.18f, 0.72f);
             var t = new GameObject("Text", typeof(RectTransform), typeof(Text)).GetComponent<Text>();
             var trt = (RectTransform)t.transform;
@@ -452,7 +466,10 @@ namespace FallRush.Client
             if (cam == null || !_hasOwn)
                 return;
             var c = _lastOwnFeet + Vector3.up * 0.55f;
-            var off = _photo == "silhouette" ? new Vector3(20f, 1.2f, 0f) : new Vector3(1.9f, 1.0f, 2.3f);
+            // Close-up: three-quarter front view (face, goggles, emblem) relative to the Rushling's facing.
+            var own = ClientSim.Instance != null ? ClientSim.Instance.OwnSlot : -1;
+            var facing = own >= 0 && own < _rushlings.Length ? _rushlings[own].transform.rotation : Quaternion.identity;
+            var off = _photo == "silhouette" ? new Vector3(20f, 1.2f, 0f) : facing * new Vector3(1.3f, 0.75f, 2.4f);
             // Silhouette: side-on from 20 m (the run script moves along Z, so the profile shows arms and key).
             cam.transform.SetPositionAndRotation(c + off, Quaternion.LookRotation(-off));
         }

@@ -42,7 +42,7 @@ namespace FallRush.Client
         private const float ArmSegment = 0.1f;
         private const int TubeSegments = 8;
         private const int TubeSides = 6;
-        private const float TubeRadius = 0.035f;
+        private const float TubeRadius = 0.045f;
 
         public bool Silhouette { get; private set; }
 
@@ -552,21 +552,31 @@ namespace FallRush.Client
 
             var verts = _armVerts[a];
             var normals = _armNormals[a];
-            var reference = Vector3.up;
             var min = _spline[0];
             var max = _spline[0];
+            var n = Vector3.zero;
             for (var s = 0; s <= TubeSegments; s++)
             {
                 var tangent = _spline[Mathf.Min(TubeSegments, s + 1)] - _spline[Mathf.Max(0, s - 1)];
                 if (tangent.sqrMagnitude < 1e-8f)
                     tangent = Vector3.down;
                 tangent.Normalize();
-                var n = Vector3.Cross(tangent, reference);
-                if (n.sqrMagnitude < 1e-4f)
-                    n = Vector3.Cross(tangent, Vector3.right);
+                // Parallel transport: carry the previous ring's normal along the curve (no 90° flips → no twisting).
+                if (s == 0)
+                {
+                    n = Vector3.Cross(tangent, Vector3.up);
+                    if (n.sqrMagnitude < 1e-4f)
+                        n = Vector3.Cross(tangent, Vector3.right);
+                }
+                else
+                {
+                    n -= tangent * Vector3.Dot(n, tangent);
+                    if (n.sqrMagnitude < 1e-8f)
+                        n = Vector3.Cross(tangent, Vector3.right);
+                }
+
                 n.Normalize();
                 var b = Vector3.Cross(tangent, n);
-                reference = b; // parallel-transport-ish: carry the frame along
                 var radius = TubeRadius * (s == 0 ? 0.9f : 1f);
                 for (var k = 0; k < TubeSides; k++)
                 {

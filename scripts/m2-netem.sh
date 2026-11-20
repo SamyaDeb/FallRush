@@ -23,6 +23,7 @@ case "${1:-status}" in
         tc qdisc show dev eth0 &&
         exec socat TCP-LISTEN:7778,fork,reuseaddr,nodelay TCP:host.docker.internal:7777,nodelay" >/dev/null
     for _ in $(seq 1 30); do docker logs "$NAME" 2>&1 | grep -q netem && break; sleep 1; done
+    sleep 2 # socat starts right after the qdisc line
     docker logs "$NAME" 2>&1 | tail -2
     echo "netem relay ws://127.0.0.1:7778 → host.docker.internal:7777 (delay ${D}±${J} ms per direction, loss ${L}%)" ;;
   stop) docker rm -f "$NAME" >/dev/null 2>&1 && echo stopped || echo "not running" ;;

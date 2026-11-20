@@ -304,12 +304,23 @@ namespace FallRush.Client
             for (var r = 0; r <= rows; r++)
             {
                 var v = r / (float)rows;
-                var y = Mathf.Lerp(y0, y1, v);
-                var rad = RadiusAt(y) + lift;
                 for (var c = 0; c <= cols; c++)
                 {
                     var u = c / (float)cols;
-                    var a = Mathf.Lerp(-span, span, u);
+                    // Rounded-square outline: pull the grid onto a squircle (|x|⁴ + |y|⁴ ≤ 1), so the screen's corners
+                    // are geometry, not texture (unlit corner texels never match the lit dome).
+                    float qx = u * 2f - 1f, qy = v * 2f - 1f;
+                    var k = Mathf.Max(Mathf.Abs(qx), Mathf.Abs(qy));
+                    var n4 = Mathf.Pow(qx * qx * qx * qx + qy * qy * qy * qy, 0.25f);
+                    if (n4 > 1e-5f)
+                    {
+                        qx *= k / n4;
+                        qy *= k / n4;
+                    }
+
+                    var y = Mathf.Lerp(y0, y1, (qy + 1f) * 0.5f);
+                    var rad = RadiusAt(y) + lift;
+                    var a = Mathf.Lerp(-span, span, (qx + 1f) * 0.5f);
                     var i = r * (cols + 1) + c;
                     verts[i] = new Vector3(Mathf.Sin(a) * rad, y, Mathf.Cos(a) * rad);
                     var ny = y > UpperCenter ? (y - UpperCenter) / R : 0f;
@@ -354,7 +365,7 @@ namespace FallRush.Client
             Blink = 6,     // – –
         }
 
-        /// <summary>4×4 atlas of 32 px cells: dark rounded screen with mint glyphs; corners outside the rounding are dome white.</summary>
+        /// <summary>4×4 atlas of 32 px cells: dark screen with mint LED glyphs (the face mesh provides the rounded outline).</summary>
         public static Texture2D FaceAtlas => _atlas != null ? _atlas : _atlas = BuildAtlas();
 
         /// <summary>_BaseMap_ST for a glyph (scale.xy, offset.xy).</summary>
@@ -380,15 +391,10 @@ namespace FallRush.Client
             {
                 var ox = (g % 4) * AtlasCell;
                 var oy = (3 - g / 4) * AtlasCell;
-                // rounded rect, radius 7 px, 1 px margin
+                // Whole cell is screen (the face mesh itself is the rounded shape).
                 for (var y = 0; y < AtlasCell; y++)
-                {
                     for (var x = 0; x < AtlasCell; x++)
-                    {
-                        if (InRoundRect(x, y, AtlasCell, AtlasCell, 7))
-                            px[(oy + y) * size + ox + x] = screen;
-                    }
-                }
+                        px[(oy + y) * size + ox + x] = screen;
 
                 if (g > (int)Glyph.Blink)
                     continue;
@@ -431,18 +437,6 @@ namespace FallRush.Client
             tex.SetPixels32(px);
             tex.Apply(false, true);
             return tex;
-        }
-
-        private static bool InRoundRect(int x, int y, int w, int h, int r)
-        {
-            const int m = 1;
-            var fx = x + 0.5f;
-            var fy = y + 0.5f;
-            var cx = Mathf.Clamp(fx, m + r, w - m - r);
-            var cy = Mathf.Clamp(fy, m + r, h - m - r);
-            if (fx < m || fy < m || fx > w - m || fy > h - m)
-                return false;
-            return (fx - cx) * (fx - cx) + (fy - cy) * (fy - cy) <= r * r;
         }
 
         private static void Plot(Color32[] px, int size, int ox, int oy, int x, int y, Color32 c)
