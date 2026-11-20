@@ -155,7 +155,7 @@ Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part B · screensh
 - **Protocol:** still v2, with header 18 B / `snap` 282 B for 12 (M2b added surface + ownEvents; v2 was never deployed beyond the dev machine).
 
 ## Next milestones
-- **M3:** obstacle kit + Block Party Dash race (`docs/14`).
+- **M3:** obstacle kit + Block Party Dash race (`docs/14`), prompt `docs/prompts/M3-PROMPT.md` (M3a kit → checkpoint → M3b race). Ready to run.
 
 ## M2 kickoff notes (done; kept for history)
 - Agreed 2026-11-18: VPS check first (✅ done in M1 §4.7), SDK pin (D-15 ✅), **one M2 prompt with an M2a → M2b checkpoint**, and **Bolt v1 built in Unity from shapes** (no Blender).
