@@ -222,7 +222,7 @@ public static class SandboxBuilder
         Box(geo, "KitDoorWall_S", new Vector3(wx, wallH * 0.5f, (z0 + (z - doorW * 0.5f)) * 0.5f), new Vector3(0.6f, wallH, z - doorW * 0.5f - z0), _block);
         Box(geo, "KitDoorWall_N", new Vector3(wx, wallH * 0.5f, ((z + doorW * 0.5f) + z1) * 0.5f), new Vector3(0.6f, wallH, z1 - (z + doorW * 0.5f)), _block);
         Box(geo, "KitDoorLintel", new Vector3(wx, wallH + 2.25f, z), new Vector3(0.6f, 1.5f, doorW + 0.2f), _block);
-        k.door = KitBuilder.GateDoor(hz, "kit_door", new Vector3(wx, 1.5f, z), new Vector3(0.4f, 3f, doorW), 60, 6, 75, 15, 0, 45);
+        k.door = KitBuilder.GateDoor(hz, "kit_door", new Vector3(wx, 1.5f, z), new Vector3(0.4f, 3f, doorW), 60, 6, 75, 18, 0, 45); // closing 18 ticks: ≤ 200 mm/tick even under TurboToys (→ 15)
         Label(geo, "GATE DOOR (timed; flashes before closing)", new Vector3(wx, 4.2f, z - 3.2f));
 
         // 7. MALLET_SWING across the lane (head swings along Z).
