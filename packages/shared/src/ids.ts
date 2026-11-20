@@ -2,7 +2,8 @@
  * Chain IDs and endpoints (doc 07 §2). Values were read from the SDK 0.16.2 source
  * (`ephemeral-vrf-sdk 0.4.1/src/consts.rs`) and the magicblock-examples `scripts/local-env.sh`.
  */
-export const FALL_RUSH_PROGRAM_ID = "FRuSHPLACEHOLDER"; // replaced by `anchor keys sync` output (see scripts)
+/** Same program ID on localnet and devnet (programs/Anchor.toml, declare_id!). */
+export const FALL_RUSH_PROGRAM_ID = "4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4";
 
 export const DELEGATION_PROGRAM_ID = "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh";
 export const MAGIC_PROGRAM_ID = "Magic11111111111111111111111111111111111111";

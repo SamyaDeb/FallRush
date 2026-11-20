@@ -179,3 +179,20 @@ It **does not** prove that physical gameplay was fair. That is decided by our au
 - signed input transcripts and replay verification;
 - independent observers;
 - multisig for `admin`.
+
+---
+
+## 9. M0 implementation notes & corrections (2026-11-18)
+
+M0 implements instructions 1, 3–10, 12–15 (no `update_config`/`set_paused`/`submit_pick` yet). Account layouts are final (§2), so M6 needs no migration.
+
+- **Status encoding:** `MatchStatus` is fieldless (`Created, Dealing, Dealt, RoundActive, RoundResolved, Completed, Aborted`); `RoundActive(r)`/`RoundResolved(r)` = status + `current_round == r`.
+- **Config hashes are compiled in:** `initialize_config` requires `ruleset_hash`/`map_pool_hash` (v1) to equal constants in `state.rs`; a Rust test asserts those equal the canonical JSON hashes. New errors: `InvalidRuleset`, `InvalidMapPool`, `Overflow`. `initialize_config` requires the signer to be the program's upgrade authority (ProgramData check, as in `rewards-delegated-vrf`).
+- **Sequence:** `seq == event_seq` is checked **first** in every event handler, so a retried event always fails with `InvalidSequence`. `deal_callback` records the deal as event **seq 0**; `abort_match(reason)` takes no `seq` and consumes the current one.
+- **Transcript:** `init = sha256("fallrush-transcript-v1" ‖ match_id ‖ roster_hash)`; `next = sha256(prev ‖ tag ‖ seq_le32 ‖ round ‖ slot ‖ arg)`; tags 1 DEAL(arg=randomness) 2 START_ROUND 3 QUALIFIED(arg=placement) 4 ELIMINATED(arg=reason) 5 COMPLETE_ROUND(arg=qualified) 6 COMPLETE_MATCH(slot=champion) 7 ABORT(arg=reason); slot 255 = none. Mirrored in `packages/shared/src/transcript.ts` and checked in the lifecycle test.
+- **Deal (§4) made precise:** labels are `map<r>`, `var<r>`, `mod<r>` with the ASCII round digit; `rnd` reads the digest as 8 LE u32 words, accepts `x < floor(2^32/n)·n`, rehashes the digest after 8 rejections. Pool v1: every map has 2 variants; modifier weights None 40 / others 15 (provisional, GDD §8 allowed-maps table; Goo Tower = None only).
+- **`request_deal`** accepts `Created` **or `Dealing`** (doc 07 §5 retry); a second callback fails `InvalidVrfCallback` (the replay error). Direct callback from a non-VRF signer fails `ConstraintAddress`.
+- **`complete_round`:** `RoundNotResolved` if any slot is alive or nobody qualified; qualified slots return to alive (keeping `round`/`placement`).
+- **`complete_match`:** `RoundResolved` and exactly one alive slot (`InvalidChampion` otherwise).
+- **`finalize_match` M0 shortcut:** also allowed from `RoundResolved` (devnet M0 run finalizes after round 1). **Remove in M6.**
+- **Tests:** security tests not yet written for: paused config (no `set_paused` yet), picks/session keys, wrong PDA/match id, replayed callback with a real oracle. Covered: wrong signer (create, gameplay, abort, config), direct callback, dup/skipped seq, skipped round, eliminated slot, over target, alive slots, champion with >1 alive, abort after final, player_count out of range.

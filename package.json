@@ -12,6 +12,6 @@
     "m0:build": "cd programs && anchor build -- --features localnet",
     "m0:test:local": "bash scripts/m0-test-local.sh",
     "m0:devnet:deploy": "bash scripts/m0-devnet-deploy.sh",
-    "m0:devnet": "tsx scripts/devnet-lifecycle.ts"
+    "m0:devnet": "cd programs && tsx ../scripts/devnet-lifecycle.ts"
   }
 }

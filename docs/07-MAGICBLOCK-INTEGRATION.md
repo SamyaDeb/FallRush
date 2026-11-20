@@ -229,7 +229,7 @@ pub fn submit_pick(ctx: Context<SubmitPick>, round: u8, slot: u8) -> Result<()> 
 - **ER instructions:** sent to the ER provider. Once the match is delegated, never send them to base.
 - **Waiting for VRF:**
   1. Subscribe `erConnection.onAccountChange(matchPda, …, "processed")` **before** sending `request_deal`.
-  2. Resolve when `status == DealReady`.
+  2. Resolve when `status == Dealt` (M0 correction: the enum value is `Dealt`; `DealReady` is the event name).
   3. Timeout **20 s**, then retry the request once with the same caller seed (idempotent by status check).
   4. Then go **Unranked** (§6).
 - **Commit signature:** after a commit instruction on the ER, get the Solana-side signature via the SDK's `GetCommitmentSignature(erTxSig, erConnection)`. It is used in the `advanced-magic.ts` example; check the exact export name at M0.
@@ -267,3 +267,22 @@ VRF_ORACLE_SKIP_PREFLIGHT=true RPC_URL=http://localhost:7799 WEBSOCKET_URL=ws://
 ## 8. Demo proof
 
 See 18-HACKATHON-STRATEGY §4. The chain worker writes every signature into `chain_txs`. `PROOF.md` is generated from that table by `pnpm proof <matchId>`.
+
+---
+
+## 9. M0 corrections (2026-11-18, verified against SDK 0.16.2 source + local/devnet runs)
+
+| # | Where | Was | Reality (source) |
+|---|---|---|---|
+| 1 | §1 Anchor | "anchor-lang 1.0.2" was assumed to pull matching macro crates | `anchor-lang =1.0.2` declares `^1.0.2` on its macro crates, so cargo resolved `anchor-derive-accounts` & co. to **1.2.2** → `init` codegen calls `system_program::create_account_allow_prefund`, which 1.0.2 lacks. **Fix:** `cargo update -p <anchor-*> --precise 1.0.2` for all 10 macro/syn crates and `anchor-lang-idl --precise 0.1.2` (same as magicblock-examples' `Cargo.lock`). Committed in `programs/Cargo.lock`. |
+| 2 | §4 hashing | doc 06 says `solana_program::hash::hashv` | anchor-lang 1.0.2 does not re-export `hash`. We depend on `solana-sha256-hasher =3.1.0` (already in the tree via `magicblock-delegation-program-api 3.1.0`). |
+| 3 | §1 install | `avm install 1.0.2` | The prebuilt download timed out repeatedly (avm 1.1.2 HTTP client; curl reached the same asset). `avm install 1.0.2 --from-source` with rustc 1.96.1 failed at link: Apple `ld` (LLVM 17) cannot read LLVM 22 bitcode. **Worked:** `CARGO_PROFILE_RELEASE_LTO=off avm install 1.0.2 --from-source`. avm then sets 1.0.2 as global default; restore with `avm use <previous>` — the project still gets 1.0.2 via `[toolchain]`. No `rust-toolchain.toml` needed: the program builds with platform-tools v1.52 (solana-cli 3.1.10) and host rustc 1.96.1. |
+| 4 | §4.2 `#[delegate]` | — | The macro detects the delegated field by the substring `del` in its `#[account(...)]` and strips **every** `del` from that attribute string. Keep identifiers containing `del` out of it. The `del` field must be `UncheckedAccount`; the payer must be `Signer` + `mut`. |
+| 5 | §4.3 `#[vrf]` | — | `invoke_signed_vrf` hard-codes a field named **`oracle_queue`**, and rewrites any request discriminator to the scoped variant (3/11 → 11 high priority, else 10). Constants verified: `DEFAULT_EPHEMERAL_QUEUE = 5hBR…`, `DEFAULT_EPHEMERAL_TEST_QUEUE = Sc9M…`, `DEFAULT_TEST_QUEUE = GKE6…`. |
+| 6 | §4.4 callback | — | Calling `deal_callback` directly with a normal signer fails with Anchor **`ConstraintAddress` (2012)** on the injected `vrf_program_identity` (tested). |
+| 7 | §4.5 | `FoldableIntentBuilder` import "needed" | `build_and_invoke` on `CommitIntentBuilder` is a `FoldableIntentBuilder` trait method; we import it (the counter example compiles without an explicit import — not re-checked). |
+| 8 | §5 confirmations | `rpc()` default confirm | **Local ER 0.14.10 intermittently never delivers the websocket `signatureSubscribe` notification**, although the tx executed in the same second (probe: slot/blockTime = send time). web3.js then waits its full 30 s. **Confirm ER txs by polling `getSignatureStatuses`** (done in tests + devnet script). `GetCommitmentSignature` uses `confirmTransaction` internally and hit the same ~30 s locally while the commit was already visible on Solana after ~6.5 s — don't block UI on it. |
+| 9 | §5 commit sig | "check the exact export name" | `GetCommitmentSignature(txSig, erConnection): Promise<string>` is a root export of TS SDK 0.16.2 (`lib/utils.js`); it parses `ScheduledCommitSent signature:` / `signature[0]:` log lines. |
+| 10 | §7 local stack | command list | mb-stack also needs the validator fixture account: `--account mAGicPQYBMvcYveUZA5F5UNNwyHvfYh5xkLS2Fr1mev <fixture.json>` (copied to `programs/tests/fixtures/`). mb-stack does **not** forward child logs, and **`mb-stack --help` starts the stack**. The examples' script runs `solana config set --url localhost` (global!) — ours doesn't. |
+| 11 | §7 Node 24 | — | ts-mocha 10 + Node 24: Node's native TS type-stripping loads `.ts` as ESM and bypasses ts-node. Run with `NODE_OPTIONS=--no-experimental-strip-types`. |
+| 12 | §8 ER explorer | — | MagicBlock docs (docs.magicblock.gg → get-started → how-integrate-your-program → anchor) link ER txs as `https://solscan.io/tx/<sig>?cluster=custom&customUrl=https://devnet.magicblock.app`. Using it with `devnet-as` is **UNVERIFIED**. |
