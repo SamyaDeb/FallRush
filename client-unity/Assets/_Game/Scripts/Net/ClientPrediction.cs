@@ -68,6 +68,9 @@ namespace FallRush.Net
         public KinematicMotor.StepEvents LastEvents { get; private set; }
         public PlayerStep.Result LastResult { get; private set; }
 
+        /// <summary>Set during a round's intro / countdown: a server teleport (everyone back on their spawn) is adopted, not counted.</summary>
+        public bool TeleportsExpected;
+
         /// <summary>Render-space error being blended out (m), added to the interpolated predicted position.</summary>
         public Vec3 RenderOffset;
 
@@ -78,6 +81,7 @@ namespace FallRush.Net
         public long Corrections;        // > threshold or flags/stun differ, with no server-only cause (respawns and pushes excluded)
         public long PushCorrections;    // same, but the server reported a player–player push since the last snapshot (not predicted by design)
         public long HazardMismatches;   // stun start/state differed at S (predicted hit ≠ server hit)
+        public long HazardCorrections;  // counted corrections whose stun/immunity state differed (subset of Corrections)
         public long Respawns;           // server respawn teleports adopted (not corrections)
         public long Adopted;            // state taken wholesale (start, history miss)
         public long ReplayTicksTotal;
@@ -202,7 +206,7 @@ namespace FallRush.Net
 
             var err = (a.Position - p.Position).Magnitude;
             // Fell out / teleported to a spawn: not a prediction error (the client never predicts the respawn point).
-            var respawn = a.Has(MotorState.Respawning) || p.Has(MotorState.Respawning);
+            var respawn = a.Has(MotorState.Respawning) || p.Has(MotorState.Respawning) || (TeleportsExpected && err > SnapDistance);
             var pushed = (h.OwnEvents & SnapHeader.EventPushed) != 0;
             if (!respawn)
             {
@@ -225,7 +229,8 @@ namespace FallRush.Net
             }
 
             var flagsDiffer = ((a.Flags ^ p.Flags) & ~MotorState.Bot) != 0 || a.StunTicks != p.StunTicks;
-            if ((a.StunTicks > 0) != (p.StunTicks > 0) || (a.ImmunityTicks > 0) != (p.ImmunityTicks > 0))
+            var hazardish = (a.StunTicks > 0) != (p.StunTicks > 0) || (a.ImmunityTicks > 0) != (p.ImmunityTicks > 0);
+            if (hazardish)
                 HazardMismatches++;
 
             var beforePos = State.Position;
@@ -247,6 +252,8 @@ namespace FallRush.Net
             else if (err > CorrectionThreshold || flagsDiffer)
             {
                 Corrections++;
+                if (hazardish)
+                    HazardCorrections++;
                 LastCorrection = shift;
                 SumCorrection += shift;
                 if (shift > MaxCorrection)

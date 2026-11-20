@@ -25,6 +25,7 @@ namespace FallRush.Net
         private long _lastIn, _lastOut, _lastSnaps;
         private int _phase;
         private CourseBot _course;
+        private RaceProbeBot _race;
         private GateLogger _gate;
         private float _hideAt = float.MaxValue;
         private int _hideSecs;
@@ -101,8 +102,11 @@ namespace FallRush.Net
             {
                 if (_script == "course")
                     _course = new CourseBot(ClientSim.Instance);
+                if (_script == "race")
+                    _race = new RaceProbeBot(ClientSim.Instance, (uint)Environment.TickCount);
                 _gate = gameObject.AddComponent<GateLogger>();
                 _gate.Course = _course;
+                _gate.Race = _race;
                 _gate.AutoLog = false; // logged together with the [probe] line
                 ClientSim.Instance.InputSource = this;
                 _loadWhenRound = true; // the round message says which map to load
@@ -121,6 +125,12 @@ namespace FallRush.Net
             if (_course != null)
             {
                 _course.Sample(ref cmd);
+                return;
+            }
+
+            if (_race != null)
+            {
+                _race.Sample(ref cmd);
                 return;
             }
 

@@ -69,7 +69,10 @@ namespace FallRush.Net
         /// <summary>Non-null when the map's resolved defs failed the allowlist: the round is refused (nothing is simulated).</summary>
         public string Refused { get; private set; }
         private PhysxMotorWorld _world;
+        private CapsuleCollider _probe;
         private readonly byte[] _roundBuf = new byte[RoundMessage.Size];
+        /// <summary>Race maps only (M3b): the round loop.</summary>
+        public ServerRace Race { get; private set; }
 
         private void Init(NetworkManager nm, MapInfo map)
         {
@@ -80,10 +83,14 @@ namespace FallRush.Net
             Physics.simulationMode = SimulationMode.Script;
             Physics.SyncTransforms();
             MapHash = map.ContentHash;
-            var p = ChooseRoundParams(map);
-            p.RoundStartTick = 0; // free play: hazard time = server tick (M3b race rounds set the RUSH tick)
+            var p = ChooseRoundParams(map, out var fixedVariant, out var fixedModifier);
+            var isRace = map.definition != null && map.definition.IsRace;
+            // Free play: hazard time = server tick. Race: hazard time is far negative while waiting (start gate closed);
+            // each round sets its RUSH tick.
+            p.RoundStartTick = isRace ? ServerRace.WaitingRoundStart : 0;
             var cfg = MovementConfig.For(p.Modifier);
-            _world = map.CreateWorld(transform, cfg, in p, out var hazards);
+            _probe = PhysxMotorWorld.CreateProbe(transform, cfg.Radius, cfg.Height);
+            _world = map.CreateWorld(_probe, cfg, in p, out var hazards);
             Core = new SimCore(cfg, _world, map.SpawnPoints(), hazards, map.SpawnYaws());
             Core.SetBotArea(map.botAreaCenter.x, map.botAreaCenter.z, map.botAreaHalfExtents.x, map.botAreaHalfExtents.y);
             // MEASUREMENT: -fallrushBotArea cx,cz,hx,hz (e.g. 0,54,36,3 = the sandbox kit row).
@@ -111,6 +118,9 @@ namespace FallRush.Net
             BotTarget = Mathf.Clamp(ArgInt("-fallrushBots", "GAMESERVER_BOTS", 0), 0, Protocol.MaxPlayers);
             FillBots();
 
+            if (isRace && Refused == null)
+                Race = new ServerRace(this, map, nm, p, fixedVariant, fixedModifier);
+
             nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Input, OnInput);
             nm.OnClientConnectedCallback += OnClientConnected;
             nm.OnClientDisconnectCallback += OnClientDisconnected;
@@ -126,7 +136,9 @@ namespace FallRush.Net
         /// env <c>GAMESERVER_SEED</c>/<c>_VARIANT</c>/<c>_MODIFIER</c>); unset variant/modifier are derived from the seed.
         /// TODO(M6): one-line swap to the VRF deal for this round.
         /// </summary>
-        public static RoundParams ChooseRoundParams(MapInfo map)
+        public static RoundParams ChooseRoundParams(MapInfo map) => ChooseRoundParams(map, out _, out _);
+
+        public static RoundParams ChooseRoundParams(MapInfo map, out bool fixedVariant, out bool fixedModifier)
         {
             var seedArg = ArgStr("-fallrushSeed", "GAMESERVER_SEED");
             ulong seed = 0x00C0FFEE;
@@ -146,10 +158,43 @@ namespace FallRush.Net
             var m = ArgStr("-fallrushModifier", "GAMESERVER_MODIFIER");
             if (!string.IsNullOrEmpty(m) && ModifierEffects.TryParse(m, out var mid))
                 modifier = mid;
+            fixedVariant = variant >= 0;
+            fixedModifier = modifier >= 0;
             var p = RoundParams.FromDevSeed(map.MapId, seed, variant, modifier);
             if (modifier < 0 && (map.definition == null || !map.definition.IsRace))
                 p.Modifier = 0; // sandbox: no random modifier unless asked
             return p;
+        }
+
+        /// <summary>
+        /// New round parameters (race rounds): modifier → motor config, variant/seed → hazards, allowlist check. Slots and
+        /// connections stay; everyone is put back on their spawn. Returns the allowlist problems (round refused) or null.
+        /// </summary>
+        public System.Collections.Generic.List<string> ApplyRound(ref RoundParams p, uint roundStartTick)
+        {
+            p.RoundStartTick = roundStartTick;
+            var cfg = MovementConfig.For(p.Modifier);
+            _world = Map.CreateWorld(_probe, cfg, in p, out var hazards);
+            var problems = HazardAllowlist.Validate(hazards);
+            if (problems.Count > 0)
+            {
+                Refused = string.Join("; ", problems);
+                Debug.LogError($"[gs] ROUND REFUSED {p}: {Refused}");
+                return problems;
+            }
+
+            Core.Reconfigure(cfg, _world, hazards, Map.SpawnPoints(), Map.SpawnYaws());
+            Round = p;
+            return null;
+        }
+
+        public void SetRound(in RoundParams p) => Round = p;
+
+        public void BroadcastRound()
+        {
+            foreach (var id in _nm.ConnectedClientsIds)
+                if (id != NetworkManager.ServerClientId)
+                    SendRound(id);
         }
 
         /// <summary>Sends the round message (params + map hash) to one client (reliable).</summary>
@@ -218,6 +263,7 @@ namespace FallRush.Net
             _violationsAtWindowStart[slot] = 0;
             _lastInputTick[slot] = 0;
             SendRound(clientId);
+            Race?.SendState(clientId);
             Debug.Log($"[gs] slot {slot} → client={clientId} humans={Core.HumanCount} bots={Core.BotCount}");
         }
 
@@ -275,6 +321,7 @@ namespace FallRush.Net
             for (var i = count - 1; i >= 0; i--)
                 input.Offer(_inCmds[i], Core.NextTick);
             _lastInputTick[slot] = Core.Tick == 0 ? 1u : Core.Tick;
+            Race?.OnHumanInput(Core.Tick);
         }
 
         private void OnTick()
@@ -282,7 +329,9 @@ namespace FallRush.Net
             if (Refused != null)
                 return; // allowlist failure: the round does not start
             var t0 = Stopwatch.GetTimestamp();
+            Race?.BeforeStep();
             Core.Step();
+            Race?.AfterStep();
             if (Core.Tick % (uint)SnapshotEveryTicks == 0)
                 SendSnapshots();
             CheckViolations();

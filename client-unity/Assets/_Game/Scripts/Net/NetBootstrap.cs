@@ -83,6 +83,7 @@ namespace FallRush.Net
 
         private string _pendingDisconnectReason;
         private bool _quitting;
+        private int _qaRuns;
         private Coroutine _reconnect;
 
         public static bool IsDedicatedServerBuild
@@ -153,6 +154,14 @@ namespace FallRush.Net
             if (!IsMapScene(scene.name))
                 return;
             Physics.SyncTransforms();
+            if (_qaRuns > 0)
+            {
+                var qaMap = MapInfo.Current;
+                MapQa.RunAll(qaMap, _qaRuns);
+                Application.Quit(0);
+                return;
+            }
+
             if (IsServerRole && Manager.IsServer)
             {
                 var map = MapInfo.Current;
@@ -170,6 +179,16 @@ namespace FallRush.Net
         {
             if (_quitting)
                 return;
+            _qaRuns = MapQa.Runs();
+            if (_qaRuns > 0)
+            {
+                // Map QA (doc 08 §9): no networking; load the map and run the bots offline, then quit.
+                QualitySettings.vSyncCount = 0;
+                Application.targetFrameRate = -1;
+                SceneManager.LoadScene(ServerMapScene());
+                return;
+            }
+
             if (IsServerRole)
                 StartDedicatedServer();
             else if (IsProbe)

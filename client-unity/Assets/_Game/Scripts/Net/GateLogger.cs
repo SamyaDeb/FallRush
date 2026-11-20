@@ -12,9 +12,11 @@ namespace FallRush.Net
     {
         public string Tag = "probe";
         public CourseBot Course;
+        public RaceProbeBot Race;
         /// <summary>When true this component logs on its own every 10 s; the probe calls <see cref="Log"/> itself.</summary>
         public bool AutoLog = true;
 
+        private long _lastHazCorr;
         private long _lastCorr, _lastPushCorr, _lastSnapsRec, _lastMatches, _lastSilent, _lastHazMis, _lastRespawns, _lastReplayTicks, _lastReplayCount;
         private double _lastSumCorr;
         private long _lastFrames, _lastExtrap, _lastFrozen;
@@ -65,6 +67,7 @@ namespace FallRush.Net
                       $"drift meanMm={(p.DriftSamples > 0 ? p.SumDriftMm / p.DriftSamples : 0):F2} maxMm={p.MaxDriftMm:F1} subMm={p.SubMmMismatches} predHits={p.PredictedHits} " +
                       $"interp delay={r.Delay * 1000:F0}ms target={r.TargetDelay * 1000:F0}ms lateP95={r.LatenessP95Ms:F0}ms extrap={(frames > 0 ? 100.0 * (r.ExtrapolatedFrames - _lastExtrap) / frames : 0):F1}% frozen={(frames > 0 ? 100.0 * (r.FrozenFrames - _lastFrozen) / frames : 0):F1}% lagEvents={r.LagEvents} " +
                       $"remoteStutter p50={stP50:F2} p95={stP95:F2}m/s course={(Course != null ? $"{Course.Current} laps={Course.Laps} falls={Course.Falls}" : "-")} " +
+                      $"phase={cs.Phase} cp={cs.OwnRace & PlayerState.RaceCheckpointMask} finished={(cs.OwnRace & PlayerState.RaceFinished) != 0} race={(Race != null && Race.Bot != null ? $"{Race.Bot.CurrentRouteName}#{Race.Bot.Waypoint} rounds={Race.Laps}" : "-")} hazardCorr={p.HazardCorrections - _lastHazCorr} " +
                       $"pos=({st.PosX * 0.001f:F1},{st.PosY * 0.001f:F1},{st.PosZ * 0.001f:F1})");
             _lastCorr = p.Corrections;
             _lastPushCorr = p.PushCorrections;
@@ -72,6 +75,7 @@ namespace FallRush.Net
             _lastMatches = p.Matches;
             _lastSilent = p.SilentResyncs;
             _lastHazMis = p.HazardMismatches;
+            _lastHazCorr = p.HazardCorrections;
             _lastRespawns = p.Respawns;
             _lastReplayTicks = p.ReplayTicksTotal;
             _lastReplayCount = p.ReplayCount;

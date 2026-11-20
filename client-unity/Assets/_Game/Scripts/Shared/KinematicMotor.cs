@@ -178,7 +178,13 @@ namespace FallRush.Shared
             }
             else if (wx != 0f || wz != 0f)
             {
-                MoveTowards(ref vx, ref vz, wx * c.MaxSpeed, wz * c.MaxSpeed, c.AirAccel * dt);
+                // Air control steers; it never brakes a launch, a knockback exit or a carried jump below its speed (M3):
+                // above the run speed the target keeps the current speed, so holding forward never shortens a spring hop.
+                var target = c.MaxSpeed;
+                var cur2 = vx * vx + vz * vz;
+                if (cur2 > target * target)
+                    target = (float)Math.Sqrt(cur2);
+                MoveTowards(ref vx, ref vz, wx * target, wz * target, c.AirAccel * dt);
             }
 
             // ---- vertical: exact integration under constant gravity for the step ----

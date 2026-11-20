@@ -42,6 +42,9 @@ namespace FallRush.Client
         private bool _hasOwn;
         private HazardViewDriver _hazardViews;
 
+        /// <summary>Spectate: follow this slot instead of our own (RaceHud sets it once we finished); −1 = own.</summary>
+        public int FollowSlot = -1;
+
         private void Start()
         {
             _map = MapInfo.Current;
@@ -104,11 +107,15 @@ namespace FallRush.Client
                 CourseBot course = null;
                 if (bot == "course" && (NetBootstrap.Instance == null || !NetBootstrap.Instance.IsProbe))
                     cs.InputSource = course = new CourseBot(cs);
-                if (course != null || NetTargets.GetQueryParam(url, "gate") == "1")
+                RaceProbeBot raceBot = null;
+                if (bot == "race" && (NetBootstrap.Instance == null || !NetBootstrap.Instance.IsProbe))
+                    cs.InputSource = raceBot = new RaceProbeBot(cs, (uint)System.Environment.TickCount);
+                if (course != null || raceBot != null || NetTargets.GetQueryParam(url, "gate") == "1")
                 {
                     var gate = gameObject.AddComponent<GateLogger>();
                     gate.Tag = "gate";
                     gate.Course = course;
+                    gate.Race = raceBot;
                 }
             }
 
@@ -206,7 +213,7 @@ namespace FallRush.Client
                 if (camT != null)
                     label.transform.rotation = camT.rotation;
 
-                if (i == own)
+                if (i == (FollowSlot >= 0 ? FollowSlot : own))
                 {
                     var target = feet + Vector3.up * 0.8f;
                     if (_hasOwn && (feet - _lastOwnFeet).sqrMagnitude > 16f)
@@ -260,9 +267,17 @@ namespace FallRush.Client
             _hazardViews ??= new HazardViewDriver(_map);
             var hz = cs.Hazards;
             _hazardViews.Update(hz, t - hz.RoundStartTick, GameSettings.ReducedMotion);
-            // TinyTilt (visual-only modifier): FOV −8°.
+            // TinyTilt (visual-only modifier): FOV −8°, fog in.
             var mod = cs.Round.HasValue ? ModifierEffects.Get(cs.Round.Value.Modifier) : ModifierEffects.Get(0);
             _cam.FovOffset = mod.FovDeltaDeg;
+            var fog = mod.FogPermille > 0;
+            if (RenderSettings.fog != fog)
+            {
+                RenderSettings.fog = fog;
+                RenderSettings.fogMode = FogMode.Exponential;
+                RenderSettings.fogDensity = mod.FogPermille / 1000f;
+                RenderSettings.fogColor = UiKit.SkyLight;
+            }
         }
 
         private void RefreshHud(ClientSim cs)
@@ -362,7 +377,7 @@ namespace FallRush.Client
             ltr.offsetMin = ltr.offsetMax = Vector2.zero;
             _lagIcon.SetActive(false);
 
-            var hint = UiKit.Label(canvas, "Click to capture mouse · WASD move · Space jump · Shift/LMB dive · Esc options · F3 net HUD", 16, UiKit.Ink);
+            var hint = UiKit.Label(canvas, "Click to capture mouse · WASD move · Space jump · Shift/LMB dive · Esc options · F3 net HUD · Tab spectate (after finishing)", 16, UiKit.Ink);
             var hrt = (RectTransform)hint.transform;
             hrt.anchorMin = hrt.anchorMax = hrt.pivot = new Vector2(0.5f, 0f);
             hrt.anchoredPosition = new Vector2(0f, 10f);
@@ -481,12 +496,15 @@ namespace FallRush.Client
 
         private static void OnLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (scene.name != NetBootstrap.SandboxScene)
-                return; // Map_BlockPartyDash gets RaceView (M3b)
+            if (!NetBootstrap.IsMapScene(scene.name))
+                return;
             var boot = NetBootstrap.Instance;
             if (boot == null || boot.IsServerRole || (boot.IsProbe && !SimProbe.ViewEnabled))
                 return;
-            new GameObject("SandboxView").AddComponent<SandboxView>();
+            var view = new GameObject("SandboxView").AddComponent<SandboxView>();
+            var map = MapInfo.Current;
+            if (map != null && map.definition != null && map.definition.IsRace)
+                view.gameObject.AddComponent<RaceHud>().View = view;
         }
     }
 }

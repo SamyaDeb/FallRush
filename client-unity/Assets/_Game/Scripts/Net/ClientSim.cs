@@ -202,6 +202,8 @@ namespace FallRush.Net
             MapMismatch = null;
             HasRaceState = false;
             LastEventSeq = 0;
+            OwnRace = 0;
+            OwnOutOfSim = false;
         }
 
         public static double Now => Time.realtimeSinceStartupAsDouble;
@@ -245,11 +247,23 @@ namespace FallRush.Net
 
             if (Prediction != null && Active && h.OwnSlot != SnapHeader.NoSlot)
             {
+                Prediction.TeleportsExpected = HasRaceState && (RaceState.Phase == RoundPhase.Intro || RaceState.Phase == RoundPhase.Countdown);
                 for (var i = 0; i < h.Count; i++)
                 {
                     if (_scratch[i].Slot != h.OwnSlot)
                         continue;
-                    Prediction.Reconcile(h.ServerTick, in _scratch[i], in h, now);
+                    OwnRace = _scratch[i].Race;
+                    // A finished racer leaves the simulation on the server: stop predicting, show the server state.
+                    var out_ = (OwnRace & PlayerState.RaceFinished) != 0;
+                    if (out_ != OwnOutOfSim)
+                    {
+                        OwnOutOfSim = out_;
+                        if (!out_)
+                            Prediction.Reset();
+                    }
+
+                    if (!OwnOutOfSim)
+                        Prediction.Reconcile(h.ServerTick, in _scratch[i], in h, now);
                     break;
                 }
             }
@@ -346,10 +360,17 @@ namespace FallRush.Net
             InputsOut++;
             LastSentCmd = cmd;
 
-            Prediction?.Predict(in cmd);
+            if (!OwnOutOfSim)
+                Prediction?.Predict(in cmd);
         }
 
         public InputCmd LastSentCmd { get; private set; }
+
+        /// <summary>Our race byte from the newest snapshot (<see cref="PlayerState.Race"/>).</summary>
+        public byte OwnRace { get; private set; }
+
+        /// <summary>True once we finished the race: the server no longer simulates us, so we are drawn from snapshots and spectate.</summary>
+        public bool OwnOutOfSim { get; private set; }
 
         /// <summary>Race rule shared with the server: commands for ticks before the round's RUSH tick are neutral.</summary>
         public bool InputLocked(uint tick)
@@ -376,7 +397,7 @@ namespace FallRush.Net
         {
             feet = vel = Vector3.zero;
             flags = yaw = stun = 0;
-            if (slotId == OwnSlot && Prediction != null && Prediction.HasState && Active)
+            if (slotId == OwnSlot && Prediction != null && Prediction.HasState && Active && !OwnOutOfSim)
             {
                 var p = Prediction.RenderPosition(TickFraction);
                 var s = Prediction.State;
@@ -400,6 +421,9 @@ namespace FallRush.Net
         }
 
         /// <summary>Hazard render time: the local predicted timeline (fractional tick), so what you touch is where it is drawn.</summary>
-        public double HazardRenderTick => Prediction != null && Prediction.HasState ? Prediction.Tick - 1 + TickFraction : Remote.RenderTick;
+        public double HazardRenderTick => Prediction != null && Prediction.HasState && !OwnOutOfSim ? Prediction.Tick - 1 + TickFraction : Remote.RenderTick;
+
+        /// <summary>The tick the local player's inputs are stamped for now (the predicted present), or the interpolated server time.</summary>
+        public double LocalTick => Prediction != null && Prediction.HasState && !OwnOutOfSim ? Prediction.Tick + TickFraction : Remote.RenderTick;
     }
 }

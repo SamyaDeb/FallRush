@@ -36,6 +36,9 @@ namespace FallRush.Net
         [Tooltip("Course centre line from the start to the finish (race ranking distance and bots).")]
         public Vector3[] courseLine = new Vector3[0];
 
+        [Tooltip("Waypoint bot routes (server only; two or more per section). Not part of the map content hash.")]
+        public BotRoute[] botRoutes = new BotRoute[0];
+
         public static MapInfo Current { get; private set; }
 
         private void OnEnable() => Current = this;
@@ -132,10 +135,13 @@ namespace FallRush.Net
         public PhysxMotorWorld CreateWorld(Transform probeParent, MovementConfig cfg, out HazardSet hazards) =>
             CreateWorld(probeParent, cfg, default, out hazards);
 
-        public PhysxMotorWorld CreateWorld(Transform probeParent, MovementConfig cfg, in RoundParams p, out HazardSet hazards)
+        public PhysxMotorWorld CreateWorld(Transform probeParent, MovementConfig cfg, in RoundParams p, out HazardSet hazards) =>
+            CreateWorld(PhysxMotorWorld.CreateProbe(probeParent, cfg.Radius, cfg.Height), cfg, in p, out hazards);
+
+        /// <summary>Same, reusing an existing penetration probe (a new round on the same map).</summary>
+        public PhysxMotorWorld CreateWorld(CapsuleCollider probe, MovementConfig cfg, in RoundParams p, out HazardSet hazards)
         {
             hazards = BuildHazards(in p, out var cols);
-            var probe = PhysxMotorWorld.CreateProbe(probeParent, cfg.Radius, cfg.Height);
             return new PhysxMotorWorld(gameObject.scene.GetPhysicsScene(), PhysxMotorWorld.GameplayMask(), probe, hazards, cols);
         }
 

@@ -46,6 +46,8 @@ namespace FallRush.Shared
         public int OffsetTicks;                     // start offset in the cycle (sweep order)
         public int TelegraphTicks;                  // the door flashes this long before it starts closing
         public int Phase16;                         // extra seeded offset (fraction of the cycle); 0 for sweep doors
+        /// <summary>0 = timed cycle; 1 = race start gate: closed while t &lt; 0 (intro / countdown), opens over OpeningTicks at RUSH (t = 0), then stays open.</summary>
+        public int Mode;
     }
 
     /// <summary><c>MALLET_SWING</c>: a pendulum mallet, <c>angle = A·sin(2π·t/T + φ)</c>; the head is a horizontal cylinder (<c>knock_hard</c>).</summary>
@@ -141,6 +143,8 @@ namespace FallRush.Shared
         /// <summary>How far the door is lifted (mm) at <paramref name="t"/>: 0 closed, <see cref="GateDoorDef.LiftMm"/> open, integer ramps between.</summary>
         public static int DoorLiftMm(in GateDoorDef d, int t)
         {
+            if (d.Mode == 1)
+                return t < 0 ? 0 : t >= d.OpeningTicks ? d.LiftMm : (int)((long)d.LiftMm * (t + 1) / Math.Max(1, d.OpeningTicks));
             var k = DoorCycleTick(in d, t);
             if (k < d.ClosedTicks)
                 return 0;
@@ -160,6 +164,8 @@ namespace FallRush.Shared
         /// <summary>Ticks until the door next starts closing (0 while closing / closed). For telegraphs and bots.</summary>
         public static int DoorTicksUntilClosing(in GateDoorDef d, int t)
         {
+            if (d.Mode == 1)
+                return t < 0 ? 0 : int.MaxValue;
             var k = DoorCycleTick(in d, t);
             var closeAt = d.ClosedTicks + d.OpeningTicks + d.OpenTicks;
             return k < d.ClosedTicks + d.OpeningTicks ? closeAt - k : k < closeAt ? closeAt - k : 0;

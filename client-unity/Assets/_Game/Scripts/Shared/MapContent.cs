@@ -92,7 +92,7 @@ namespace FallRush.Shared
             w.I32(h.Doors.Length);
             foreach (var d in h.Doors)
                 w.I32(d.CenterXMm).I32(d.CenterYMm).I32(d.CenterZMm).I32(d.HalfXMm).I32(d.HalfYMm).I32(d.HalfZMm).I32(d.LiftMm)
-                    .I32(d.ClosedTicks).I32(d.OpeningTicks).I32(d.OpenTicks).I32(d.ClosingTicks).I32(d.OffsetTicks).I32(d.TelegraphTicks).I32(zeroPhase ? 0 : d.Phase16);
+                    .I32(d.ClosedTicks).I32(d.OpeningTicks).I32(d.OpenTicks).I32(d.ClosingTicks).I32(d.OffsetTicks).I32(d.TelegraphTicks).I32(zeroPhase ? 0 : d.Phase16).I32(d.Mode);
             w.I32(h.Mallets.Length);
             foreach (var d in h.Mallets)
                 w.I32(d.PivotXMm).I32(d.PivotYMm).I32(d.PivotZMm).I32(d.SwingAxis).I32(d.ArmMm).I32(d.HeadRadiusMm).I32(d.HeadHalfWidthMm)

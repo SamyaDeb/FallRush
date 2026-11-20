@@ -90,6 +90,16 @@ namespace FallRush.Shared
 
         public static void Check(in GateDoorDef d, string who, List<string> e)
         {
+            if (d.Mode == 1)
+            {
+                // Start gate: opens once at RUSH; never closes on anyone.
+                Range(e, who, "openingTicks", d.OpeningTicks, 3, 60);
+                Range(e, who, "liftMm", d.LiftMm, 1300, 6000);
+                return;
+            }
+
+            if (d.Mode != 0)
+                e.Add($"{who}: mode={d.Mode} must be 0 (cycle) or 1 (start gate)");
             Range(e, who, "cycleTicks", HazardMath.DoorCycle(in d), 60, 900);
             Range(e, who, "openTicks", d.OpenTicks, 15, 600);
             Range(e, who, "openingTicks", d.OpeningTicks, 3, 60);
