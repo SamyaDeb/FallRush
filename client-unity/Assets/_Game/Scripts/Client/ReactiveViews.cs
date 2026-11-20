@@ -202,7 +202,7 @@ namespace FallRush.Client
                 for (var id = 0; id < g.Count; id++)
                 {
                     g.Center(id, out var x, out var yy, out var z);
-                    var c = rx.TileContactTick(id);
+                    var c = rx.TileContactAt(id, (uint)tick);
                     var pos = new Vector3(x * 0.001f, yy * 0.001f, z * 0.001f);
                     var size = new Vector3((g.TileMm - g.GapMm) * 0.001f, g.ThicknessMm * 0.001f, (g.TileMm - g.GapMm) * 0.001f);
                     var batch = g.Shelf(id) * 2 + ((id % g.PerShelf % g.Cols + id % g.PerShelf / g.Cols) & 1);
@@ -210,6 +210,16 @@ namespace FallRush.Client
                     {
                         crumbling = true;
                         var age = (float)(tick - c);
+                        var back = rx.TileReturnsIn(id, (uint)tick);
+                        if (back >= 0 && back <= 45)
+                        {
+                            // G1: a top-shelf tile coming back — blinks in place for the last 1.5 s (telegraph), solid at 0.
+                            if (!reduced && (back / 5) % 2 == 1)
+                                continue;
+                            _batches[6].Add(Matrix4x4.TRS(pos, Quaternion.identity, size * (back > 0 ? 0.92f : 1f)));
+                            continue;
+                        }
+
                         if (age >= g.WobbleTicks + 24)
                             continue; // gone
                         if (age >= g.WobbleTicks)

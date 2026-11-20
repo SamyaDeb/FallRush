@@ -79,7 +79,7 @@ namespace FallRush.Tests
         public void Physx_FlatRun_MaxSpeedAndGrounded()
         {
             var s = Run(new Vec3(0, 0.05f, -50), 60, 0, 127, out _);
-            Assert.That(s.VelZ, Is.EqualTo(700).Within(1));
+            Assert.That(s.VelZ, Is.EqualTo(500).Within(1)); // v2 run speed
             Assert.That(s.Has(MotorState.Grounded), Is.True);
             Assert.That(s.PosY, Is.InRange(0, 20), "rests ~skin above the ground");
         }
@@ -100,7 +100,7 @@ namespace FallRush.Tests
                 max = System.Math.Max(max, s.PosY);
             }
 
-            Assert.That((max - y0) / 1000f, Is.EqualTo(1.6f).Within(0.02f));
+            Assert.That((max - y0) / 1000f, Is.EqualTo(1.2f).Within(0.02f)); // v2 apex
         }
 
         [TestCase(15f, true)]
@@ -134,8 +134,8 @@ namespace FallRush.Tests
             }
         }
 
-        [TestCase(1.5f, true)]
-        [TestCase(1.7f, false)]
+        [TestCase(1.0f, true)]   // v2 apex 1.2 m
+        [TestCase(1.3f, false)]
         public void Physx_JumpOntoWall(float wallHeight, bool reachesTop)
         {
             Box(new Vector3(0, wallHeight * 0.5f, 3f), new Vector3(6, wallHeight, 3), Quaternion.identity);

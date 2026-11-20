@@ -110,7 +110,7 @@ namespace FallRush.Shared
                 w.I32(d.Y0Mm).I32(d.RiseMmPerSec).I32(d.DelayTicks).I32(d.MaxYMm).I32(d.CenterXMm).I32(d.CenterZMm).I32(d.HalfXMm).I32(d.HalfZMm).I32(d.WarnTicks);
             w.I32(h.Grids.Length);
             foreach (var d in h.Grids)
-                w.I32(d.OriginXMm).I32(d.OriginZMm).I32(d.TileMm).I32(d.GapMm).I32(d.Cols).I32(d.Rows).Ints(d.ShelfTopsMm).I32(d.ThicknessMm).I32(d.WobbleTicks);
+                w.I32(d.OriginXMm).I32(d.OriginZMm).I32(d.TileMm).I32(d.GapMm).I32(d.Cols).I32(d.Rows).Ints(d.ShelfTopsMm).I32(d.ThicknessMm).I32(d.WobbleTicks).I32(d.RespawnTicks).I32(d.RespawnShelves);
             w.I32(h.Blocks.Length);
             foreach (var d in h.Blocks)
                 w.I32(d.CenterXMm).I32(d.CenterYMm).I32(d.CenterZMm).I32(d.HalfXMm).I32(d.HalfYMm).I32(d.HalfZMm).I32(d.DelayTicks).I32(d.GoneTicks);

@@ -124,7 +124,7 @@ namespace FallRush.Tests
             }
 
             Assert.That(HazardMath.DoorLiftMm(in r.Hz.Doors[0], r.Hz.Time(rush - 1)), Is.EqualTo(0), "gate closed before RUSH");
-            for (var i = 0; i < 60; i++)
+            for (var i = 0; i < 90; i++) // v2: 5 m/s needs ~2 s to reach the gate 9.5 m ahead
                 r.Sim.Step();
             Assert.That(r.Rules.Phase, Is.EqualTo(RoundPhase.Rush));
             Assert.That(HazardMath.DoorOpen(in r.Hz.Doors[0], r.Hz.Time(r.Sim.Tick)), Is.True);

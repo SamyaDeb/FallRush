@@ -6,7 +6,7 @@ namespace FallRush.Shared
 {
     /// <summary>
     /// Runtime movement constants (GDD §7, doc 04 §5), built from <see cref="MovementConfigData"/>, which is generated
-    /// from <c>packages/shared/config/movement_v1.json</c>. Integers in the JSON (mm, mm/s, ms, permille) become floats
+    /// from <c>packages/shared/config/movement_v2.json</c> (G1; v1 is kept unchanged for history). Integers in the JSON (mm, mm/s, ms, permille) become floats
     /// in metres/seconds here; times become ticks with round-half-up at the 30 Hz tick.
     /// </summary>
     public sealed class MovementConfig
@@ -40,30 +40,47 @@ namespace FallRush.Shared
         public readonly float Gravity, FallMultiplier, MaxFallSpeed;
         public readonly float JumpApex, JumpSpeed;
         public readonly float DiveHorizontal, DiveVertical;
+        /// <summary>G1 belly slide: horizontal deceleration while a dive landing slides (m/s²).</summary>
+        public readonly float SlideDecel;
+        /// <summary>G1 stumble: a landing faster than this (m/s down) — a fall of more than <c>stumble.minFallHeight</c> under this config's gravity — stumbles.</summary>
+        public readonly float StumbleImpactSpeed;
+        /// <summary>G1 stumble: run speed cap while stumbling, as a fraction of <see cref="MaxSpeed"/>.</summary>
+        public readonly float StumbleSpeedFactor;
         public readonly float MaxSlopeCos, StepOffset, SnapDistance, LedgeTolerance;
         public readonly int SlideIterations;
         public readonly float PushMaxSpeed, KillY;
 
-        public readonly int CoyoteTicks, JumpBufferTicks, DiveCooldownTicks, DiveLandStunTicks, DiveCancelWindowTicks, RespawnTicks;
+        public readonly int CoyoteTicks, JumpBufferTicks, DiveCooldownTicks, DiveLandStunTicks, DiveCancelWindowTicks, RespawnTicks, StumbleTicks;
 
-        private MovementConfig(in ModifierEffects m)
+        /// <summary>DEV ONLY (practice tuning mode, G1 §3.7): a config from edited values; never used by the server.</summary>
+        public static MovementConfig FromTuning(in MovementTuning t, int modifierId) => new MovementConfig(ModifierEffects.Get(modifierId), t);
+
+        private MovementConfig(in ModifierEffects m) : this(m, MovementTuning.Generated)
+        {
+        }
+
+        private MovementConfig(in ModifierEffects m, in MovementTuning t)
         {
             ModifierId = m.AffectsMotor ? m.Id : ModifierEffects.NoneId;
             Dt = 1f / TickRate;
             Radius = Mm(D.Capsule_Radius);
             Height = Mm(D.Capsule_Height);
             Skin = Mm(D.Capsule_Skin);
-            MaxSpeed = Mm(D.Run_MaxSpeed);
-            GroundAccel = Mm(D.Run_GroundAccel);
-            GroundDecel = Mm(Scale(D.Run_GroundDecel, m.GroundDecelPermille));
-            AirAccel = GroundAccel * (D.Run_AirControlPermille / 1000f);
-            Gravity = Mm(Scale(D.Gravity_Accel, m.GravityPermille));
-            FallMultiplier = D.Gravity_FallMultiplierPermille / 1000f;
+            MaxSpeed = Mm(t.MaxSpeed);
+            GroundAccel = Mm(t.GroundAccel);
+            GroundDecel = Mm(Scale(t.GroundDecel, m.GroundDecelPermille));
+            AirAccel = GroundAccel * (t.AirControlPermille / 1000f);
+            Gravity = Mm(Scale(t.Gravity, m.GravityPermille));
+            FallMultiplier = t.FallMultiplierPermille / 1000f;
             MaxFallSpeed = Mm(D.Gravity_MaxFallSpeed);
-            JumpApex = Mm(Scale(D.Jump_ApexHeight, m.JumpApexPermille));
+            JumpApex = Mm(Scale(t.JumpApex, m.JumpApexPermille));
             JumpSpeed = (float)Math.Sqrt(2f * Gravity * JumpApex);
-            DiveHorizontal = Mm(D.Dive_HorizontalSpeed);
-            DiveVertical = Mm(D.Dive_VerticalSpeed);
+            DiveHorizontal = Mm(t.DiveHorizontal);
+            DiveVertical = Mm(t.DiveVertical);
+            SlideDecel = Mm(Scale(t.SlideDecel, m.GroundDecelPermille)); // ButterFloors makes the slide longer too
+            var fallG = Gravity * (t.FallMultiplierPermille / 1000f);
+            StumbleImpactSpeed = (float)Math.Sqrt(2f * fallG * Mm(t.StumbleMinFall));
+            StumbleSpeedFactor = t.StumbleSpeedPermille / 1000f;
             MaxSlopeCos = (float)Math.Cos(D.Ground_MaxSlopeDeg * Math.PI / 180.0);
             StepOffset = Mm(D.Ground_StepOffset);
             SnapDistance = Mm(D.Ground_SnapDistance);
@@ -75,9 +92,10 @@ namespace FallRush.Shared
             CoyoteTicks = MsToTicks(D.Jump_CoyoteMs, TickRate);
             JumpBufferTicks = MsToTicks(D.Jump_BufferMs, TickRate);
             DiveCooldownTicks = MsToTicks(D.Dive_CooldownMs, TickRate);
-            DiveLandStunTicks = MsToTicks(D.Dive_LandStunMs, TickRate);
+            DiveLandStunTicks = MsToTicks(t.DiveLandMs, TickRate);
             DiveCancelWindowTicks = MsToTicks(D.Dive_JumpCancelWindowMs, TickRate);
             RespawnTicks = MsToTicks(D.Respawn_DelayMs, TickRate);
+            StumbleTicks = MsToTicks(t.StumbleMs, TickRate);
         }
 
         private static float Mm(int v) => v / 1000f;
@@ -98,7 +116,7 @@ namespace FallRush.Shared
             Obj(sb, "capsule", ("height", D.Capsule_Height), ("radius", D.Capsule_Radius), ("skin", D.Capsule_Skin));
             sb.Append(',');
             Obj(sb, "dive", ("cooldownMs", D.Dive_CooldownMs), ("horizontalSpeed", D.Dive_HorizontalSpeed),
-                ("jumpCancelWindowMs", D.Dive_JumpCancelWindowMs), ("landStunMs", D.Dive_LandStunMs), ("verticalSpeed", D.Dive_VerticalSpeed));
+                ("jumpCancelWindowMs", D.Dive_JumpCancelWindowMs), ("landStunMs", D.Dive_LandStunMs), ("slideDecel", D.Dive_SlideDecel), ("verticalSpeed", D.Dive_VerticalSpeed));
             sb.Append(',');
             Obj(sb, "gravity", ("accel", D.Gravity_Accel), ("fallMultiplierPermille", D.Gravity_FallMultiplierPermille), ("maxFallSpeed", D.Gravity_MaxFallSpeed));
             sb.Append(',');
@@ -113,6 +131,8 @@ namespace FallRush.Shared
             sb.Append(',');
             Obj(sb, "run", ("airControlPermille", D.Run_AirControlPermille), ("groundAccel", D.Run_GroundAccel),
                 ("groundDecel", D.Run_GroundDecel), ("maxSpeed", D.Run_MaxSpeed));
+            sb.Append(',');
+            Obj(sb, "stumble", ("durationMs", D.Stumble_DurationMs), ("minFallHeight", D.Stumble_MinFallHeight), ("speedPermille", D.Stumble_SpeedPermille));
             sb.Append(",\"tickRateHz\":").Append(D.TickRateHz);
             sb.Append(",\"units\":").Append(Str(D.Units));
             sb.Append(",\"version\":").Append(D.Version);

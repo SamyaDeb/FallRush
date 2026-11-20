@@ -43,14 +43,14 @@ namespace FallRush.Tests
             {
                 m.Step(ref s, Cmd(mx, my), Dt, w);
                 var v = HSpeed(s);
-                Assert.That(v, Is.LessThanOrEqualTo(Cfg.MaxSpeed + 0.006f), $"tick {t}: {v} m/s");
+                Assert.That(v, Is.LessThanOrEqualTo(Cfg.MaxSpeed + 0.008f), $"tick {t}: {v} m/s"); // cm/s quantisation per axis: ≤ √2 × 0.005
                 if (reachedAt < 0 && v >= Cfg.MaxSpeed - 0.006f)
                     reachedAt = t;
                 Assert.That(s.Has(MotorState.Grounded), Is.True, $"tick {t} left the ground");
             }
 
-            // 60 m/s² → 7 m/s in ~0.117 s = 4 ticks.
-            Assert.That(reachedAt, Is.InRange(0, 5), "time to max speed (ticks)");
+            // v2: 28 m/s² → 5 m/s in ~0.18 s ≈ 5–6 ticks (momentum you can feel).
+            Assert.That(reachedAt, Is.InRange(4, 6), "time to max speed (ticks)");
         }
 
         [Test]
@@ -68,14 +68,14 @@ namespace FallRush.Tests
                 stopTicks++;
             }
 
-            // 45 m/s² from 7 m/s → 0.156 s ≈ 5 ticks.
+            // v2: 30 m/s² from 5 m/s → 0.167 s ≈ 5 ticks.
             Assert.That(stopTicks, Is.InRange(4, 6));
         }
 
         // ------------------------------------------------------------------ jump
 
         [Test]
-        public void JumpApex_Is1600mm_Within2cm()
+        public void JumpApex_Is1200mm_Within2cm()
         {
             var w = new AnalyticWorld().Ground();
             var m = new KinematicMotor(Cfg);
@@ -91,7 +91,7 @@ namespace FallRush.Tests
             }
 
             var apex = (maxY - startY) / 1000f;
-            Assert.That(apex, Is.EqualTo(1.6f).Within(0.02f), $"apex {apex:F4} m");
+            Assert.That(apex, Is.EqualTo(1.2f).Within(0.02f), $"apex {apex:F4} m");
             Assert.That(s.Has(MotorState.Grounded), Is.True, "lands again");
         }
 
@@ -229,7 +229,7 @@ namespace FallRush.Tests
             var c = Cmd(0, 0, InputCmd.DivePressed);
             c.CamYaw = 64 << 8; // +X
             m.Step(ref s, c, Dt, w);
-            Assert.That(s.VelX, Is.EqualTo(900).Within(1));
+            Assert.That(s.VelX, Is.EqualTo(700).Within(1));
             Assert.That(s.VelZ, Is.EqualTo(0).Within(1));
         }
 
@@ -271,7 +271,7 @@ namespace FallRush.Tests
         }
 
         [Test]
-        public void DiveLanding_StunsFor11Ticks_ThenControlReturns()
+        public void DiveLanding_BellySlideFor14Ticks_ThenControlReturns()
         {
             var w = new AnalyticWorld().Ground();
             var m = new KinematicMotor(Cfg);
@@ -285,7 +285,135 @@ namespace FallRush.Tests
 
             Assert.That(s.Has(MotorState.DiveLanding), Is.False);
             m.Step(ref s, Cmd(0, 127, InputCmd.JumpPressed), Dt, w);
-            Assert.That(m.Last.Jumped, Is.True, "control returns after 0.35 s");
+            Assert.That(m.Last.Jumped, Is.True, "control returns after the 0.45 s belly slide");
+        }
+
+        [Test]
+        public void DiveLanding_BellySlide_SlidesAndDecelerates()
+        {
+            var w = new AnalyticWorld().Ground();
+            var m = new KinematicMotor(Cfg);
+            var s = Settle(m, w, At(0, 0.05f, 0));
+            DiveAndLand(m, w, ref s);
+            Assert.That(Cfg.DiveLandStunTicks, Is.EqualTo(14));
+            var z0 = s.PosZ;
+            var prev = HSpeed(s);
+            Assert.That(prev, Is.GreaterThan(5f), "lands with the dive's speed");
+            for (var k = 1; k <= Cfg.DiveLandStunTicks; k++)
+            {
+                m.Step(ref s, Cmd(0, 0), Dt, w);
+                var v = HSpeed(s);
+                Assert.That(v, Is.LessThanOrEqualTo(prev + 0.001f), $"tick {k}: slide never speeds up");
+                Assert.That(prev - v, Is.EqualTo(Cfg.SlideDecel * Dt).Within(0.02f).Or.LessThan(0.02f), $"tick {k}: slide decel");
+                prev = v;
+            }
+
+            var slid = (s.PosZ - z0) / 1000f;
+            Assert.That(slid, Is.InRange(1.5f, 3.5f), $"belly slide {slid:F2} m");
+        }
+
+        [Test]
+        public void DiveLanding_SlideOffAnEdge_RestoresAirControl()
+        {
+            // A plateau ending at z = 0.5: the dive lands on it and the slide carries over the edge.
+            var w = new AnalyticWorld().Ground(-20f).AddBox(new Vec3(-5, -1, -10), new Vec3(5, 0, 0.5f));
+            var m = new KinematicMotor(Cfg);
+            var s = Settle(m, w, At(0, 0.05f, -2.5f));
+            DiveAndLand(m, w, ref s);
+            Assert.That(s.Has(MotorState.DiveLanding), Is.True);
+            var left = false;
+            for (var k = 0; k < 30 && !left; k++)
+            {
+                m.Step(ref s, Cmd(0, 0), Dt, w);
+                left = !s.Has(MotorState.Grounded);
+            }
+
+            Assert.That(left, Is.True, "the slide carries over the edge");
+            m.Step(ref s, Cmd(127, 0), Dt, w);
+            Assert.That(s.Has(MotorState.DiveLanding), Is.False);
+            Assert.That(s.LandTicks, Is.EqualTo(0));
+            Assert.That(s.VelX, Is.GreaterThan(0), "air control steers again");
+        }
+
+        private static MotorState DropFrom(KinematicMotor m, IMotorWorld w, float height, out bool stumbled)
+        {
+            var s = At(0, height, 0);
+            stumbled = false;
+            for (var t = 0; t < 90 && !s.Has(MotorState.Grounded); t++)
+            {
+                m.Step(ref s, Cmd(0, 0), Dt, w);
+                stumbled |= m.Last.Stumbled;
+            }
+
+            Assert.That(s.Has(MotorState.Grounded), Is.True);
+            return s;
+        }
+
+        [TestCase(1.5f, false)]
+        [TestCase(2.8f, false)]
+        [TestCase(3.4f, true)]
+        [TestCase(8f, true)]
+        public void Stumble_OnlyAfterAFallOver3m(float height, bool expect)
+        {
+            var w = new AnalyticWorld().Ground();
+            var m = new KinematicMotor(Cfg);
+            var s = DropFrom(m, w, height, out var stumbled);
+            Assert.That(stumbled, Is.EqualTo(expect));
+            Assert.That(s.Has(MotorState.Stumbling), Is.EqualTo(expect));
+            if (expect)
+                Assert.That(s.LandTicks, Is.EqualTo(Cfg.StumbleTicks));
+        }
+
+        [Test]
+        public void Stumble_CapsSpeed_KeepsInput_ThenEnds()
+        {
+            var w = new AnalyticWorld().Ground();
+            var m = new KinematicMotor(Cfg);
+            var s = DropFrom(m, w, 5f, out _);
+            Assert.That(Cfg.StumbleTicks, Is.EqualTo(9));
+            var cap = Cfg.MaxSpeed * Cfg.StumbleSpeedFactor;
+            for (var k = 1; k <= Cfg.StumbleTicks; k++)
+            {
+                m.Step(ref s, Cmd(0, 127), Dt, w);
+                Assert.That(HSpeed(s), Is.LessThanOrEqualTo(cap + 0.006f), $"tick {k}: capped while stumbling");
+            }
+
+            Assert.That(HSpeed(s), Is.GreaterThan(1f), "input is never lost");
+            Assert.That(s.Has(MotorState.Stumbling), Is.False);
+            for (var k = 0; k < 10; k++)
+                m.Step(ref s, Cmd(0, 127), Dt, w);
+            Assert.That(HSpeed(s), Is.EqualTo(Cfg.MaxSpeed).Within(0.01f), "full speed afterwards");
+        }
+
+        [Test]
+        public void Stumble_JumpEndsIt()
+        {
+            var w = new AnalyticWorld().Ground();
+            var m = new KinematicMotor(Cfg);
+            var s = DropFrom(m, w, 5f, out _);
+            m.Step(ref s, Cmd(0, 127, InputCmd.JumpPressed), Dt, w);
+            Assert.That(m.Last.Jumped, Is.True);
+            Assert.That(s.Has(MotorState.Stumbling), Is.False);
+            Assert.That(s.LandTicks, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void Stumble_DiveLandingTakesPriority()
+        {
+            // A dive that ends in a long fall belly-slides; it never stumbles.
+            var w = new AnalyticWorld().Ground(-20f).AddBox(new Vec3(-5, -1, -10), new Vec3(5, 4, 0)).AddBox(new Vec3(-5, -1, 0), new Vec3(5, 0, 30));
+            var m = new KinematicMotor(Cfg);
+            var s = Settle(m, w, At(0, 4.05f, -1.2f));
+            m.Step(ref s, Cmd(0, 127, InputCmd.DivePressed), Dt, w);
+            var stumbled = false;
+            for (var t = 0; t < 60 && !m.Last.Landed; t++)
+            {
+                m.Step(ref s, Cmd(0, 127), Dt, w);
+                stumbled |= m.Last.Stumbled;
+            }
+
+            Assert.That(stumbled, Is.False);
+            Assert.That(s.Has(MotorState.DiveLanding), Is.True);
         }
 
         // ------------------------------------------------------------------ slopes and steps

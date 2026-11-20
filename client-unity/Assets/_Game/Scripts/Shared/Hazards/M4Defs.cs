@@ -21,6 +21,7 @@ namespace FallRush.Shared
     /// <summary>
     /// <c>CRUMBLE_TILE</c> grid (Crumble Shelf, M4): square tiles on stacked shelves. Reactive: a tile is solid until
     /// <see cref="WobbleTicks"/> after its first contact (server-owned contact tick), then its collider is off (dropped).
+    /// G1: on the top shelf a dropped tile returns <see cref="RespawnTicks"/> later (a new cycle starts at its next contact).
     /// Tile id = shelf · Cols · Rows + row · Cols + col; shelf 0 is the top one.
     /// </summary>
     [Serializable]
@@ -32,7 +33,13 @@ namespace FallRush.Shared
         public int Cols, Rows;
         public int[] ShelfTopsMm;        // top surface per shelf, top shelf first (12 000, 6 000, 0)
         public int ThicknessMm;
-        public int WobbleTicks;          // 0.6 s = 18 ticks
+        public int WobbleTicks;          // G1: 1.0 s = 30 ticks (M4: 0.6 s)
+        /// <summary>G1: a dropped tile on the top <see cref="RespawnShelves"/> shelves comes back this long after it dropped (0 = never).</summary>
+        public int RespawnTicks;
+        public int RespawnShelves;
+
+        /// <summary>Gone time of tile <paramref name="id"/> before it returns (0 = it never returns).</summary>
+        public int RespawnFor(int id) => RespawnTicks > 0 && Shelf(id) < RespawnShelves ? RespawnTicks : 0;
 
         public int PerShelf => Cols * Rows;
         public int Count => PerShelf * (ShelfTopsMm?.Length ?? 0);

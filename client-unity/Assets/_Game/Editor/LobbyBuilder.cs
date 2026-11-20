@@ -47,7 +47,7 @@ public static class LobbyBuilder
         // Central plinth (the capsule machine stands on it; visual dome is client-side greybox).
         KitBuilder.Box(geo, "Plinth", new Vector3(0f, 0.25f, 0f), new Vector3(3f, 0.5f, 3f), KitBuilder.Grape);
         KitBuilder.Visual(geo, "MachineGlass", new Vector3(0f, 2.1f, 0f), new Vector3(2.4f, 3.2f, 2.4f), Mat("LobbyGlass", new Color(0.75f, 0.9f, 1f)));
-        KitBuilder.Label(geo, "FALL RUSH LOBBY", new Vector3(0f, 4.6f, 0f), 0.06f);
+        KitBuilder.Sign(geo, "FALL RUSH LOBBY", new Vector3(0f, 4.6f, 0f), 0.06f);
 
         // Spring pad onto a lookout block (NE corner), bumpers on the diagonals.
         var pads = new List<HazardSpringPad> { KitBuilder.SpringPad(hz, "lobby_pad_1", new Vector3(6.5f, 0.02f, 6.5f), new Vector2(1.6f, 1.6f), new Vector3(1.8f, 11f, 1.8f)) };

@@ -43,9 +43,31 @@ public static class BlockPartyDashBuilder
 
     // Layout constants (also used by the bot routes).
     private const float LaneL = -6f, LaneM = 0f, LaneR = 6f;
-    private static readonly float[] BlocksL = { 10.5f, 15f, 19.5f, 24f, 28.5f, 33f };
-    private static readonly float[] BlocksM = { 10.5f, 15.3f, 20.1f, 24.9f, 29.7f, 34.5f };
-    private static readonly float[] BlocksR = { 11f, 17f, 23f, 29f, 35f };
+    /// <summary>S1 block: centre z, depth (z), width (x), top height. G1: real v2 jumps (hop 1.2 m, ≈ 3.2 m running reach).</summary>
+    private struct S1Block
+    {
+        public float Z, D, W, Top;
+        public S1Block(float z0, float z1, float w, float top) { Z = (z0 + z1) * 0.5f; D = z1 - z0; W = w; Top = top; }
+        public float Z0 => Z - D * 0.5f;
+        public float Z1 => Z + D * 0.5f;
+    }
+
+    // Safe lane (left): big blocks, gaps 1.6–1.9 m, steps of ±0.3 m and one 0.9 m "stair".
+    private static readonly S1Block[] BlocksL =
+    {
+        new S1Block(9.7f, 12.5f, 3.2f, 0.3f), new S1Block(14.2f, 17.0f, 3.0f, 0.6f), new S1Block(18.8f, 21.6f, 3.2f, 0.3f),
+        new S1Block(23.3f, 26.1f, 3.0f, 0.6f), new S1Block(27.9f, 30.5f, 3.0f, 0.9f), new S1Block(32.3f, 35.2f, 3.2f, 0.45f),
+    };
+    // Fast, risky lane (right): fewer, smaller blocks, gaps 2.3–2.7 m (≈ 70–85 % of the v2 running jump), steps up and
+    // down of 0.4–0.7 m, a 1.5 m stair top in the middle.
+    private static readonly S1Block[] BlocksR =
+    {
+        new S1Block(10.5f, 12.5f, 2.2f, 0.4f), new S1Block(14.9f, 16.9f, 2.0f, 0.9f), new S1Block(19.3f, 20.9f, 1.8f, 1.5f),
+        new S1Block(23.4f, 25.4f, 2.0f, 0.8f), new S1Block(28.0f, 30.0f, 2.2f, 0.3f), new S1Block(32.4f, 34.4f, 2.0f, 0.7f),
+    };
+    // Middle lane: bobbing platforms (variant A vertical ±0.4 m, B lateral ±1.2 m), gaps ≈ 2.1 m at rest.
+    private static readonly float[] BlocksM = { 11.2f, 15.7f, 20.2f, 24.7f, 29.2f, 33.7f };
+    private const float BobDepth = 2.4f;
     private static readonly float[] SpinnerZ = { 53f, 65f, 77f };
     private static readonly float[] DoorX = { -10f, -5f, 0f, 5f, 10f };
     private const float WallZ = 117f;
@@ -119,24 +141,22 @@ public static class BlockPartyDashBuilder
         gate.variantB = gate.def;
         gate.hasVariantB = false;
         doors.Add(gate);
-        KitBuilder.Label(_geo, "BLOCK PARTY DASH", new Vector3(0f, 4.4f, 7f), 0.06f);
+        KitBuilder.Sign(_geo, "BLOCK PARTY DASH", new Vector3(0f, 4.4f, 7f), 0.06f);
 
-        // ---------------- S1 Block Hop
+        // ---------------- S1 Block Hop (G1 rebuild: wider gaps, height variation, varied sizes)
         for (var i = 0; i < BlocksL.Length; i++)
-            Block($"S1_L_{i}", LaneL, BlocksL[i], 3f, 3f);
+            Block($"S1_L_{i}", LaneL, BlocksL[i]);
         for (var i = 0; i < BlocksR.Length; i++)
-            Block($"S1_R_{i}", LaneR, BlocksR[i], 2.4f, 2.4f);
+            Block($"S1_R_{i}", LaneR, BlocksR[i]);
         for (var i = 0; i < BlocksM.Length; i++)
         {
             var pc = new Vector3(LaneM, -0.25f, BlocksM[i]);
-            var pl = KitBuilder.LoopPlatform(_hz, $"bpd_s1_bob_{i}", pc, new Vector3(3f, 0.5f, 3f),
-                new[] { new Vector3(0f, -0.6f, 0f), new Vector3(0f, 0.6f, 0f) },
+            var pl = KitBuilder.LoopPlatform(_hz, $"bpd_s1_bob_{i}", pc, new Vector3(3f, 0.5f, BobDepth),
+                new[] { new Vector3(0f, -0.4f, 0f), new Vector3(0f, 0.4f, 0f) },
                 new[] { new Vector3(-1.2f, 0f, 0f), new Vector3(1.2f, 0f, 0f) }, 120);
             pl.visual.GetComponent<MeshRenderer>().sharedMaterial = KitBuilder.Platform;
             platforms.Add(pl);
         }
-
-        KitBuilder.Label(_geo, "S1 BLOCK HOP", new Vector3(-9.5f, 2.5f, 9f));
 
         // ---------------- CP1
         Deck("CP1Deck", -11f, 11f, 37f, 45f, 0f);
@@ -166,7 +186,7 @@ public static class BlockPartyDashBuilder
         var slopeDir = rot * Vector3.forward;
         var topCentre = new Vector3(-6f, rise * 0.5f, 89f + rampLen * 0.5f);
         var slopeLen = Mathf.Sqrt(rampLen * rampLen + rise * rise);
-        conveyors.Add(KitBuilder.Conveyor(_hz, "bpd_s3_conveyor", topCentre - up * 0.25f, new Vector3(6f, 0.5f, slopeLen), -slopeDir * 3.5f, pitch)); // tuned (QA) 2.5 → 3.5 m/s: the safe lane costs real time
+        conveyors.Add(KitBuilder.Conveyor(_hz, "bpd_s3_conveyor", topCentre - up * 0.25f, new Vector3(6f, 0.5f, slopeLen), -slopeDir * 2.0f, pitch)); // G1: 3.5 → 2.0 m/s (v2 runs 5 m/s: net 3 m/s up, the safe lane still costs time)
         KitBuilder.Label(_geo, "CONVEYOR RAMP (3.5 m/s against: safe, slower)", new Vector3(-6f, 3.5f, 88f));
         pads.Add(KitBuilder.SpringPad(_hz, "bpd_s3_pad_1", new Vector3(6f, 0.1f, 87.6f), new Vector2(2.4f, 1.6f), new Vector3(0f, 11f, 7.5f)));
         Box("S3Block", new Vector3(6f, 0.75f, 93.75f), new Vector3(5f, 1.5f, 4.5f), _block); // top 1.5, z 91.5…96
@@ -262,7 +282,7 @@ public static class BlockPartyDashBuilder
         for (var i = 0; i < 24; i++)
             for (var j = 0; j < 2; j++)
                 KitBuilder.Visual(_geo, $"ArchCheck_{i}_{j}", new Vector3(-11.5f + i + 0.5f, 9.25f + j * 0.5f, FinishZ), new Vector3(1f, 0.5f, 0.3f), (i + j) % 2 == 0 ? KitBuilder.Checker : KitBuilder.BeltArrow);
-        KitBuilder.Label(_geo, "FINISH", new Vector3(0f, 10.6f, FinishZ - 0.3f), 0.07f);
+        KitBuilder.Sign(_geo, "FINISH", new Vector3(0f, 10.6f, FinishZ - 0.3f), 0.07f);
 
         // ---------------- MapInfo, definition, course line, bot routes
         var info = new GameObject("MapInfo").AddComponent<MapInfo>();
@@ -350,8 +370,9 @@ public static class BlockPartyDashBuilder
     private static void Deck(string name, float x0, float x1, float z0, float z1, float top) =>
         Box(name, new Vector3((x0 + x1) * 0.5f, top - 0.5f, (z0 + z1) * 0.5f), new Vector3(x1 - x0, 1f, z1 - z0), _deck);
 
-    private static void Block(string name, float x, float z, float w, float d) =>
-        Box(name, new Vector3(x, -0.5f, z), new Vector3(w, 1f, d), _block);
+    /// <summary>A pillar block from y −1.5 up to its top.</summary>
+    private static void Block(string name, float x, in S1Block b) =>
+        Box(name, new Vector3(x, (b.Top - 1.5f) * 0.5f, b.Z), new Vector3(b.W, b.Top + 1.5f, b.D), _block);
 
     /// <summary>Checkpoint trigger (no collider) + 12 respawn spots in two rows at <paramref name="row1"/>/<paramref name="row2"/>, facing +Z; a mint gate stripe on the floor.</summary>
     private static RaceCheckpoint Checkpoint(int index, Vector3 centre, Vector3 size, float floorY, float row1, float row2, bool finish)
@@ -377,7 +398,7 @@ public static class BlockPartyDashBuilder
         {
             KitBuilder.Box(_geo, $"CPPostL_{index}", new Vector3(-size.x * 0.5f - 0.3f, floorY + 1.5f, centre.z), new Vector3(0.5f, 3f, 0.5f), KitBuilder.Mint);
             KitBuilder.Box(_geo, $"CPPostR_{index}", new Vector3(size.x * 0.5f + 0.3f, floorY + 1.5f, centre.z), new Vector3(0.5f, 3f, 0.5f), KitBuilder.Mint);
-            KitBuilder.Label(_geo, $"CHECKPOINT {index}", new Vector3(0f, floorY + 3.3f, centre.z));
+            KitBuilder.Sign(_geo, $"CHECKPOINT {index}", new Vector3(0f, floorY + 3.3f, centre.z));
         }
 
         return cp;
@@ -417,13 +438,14 @@ public static class BlockPartyDashBuilder
         var r = new List<BotRoute>();
 
         // Section 0: start → CP1, three lanes.
-        Waypoint[] Lane(float x, float[] blocks, float half)
+        Waypoint[] Lane(float x, S1Block[] blocks)
         {
-            var p = new List<Waypoint> { W(x, 0, 6.0f), W(x, 0, 7.55f, WaypointAction.Jump, 0, 0.45f) };
+            var p = new List<Waypoint> { W(x, 0, 5.5f), W(x, 0, 7.6f, WaypointAction.Jump, 0, 0.4f) };
             for (var i = 0; i < blocks.Length; i++)
             {
-                p.Add(W(x, 0, blocks[i], WaypointAction.Land, 0, 1.2f));
-                p.Add(W(x, 0, blocks[i] + half - 0.35f, WaypointAction.Jump, 0, 0.45f));
+                var b = blocks[i];
+                p.Add(W(x, b.Top, Mathf.Min(b.Z, b.Z0 + 1.0f), WaypointAction.Land, 0, Mathf.Min(0.9f, b.D * 0.45f)));
+                p.Add(W(x, b.Top, b.Z1 - 0.3f, WaypointAction.Jump, 0, 0.4f));
             }
 
             p.Add(W(x, 0, 38.6f, WaypointAction.Run, 0, 1.0f));
@@ -431,15 +453,15 @@ public static class BlockPartyDashBuilder
             return p.ToArray();
         }
 
-        r.Add(new BotRoute { Section = 0, Name = "S1-left", Points = Lane(LaneL, BlocksL, 1.5f) });
-        r.Add(new BotRoute { Section = 0, Name = "S1-right", Points = Lane(LaneR, BlocksR, 1.2f) });
-        var mid = new List<Waypoint> { W(LaneM, 0, 6.0f), W(LaneM, 0, 7.55f, WaypointAction.JumpToPlatform, 0, 0.45f) };
+        r.Add(new BotRoute { Section = 0, Name = "S1-left", Points = Lane(LaneL, BlocksL) });
+        r.Add(new BotRoute { Section = 0, Name = "S1-right", Points = Lane(LaneR, BlocksR) });
+        var mid = new List<Waypoint> { W(LaneM, 0, 5.5f), W(LaneM, 0, 7.6f, WaypointAction.JumpToPlatform, 0, 0.4f) };
         for (var i = 0; i < BlocksM.Length; i++)
         {
             mid.Add(W(LaneM, 0, BlocksM[i], WaypointAction.Platform, i));
             mid.Add(i + 1 < BlocksM.Length
-                ? W(LaneM, 0, BlocksM[i] + 1.15f, WaypointAction.JumpToPlatform, i + 1, 0.45f)
-                : W(LaneM, 0, BlocksM[i] + 1.15f, WaypointAction.Jump, 0, 0.45f));
+                ? W(LaneM, 0, BlocksM[i] + BobDepth * 0.5f - 0.3f, WaypointAction.JumpToPlatform, i + 1, 0.4f)
+                : W(LaneM, 0, BlocksM[i] + BobDepth * 0.5f - 0.3f, WaypointAction.Jump, 0, 0.4f));
         }
 
         mid.Add(W(LaneM, 0, 38.6f, WaypointAction.Run, 0, 1.0f));

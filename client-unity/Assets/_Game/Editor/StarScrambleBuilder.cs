@@ -40,12 +40,12 @@ public static class StarScrambleBuilder
         // Central turn table (top 0.2 m: walk on), 20 s per turn (variant B the other way).
         var table = KitBuilder.TurnTable(hz, "ss_table", new Vector3(0f, 0.2f, 0f), TableR, 600, -600);
 
-        // Outer islands: 4 × 4 m, top at 1.0 m, sliding along the rim (A) or in and out (B).
+        // Outer islands: 4 × 4 m, top at 0.8 m, sliding along the rim (A) or in and out (B).
         var platforms = new List<HazardPlatform>();
         for (var i = 0; i < 4; i++)
         {
             var a = IslandDeg[i] * Mathf.Deg2Rad;
-            var c = new Vector3(Mathf.Sin(a) * IslandR, 0.7f, Mathf.Cos(a) * IslandR);
+            var c = new Vector3(Mathf.Sin(a) * IslandR, 0.5f, Mathf.Cos(a) * IslandR); // G1: top 1.0 → 0.8 m (v2 hop 1.2 m)
             var tangent = new Vector3(Mathf.Cos(a), 0f, -Mathf.Sin(a));
             var radial = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a));
             platforms.Add(SinePlatform(hz, $"ss_island_{i + 1}", c, new Vector3(4f, 0.6f, 4f), tangent * 3f, radial * 1.5f, 360, 300));
@@ -57,7 +57,7 @@ public static class StarScrambleBuilder
         {
             var a = IslandDeg[i] * Mathf.Deg2Rad;
             var dir = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a));
-            pads.Add(KitBuilder.SpringPad(hz, $"ss_pad_{i + 1}", dir * 15.5f + new Vector3(0f, 0.02f, 0f), new Vector2(1.6f, 1.6f), dir * 6.5f + new Vector3(0f, 10f, 0f)));
+            pads.Add(KitBuilder.SpringPad(hz, $"ss_pad_{i + 1}", dir * 15.5f + new Vector3(0f, 0.02f, 0f), new Vector2(1.6f, 1.6f), dir * 5.8f + new Vector3(0f, 10f, 0f))); // G1: 6.5 → 5.8 m/s out: lands ~0.5 m onto the island (r 20.5) under v2 gravity
         }
 
         // Bumpers between the rings.
@@ -113,7 +113,7 @@ public static class StarScrambleBuilder
         };
         field.variantB = field.def;
 
-        KitBuilder.Label(geo, "STAR SCRAMBLE", new Vector3(0f, 6f, ArenaR + 1f), 0.08f);
+        KitBuilder.Sign(geo, "STAR SCRAMBLE", new Vector3(0f, 6f, ArenaR + 1f), 0.08f);
         KitBuilder.Label(geo, "GRAB STARS · GOLD = +3 · A BONK DROPS ONE", new Vector3(0f, 5f, ArenaR + 1f), 0.03f);
 
         // Spawns: a ring (r 10 m) facing the middle.

@@ -438,7 +438,7 @@ namespace FallRush.Tests
             var hz = Set(cv: new[] { cv });
             var w = new AnalyticWorld().Ground(-5f).AddHazards(hz);
             var motor = new KinematicMotor(Cfg);
-            foreach (var (dir, expect) in new[] { (127, 9000), (-127, -5000), (0, 2000) })
+            foreach (var (dir, expect) in new[] { (127, 7000), (-127, -3000), (0, 2000) }) // v2: run 5 m/s ± belt 2 m/s
             {
                 uint tick = 0;
                 var s = Settle(motor, w, new MotorState { PosY = 20 }, ref tick, hz);
@@ -617,18 +617,18 @@ namespace FallRush.Tests
         }
 
         [Test]
-        public void MoonBounce_Apex2m_ButterFloors_Decel()
+        public void MoonBounce_Apex1p5m_ButterFloors_Decel()
         {
             var moon = MovementConfig.For(1);
-            Assert.That(moon.Gravity, Is.EqualTo(16.8f).Within(1e-5f));
-            Assert.That(moon.JumpApex, Is.EqualTo(2.0f).Within(1e-5f));
+            Assert.That(moon.Gravity, Is.EqualTo(14f).Within(1e-5f));   // v2: 20 × 0.7
+            Assert.That(moon.JumpApex, Is.EqualTo(1.5f).Within(1e-5f)); // v2: 1.2 × 1.25
             var a = Apex(moon);
             TestContext.WriteLine($"MoonBounce apex {a:F4} m, None apex {Apex(Cfg):F4} m");
-            Assert.That(a, Is.EqualTo(2.0f).Within(0.02f), "1.6 × 1.25");
+            Assert.That(a, Is.EqualTo(1.5f).Within(0.02f), "1.2 × 1.25");
             Assert.That(ReferenceEquals(MovementConfig.For(0), MovementConfig.Default) && ReferenceEquals(MovementConfig.For(3), MovementConfig.Default), Is.True, "None / TurboToys leave the motor alone");
 
             var butter = MovementConfig.For(2);
-            Assert.That(butter.GroundDecel, Is.EqualTo(18f).Within(1e-5f), "45 × 0.4");
+            Assert.That(butter.GroundDecel, Is.EqualTo(12f).Within(1e-5f), "30 × 0.4");
             int StopTicks(MovementConfig c)
             {
                 var w = new AnalyticWorld().Ground();
@@ -646,8 +646,8 @@ namespace FallRush.Tests
                 return n;
             }
 
-            Assert.That(StopTicks(Cfg), Is.EqualTo(5));    // 7 / 45 s = 4.7 ticks
-            Assert.That(StopTicks(butter), Is.EqualTo(12)); // 7 / 18 s = 11.7 ticks
+            Assert.That(StopTicks(Cfg), Is.EqualTo(5));     // v2: 5 / 30 s = 5.0 ticks
+            Assert.That(StopTicks(butter), Is.EqualTo(13)); // v2: 5 / 12 s = 12.5 ticks
         }
 
         // ------------------------------------------------------------------ allowlist

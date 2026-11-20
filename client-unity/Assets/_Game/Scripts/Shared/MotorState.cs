@@ -15,6 +15,7 @@ namespace FallRush.Shared
         public const byte Diving = 1 << 1;
         public const byte DiveLanding = 1 << 2;   // ground stun after a dive landing (LandTicks > 0)
         public const byte Respawning = 1 << 3;    // fell out; frozen until the server teleports to a spawn
+        public const byte Stumbling = 1 << 4;     // G1: hard landing (fall > 3 m); LandTicks counts it down, input stays live at reduced speed
         public const byte Bot = 1 << 7;           // display only, set by the server for test bots
 
         public int PosX, PosY, PosZ;        // mm
@@ -27,7 +28,7 @@ namespace FallRush.Shared
         public byte CoyoteTicks;
         public byte JumpBufferTicks;
         public byte DiveCooldownTicks;
-        public byte LandTicks;              // dive-landing stun remaining
+        public byte LandTicks;              // dive-landing belly slide (DiveLanding) or stumble (Stumbling) remaining
         public byte ImmunityTicks;          // post-hit immunity (M2b hazards)
         public byte Surface;                // moving surface stood on at the end of the last step: 0 = static/none, else SurfaceId + 1
 

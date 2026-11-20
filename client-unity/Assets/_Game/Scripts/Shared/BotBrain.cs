@@ -506,14 +506,14 @@ namespace FallRush.Shared
             var per = g.PerShelf;
             var intact = 0;
             for (var i = shelf * per; i < (shelf + 1) * per; i++)
-                if (rx.TileContactTick(i) == 0)
+                if (rx.TileContactAt(i, tick) == 0)
                     intact++;
 
             // Frugal (a careful player): stay on the tile under you until it is about to drop, then step to a fresh one.
             var under = g.TileUnder(s.PosX, s.PosY, s.PosZ);
-            if (s.Has(MotorState.Grounded) && under >= 0 && _target >= 0 && rx.TileContactTick(_target) != 0)
+            if (s.Has(MotorState.Grounded) && under >= 0 && _target >= 0 && rx.TileContactAt(_target, tick) != 0)
             {
-                var c = rx.TileContactTick(under);
+                var c = rx.TileContactAt(under, tick);
                 var safeTicks = c == 0 ? g.WobbleTicks : (int)(c + (uint)g.WobbleTicks) - (int)tick;
                 var margin = Tier == BotTier.Good || Tier == BotTier.Reference ? 7 : Tier == BotTier.Normal ? 9 : 12;
                 if (under == _target && safeTicks > margin && intact > 3)
@@ -527,7 +527,7 @@ namespace FallRush.Shared
                 }
             }
 
-            var needNew = _target < 0 || _target / per != shelf || rx.TileContactTick(_target) != 0 || tick - _targetSince > 75;
+            var needNew = _target < 0 || _target / per != shelf || rx.TileContactAt(_target, tick) != 0 || tick - _targetSince > 75;
             if (!needNew)
             {
                 g.Center(_target, out var cx, out _, out var cz);
@@ -543,7 +543,7 @@ namespace FallRush.Shared
                 var dropDown = intact < 6 && shelf < g.ShelfTopsMm.Length - 1;
                 for (var i = shelf * per; i < (shelf + 1) * per; i++)
                 {
-                    var touched = rx.TileContactTick(i) != 0;
+                    var touched = rx.TileContactAt(i, tick) != 0;
                     if (dropDown ? !touched : touched)
                         continue;
                     g.Center(i, out var x, out _, out var z);

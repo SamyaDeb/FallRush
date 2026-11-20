@@ -43,7 +43,8 @@ namespace FallRush.Shared
         public readonly ulong Seed;
         public readonly List<RxEntry> Log = new List<RxEntry>();
 
-        private readonly uint[] _tileContact;
+        private readonly uint[] _tileContact;       // latest contact per tile (0 = never)
+        private readonly List<uint>[] _tileCycles;   // every contact per tile, oldest first (G1: top-shelf tiles respawn)
         private readonly List<uint>[] _blockTriggers;
         private readonly Dictionary<int, RxEntry> _collected = new Dictionary<int, RxEntry>();
         public readonly List<RxEntry> Drops = new List<RxEntry>();
@@ -57,6 +58,7 @@ namespace FallRush.Shared
             Stars = stars ?? default;
             Seed = seed;
             _tileContact = new uint[HasGrid ? Grid.Count : 0];
+            _tileCycles = new List<uint>[_tileContact.Length];
             _blockTriggers = new List<uint>[Blocks.Length];
             for (var i = 0; i < Blocks.Length; i++)
                 _blockTriggers[i] = new List<uint>();
@@ -76,13 +78,47 @@ namespace FallRush.Shared
 
         // ------------------------------------------------------------------ state at a tick
 
+        /// <summary>The latest contact tick of tile <paramref name="i"/> (0 = never touched).</summary>
         public uint TileContactTick(int i) => (uint)i < (uint)_tileContact.Length ? _tileContact[i] : 0;
 
-        /// <summary>Tile <paramref name="i"/> is solid at <paramref name="tick"/>: untouched, or still wobbling.</summary>
+        /// <summary>
+        /// The contact tick of tile <paramref name="i"/>'s cycle in progress at <paramref name="tick"/> (wobbling, gone, or —
+        /// for tiles that never return — dropped for good), or 0 if it is untouched (or back) at that tick.
+        /// </summary>
+        public uint TileContactAt(int i, uint tick)
+        {
+            if ((uint)i >= (uint)_tileContact.Length || _tileContact[i] == 0)
+                return 0;
+            var cycles = _tileCycles[i];
+            var back = (uint)Grid.RespawnFor(i);
+            for (var k = cycles.Count - 1; k >= 0; k--)
+            {
+                var c = cycles[k];
+                if (tick < c)
+                    continue;
+                if (back == 0 || tick < c + (uint)Grid.WobbleTicks + back)
+                    return c;
+                return 0;
+            }
+
+            return 0;
+        }
+
+        /// <summary>Tile <paramref name="i"/> is solid at <paramref name="tick"/>: untouched, still wobbling, or back (G1).</summary>
         public bool TileSolid(int i, uint tick)
         {
-            var c = _tileContact[i];
+            var c = TileContactAt(i, tick);
             return c == 0 || tick < c + (uint)Grid.WobbleTicks;
+        }
+
+        /// <summary>Ticks until a gone tile <paramref name="i"/> returns at <paramref name="tick"/> (−1: not gone, or never returns).</summary>
+        public int TileReturnsIn(int i, uint tick)
+        {
+            var c = TileContactAt(i, tick);
+            var back = Grid.RespawnFor(i);
+            if (c == 0 || back == 0 || tick < c + (uint)Grid.WobbleTicks)
+                return -1;
+            return (int)(c + (uint)Grid.WobbleTicks + (uint)back - tick);
         }
 
         /// <summary>Falling block <paramref name="i"/> is solid at <paramref name="tick"/> (not in any fall window).</summary>
@@ -127,8 +163,16 @@ namespace FallRush.Shared
             switch (e.Type)
             {
                 case RxType.TileContact:
-                    if ((uint)e.Id < (uint)_tileContact.Length && _tileContact[e.Id] == 0)
-                        _tileContact[e.Id] = Math.Max(1u, e.Tick);
+                    if ((uint)e.Id < (uint)_tileContact.Length)
+                    {
+                        var t = Math.Max(1u, e.Tick);
+                        if (TileContactAt(e.Id, t) == 0 && t > _tileContact[e.Id])
+                        {
+                            (_tileCycles[e.Id] ??= new List<uint>(2)).Add(t);
+                            _tileContact[e.Id] = t;
+                        }
+                    }
+
                     break;
                 case RxType.BlockTrigger:
                     if ((uint)e.Id < (uint)_blockTriggers.Length)

@@ -179,7 +179,20 @@ public static class KitBuilder
         return go;
     }
 
+    /// <summary>
+    /// Developer label (section names, tuning notes). G1: tagged <c>EditorOnly</c>, so Unity strips it from every player
+    /// build (WebGL, servers); it still shows in the Editor while building maps. Player-facing text uses <see cref="Sign"/>.
+    /// </summary>
     public static void Label(Transform parent, string text, Vector3 pos, float size = 0.035f)
+    {
+        var go = MakeText(parent, text, pos, size);
+        go.tag = "EditorOnly";
+    }
+
+    /// <summary>A player-facing in-world sign (map title, CHECKPOINT, FINISH): kept in builds. G2 restyles these.</summary>
+    public static void Sign(Transform parent, string text, Vector3 pos, float size = 0.035f) => MakeText(parent, text, pos, size);
+
+    private static GameObject MakeText(Transform parent, string text, Vector3 pos, float size)
     {
         var go = new GameObject($"Label_{text}");
         go.transform.SetParent(parent, false);
@@ -193,6 +206,7 @@ public static class KitBuilder
         tm.anchor = TextAnchor.MiddleCenter;
         tm.color = new Color(0.16f, 0.07f, 0.31f);
         go.GetComponent<MeshRenderer>().sharedMaterial = _font.material;
+        return go;
     }
 
     /// <summary>Yellow/magenta striped visual bar along local +Z (hazard stripes, doc 17 §3.1).</summary>

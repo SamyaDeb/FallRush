@@ -48,11 +48,55 @@ namespace FallRush.Tests
             Assert.That(c.CoyoteTicks, Is.EqualTo(3));        // 100 ms
             Assert.That(c.JumpBufferTicks, Is.EqualTo(4));    // 120 ms → 3.6
             Assert.That(c.DiveCooldownTicks, Is.EqualTo(30)); // 1000 ms
-            Assert.That(c.DiveLandStunTicks, Is.EqualTo(11)); // 350 ms → 10.5
+            Assert.That(c.DiveLandStunTicks, Is.EqualTo(14)); // v2 belly slide 450 ms → 13.5
+            Assert.That(c.StumbleTicks, Is.EqualTo(9));       // v2 stumble 300 ms
             Assert.That(c.DiveCancelWindowTicks, Is.EqualTo(5)); // 150 ms → 4.5
             Assert.That(c.RespawnTicks, Is.EqualTo(30));
             Assert.That(c.Radius, Is.EqualTo(0.31f));
             Assert.That(c.Height, Is.EqualTo(1.0f));
+        }
+
+        [Test]
+        public void MovementV2_IsTheGameConfig_V1KeptUnchanged()
+        {
+            Assert.That(MovementConfigData.File, Is.EqualTo("movement_v2.json"));
+            Assert.That(MovementConfigData.Version, Is.EqualTo(2));
+            var c = MovementConfig.Default;
+            Assert.That(c.MaxSpeed, Is.EqualTo(5.0f));
+            Assert.That(c.JumpApex, Is.EqualTo(1.2f));
+            // movement_v1.json stays on disk, byte-for-byte the M2 file (sha256 of its canonical JSON).
+            var v1 = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "packages", "shared", "config", "movement_v1.json"));
+            Assert.That(Sha256Hex(Canonicalize(new MiniJson(File.ReadAllText(v1)).Parse())), Is.EqualTo("1d966e17d6296424f2a30d5d9529bc7fe51d21ee2dd8bcfb463729622b422a06"));
+        }
+
+        [Test]
+        public void MovementV2_Modifiers_StillScaleTheBase()
+        {
+            var b = MovementConfig.Default;
+            var moon = MovementConfig.For(ModifierEffects.Get(ModifierEffects.NoneId).Id);
+            Assert.That(moon, Is.SameAs(b));
+            for (var id = 0; id < 8; id++)
+            {
+                var m = ModifierEffects.Get(id);
+                if (!m.AffectsMotor)
+                    continue;
+                var c = MovementConfig.For(id);
+                Assert.That(c.Gravity, Is.EqualTo(b.Gravity * m.GravityPermille / 1000f).Within(0.001f), m.ToString());
+                Assert.That(c.JumpApex, Is.EqualTo(b.JumpApex * m.JumpApexPermille / 1000f).Within(0.001f), m.ToString());
+                Assert.That(c.GroundDecel, Is.EqualTo(b.GroundDecel * m.GroundDecelPermille / 1000f).Within(0.001f), m.ToString());
+                Assert.That(c.SlideDecel, Is.EqualTo(b.SlideDecel * m.GroundDecelPermille / 1000f).Within(0.001f), m.ToString());
+            }
+        }
+
+        [Test]
+        public void Tuning_Generated_RebuildsTheSameConfig()
+        {
+            var t = MovementTuning.Generated;
+            Assert.That(t.IsGenerated, Is.True);
+            var c = MovementConfig.FromTuning(t, 0);
+            var d = MovementConfig.Default;
+            Assert.That((c.MaxSpeed, c.GroundAccel, c.JumpSpeed, c.SlideDecel, c.StumbleImpactSpeed, c.DiveLandStunTicks), Is.EqualTo((d.MaxSpeed, d.GroundAccel, d.JumpSpeed, d.SlideDecel, d.StumbleImpactSpeed, d.DiveLandStunTicks)));
+            Assert.That(t.ToJson(), Does.Contain("\"maxSpeed\": " + MovementConfigData.Run_MaxSpeed));
         }
 
         // ---- canonical JSON (doc 03 §5): sorted keys, no whitespace, integers/strings only ----

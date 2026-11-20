@@ -10,6 +10,10 @@ namespace FallRush.Shared
     /// <para>Order of one step: depenetrate → input, timers, stun / dive-landing → facing → jump (buffer + coyote) →
     /// dive → horizontal accel/decel/air control → gravity (exact per-step integration) → collide-and-slide with
     /// step-up → ground probe + snap → landing transitions → quantise to mm / cm/s.</para>
+    /// <para>G1 (movement v2): a dive landing is a <b>belly slide</b> (no input, slide deceleration, jump-cancel in the
+    /// first ticks); a hard landing (fall &gt; 3 m) is a <b>stumble</b> (input live, speed capped, a jump ends it). Both
+    /// count down <see cref="MotorState.LandTicks"/>, told apart by the <see cref="MotorState.DiveLanding"/> /
+    /// <see cref="MotorState.Stumbling"/> flag, so the snapshot layout is unchanged.</para>
     /// </summary>
     public sealed class KinematicMotor
     {
@@ -23,6 +27,8 @@ namespace FallRush.Shared
             public bool JumpCancelled;
             public bool Carried;
             public bool Inherited;
+            /// <summary>G1: this step's landing was a hard one (fall &gt; stumble.minFallHeight): the stumble started.</summary>
+            public bool Stumbled;
         }
 
         public readonly MovementConfig Cfg;
@@ -91,14 +97,21 @@ namespace FallRush.Shared
             }
 
             var cancelJump = false;
-            var landing = s.LandTicks > 0;
+            var landing = s.LandTicks > 0 && s.Has(MotorState.DiveLanding);
+            var stumbling = s.LandTicks > 0 && s.Has(MotorState.Stumbling);
+            if (landing && !wasGrounded)
+            {
+                // Slid off an edge: the belly slide ends, air control returns.
+                EndLanding(ref s);
+                landing = false;
+            }
+
             if (landing)
             {
                 var sinceLanding = c.DiveLandStunTicks - s.LandTicks; // 0 on the first tick after touching down
-                if (jumpPress && sinceLanding < c.DiveCancelWindowTicks && wasGrounded)
+                if (jumpPress && sinceLanding < c.DiveCancelWindowTicks)
                 {
-                    s.LandTicks = 0;
-                    s.Set(MotorState.DiveLanding, false);
+                    EndLanding(ref s);
                     cancelJump = true;
                     landing = false;
                 }
@@ -110,6 +123,16 @@ namespace FallRush.Shared
                     wx = wz = 0f;
                     hasMove = jumpPress = divePress = false;
                 }
+            }
+            else if (stumbling)
+            {
+                s.LandTicks--;
+                if (s.LandTicks == 0)
+                    s.Set(MotorState.Stumbling, false);
+            }
+            else if (s.LandTicks > 0 || s.Has(MotorState.Stumbling))
+            {
+                EndLanding(ref s); // inconsistent (e.g. a timer without its flag): clear
             }
 
             var diving = s.Has(MotorState.Diving);
@@ -125,6 +148,8 @@ namespace FallRush.Shared
             if (cancelJump || (!diving && !landing && !stunned && s.JumpBufferTicks > 0 && canGroundJump))
             {
                 vel.Y = c.JumpSpeed;
+                if (s.Has(MotorState.Stumbling))
+                    EndLanding(ref s); // hopping out of a stumble ends it
                 s.JumpBufferTicks = 0;
                 s.CoyoteTicks = 0;
                 jumped = true;
@@ -150,6 +175,8 @@ namespace FallRush.Shared
                 s.CoyoteTicks = 0;
                 diving = dived = true;
                 Last.Dived = true;
+                if (s.Has(MotorState.Stumbling))
+                    EndLanding(ref s);
             }
 
             // Jump-off inheritance (M3): leaving a moving surface by a jump or a dive keeps its horizontal velocity
@@ -171,10 +198,15 @@ namespace FallRush.Shared
             }
             else if (grounded)
             {
-                if (wx == 0f && wz == 0f)
+                if (landing)
+                    MoveTowards(ref vx, ref vz, 0f, 0f, c.SlideDecel * dt); // belly slide
+                else if (wx == 0f && wz == 0f)
                     MoveTowards(ref vx, ref vz, 0f, 0f, c.GroundDecel * dt);
                 else
-                    MoveTowards(ref vx, ref vz, wx * c.MaxSpeed, wz * c.MaxSpeed, c.GroundAccel * dt);
+                {
+                    var top = stumbling ? c.MaxSpeed * c.StumbleSpeedFactor : c.MaxSpeed; // incl. the stumble's last tick
+                    MoveTowards(ref vx, ref vz, wx * top, wz * top, c.GroundAccel * dt);
+                }
             }
             else if (wx != 0f || wz != 0f)
             {
@@ -205,6 +237,8 @@ namespace FallRush.Shared
 
             vel.X = vx;
             vel.Z = vz;
+
+            var fallSpeed = -vel.Y; // before the move and the ground snap zero it (stumble check)
 
             // ---- move ----
             SlideMove(ref pos, ref vel, new Vec3(vx * dt, dy, vz * dt), grounded, allowStep: grounded, world);
@@ -237,9 +271,16 @@ namespace FallRush.Shared
                 if (s.Has(MotorState.Diving))
                 {
                     s.Set(MotorState.Diving, false);
+                    s.Set(MotorState.Stumbling, false);
                     s.Set(MotorState.DiveLanding, true);
                     s.LandTicks = (byte)c.DiveLandStunTicks;
                     s.JumpBufferTicks = 0;
+                }
+                else if (fallSpeed > c.StumbleImpactSpeed && c.StumbleTicks > 0)
+                {
+                    s.Set(MotorState.Stumbling, true);
+                    s.LandTicks = (byte)c.StumbleTicks;
+                    Last.Stumbled = true;
                 }
             }
 
@@ -255,6 +296,13 @@ namespace FallRush.Shared
             s.Surface = (byte)surface;
             s.Position = pos;
             s.Velocity = vel;
+        }
+
+        private static void EndLanding(ref MotorState s)
+        {
+            s.LandTicks = 0;
+            s.Set(MotorState.DiveLanding, false);
+            s.Set(MotorState.Stumbling, false);
         }
 
         /// <summary>

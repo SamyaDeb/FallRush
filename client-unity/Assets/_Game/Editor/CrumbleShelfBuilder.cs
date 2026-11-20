@@ -41,7 +41,9 @@ public static class CrumbleShelfBuilder
         grid.def = new TileGridDef
         {
             OriginXMm = KitBuilder.Mm(Origin), OriginZMm = KitBuilder.Mm(Origin), TileMm = KitBuilder.Mm(Tile), GapMm = KitBuilder.Mm(Gap), Cols = N, Rows = N,
-            ShelfTopsMm = new[] { KitBuilder.Mm(ShelfTops[0]), KitBuilder.Mm(ShelfTops[1]), KitBuilder.Mm(ShelfTops[2]) }, ThicknessMm = KitBuilder.Mm(Thick), WobbleTicks = 18,
+            ShelfTopsMm = new[] { KitBuilder.Mm(ShelfTops[0]), KitBuilder.Mm(ShelfTops[1]), KitBuilder.Mm(ShelfTops[2]) }, ThicknessMm = KitBuilder.Mm(Thick),
+            WobbleTicks = 30,                       // G1: 0.6 → 1.0 s (the Final lasted ~30 s with bots)
+            RespawnTicks = 240, RespawnShelves = 1, // G1: top-shelf tiles return 8 s after dropping (blink 1.5 s before)
         };
         grid.spinnerStartA = 1800;
         grid.spinnerStartB = 1800;
@@ -95,7 +97,7 @@ public static class CrumbleShelfBuilder
                 Object.DestroyImmediate(t.gameObject);
         }
 
-        KitBuilder.Label(geo, "CRUMBLE SHELF", new Vector3(0f, 21f, -F), 0.07f);
+        KitBuilder.Sign(geo, "CRUMBLE SHELF", new Vector3(0f, 21f, -F), 0.07f);
         KitBuilder.Label(geo, "LAST ONE STANDING WINS", new Vector3(0f, 20.3f, -F), 0.03f);
         KitBuilder.Visual(geo, "KillPlaneMarker", new Vector3(0f, KillY, 0f), new Vector3(30f, 0.02f, 30f), KitBuilder.Mint).GetComponent<MeshRenderer>().enabled = false;
 

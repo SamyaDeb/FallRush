@@ -78,7 +78,7 @@ public static class GooTowerBuilder
         KitBuilder.Visual(_geo, "TowerDome", new Vector3(0f, Height + 4f, 0f), new Vector3(Core * 1.6f, 2.5f, Core * 1.6f), LobbyBuilder.Mat("GooDome", new Color(0.8f, 0.92f, 1f)));
         for (var i = 1; i <= 3; i++)
             KitBuilder.Visual(_geo, $"TowerBand_{i}", new Vector3(0f, H(i * 4) - 0.6f, 0f), new Vector3(Core * 2f + 0.06f, 0.3f, Core * 2f + 0.06f), KitBuilder.HazardY);
-        KitBuilder.Label(_geo, "GOO TOWER", new Vector3(0f, 6f, -Core - 0.05f), 0.1f);
+        KitBuilder.Sign(_geo, "GOO TOWER", new Vector3(0f, 6f, -Core - 0.05f), 0.1f);
 
         // Ground ring at y = 0 (catches falls from lap 1) + the spawn deck south of the start corner.
         KitBuilder.Box(_geo, "GroundS", new Vector3(0f, -0.5f, -Mid), new Vector3(2f * Mid + 6f, 1f, 6f), _ledge);
@@ -121,7 +121,7 @@ public static class GooTowerBuilder
             for (var j = 0; j < 8; j++)
                 if (((i + j) & 1) == 0)
                     KitBuilder.Visual(_geo, $"SummitCheck_{i}_{j}", top + new Vector3(-2.45f + i * 0.7f, 0.015f, -2.45f + j * 0.7f), new Vector3(0.7f, 0.02f, 0.7f), KitBuilder.Checker);
-        KitBuilder.Label(_geo, "ESCAPE!", top + new Vector3(0f, 3.4f, 0f), 0.07f);
+        KitBuilder.Sign(_geo, "ESCAPE!", top + new Vector3(0f, 3.4f, 0f), 0.07f);
         var summitGo = new GameObject("SummitPadTrigger");
         summitGo.transform.position = top + new Vector3(0f, 1.5f, 0f);
         var summit = summitGo.AddComponent<RaceCheckpoint>();
@@ -249,12 +249,13 @@ public static class GooTowerBuilder
         var y1 = H(k + 1);
         // Inner lane: 16 small steps (walk up).
         Steps(k, "Step", -HalfLen, HalfLen, -3f, 0f, y0, y1, 16, _step);
-        // Outer lane: three big blocks (+1.11 m each: jump up).
-        var bl = HalfLen * 2f / 3f;
-        for (var j = 0; j < 3; j++)
+        // Outer lane: four big blocks (+0.83 m each: jump up). G1: was three × 1.11 m, too close to the v2 1.2 m hop.
+        const int nb = 4;
+        var bl = HalfLen * 2f / nb;
+        for (var j = 0; j < nb; j++)
         {
             var a = -HalfLen + j * bl;
-            var top = y0 + Rise * (j + 1) / 3f;
+            var top = y0 + Rise * (j + 1) / nb;
             if (!falling)
             {
                 SideBox(k, $"Block{j}", a, a + bl, 0f, 3f, -0.5f, top, _block);
@@ -287,10 +288,17 @@ public static class GooTowerBuilder
 
         KitBuilder.Label(_geo, falling ? "FALLING BLOCKS (keep moving!) | STEPS" : "BIG BLOCKS (jump) | STEPS", P(k, -HalfLen, 0f, y0 + 3f), 0.03f);
         Route(k, "steps", StartCorner(k), W(k, -HalfLen + 0.5f, -1.5f, y0), W(k, 0f, -1.5f, (y0 + y1) * 0.5f), W(k, HalfLen - 0.5f, -1.5f, y1), EndCorner(k));
-        Route(k, falling ? "falling" : "blocks", StartCorner(k), W(k, -HalfLen - 1.0f, 1.5f, y0, WaypointAction.Jump),
-            W(k, -HalfLen + 3f, 1.5f, y0 + Rise / 3f, WaypointAction.Land, 0, 1.2f), W(k, -HalfLen + bl - 0.8f, 1.5f, y0 + Rise / 3f, WaypointAction.Jump),
-            W(k, -HalfLen + bl + 2.5f, 1.5f, y0 + 2f * Rise / 3f, WaypointAction.Land, 0, 1.2f), W(k, -HalfLen + 2f * bl - 0.8f, 1.5f, y0 + 2f * Rise / 3f, WaypointAction.Jump),
-            W(k, -HalfLen + 2f * bl + 2.5f, 1.5f, y1, WaypointAction.Land, 0, 1.2f), EndCorner(k));
+        var blockRoute = new List<Waypoint> { StartCorner(k), W(k, -HalfLen - 1.0f, 1.5f, y0, WaypointAction.Jump) };
+        for (var j = 0; j < nb; j++)
+        {
+            var top = y0 + Rise * (j + 1) / nb;
+            blockRoute.Add(W(k, -HalfLen + j * bl + 2.0f, 1.5f, top, WaypointAction.Land, 0, 1.1f));
+            if (j < nb - 1)
+                blockRoute.Add(W(k, -HalfLen + (j + 1) * bl - 0.7f, 1.5f, top, WaypointAction.Jump));
+        }
+
+        blockRoute.Add(EndCorner(k));
+        Route(k, falling ? "falling" : "blocks", blockRoute.ToArray());
     }
 
     private static void Lift(int k)
@@ -345,7 +353,7 @@ public static class GooTowerBuilder
             var rot = Quaternion.Euler(-sp, 0f, 0f);
             var climb = (U(k) * len + Vector3.up * Rise).normalized;
             var slopeLen = Mathf.Sqrt(len * len + Rise * Rise);
-            Conveyors.Add(KitBuilder.Conveyor(_hz, $"gt_belt_{k}", P(k, 0f, -1.5f, (y0 + y1) * 0.5f) - rot * Vector3.up * 0.25f, new Vector3(3f, 0.5f, slopeLen), -climb * 3f, sp)); // tuned 2.5 → 3 m/s (QA)
+            Conveyors.Add(KitBuilder.Conveyor(_hz, $"gt_belt_{k}", P(k, 0f, -1.5f, (y0 + y1) * 0.5f) - rot * Vector3.up * 0.25f, new Vector3(3f, 0.5f, slopeLen), -climb * 2f, sp)); // tuned 2.5 → 3 m/s (QA, v1); G1: 3 → 2 m/s (v2 runs 5 m/s)
             var part = (slopeLen - 1.6f) * 0.5f;
             for (var j = 0; j < 2; j++)
             {
@@ -360,13 +368,13 @@ public static class GooTowerBuilder
         }
         else
         {
-            // Inner: four belted treads (2 m/s against you) with 0.83 m risers. Outer: small steps with a 1.4 m gap.
+            // Inner: four belted treads (1.5 m/s against you) with 0.83 m risers. Outer: small steps with a 1.4 m gap.
             var tl = HalfLen * 0.5f;
             for (var j = 0; j < 4; j++)
             {
                 var a = -HalfLen + j * tl;
                 var top = y0 + Rise * (j + 1) / 4f;
-                Conveyors.Add(KitBuilder.Conveyor(_hz, $"gt_tread_{k}_{j}", P(k, a + tl * 0.5f, -1.5f, top - 0.25f), SideSize(k, HalfLen * 0.5f, 3f, 0.5f), -U(k) * 2.5f));
+                Conveyors.Add(KitBuilder.Conveyor(_hz, $"gt_tread_{k}_{j}", P(k, a + tl * 0.5f, -1.5f, top - 0.25f), SideSize(k, HalfLen * 0.5f, 3f, 0.5f), -U(k) * 1.5f)); // G1: 2.5 → 1.5 m/s against (v2 runs 5 m/s)
             }
 
             Steps(k, "Step", -HalfLen, HalfLen, 0f, 3f, y0, y1, 16, _step, 0f, 1.4f);

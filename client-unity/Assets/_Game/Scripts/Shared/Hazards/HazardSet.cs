@@ -186,6 +186,7 @@ namespace FallRush.Shared
             s.Set(MotorState.Grounded, false);
             s.Set(MotorState.Diving, false);
             s.Set(MotorState.DiveLanding, false);
+            s.Set(MotorState.Stumbling, false);
             s.LandTicks = 0;
             s.CoyoteTicks = 0;
             s.JumpBufferTicks = 0;
@@ -272,6 +273,7 @@ namespace FallRush.Shared
             s.Set(MotorState.Grounded, false);
             s.Set(MotorState.Diving, false);
             s.Set(MotorState.DiveLanding, false);
+            s.Set(MotorState.Stumbling, false);
             s.LandTicks = 0;
             s.CoyoteTicks = 0;
             s.JumpBufferTicks = 0;

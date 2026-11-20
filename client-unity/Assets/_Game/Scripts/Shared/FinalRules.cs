@@ -57,7 +57,7 @@ namespace FallRush.Shared
                 var shelf = grid.Shelf(tile);
                 if (shelf > p.Deepest)
                     p.Deepest = shelf;
-                if (rx.TileContactTick(tile) == 0)
+                if (rx.TileContactAt(tile, tick) == 0)
                     rx.Add(RxType.TileContact, tile, i, tick);
             }
         }
