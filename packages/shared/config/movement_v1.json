@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "fall-rush-movement",
+  "units": "length mm, speed mm/s, accel mm/s2, time ms, angle deg, ratio permille",
+  "tickRateHz": 30,
+  "capsule": { "radius": 310, "height": 1000, "skin": 10 },
+  "run": { "maxSpeed": 7000, "groundAccel": 60000, "groundDecel": 45000, "airControlPermille": 350 },
+  "gravity": { "accel": 24000, "fallMultiplierPermille": 1350, "maxFallSpeed": 30000 },
+  "jump": { "apexHeight": 1600, "coyoteMs": 100, "bufferMs": 120 },
+  "dive": { "horizontalSpeed": 9000, "verticalSpeed": 3000, "cooldownMs": 1000, "landStunMs": 350, "jumpCancelWindowMs": 150 },
+  "ground": { "maxSlopeDeg": 45, "stepOffset": 250, "snapDistance": 250, "slideIterations": 3, "ledgeTolerance": 50 },
+  "push": { "maxSpeed": 2500 },
+  "respawn": { "delayMs": 1000, "killY": -20000 }
+}

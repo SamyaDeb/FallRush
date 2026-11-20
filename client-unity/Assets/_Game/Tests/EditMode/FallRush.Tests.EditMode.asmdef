@@ -3,6 +3,7 @@
     "rootNamespace": "FallRush.Tests",
     "references": [
         "FallRush.Shared",
+        "FallRush.Net",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

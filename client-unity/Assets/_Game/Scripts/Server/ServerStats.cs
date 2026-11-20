@@ -77,12 +77,57 @@ namespace FallRush.Server
             var clients = NetBootstrap.Instance != null ? NetBootstrap.Instance.ServerConnectedCount : 0;
 
             Debug.Log($"[gs] stats tickHz={tickHz:F1} frameDt p50={dt50:F2}ms p95={dt95:F2}ms work p50={w50:F3}ms p95={w95:F3}ms max={_maxWorkMs:F3}ms clients={clients} frames={_intervalMs.Count}");
+            LogSim(elapsed);
 
             _ticks = 0;
             _maxWorkMs = 0f;
             _intervalMs.Clear();
             _workMs.Clear();
             _windowStart = now;
+        }
+
+        // ---- M2 sim line: occupants, sim step time, snapshot/input traffic, input validation counters ----
+        private long _snaps, _snapBytes, _inMsgs, _inBytes;
+        private InputCounters _inputs;
+
+        private void LogSim(float elapsed)
+        {
+            var sim = ServerSim.Instance;
+            if (sim == null || sim.Core == null)
+                return;
+            var core = sim.Core;
+            var totals = default(InputCounters);
+            for (var i = 0; i < SimCore.MaxSlots; i++)
+            {
+                if (!core.Slots[i].Active || core.Slots[i].Bot)
+                    continue;
+                var c = core.Input(i).Counters;
+                totals.Messages += c.Messages;
+                totals.Accepted += c.Accepted;
+                totals.Redundant += c.Redundant;
+                totals.Late += c.Late;
+                totals.FarFuture += c.FarFuture;
+                totals.Flood += c.Flood;
+                totals.Burst += c.Burst;
+                totals.Malformed += c.Malformed;
+                totals.Repeated += c.Repeated;
+                totals.Neutral += c.Neutral;
+            }
+
+            sim.StepMs.Percentiles(0.5f, 0.95f, out var s50, out var s95);
+            var humans = core.HumanCount;
+            var perClientBps = humans > 0 ? (sim.SnapBytesSent - _snapBytes) / elapsed / humans : 0f;
+            Debug.Log($"[gs] sim tick={core.Tick} humans={humans} bots={core.BotCount} step p50={s50:F3}ms p95={s95:F3}ms " +
+                      $"snapHz={30 / sim.SnapshotEveryTicks} snaps={sim.SnapshotsSent - _snaps} snapPayload/client={perClientBps:F0}B/s " +
+                      $"inMsgs={sim.InputMessages - _inMsgs} inPayload={(sim.InputBytes - _inBytes) / elapsed:F0}B/s " +
+                      $"accepted={totals.Accepted - _inputs.Accepted} late={totals.Late - _inputs.Late} repeated={totals.Repeated - _inputs.Repeated} neutral={totals.Neutral - _inputs.Neutral} " +
+                      $"burst={totals.Burst - _inputs.Burst} violations(far/flood/malformed)={totals.FarFuture - _inputs.FarFuture}/{totals.Flood - _inputs.Flood}/{totals.Malformed - _inputs.Malformed} kicks={sim.Kicks} pushes={core.PushEvents}");
+            _snaps = sim.SnapshotsSent;
+            _snapBytes = sim.SnapBytesSent;
+            _inMsgs = sim.InputMessages;
+            _inBytes = sim.InputBytes;
+            _inputs = totals;
+            sim.StepMs.Clear();
         }
 
         private void RecordWork(float ms)

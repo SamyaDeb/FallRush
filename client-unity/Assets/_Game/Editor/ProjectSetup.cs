@@ -24,7 +24,7 @@ public static class ProjectSetup
     public const string LobbyScene = ScenesDir + "/Lobby.unity";
     public const string NetPrefab = Root + "/Prefabs/Net/NetworkManager.prefab";
     public const string ClientConfigAsset = Root + "/ScriptableObjects/Net/NetClientConfig.asset";
-    public const string BundleVersion = "0.1.0-m1";
+    public const string BundleVersion = "0.2.0-m2";
 
     private static readonly Color BootBg = new Color(0x7B / 255f, 0x2F / 255f, 0xF7 / 255f);   // Grape
     private static readonly Color MenuBg = new Color(0x3F / 255f, 0xA9 / 255f, 0xF5 / 255f);   // Sky
@@ -45,6 +45,7 @@ public static class ProjectSetup
             new EditorBuildSettingsScene(BootScene, true),
             new EditorBuildSettingsScene(MenuScene, true),
             new EditorBuildSettingsScene(LobbyScene, true),
+            new EditorBuildSettingsScene(SandboxBuilder.ScenePath, true),
         };
 
         AssetDatabase.SaveAssets();

@@ -24,8 +24,8 @@ public static class Build
     public const string MacDevServerApp = "FallRushDevServer.app";
 
     /// <summary>Fixed scene lists. The server never loads client screens.</summary>
-    public static readonly string[] ClientScenes = { ProjectSetup.BootScene, ProjectSetup.MenuScene, ProjectSetup.LobbyScene };
-    public static readonly string[] ServerScenes = { ProjectSetup.BootScene };
+    public static readonly string[] ClientScenes = { ProjectSetup.BootScene, ProjectSetup.MenuScene, ProjectSetup.LobbyScene, SandboxBuilder.ScenePath };
+    public static readonly string[] ServerScenes = { ProjectSetup.BootScene, SandboxBuilder.ScenePath };
 
     [MenuItem("Fall Rush/Build/WebGL (development)")]
     public static void WebGLDevMenu() => BuildWebGL(release: false, exitWhenDone: false);

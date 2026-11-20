@@ -9,6 +9,7 @@
   },
   "scripts": {
     "hash": "pnpm --filter @fall-rush/shared hash",
+    "gen:movement": "pnpm --filter @fall-rush/shared gen:movement",
     "m0:build": "cd programs && anchor build -- --features localnet",
     "m0:test:local": "bash scripts/m0-test-local.sh",
     "m0:devnet:deploy": "bash scripts/m0-devnet-deploy.sh",

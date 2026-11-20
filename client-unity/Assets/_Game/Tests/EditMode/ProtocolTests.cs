@@ -14,7 +14,7 @@ namespace FallRush.Tests
             var bytes = Protocol.EncodeHello(hello);
 
             Assert.That(bytes.Length, Is.EqualTo(Protocol.HelloMinBytes + 8));
-            Assert.That(bytes[0], Is.EqualTo(1)); // u16 little-endian
+            Assert.That(bytes[0], Is.EqualTo(2)); // u16 little-endian (protocol v2, M2)
             Assert.That(bytes[1], Is.EqualTo(0));
 
             Assert.That(Protocol.TryDecodeHello(bytes, out var decoded, out var error), Is.True, error);
@@ -111,9 +111,11 @@ namespace FallRush.Tests
         [Test]
         public void MessageNames_AreStable()
         {
-            Assert.That(Protocol.Version, Is.EqualTo(1));
+            Assert.That(Protocol.Version, Is.EqualTo(2));
             Assert.That(Protocol.Msg.Ping, Is.EqualTo("ping"));
             Assert.That(Protocol.Msg.Pong, Is.EqualTo("pong"));
+            Assert.That(Protocol.Msg.Input, Is.EqualTo("in"));
+            Assert.That(Protocol.Msg.Snap, Is.EqualTo("snap"));
             Assert.That(Encoding.UTF8.GetByteCount(Protocol.Msg.Ping), Is.LessThan(16));
         }
     }

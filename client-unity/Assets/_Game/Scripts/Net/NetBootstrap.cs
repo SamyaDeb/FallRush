@@ -28,6 +28,8 @@ namespace FallRush.Net
     {
         public const string MenuScene = "Menu";
         public const string LobbyScene = "Lobby";
+        public const string SandboxScene = "Map_Sandbox";
+        private const string ServerFpsArg = "-fallrushServerFps"; // M2 measurement: server frame cap (default = tick rate)
         private const string ServerArg = "-fallrushServer";
         private const string ListenArg = "-fallrushListen"; // dev only: e.g. 127.0.0.1 for the local Mac dev server
         private const string ProtoOverrideQueryKey = "proto";
@@ -49,6 +51,11 @@ namespace FallRush.Net
         public string LastDisconnectReason { get; private set; }
         public ushort ClientProtocolVersion { get; private set; } = Protocol.Version;
         public event Action StateChanged;
+
+        /// <summary>Set by the headless probe (<c>-fallrushProbe url</c>); wins over the query string and config.</summary>
+        public string OverrideServerUrl { get; set; }
+
+        public bool IsProbe { get; private set; }
 
         // ---- server-side ----
         private readonly HashSet<ulong> _serverClients = new HashSet<ulong>();
@@ -90,14 +97,56 @@ namespace FallRush.Net
             Manager.NetworkConfig.ConnectionApproval = true;
             Manager.NetworkConfig.EnableSceneManagement = false; // M1: client navigates Menu/Lobby locally.
             Manager.NetworkConfig.TickRate = 30;
+
+            // Movement queries only; nothing is ever simulated by PhysX (doc 04 §5).
+            Physics.simulationMode = SimulationMode.Script;
+
+            if (!IsServerRole)
+            {
+                gameObject.AddComponent<ClientSim>();
+                var probeUrl = SimProbe.TargetFromArgs();
+                if (!string.IsNullOrEmpty(probeUrl))
+                {
+                    IsProbe = true;
+                    OverrideServerUrl = probeUrl;
+                }
+            }
+
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (scene.name != SandboxScene)
+                return;
+            Physics.SyncTransforms();
+            if (IsServerRole && Manager.IsServer)
+            {
+                var map = MapInfo.Current;
+                if (map == null)
+                {
+                    Debug.LogError("[gs] Map_Sandbox has no MapInfo");
+                    return;
+                }
+
+                ServerSim.Install(Manager, map);
+            }
         }
 
         private void Start()
         {
             if (IsServerRole)
                 StartDedicatedServer();
+            else if (IsProbe)
+                ResolveTargetAndStartProbe();
             else
                 StartCoroutine(LoadMenuNextFrame());
+        }
+
+        private void ResolveTargetAndStartProbe()
+        {
+            ResolveTarget();
+            gameObject.AddComponent<SimProbe>();
         }
 
         private static IEnumerator LoadMenuNextFrame()
@@ -110,6 +159,7 @@ namespace FallRush.Net
         {
             if (Instance == this)
                 Instance = null;
+            SceneManager.sceneLoaded -= OnSceneLoaded;
             if (Manager == null)
                 return;
             Manager.OnClientConnectedCallback -= HandleClientConnected;
@@ -125,7 +175,8 @@ namespace FallRush.Net
         private void StartDedicatedServer()
         {
             QualitySettings.vSyncCount = 0;
-            Application.targetFrameRate = (int)Manager.NetworkConfig.TickRate;
+            var fps = GetArgValue(ServerFpsArg);
+            Application.targetFrameRate = int.TryParse(fps, out var f) && f >= 30 && f <= 240 ? f : (int)Manager.NetworkConfig.TickRate;
 
             ListenPort = NetTargets.ResolvePort(Environment.GetCommandLineArgs(), Environment.GetEnvironmentVariable, out var portSource, out var warning);
             if (warning != null)
@@ -148,6 +199,7 @@ namespace FallRush.Net
 
             if (Manager.StartServer())
             {
+                SceneManager.LoadScene(SandboxScene);
                 Debug.Log($"[gs] listening id={id} ws://{listen}:{ListenPort}{Transport.ConnectionData.WebSocketPath ?? "/"} (port from {portSource}) protocol={Protocol.Version} build={Application.version} tickRate={Manager.NetworkConfig.TickRate} targetFps={Application.targetFrameRate}");
             }
             else
@@ -229,6 +281,8 @@ namespace FallRush.Net
         public void ResolveTarget()
         {
             var configured = clientConfig != null ? clientConfig.defaultServerUrl : null;
+            if (!string.IsNullOrEmpty(OverrideServerUrl))
+                configured = OverrideServerUrl;
             Target = NetTargets.ResolveServerTarget(Application.absoluteURL, configured, out var source, out var warning);
             TargetSource = source;
             if (warning != null)

@@ -15,18 +15,22 @@ namespace FallRush.Client
         private Text _details;
         private Text _rtt;
         private Button _reconnect;
+        private Button _enter;
+        private bool _autoplay;
         private float _nextRefresh;
 
         private void Start()
         {
             var canvas = UiKit.CreateCanvas("LobbyCanvas");
-            var panel = UiKit.Panel(canvas, new Vector2(760, 600), UiKit.CloudWhite);
+            var panel = UiKit.Panel(canvas, new Vector2(760, 680), UiKit.CloudWhite);
 
             UiKit.Label(panel, "LOBBY", 56, UiKit.Grape, FontStyle.Bold, 72);
             _state = UiKit.Label(panel, string.Empty, 34, UiKit.Ink, FontStyle.Bold, 48);
             _details = UiKit.Label(panel, string.Empty, 22, UiKit.Ink, FontStyle.Normal, 96);
             _rtt = UiKit.Label(panel, string.Empty, 30, UiKit.Magenta, FontStyle.Bold, 44);
+            _enter = UiKit.Button(panel, "Enter Sandbox (M2)", UiKit.Mint, OnEnter);
             _reconnect = UiKit.Button(panel, "Reconnect", UiKit.SunYellow, OnReconnect);
+            _autoplay = NetTargets.GetQueryParam(Application.absoluteURL, "autoplay") == "1";
             UiKit.Button(panel, "Back to Menu", UiKit.SkyLight, OnBack);
 
             if (NetBootstrap.Instance != null)
@@ -100,9 +104,17 @@ namespace FallRush.Client
                 _rtt.text = boot.State == ClientState.Connected ? "RTT: measuring…" : string.Empty;
 
             _reconnect.gameObject.SetActive(boot.State == ClientState.Disconnected);
+            _enter.gameObject.SetActive(boot.State == ClientState.Connected);
+            if (_autoplay && boot.State == ClientState.Connected)
+            {
+                _autoplay = false;
+                OnEnter();
+            }
         }
 
         private void OnReconnect() => NetBootstrap.Instance?.Reconnect();
+
+        private static void OnEnter() => SceneManager.LoadScene(NetBootstrap.SandboxScene);
 
         private void OnBack()
         {

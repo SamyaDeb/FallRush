@@ -40,6 +40,8 @@ export function canonicalHash(file: string): Buffer {
 
 export const RULESET_V1_FILE = "ruleset_v1.json";
 export const MAP_POOL_V1_FILE = "map_pool_v1.json";
+/** Movement constants (M2). Separate from the ruleset until the M6 ruleset v2 merge; not on-chain. */
+export const MOVEMENT_V1_FILE = "movement_v1.json";
 export const RULESET_V1_VERSION = 1;
 export const MAP_POOL_V1_VERSION = 1;
 
@@ -48,4 +50,7 @@ export function rulesetV1Hash(): Buffer {
 }
 export function mapPoolV1Hash(): Buffer {
   return canonicalHash(MAP_POOL_V1_FILE);
+}
+export function movementV1Hash(): Buffer {
+  return canonicalHash(MOVEMENT_V1_FILE);
 }

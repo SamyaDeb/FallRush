@@ -10,7 +10,7 @@ namespace FallRush.Shared
     public static class Protocol
     {
         /// <summary>Bump on any incompatible change to messages or approval payload.</summary>
-        public const ushort Version = 1;
+        public const ushort Version = 2; // v2 (M2): in/snap movement messages
 
         /// <summary>Hard cap on players per game server (doc 01: 12-player matches).</summary>
         public const int MaxPlayers = 12;
@@ -32,6 +32,12 @@ namespace FallRush.Shared
 
             /// <summary>S→C: echoed <c>double clientTimeSeconds</c> + <c>u8 connectedPlayers</c>.</summary>
             public const string Pong = "pong";
+
+            /// <summary>C→S, 30 Hz: the last 1–3 <see cref="InputCmd"/>s (<see cref="NetMessages"/>). Delivery: Unreliable.</summary>
+            public const string Input = "in";
+
+            /// <summary>S→C, 15 Hz (30 Hz option): <see cref="SnapHeader"/> + N × <see cref="PlayerState"/>. Delivery: UnreliableSequenced.</summary>
+            public const string Snap = "snap";
         }
 
         public struct Hello
