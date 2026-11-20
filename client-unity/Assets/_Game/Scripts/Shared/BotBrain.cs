@@ -186,12 +186,22 @@ namespace FallRush.Shared
 
         // ------------------------------------------------------------------ noise (tiers)
 
+        /// <summary>G1: the hop is moon-high (MoonBounce, apex 1.5 m): precise jumps are approached at 70 % stick.</summary>
+        private bool MoonHop => _cfg != null && _cfg.JumpApex > 1.3f;
+
         private InputCmd Noise(uint tick, in MotorState s, InputCmd plan)
         {
             if (Tier == BotTier.Reference)
             {
                 plan.Seq = ++_seq;
                 plan.Tick = tick;
+                if (MoonHop && ((_wp != null && _wp.Precise) || !s.Has(MotorState.Grounded)))
+                {
+                    // G1: MoonBounce hops reach ~4.3 m: ease off so the small S1 blocks are not overshot.
+                    plan.MoveX = (sbyte)(plan.MoveX * 7 / 10);
+                    plan.MoveY = (sbyte)(plan.MoveY * 7 / 10);
+                }
+
                 return plan;
             }
 
@@ -228,7 +238,7 @@ namespace FallRush.Shared
                 double c = Math.Cos(wob), sn = Math.Sin(wob);
                 var rx = mx * c - my * sn;
                 var ry = mx * sn + my * c;
-                var k = precise ? (_cfg != null && _cfg.JumpApex > 1.3f ? 0.7 : 1.0) : S.SpeedPermille / 1000.0; // G1: MoonBounce hops reach ~4.3 m: ease off so the small S1 blocks are not overshot // full speed for gap jumps (the jump points assume it)
+                var k = precise ? (MoonHop ? 0.7 : 1.0) : S.SpeedPermille / 1000.0; // full speed for gap jumps (G1: 70 % under MoonBounce, see MoonHop)
                 var l = Math.Sqrt(rx * rx + ry * ry);
                 if (l > 127)
                     k *= 127 / l;

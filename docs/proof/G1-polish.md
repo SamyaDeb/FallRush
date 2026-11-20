@@ -84,3 +84,28 @@ Our own procedural set on Bolt (`Client/RushlingVisuals.cs`, client only, alloca
 | 24 | M4 §I | Leaderboard place columns misaligned (proportional font) | P2 | **Not fixed**: the only built-in font is proportional; G3 restyles the screens (UI kit) |
 | 25 | found | Map content hash covers hazards, not static geometry (an S1 change alone kept the BPD hash) | P2 | **Explained**: old builds are still refused (protocol v5); add static colliders to the hash in M5/M6 if mixed builds become possible |
 | 26 | found | ReducedMotion / Sensitivity read PlayerPrefs every frame per Rushling | P2 | **Fixed**: settings cached |
+
+## G. Decisions made beyond the prompt and deviations (doc 15 G1-1…11)
+
+- **Final movement values = the prompt's start values** (G1-1). Every map passes QA with them and they hit the feel targets in §A; further tuning is the user's call after a playtest (the practice mode exists for that).
+- **New states reuse `LandTicks`** + one flag bit (G1-2): no new snapshot fields; protocol bumped to **v5** anyway (new flag meaning, `ctl` Emote, `emo`), so an M4 client is refused with the readable mismatch message.
+- **Turn rate visual only** (G1-3); motor facing stays instant so a dive goes exactly where you steer. The motor's weight comes from the 28 m/s² accel.
+- **S1 risky-lane gaps 2.0–2.1 m (≈ 65–70 %)** instead of the prompt's 70–85 % (G1-6): the first cut at 2.4–2.6 m (≈ 75–80 %) with 0.5–0.6 m rises failed too often (your mid-G1 note; reference bots fell 27–71 times per race). Height variation is kept (tops 0.3–1.4 m).
+- **Goo Tower** kept goo 0.3 m/s and its three laps (G1-5); bots land at 85–89 s, a few seconds under the 90 s floor — human climbs are slower, so no extra lap.
+- **Final** grid unchanged (G1-4): 1.0 s wobble + top-shelf respawn reach ≈ 73 s.
+- **Dev labels `EditorOnly`** (G1-7) rather than deleted, so map builders still see them in the Editor.
+- **WebGL static batching on** (G1-8); Standalone already had it.
+- **Leaderboard column alignment** not fixed (bug 24): needs a monospace font or per-column Text; G3 rebuilds those screens.
+- **Bots** (§3.4): the tier table is unchanged (reaction delay, wobble, late jumps, stick 82–100 %); new: easing off precise jumps under MoonBounce (G1-10). The v2 states need no special bot code (stumble keeps input; bots already wait for `LandTicks == 0`). Spread: normal-bot races 83–117 s median per cell, reference 61–64 s (§D); the probe (reference tier, playing on its *predicted* state through the real netcode) won a full match in run "b".
+- **No new packages.** UGUI `DefaultControls` (already in the project) builds the settings sliders / toggles / name field.
+
+## I. Hidden tab and tab close / reopen (R12 + reconnect token): steps for you
+
+Automation cannot hide a real Chrome tab or close-and-reopen it in the same session (Playwright's headless tabs keep running timers). The code path is the same one exercised by the M4 server-restart test (sessionStorage token → `resume slot`). **Please run once:**
+
+1. `pnpm m1:build:macserver && bash scripts/m1-macserver.sh start` (or reuse a running server), and serve the WebGL build (`pnpm m1:up:mac`).
+2. Open `http://localhost:8080/?autoplay=1&name=You` in Chrome, press **Start now (host)** in the lobby.
+3. **Hidden tab:** during round 1, switch to another tab for **30 s**, come back. Expected: the game resumes (a short catch-up, no "Disconnected"); the server log shows no disconnect for your slot (`grep "disconnect" .m1-logs/macserver.log`).
+4. **Close + reopen within 20 s:** during round 2 (if you are still in), close the tab, then within 20 s press **Ctrl/Cmd + Shift + T** (reopens the same tab with its sessionStorage). Expected: "reconnecting with the token" → you are back in the same slot, still alive (`[gs] resume slot N → … (grace ok)` in the server log).
+5. **After 20 s:** close the tab and wait 30 s before reopening. Expected: you spectate and are `ELIMINATED (disconnected)` at the end of that round.
+6. Note anything odd in `docs/playtest/G1-notes.md`.
