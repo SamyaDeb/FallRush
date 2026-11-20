@@ -126,6 +126,36 @@ NGO is used for:
 - **Finished racers** are out of the simulation and collisions. The client stops predicting itself and spectates.
 - **Push prediction (R14, M3 measurement):** the client also applies the server's soft separation to itself, against remotes extrapolated from the newest snapshot (≤ 12 ticks). It is on by default (`ClientSim.DefaultPredictPushes`; `?pushpred=0` turns it off). Localhost crowd race: corrections + pushes 2.73 → 0.73 per 5 s (`docs/proof/M3-race.md`).
 
+### 4.1.2 Protocol v4 (M4, as built)
+
+`Protocol.Version = 4`; a v3 client gets the readable "Protocol mismatch … Reload the page" reason. Unchanged: `in` (40 B), `snap` (**294 B for 12**: players out of the round are left out of it; race-byte bit 7 is unused; the low nibble carries checkpoints / stars / the deepest shelf by mode), `round` (59 B), `rstate` (16 + 5 B per entry: race finishers, survival escapes, skill scores, final tiles), `evt` (14 B; new types Out / Scored / Dropped; one sequence per server process).
+
+| Name | Direction | Delivery | Payload | Size |
+|---|---|---|---|---|
+| `hello` v4 | C→S approval | — | v3 fields + `u8 nameLen, name (≤ 16 B UTF-8), 16 B reconnect token` (optional; strict) | ≤ 69 B |
+| `match` | S→C, per recipient, on join / reconnect / every phase or roster change | ReliableSequenced | phase, phase start / end ticks, round, load serial, host, own slot, champion, P, match id, seed, transcript hash, event count, deal (maps / variants / modifiers / targets), **your reconnect token**, match serial; per slot: flags (bot, alive, connected, grace expired, host, ready, rostered), tier, reason, eliminated round, places ×4, late mask, name | 140 + (10 + name) per slot; measured 310 B (lobby, 1 player), ≤ 452 B max |
+| `mevt` | S→C | ReliableSequenced | one transcript event: seq u32, tag, round, slot, tick u32, arg (≤ 32 B) | 12 + arg: DEAL 44 B, QUALIFIED / ELIMINATED / COMPLETE_ROUND / ABORT 13 B, START_ROUND / COMPLETE_MATCH 12 B |
+| `rx` | S→C | ReliableSequenced | `u8 kind (0 delta, 1 full), u8 epoch (load serial), u32 first seq, u16 n` + n × 14 B (type, id u16, slot, tick u32, x/y/z i16 cm) | 8 + 14 n; chunks of ≤ 80 entries (1,128 B) so every message stays under NGO's 1,296 B non-fragmented limit (a full Crumble Shelf state = 243 contacts = 4 chunks) |
+| `ready` | C→S | ReliableSequenced | load serial + map-hash prefix | 5 B |
+| `ctl` | C→S | ReliableSequenced | 1 host Start, 2 Back to lobby, 3 rx resend (+ u32) | 5 B |
+
+**Join / reconnect:** the server sends `match` (with the token), every `mevt` of the match so far, `round`, `rstate`, `rx` full; a client never needs an earlier message to show the right screen.
+
+### 4.1.3 Scene flow (M4-3, as built)
+
+No NGO scene management. The director asks for a map (`ServerMatch.LoadMap`): the server loads it in single mode (the sim does `SkipTick` for those frames so the tick clock keeps running), rebuilds the world for the round params and sends `round` (map id + content hash; hazards are far in the past until the round begins). Clients with `ClientSim.FollowScenes` (menu Play, probes) load the named scene, check the hash, and send `ready` (load serial + hash prefix). The round begins when every connected alive human is ready or after 10 s. Late loaders spectate that round.
+
+### 4.1.4 Reactive elements (M4 §3.4, as built: `Shared/Reactive.cs`)
+
+- **State:** an append-only log of `RxEntry (seq, type, id, slot, tick, pos)` per round, changed only by the server's rules: `TileContact` (Crumble Shelf: the server's own ground contact on a tile), `BlockTrigger` (Goo Tower falling blocks), `StarCollect`, `StarDrop`. The state at any tick is a pure function of the log: a tile is solid while `tick < contact + 18`; a block is gone in `[trigger + 18, trigger + 138)`; a star is taken from its pickup tick.
+- **Replication:** deltas after every server step, full state on join / reconnect / a new round; a delta whose first seq is not the next one → the client asks for the full state (`ctl` 3). Deltas and the full state are the same entries (EditMode equivalence test).
+- **Prediction:** `PhysxMotorWorld.BeginTick(t)` (and the analytic test world) switches tile / block colliders from the same lookup on both sides; client replays across a drop are exact once the contact is known. A drop is 18 ticks (600 ms) after the contact, longer than RTT + lead, so the client normally knows it first. `ClientSim.RxLate` counts changes that arrived after their effective tick in the predicted timeline.
+- **Stars** move with their anchors (pure); pickups are server-validated (no client claims exist: inputs only).
+
+### 4.1.5 Reconnect (M4-6, as built)
+
+The server issues a 16-byte token at join (`match`); WebGL keeps it in `sessionStorage` (`Plugins/WebGL/FallRushSession.jslib`), desktop in memory (`-fallrushTokenFile` for the probe). On an unexpected drop the client shows "Reconnecting… N s" and retries every 2 s for 20 s (`NetBootstrap.AutoReconnect`); `hello` carries the token; the server re-attaches the same slot (`SimCore.Attach`, fresh input buffer) and sends the full state. The Rushling stayed in the world on neutral input meanwhile. TODO(M5): the Relay's signed guest token replaces it.
+
 ### 4.2 Server tick (30 Hz, `ServerSim` → `SimCore`)
 
 `Net/ServerSim.cs` is the NGO adapter. `Shared/SimCore.cs` is the engine-free simulation, so EditMode tests can drive it.
@@ -316,6 +346,9 @@ Snapshot interpolation at `renderTime = serverTimeEstimate − interpDelay` (`Ne
 
 ## 7. Screens & HUD (doc 17 §5)
 
+**As built (M4, greybox, `Client/MatchHud.cs` + `ReactiveViews.cs` + `ChampionPodium.cs`):** see doc 01 §12 "As built" for the flow. The match HUD is the default view; F3 still toggles the netcode HUD (`?hud=1` shows it at start). Spectating: eliminated / out / finished players and viewers follow alive players, Tab cycles. Crumble tiles are drawn with `Graphics.RenderMeshInstanced` (7 batches: 3 shelves × 2 colours + wobbling). Screenshots: `docs/proof/m4/`.
+
+
 - **Screen flow:** Boot → Menu → Lobby → Deal → RoundIntro → HUD → RoundResult → Intermission (+ Fan Picks prompt) → … → Champion → Receipt → Rewards.
 - **Chain chip:** driven by `evt.chainStatus` from the server, which the Relay forwards. The client never reads the chain directly; the web page does.
 
@@ -348,8 +381,11 @@ Snapshot interpolation at `renderTime = serverTimeEstimate − interpDelay` (`Ne
 - Recovery: re-acquires the route after a knockback, respawn or 6 s without progress.
 - Reference speed: no noise. The probe and WebGL `?bot=race` drive the same bot from the predicted state.
 
+**M4 BotBrain (`Shared/BotBrain.cs`, as built):** tiers per bot from the match seed (30 % easy, 50 % normal, 20 % good; reference = no noise, QA only): steering reaction delay (8 / 5 / 2 ticks), a slow steering wobble (22° / 12° / 5°), late jump presses (≤ 3 / 2 / 1 ticks), stick 82 / 90 / 97 %, hesitation after waits at doors, bars and lifts (35 / 18 / 6 %). Noise is off during precise moves (gap jumps, landings, platforms, airborne). Race: the M3 routes; Survival: the spiral's routes by the height of the last ground contact; Skill: the best reachable star (value / distance, others closer count against it; good bots go for island stars via the spring pads), bumper detours, stay off the rim; Final: frugal tile stepping (stay on a tile until ~0.3 s before it drops, then a fresh neighbouring tile away from others), drop to the next shelf when the shelf is nearly gone, jump / dive the spinner bars. Bots see only what a player sees (own state, pure poses, replicated reactive state, the others from snapshots); the client probe drives the same brain (`MatchProbeBot`, `?bot=match`).
+
 ## 10. Builds
 
+- **M4:** map builders `LobbyBuilder`, `GooTowerBuilder`, `StarScrambleBuilder`, `CrumbleShelfBuilder` (`bash scripts/m1-unity.sh <label> -executeMethod <Builder>.Run`); every map scene is in both builds (`Build.MapScenes`); scenes not built yet are skipped with a warning.
 - **Server:**
 
   ```
@@ -421,6 +457,8 @@ Snapshot interpolation at `renderTime = serverTimeEstimate − interpDelay` (`Ne
 - R12 (`-fallrushProbeHide 20:60`).
 
 **M3 (207 green at the end of M3):** `KitTests`, `KitPredictionTests` (twin bit-identical through every hazard type × modifiers), `MapSceneTests` (committed scene hashes + allowlist), `RaceRulesTests` (qualify, timer ranking, checkpoint skip/teleport, respawn after 30 ticks, countdown lock, start gate), `BlockPartyDashTests` (a full 12-bot race on the real scene, PhysX, run in EditMode instead of PlayMode, reason in the M3 proof). Cross-platform `hazard_vectors_v1`: the EditMode test, plus `-fallrushSelfTest` (Mac, Linux) and `?selftest=1` (WebGL). All four agree on digest `fc06826c…`.
+
+**M4 (EditMode, see docs/proof/M4-match.md §B for the count):** `ParityTests` (deal 100 + rnd 40, round targets P 4…20, roster hash, three transcripts against TS vectors), `MatchDirectorTests` (full walk + timings, event order and transcript = TS reference for scripted matches, minimum-advance 0 / 1 / fewer than N, roster lock + bot fill + no late joiners, lobby / soak, determinism, reconnect within / beyond the grace, abort, late loader), `M4RulesTests` (goo pose + kill tick on server and prediction, survival / skill / final ranking and tiebreaks, star timeline + turn-table anchors, pickup validation + exactly one drop + re-grab, tile drop at +18, spinners from 60 s, last standing, 120 s timer, reactive delta / full / gap, prediction twins bit-identical through tile drops + goo and star pickups + bumper drops, hazard vectors v2), `MatchMessageTests` (v4 codecs, sizes, fuzz). Hazard vectors v2: 1,400 cases (v1's 1,000 unchanged + 400 M4), digest `d4b2a73a…`.
 
 **PlayMode (later):**
 - checkpoint order

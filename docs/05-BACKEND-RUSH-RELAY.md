@@ -66,6 +66,30 @@ api/          public REST /v1 (doc 10)
 - 20 s grace; reconnect with the same guest token takes the same slot.
 - After the grace period: eliminated with `reason=DISCONNECT`.
 
+### 4.1 As built (M4, 2026-11-19): `Shared/MatchDirector.cs` + `Net/ServerMatch.cs`
+
+One match per server process (M4-1). Ticks at 30 Hz; the director runs before every `SimCore.Step`.
+
+| Phase | Duration (as built) | What happens |
+|---|---|---|
+| `LOBBY_OPEN` | until ≥ 1 human is connected (practice, M4-2) | `Map_Lobby` loaded; humans run around; bots leave; dropped humans' slots are freed at once |
+| `COUNTDOWN` | 20 s, or the host's **Start** (the host = the lowest-slot connected human) | back to `LOBBY_OPEN` if every human leaves |
+| `ROSTER_LOCKED` | 1 tick | bots fill every free slot up to 12 (slots 0…P−1, the program's layout); `P`, `RoundTargets(P)`, `match_id` (= first 16 B of `sha256("fallrush-match-id" ‖ seed)`), `roster_hash` (M4 proposal, doc 06 §9), transcript init, `Deal(seed)` |
+| `DEALING` | 3 s | Deal screen spinning (M6: the VRF request is pending here) |
+| `DEALT` | 3 s | **DEAL** event (seq 0, arg = the 32-byte seed); Deal screen reveal |
+| `ROUND_INTRO(r)` | load ≤ 10 s, then 2 s intro + 3 s countdown | the server loads the round map (single scene; the sim skips those frames), sends `round`; clients load it and answer `ready`; the round begins when every connected alive human is ready or after 10 s (late loaders spectate the round; they advance if the round can still qualify ≥ 1 without them, else they rank last); **START_ROUND** at the begin |
+| `ROUND_ACTIVE(r)` | until the round's rules end it | RUSH = hazard time 0 |
+| `ROUND_RESULT(r)` | 6 s | **QUALIFIED** in placement order, **ELIMINATED** (reason), **COMPLETE_ROUND** (qualified count) — all in one tick |
+| `INTERMISSION` | 8 s | leaderboard, next-round preview, Fan Picks hook (P1) |
+| `CHAMPION` | 8 s | **COMPLETE_MATCH** (slot = champion) — after round 4, or as soon as only one player is left (minimum-advance, M4-8) |
+| `FINALIZING` | 1 tick | no-op in M4 (TODO(M6): `finalize_match` = commit + undelegate, wait for Solana) |
+| `DONE` | until every connected human pressed "Back to lobby", ≤ 20 s | receipt |
+| `ABORTED` | 5 s, then `LOBBY_OPEN` | **ABORT** (reason 1 = no humans left after the grace; 2 = nobody left to advance) |
+
+- **Disconnects (M4-6):** in a match the Rushling stays in the world on neutral input. A reconnect whose `hello` carries the **reconnect token** (16 random bytes the server issued in the `match` message; WebGL keeps it in `sessionStorage`, desktop in memory or `-fallrushTokenFile`) within 20 s takes the same slot back and gets a full resync (`match` + the event log + `round` + `rstate` + `rx`). After 20 s the slot is eliminated with `DISCONNECT` at the end of the current round (a late reconnect still gets the slot back, to spectate). In the lobby a drop frees the slot at once. **The token is the M4 stand-in for M5's guest token.**
+- **No late joiners:** a connection during a match without a valid token watches as a viewer (snapshots + screens, no slot) and gets a slot in the next lobby.
+- **Event log:** every transcript event is appended to `match-logs/match-<id>.jsonl` (git-ignored; header line with the seed, roster, roster hash, deal, targets; one line per event with the transcript hash after it; an end line). `scripts/m4-verify-log.py` recomputes everything from it independently. **This file is M5's outbox input.**
+
 ## 5. Chain worker
 
 **Per match** it runs a single ordered consumer, so two workers never interleave on one match.

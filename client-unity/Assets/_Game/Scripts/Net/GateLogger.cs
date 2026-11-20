@@ -28,7 +28,25 @@ namespace FallRush.Net
         private int _remoteSlot = -1;
         private float _next;
 
-        private void Start() => _next = Time.realtimeSinceStartup + 10f;
+        private Unity.Profiling.ProfilerRecorder _drawCalls, _batches, _tris, _setPass;
+
+        private void Start()
+        {
+            _next = Time.realtimeSinceStartup + 10f;
+            // Render counters (Unity docs: available in release players too); 0 = not available on this platform.
+            _drawCalls = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Render, "Draw Calls Count");
+            _batches = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Render, "Batches Count");
+            _tris = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Render, "Triangles Count");
+            _setPass = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Render, "SetPass Calls Count");
+        }
+
+        private void OnDestroy()
+        {
+            _drawCalls.Dispose();
+            _batches.Dispose();
+            _tris.Dispose();
+            _setPass.Dispose();
+        }
 
         private void LateUpdate()
         {
@@ -95,6 +113,7 @@ namespace FallRush.Net
             _lastFrozen = r.FrozenFrames;
             _stutter.Clear();
             _frameMs.Percentiles(0.5f, 0.95f, out var f50, out var f95);
+            Debug.Log($"[{Tag}] render map={(cs.Round.HasValue ? MapPoolV1.KeyOf(cs.Round.Value.MapId) : "-")} drawCalls={(_drawCalls.Valid ? _drawCalls.LastValue : -1)} batches={(_batches.Valid ? _batches.LastValue : -1)} setPass={(_setPass.Valid ? _setPass.LastValue : -1)} tris={(_tris.Valid ? _tris.LastValue : -1)} visible={Rushlings()}");
             Debug.Log($"[{Tag}] frame p50={f50:F1}ms p95={f95:F1}ms fps={1000f / Mathf.Max(0.1f, f50):F0} ping p50={(PingService.Instance != null ? PingService.Instance.P50Ms : float.NaN):F0} p95={(PingService.Instance != null ? PingService.Instance.P95Ms : float.NaN):F0}ms lead={cs.Clock.LastReportedLead}/{cs.Clock.TargetLead} resyncs={cs.Clock.Resyncs}");
             _frameMs.Clear();
         }
@@ -103,7 +122,13 @@ namespace FallRush.Net
         /// Remote-player smoothness: for one remote player that is running on the ground, the difference between the
         /// rendered speed this frame and the interpolated server velocity. 0 = perfectly smooth; spikes = stutter.
         /// </summary>
-        private void SampleRemoteStutter(ClientSim cs)
+        private static int Rushlings()
+        {
+            var cs = ClientSim.Instance;
+            return cs != null && cs.HasSnapshots ? cs.Newest.Count : 0;
+        }
+
+                private void SampleRemoteStutter(ClientSim cs)
         {
             if (cs == null || !cs.HasSnapshots || Time.unscaledDeltaTime <= 0f)
                 return;

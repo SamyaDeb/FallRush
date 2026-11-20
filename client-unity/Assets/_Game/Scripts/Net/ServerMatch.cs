@@ -637,7 +637,11 @@ namespace FallRush.Net
         {
             var d = Director;
             var dur = (d.Tick - d.MatchStartTick) / 30.0;
-            var summary = $"match {d.MatchSerial} {(e.Tag == Transcript.CompleteMatch ? "COMPLETE" : "ABORT")} champion={(e.Tag == Transcript.CompleteMatch ? e.Slot.ToString() : "-")} rounds={d.Results.Count} duration={dur:F1}s events={d.Events.Count} transcript={Sha256.Hex(d.TranscriptHash)}";
+            _sim.StepMs.Percentiles(0.5f, 0.95f, out var s50, out var s95);
+            var rssMb = System.Diagnostics.Process.GetCurrentProcess().WorkingSet64 / 1048576.0;
+            var monoMb = UnityEngine.Profiling.Profiler.GetMonoUsedSizeLong() / 1048576.0;
+            var unityMb = UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong() / 1048576.0;
+            var summary = $"match {d.MatchSerial} {(e.Tag == Transcript.CompleteMatch ? "COMPLETE" : "ABORT")} champion={(e.Tag == Transcript.CompleteMatch ? e.Slot.ToString() : "-")} rounds={d.Results.Count} duration={dur:F1}s events={d.Events.Count} transcript={Sha256.Hex(d.TranscriptHash)} simP50={s50:F3}ms simP95={s95:F3}ms rss={rssMb:F0}MB mono={monoMb:F1}MB unity={unityMb:F0}MB";
             MatchSummaries.Add(summary);
             _log?.WriteLine("{\"type\":\"end\",\"result\":\"" + (e.Tag == Transcript.CompleteMatch ? "complete" : "abort") + "\",\"champion\":" + (e.Tag == Transcript.CompleteMatch ? e.Slot : 255) +
                             ",\"rounds\":" + d.Results.Count + ",\"events\":" + d.Events.Count + ",\"durationTicks\":" + (d.Tick - d.MatchStartTick) + ",\"transcript\":\"" + Sha256.Hex(d.TranscriptHash) + "\"}");

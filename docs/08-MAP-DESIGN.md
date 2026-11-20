@@ -88,6 +88,17 @@ Code: `client-unity/Assets/_Game/Scripts/Shared/Hazards/`. Hazard time `t = serv
 - **Allowlists** (`HazardAllowlist.cs`, checked on resolved defs incl. the modifier; out of range → round refused): spinner |T| 60–600, tip ≤ 12 m/s; platform ≤ 200 mm/tick; conveyor ≤ 5 m/s; spring vy 3–20 m/s, |vxz| ≤ 12; turn table rim ≤ 4 m/s; door cycle 60–900, open ≥ 15, telegraph 9–90, lift ≥ 1.3 m, closing ≤ 200 mm/tick; mallet amplitude 10–75°, |T| 60–600; knock ≤ 14 m/s, stun ≤ 24, immunity ≥ stun + 15.
 - **Variants:** each component holds def A and an optional def B, resolved from the same scene. **Modifiers:** `modifiers_v1.json`; TurboToys periods `round_half_up(P·1000/1200)` whole ticks, belts ×1.2, telegraphs unchanged.
 
+### 2.2 M4 kit types (as built, 2026-11-19; `Shared/Hazards/M4Defs.cs`, `Shared/Reactive.cs`)
+
+| Type | Def fields | Pose / state | Effect | Telegraph (client) |
+|---|---|---|---|---|
+| `GOO_PLANE` | y0 mm, rise mm/s, delay ticks, max y, visual extent, warn ticks | pure `y = y0 + ⌊v·max(0, t − delay)/30⌋` | feet below the surface → out (`PlayerStep.Result.Gooed`, frozen like a fall; predicted) | purple glitter plane with specks; "Goo rising!" subtitle from 3 s before it starts |
+| `CRUMBLE_TILE` (one grid component) | origin, tile 1.6 m, gap 4 cm, 9 × 9, shelf tops, thickness, wobble 18 ticks; spinner start per variant | **reactive**: contact tick per tile (server ground contact) | collider off at contact + 18 on both sides | the tile shakes and turns yellow for 0.6 s, then falls away; "Tiles crumbling!" |
+| Falling block | box mm, delay 18, gone 120 | **reactive**: trigger ticks | collider off for `[trigger + 18, + 138)` | shake, drop, come back |
+| `STAR_PICKUP` (one field component) | anchors (static / platform / turn table), golden anchors, wave every / size / life, golden every / life / value, pickup reach, drop pop / life / distance | **pure** timeline (seeded anchors per wave), **reactive** collected / dropped | server-validated pickup (server capsule + 0.4 m); a knockback drops one | spinning stars, gold = bigger; dropped stars hop |
+
+Allowlists unchanged (the new kit has no tunable speed beyond the goo, checked by the QA). The map content hash covers the new defs in an `m4` block that is only written when a map has them, so the M3 maps' hashes did not change (Block Party Dash `ffc099ad…`, Sandbox `2ae7d388…`). New pure functions are in `hazard_vectors_v2.json` (v1 unchanged).
+
 ## 3. Map 1A — **Block Party Dash** (Race)
 
 **Layout:** a sunny toy-block sky course.
@@ -154,6 +165,10 @@ Course line ≈ 255 m (checkpoints at 47.0 / 115.3 / 132.3 / 175.8 / 226.3 m, fi
 - **Constraint:** the goo must never overtake the *slowest valid route* at the reference speed. Verify with automated bot runs (§9).
 - **Variants:** lift phase set; one optional shortcut opens (A) or closes (B).
 
+### 5.1 As built (M4, `Editor/GooTowerBuilder.cs`)
+
+A square spiral ledge (6 m wide, two 3 m lanes) round a 24 × 24 m capsule-machine core: 3 laps × 4 sides, each side a 24 m climb of +3.33 m plus a 6 × 6 m corner landing (path ≈ 360 m, 40 m tall). Lap 1, sides 0–1 **stair blocks** (inner: 16 small steps; outer: three 8 m blocks, +1.11 m jumps; side 1's are **falling blocks**); sides 2–3 **moving lifts** (a 3.3 m wall mid-side: outer lane a 4.4 × 2.9 m lift, period A 150 / B 120 ticks; inner lane a 29° belt ramp at 1.5 m/s or steps). Lap 2 **conveyor ramps**: inner lane belts against you (3 m/s pitched belts on the Z sides, 2.5 m/s belted treads with 0.83 m risers on the X sides — a CONVEYOR only pitches about X), outer lane a faster static climb with a 1.4–1.6 m gap (a miss drops you a lap); railed. Lap 3 **bumpers on narrow ledges**: a 4.5 m stair ledge with three bumpers and an open edge behind a 0.7 m lip; side 10's 1.5 m safe lane is the **shortcut behind a gate** (variant A open from RUSH, B open 15 of every 639 ticks). **Summit pad** (5.6 m, mint + checker) on the last corner at 40 m. Ground ring at y 0 catches falls from lap 1; spawn deck west of the start corner. Goo: y0 −1.5 m, delay 6 s, **0.30 m/s** (tuned in QA), summit reached at ≈ 144 s; timer 150 s. Map hash and QA: §9.2.
+
 ## 6. Map 3 — **Star Scramble** (Skill)
 
 - **Layout:** a circular arena (Ø 36 m) with:
@@ -166,6 +181,10 @@ Course line ≈ 255 m (checkpoints at 47.0 / 115.3 / 132.3 / 175.8 / 226.3 m, fi
 - **Duration:** 60 s.
 - **Variants:** island path shapes A/B.
 
+### 6.1 As built (M4, `Editor/StarScrambleBuilder.cs`)
+
+Ø 36 m arena (floor top y 0), central turn table r 5 m (20 s per turn; B the other way), four 4 × 4 m islands at r 22 m (top 1.0 m, just beyond the rim; A slide ±3 m along the rim in 12 s, B ±1.5 m in / out in 10 s), two spring pads at r 15.5 m toward islands 1 and 3 (launch 6.5 m/s out, 10 m/s up), six bumpers (r 8 / 13 m). Stars: 24 floor anchors (rings r 7 / 12 / 16), 4 on the turn table, 4 on the islands (golden only); waves of 8 every 8 s (life 16 s), golden +3 every 15 s (life 10 s). Timer 60 s. Spawns: a ring r 10 m.
+
 ## 7. Map 4 — **Crumble Shelf** (Final)
 
 - **Layout:** three stacked shelves (y = 12, 6, 0) of toy-block tiles, 1.6 m hexagonal-free *square* tiles in a 9×9 grid per shelf, with rounded corners and alternating colors.
@@ -174,6 +193,14 @@ Course line ≈ 255 m (checkpoints at 47.0 / 115.3 / 132.3 / 175.8 / 226.3 m, fi
 - **Elimination:** falling below the lowest shelf (y < −6).
 - **Variant:** spinner timing.
 - **Originality note:** square block shelves with spinners and the claw-machine overhead are distinct from hex-tile designs.
+
+### 7.1 As built (M4, `Editor/CrumbleShelfBuilder.cs`)
+
+Shelves at tile tops y 12 / 6 / 0, 9 × 9 tiles of 1.6 m (243 box colliders, 1.56 m wide with 4 cm gaps, 0.4 m thick; visuals: one chamfered-corner mesh drawn instanced, pink / mint / yellow alternating with white per shelf). Two foam spinner bars hang from the claw over the top shelf (arm 6.6 m; low 0.35 m to jump: A 330 / B 270 ticks per turn; high 0.95 m to dive under: A −400 / B −300), raised until 60 s. Kill-Y −6 m. Timer 120 s. Open claw-machine frame (visual only). 12 spawns on top-shelf tiles.
+
+### 7.2 `Map_Lobby` (M4-11, `Editor/LobbyBuilder.cs`)
+
+A 28 × 28 m toy plaza with 1.2 m walls, a capsule-machine plinth, four bumpers, a spring pad onto a lookout block, 12 spawns on a ring; no eliminations (a fall respawns after 1 s). Map hash `77dcefe7…`.
 
 ## 8. Map authoring checklist (every map)
 

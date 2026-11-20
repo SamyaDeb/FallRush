@@ -189,6 +189,8 @@ namespace FallRush.Net
             if (_script == "flood" && cs != null && cs.Active)
                 Flood();
 
+            PhaseShots(cs, now);
+
             if (now >= _shotAt)
             {
                 var t = _shotTimes[_shotIndex];
@@ -238,7 +240,44 @@ namespace FallRush.Net
             }
         }
 
-        private static string GetArg(string name)
+        // ---- -fallrushShotDir dir: a screenshot of every match screen (proof), named by phase / round / map ----
+        private string _shotDir;
+        private string _lastShotKey;
+        private float _shotDue = float.MaxValue;
+        private string _shotName;
+        private readonly System.Collections.Generic.HashSet<string> _shotTaken = new System.Collections.Generic.HashSet<string>();
+
+        private void PhaseShots(ClientSim cs, float now)
+        {
+            _shotDir ??= GetArg("-fallrushShotDir") ?? string.Empty;
+            if (_shotDir.Length == 0 || cs == null || cs.Match == null)
+                return;
+            var m = cs.Match;
+            var map = cs.Round.HasValue ? MapPoolV1.KeyOf(cs.Round.Value.MapId) : "none";
+            var key = $"{(int)m.Phase:00}-{m.Phase}-r{m.Round}-{map}";
+            if (cs.Phase == RoundPhase.Rush && m.Phase == MatchPhase.RoundActive)
+                key = (cs.OwnOutOfSim ? "spectate-" : "play-") + map;
+            if (key != _lastShotKey)
+            {
+                _lastShotKey = key;
+                if (!_shotTaken.Contains(key))
+                {
+                    _shotName = key;
+                    _shotDue = now + (key.StartsWith("play-") ? 12f : key.StartsWith("spectate-") ? 4f : m.Phase == MatchPhase.Champion ? 3f : 2f);
+                }
+            }
+
+            if (now >= _shotDue)
+            {
+                _shotDue = float.MaxValue;
+                _shotTaken.Add(_shotName);
+                var path = System.IO.Path.Combine(_shotDir, _shotName + ".png");
+                ScreenCapture.CaptureScreenshot(path);
+                Debug.Log($"[probe] screenshot → {path}");
+            }
+        }
+
+                private static string GetArg(string name)
         {
             var args = Environment.GetCommandLineArgs();
             for (var i = 0; i < args.Length - 1; i++)

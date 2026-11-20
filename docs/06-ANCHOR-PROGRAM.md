@@ -196,3 +196,20 @@ M0 implements instructions 1, 3–10, 12–15 (no `update_config`/`set_paused`/`
 - **`complete_match`:** `RoundResolved` and exactly one alive slot (`InvalidChampion` otherwise).
 - **`finalize_match` M0 shortcut:** also allowed from `RoundResolved` (devnet M0 run finalizes after round 1). **Remove in M6.**
 - **Tests:** security tests not yet written for: paused config (no `set_paused` yet), picks/session keys, wrong PDA/match id, replayed callback with a real oracle. Covered: wrong signer (create, gameplay, abort, config), direct callback, dup/skipped seq, skipped round, eliminated slot, over target, alive slots, champion with >1 alive, abort after final, player_count out of range.
+
+## 10. M4 notes for M6 (game-server side, 2026-11-19)
+
+**Elimination reason codes (M4-9, proposed; `SlotResult.reason: u8` and the ELIMINATED arg):** 0 NOT_QUALIFIED · 1 GOO · 2 FELL_OUT · 3 LOWER_SCORE · 4 TIMEOUT_RANK · 5 DISCONNECT. One C# enum (`Shared/MatchTypes.cs` `ElimReason`) is used by the rules, the director, the event log, the receipt and the HUD. **ABORT reasons:** 1 NO_HUMANS (practice: every human gone beyond the grace), 2 NO_PLAYERS (nobody left to advance), 3 SERVER_STOP (reserved).
+
+**Exact event order the director emits** (`Shared/MatchDirector.cs`; M6 forwards the jsonl lines to the ER unchanged, tag → instruction):
+1. seq 0 `DEAL` (round 0, slot 255, arg = the 32-byte randomness; M4: the practice seed, M6: the VRF output) at the end of the Deal screen.
+2. Per round r = 1…: `START_ROUND` (r, 255) when the round begins (after the load / ready wait) → at the round's end, in one tick: `QUALIFIED` for every qualifier **in placement order** (arg = 1, 2, …, k; k ≤ target) → `ELIMINATED` for every other slot alive at the round's start (arg = reason; late loaders who could not be protected, and anyone disconnected beyond the grace, included) → `COMPLETE_ROUND` (arg = k). After it no slot is alive-unresolved.
+3. `COMPLETE_MATCH` (round = the last played round, slot = the champion) once exactly one slot is alive: after round 4, or earlier (minimum-advance: one survivor). With 0 qualifiers the highest-ranked advances as the sole survivor, so there is always a champion.
+4. Or `ABORT` (round = current, slot 255, arg = reason), consuming the next seq (doc 06 §9).
+
+The transcript is `transcript.ts` byte for byte (C# `Shared/Transcript.cs`, parity-tested on TS vectors incl. three scripted matches; the director's events for those scripts reproduce the TS transcripts in EditMode).
+
+**`roster_hash` (M4 proposal, not yet in the program or `packages/shared/src`):** `sha256("fallrush-roster-v1" ‖ u8 P ‖ per slot 0…P−1: u8 slot ‖ u8 kind (0 guest, 1 bot) ‖ sha256(utf8 user_id) ‖ u8 hasWallet ‖ [wallet 32 B])`. Placeholder user ids until M5: bots `bot:<slot>`, practice guests `guest:practice:<slot>` (TODO(M5)). Reference: `packages/shared/scripts/gen-transcript-vectors.ts` (`rosterHash`) and C# `RosterHash`; move it into `src/` in M5/M6.
+
+**Hazard seed per round (M4):** `u64 LE of sha256("fallrush-hazard-v1" ‖ seed ‖ u8 round)[0..8]` (C# `Deal.HazardSeed`). TODO(M6): `H(vrf_seed ‖ round ‖ obstacleId)` with the full 32 bytes (§4).
+

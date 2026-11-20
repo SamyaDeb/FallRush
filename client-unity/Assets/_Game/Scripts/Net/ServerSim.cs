@@ -397,15 +397,19 @@ namespace FallRush.Net
 
                 if (Refused != null && Match == null)
                     return;
+                var ts = Stopwatch.GetTimestamp();
                 Core.Step();
                 Match?.AfterStep();
                 AfterStepReactive();
+                if (steps > 1)
+                    StepMs.Add((float)((Stopwatch.GetTimestamp() - ts) * 1000.0 / Stopwatch.Frequency)); // soak: per simulated tick
             }
 
             if (Core.Tick % (uint)SnapshotEveryTicks == 0 || steps > 1)
                 SendSnapshots();
             CheckViolations();
-            StepMs.Add((float)((Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency));
+            if (steps == 1)
+                StepMs.Add((float)((Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency));
         }
 
         private void SendSnapshots()

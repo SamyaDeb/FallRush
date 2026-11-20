@@ -30,6 +30,25 @@
 | **D-15** | **Solana.Unity-SDK pinned to upstream `main` commit `1da8fd7f`** instead of tag v1.2.9 | ✅ (2026-11-18) | v1.2.9 breaks every IL2CPP/WebGL build (BouncyCastle DLL file name, upstream #257). `1da8fd7f` = v1.2.9 + the fix (2 commits). Alternative: the doc 04 §8 web wallet-link fallback |
 | **D-16** | **Local transport tests on Apple Silicon use a native macOS dev server**; the Linux x86_64 Mono image is first run on the VPS | ✅ (you chose it in M1) | Mono Linux crashes under Rosetta and QEMU (`x86-codegen.h:410`). Shipped server stays Linux x86_64 Mono. Option kept open: IL2CPP Linux server (runs under emulation, slower builds) |
 
+### M4 decisions (2026-11-19; ✅ = made by Claude per your instruction in the M4 prompt — say if you want any changed)
+
+| ID | Decision | Status | Notes |
+|---|---|---|---|
+| M4-1 | One match per server process; after the receipt the server returns to the lobby | ✅ | as built (`ServerMatch`) |
+| M4-2 | Practice matches only; the lobby opens with ≥ 1 human; bots fill to 12 at the roster lock | ✅ | ranked (≥ 4 humans, on-chain) is M6 |
+| M4-3 | Our own scene flow (no NGO scene management): `round` names map + hash, clients `ready`, 10 s load timeout | ✅ | late loaders: protected (advance) if the round can still qualify ≥ 1 without them, else ranked last — **🟡 detail chosen by Claude** |
+| M4-4 | Deal from a local 32-byte seed through the real `Deal` port; "Practice deal (local seed)" | ✅ | per-round hazard seed = `sha256("fallrush-hazard-v1" ‖ seed ‖ r)[0..8]` 🟡 |
+| M4-5 | Qualify counts from `RoundTargets(P)` | ✅ | the last round of a shortened dev plan crowns 1 🟡 |
+| M4-6 | 20 s disconnect grace, reconnect token, `DISCONNECT` at the end of the round | ✅ | a DC'd top finisher's place is **not** handed down (qualified count may drop below the target) 🟡 |
+| M4-7 | Eliminated players stay connected and spectate (Tab) | ✅ | Fan Picks hook in Intermission, disabled |
+| M4-8 | Survival minimum-advance; one survivor → champion; zero → the highest placed | ✅ | applied after **every** round by the director |
+| M4-9 | Reason codes 0 NOT_QUALIFIED, 1 GOO, 2 FELL_OUT, 3 LOWER_SCORE, 4 TIMEOUT_RANK, 5 DISCONNECT | ✅ | doc 06 §10 |
+| M4-10 | Timings: lobby 20 s, deal 6 s, intro 5 s, results 6 s, intermission 8 s, champion 8 s, receipt ≤ 20 s | ✅ | intro = 2 s fly-through start + 3 s 3-2-1 |
+| M4-11 | `Map_Lobby` playable plaza, capsules drop in | ✅ | |
+| M4-12 | Goo Tower: 24 m sides (not 18), ledge lips on the bumper lap, goo 0.30 m/s after 6 s | 🟡 | tuned by the map QA (docs/proof/m4-map-qa.md) |
+| M4-13 | Map QA runs Survival / Skill / Final with the players those rounds have in a 12-player match (8 / 5 / 3), not 12 | 🟡 | a 12-bot Final consumes 81 tiles in ~3 s; the prompt said 12 |
+| M4-14 | Bots' noise (wobble, reaction delay, slower stick) is off during precise moves (gap jumps, landings, platforms, airborne) | 🟡 | with it on, normal bots fell ~15× per race |
+
 ## Top risks (live; update daily in PROJECT_STATUS)
 
 | # | Risk | Likelihood | Impact | Mitigation |
@@ -47,7 +66,9 @@
 | R11 | Linux game server image can only be run on real x86_64 (Mono cannot run under emulation on the Apple Silicon dev box) | Low | Med | **M1:** image runs on the VPS. Keep testing server builds on the VPS (or any x86_64 box) before each deploy; local tests use the Mac dev server |
 | R13 | VPS port clash with the existing site (`127.0.0.1:8787`, `:3100` in use) | **Known** | Med | Pick relay/web ports that are free (check `ss -ltn`) in M6; doc 13 §2 |
 | R15 | arm64 (Mac) builds are not bit-identical with x86_64/wasm (corrections every ~20–25 s on Mac ↔ VPS; WebGL ↔ VPS is bit-identical) | Low | Low | Only the dev tool is affected. Don't tune prediction from Mac-client numbers; measure with WebGL. Hypothesis (unverified): FMA contraction or arm64 PhysX |
-| R14 | Push-driven corrections: player–player separation is server-only, so bunched players see corrections (measured: up to 11 per 5 s when 3 bots shared one lane in an early run) | Med | Med | Counted separately (`ownEvents`); lanes in the gate. **M3 (measured, crowded 12-player race):** client-side push prediction against remotes extrapolated from the newest snapshot is on (corrections + pushes per 5 s while racing, localhost: 2.73 → 0.73 mean). Still over the < 1 bar for one of three clients on localhost (1.12) and at 150 ms + loss (1.2–1.7); non-push corrections stay ≤ 0.4. Options for M4 🟡: softer pushes (e.g. 1.5 m/s), or accept push corrections (they are smoothed, ~10 cm) |
+| R14 | Push-driven corrections: player–player separation is server-only, so bunched players see corrections (measured: up to 11 per 5 s when 3 bots shared one lane in an early run) | Med | Med | Counted separately (`ownEvents`); lanes in the gate. **M3 (measured, crowded 12-player race):** client-side push prediction against remotes extrapolated from the newest snapshot is on (corrections + pushes per 5 s while racing, localhost: 2.73 → 0.73 mean). Still over the < 1 bar for one of three clients on localhost (1.12) and at 150 ms + loss (1.2–1.7); non-push corrections stay ≤ 0.4. Options for M4 🟡: softer pushes (e.g. 1.5 m/s), or accept push corrections (they are smoothed, ~10 cm) **M4:** kept as accepted in M3 (1b); re-measured in the full-match runs (docs/proof/M4-match.md §E). |
 | R16 | Reference bots finish Block Party Dash in 31–34 s (median) vs the 75–95 s target | High | Med | Course may be too short/easy for humans or fine once humans play; decide after the playtest: add length (S1 blocks, S2 bridge) or harder timing. 🟡 |
 | R17 | VPS link from the dev machine was degraded on 2026-11-19 (85 % ICMP loss); the M3 WebGL ↔ Linux gate could not be measured | Med | Med | Re-run `scripts/m3-gate.sh` / WebGL `?bot=race` against gs1 on a healthy link before M4 |
+| R18 | Round durations with bots differ from the GDD §4.1 targets (Survival ~65 s, Final ~30 s with normal bots; humans UNVERIFIED) | Med | Med | Playtest decides; knobs: Goo Tower length / goo speed, Crumble wobble time (GDD 0.6 s) or tile count. M4 QA tables record the bot numbers |
+| R19 | Our own scene flow: a slow WebGL load past 10 s spectates a round (protected unless it is the final) | Low | Med | measured load times in the WebGL run; raise the timeout if needed |
 | R12 | Hidden browser tab freezes Unity WebGL (no `requestAnimationFrame`) → UTP 30 s timeout → player dropped | Med | Med | **Fixed for 10/30/60 s on the desktop path (M2b, measured with a main-thread stall):** the drop was not the timeout but NGO's reliable pipeline re-sending its window every 500 ms into the stalled client (16.7 KB/s), which overflowed UTP's receive queue on wake-up (`ProtocolError`). Fix: our `WebSocketDriverConstructor` (NGO's driver, reliable resend 10–30 s; TCP already guarantees delivery), server pauses snapshots after 1 s without input, server disconnect timeout 90 s, client queue 1024. **A real hidden Chrome tab is UNVERIFIED** (Playwright keeps pages visible); steps in the proof file |

@@ -56,6 +56,10 @@ A full match takes 7–9 minutes including intermissions.
 
 The rule needs P ≥ 4. With fewer players, use a practice ruleset (no on-chain ranked record).
 
+- **As built (M4):** qualify counts come from `RoundTargets(P)` (C# port of `targets.ts`, P = occupants at roster lock incl. bots). A practice match always has 12 (bots fill). Durations measured with bots: docs/proof/M4-match.md (a full 12-bot match ≈ 5–6.5 min from roster lock; humans UNVERIFIED).
+- **Minimum-advance (M4-8, all rounds):** fewer survivors than N → only they advance; exactly one left after any round → that player is the champion (remaining rounds skipped, recorded as such: `COMPLETE_MATCH` after that round's `COMPLETE_ROUND`); zero → the highest placed of the round's ranking advances as the sole survivor (never a match without a champion).
+- **Elimination reasons (M4-9):** 0 not qualified · 1 goo · 2 fell out · 3 lower score · 4 time ran out (ranked below the target) · 5 disconnected (> 20 s).
+
 ### 4.2 Production (20 players)
 
 20 → 12 → 8 → 4 → 1, using the same four modes plus more maps per pool.
@@ -80,6 +84,8 @@ The rule needs P ≥ 4. With fewer players, use a practice ruleset (no on-chain 
 - **If too many survive:** they are ranked by height (highest first), then by slot index.
 - **If fewer than *N* are left alive:** only the survivors qualify, and the round can't qualify more players than are alive. The ruleset defines a **minimum-advance policy**: the next round runs with whoever survived, as long as at least 2 remain. A single survivor wins the match outright.
 
+- **As built (M4, `SurvivalRules`):** goo `y = y0 + v·max(0, t − 6 s)` (integer mm/ticks), feet below the surface = out (predicted, so you see your own goo at the right tick); falling out of the map = out too. The first N to the summit pad escape and leave the round; the round ends when N escaped or nobody is climbing. Timer 150 s: survivors qualify by height (then slot) up to N, the rest time out. Escaped ranked by escape time, survivors by height, the knocked-out by how long they lasted.
+
 ### 5.3 Skill (Star Scramble)
 
 - Stars spawn on moving and rotating platforms in a fixed timeline, derived from the round seed. Touching a star scores it (+1; golden stars +3).
@@ -87,11 +93,15 @@ The rule needs P ≥ 4. With fewer players, use a practice ruleset (no on-chain 
 - **Ranking:** after 60 s, the top *N* by score qualify. Ties break by earliest time at final score, then slot index.
 - The server validates every pickup (pickup radius plus the player's server position).
 
+- **As built (M4, `SkillRules`):** waves of 8 stars every 8 s on distinct non-island anchors (each wave lasts 16 s), a golden star (+3) every 15 s on an island (lasts 10 s); anchors on the turn table and the islands move with them (pure). A pickup counts only for the server's own capsule (0.31 m + 0.4 m reach). A hazard knockback with stars costs exactly one: it pops 1.4 m away over 0.5 s, then anyone can grab it (10 s). Falls respawn after 1 s and keep your stars. "Earliest time at the final score" = the tick of the last score change.
+
 ### 5.4 Final (Crumble Shelf)
 
 - A grid of toy-block tiles on stacked shelves (3 layers). A tile wobbles for 0.6 s after first contact, then drops.
 - **Win:** the last Rushling standing wins.
 - **Timer (120 s) tiebreak:** lowest layer reached (higher is better), then tiles touched (fewer is better), then slot index.
+
+- **As built (M4, `FinalRules`):** tile contact = the server's own ground contact; the drop (collider off) is at contact + 18 ticks on both sides (replicated, so prediction is exact). Spinner bars (one low to jump, one high to dive) hang raised until 60 s. Below −6 m = out. Simultaneous last falls: the last to go ranks highest, then the tiebreak.
 
 ## 6. Controls (keyboard + mouse baseline; gamepad post-MVP)
 
@@ -209,6 +219,8 @@ This puts the hackathon theme on screen (Entertainment Finance: *compete, predic
 11. **Rewards.** XP, achievements, and "Claim Crown Capsule" for the champion if a wallet is linked.
 12. **Back to lobby.**
 
+**As built (M4, greybox, `Client/MatchHud.cs`):** Menu (Play = Quick Play, Connect Wallet smoke path) → Lobby room (`Map_Lobby`: player list with BOT tags and connection dots, 20 s countdown, host Start, "Bots will fill empty slots"; capsules drop in) → Deal (spinning, then the 4 rounds' maps / variants / modifiers / targets, "Practice deal (local seed)", the seed) → Round intro (map, mode, modifier chip, goal line, fly-through, 3-2-1-RUSH) → HUD (round + modifier top-left, timer top-right, the mode counter top-centre: qualified X / N, escaped / alive, stars, alive; ping / reconnecting bottom-left; chain chip `● Server` bottom-right) → Round result (QUALIFIED / ELIMINATED per player with the reason) → Intermission (8 s leaderboard with per-round places, next round, Fan Picks "coming soon") → Champion (podium + crown pop) → Receipt (placements, per-round places, match id, seed, transcript hash, "Chain: not recorded (practice)", Back to lobby) → Lobby. Eliminated players spectate (Tab cycles). Not in M4: XP / rewards (11), the capsule machine and claw (M7).
+
 ## 13. Accessibility
 
 - Hazards use a pattern as well as color (stripes).
@@ -217,6 +229,8 @@ This puts the hackathon theme on screen (Entertainment Finance: *compete, predic
 - Reduced-motion option (no shake, no FOV kick).
 - Colorblind-safe player outlines.
 - A latency / reconnect indicator.
+
+**As built (M4):** subtitles for "Goo rising!", "Tiles crumbling!", "Spinners incoming!"; reduced motion also stops the tile shake, star spin, goo swirl and the podium hop; "Reconnecting… N s" bottom-left. Colourblind-safe player outlines: **not done** (per-slot colours only; M7).
 
 ## 14. Success metrics
 
