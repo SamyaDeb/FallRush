@@ -24,6 +24,9 @@ namespace FallRush.Client
         private readonly int _mask;
         private readonly RectTransform _canvas;
         private int _frame;
+        private readonly int[] _order = new int[Protocol.MaxPlayers];
+
+        private float Depth(int i, int own) => i == own ? -1f : _screen[i].z;
 
         public Nameplates(RectTransform canvas, int occluderMask)
         {
@@ -104,18 +107,36 @@ namespace FallRush.Client
                 _alpha[i] = a;
             }
 
-            // A farther label overlapping a nearer one is dimmed (no "BOT BOT" stacks).
+            // A label overlapping a nearer one (or your own marker, which counts as nearest) is hidden: no "BOT BOT" stacks.
+            // Nearest first, so a hidden label never hides another one.
             for (var i = 0; i < _labels.Length; i++)
+                _order[i] = i;
+            for (var a = 1; a < _order.Length; a++) // insertion sort by depth (12 items, no allocation)
             {
+                var v = _order[a];
+                var d = Depth(v, ownSlot);
+                var b = a - 1;
+                while (b >= 0 && Depth(_order[b], ownSlot) > d)
+                {
+                    _order[b + 1] = _order[b];
+                    b--;
+                }
+
+                _order[b + 1] = v;
+            }
+            for (var k = 0; k < _order.Length; k++)
+            {
+                var i = _order[k];
                 if (_alpha[i] <= 0f || i == ownSlot)
                     continue;
-                for (var j = 0; j < _labels.Length; j++)
+                for (var m = 0; m < k; m++)
                 {
-                    if (j == i || _alpha[j] <= 0f || _screen[j].z >= _screen[i].z)
+                    var j = _order[m];
+                    if (_alpha[j] <= 0f)
                         continue;
-                    if (Mathf.Abs(_screen[j].x - _screen[i].x) < 90f && Mathf.Abs(_screen[j].y - _screen[i].y) < 20f)
+                    if (Mathf.Abs(_screen[j].x - _screen[i].x) < 110f && Mathf.Abs(_screen[j].y - _screen[i].y) < 24f)
                     {
-                        _alpha[i] *= 0.15f;
+                        _alpha[i] = 0f;
                         break;
                     }
                 }

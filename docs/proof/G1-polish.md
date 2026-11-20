@@ -50,3 +50,37 @@ sha256 of the canonical JSON: see `pnpm hash` / `MovementConfigData.Sha256Hex` (
 Modifiers on top: MoonBounce 14 m/s² / 1.5 m; ButterFloors decel 12 m/s², slide decel 4.8 m/s² (tests: `MovementConfigTests.MovementV2_Modifiers_StillScaleTheBase`, `KitTests.MoonBounce_Apex1p5m_ButterFloors_Decel`).
 
 **Measured in EditMode (AnalyticWorld, 30 Hz):** full speed in 5–6 ticks; stop from 5 m/s in 5 ticks; apex 1.20 m (± 2 cm); belly slide 1.5–3.5 m band asserted, decel exact per tick; stumble at 3.4 m and 8 m drops, none at 1.5 / 2.8 m.
+
+## C. Animation work done
+Our own procedural set on Bolt (`Client/RushlingVisuals.cs`, client only, allocation-free per frame). Full table: doc 17 §2.3.1. Run (gait-timed waddle, bob, planted stepping feet, arm swing, lean into acceleration and turns, 720°/s visual turn), idle (breathing, blinks, look-around, fidget), jump / fall (anticipation squash → stretch, lean, flailing arms and kicking feet when falling fast, impact-scaled landing squash), **stumble** (forward pitch + roll shake + windmilling arms), **dive** (belly-flop, landing slap, slide, scramble back up with an overshoot), **hit / tumble** (flop in the knock direction, a roll on long stuns, bounce, lie on the side, get-up pop with stars; reduced motion: flop only), **crowd bump** wobble (< 0.7 m), **celebrations** (qualified jump for joy, eliminated slump, champion crown pose on the podium), **emotes** 1–4 (wave, dance, cheer, flop; `ctl` Emote → `emo` relay), Happy / Sad faces. Remote players play the same from interpolated snapshots (the only new wire data is the `Stumbling` flag bit; `snap` 294 B for 12, unchanged).
+
+## E. Bug list (P0 breaks play · P1 visible · P2 minor)
+
+| # | Source | Bug | P | Status |
+|---|---|---|---|---|
+| 1 | your notes | Runs too fast | P0 | **Fixed**: movement v2 (§B) |
+| 2 | your notes | S1 gaps too small, all blocks at one low height | P0 | **Fixed**: S1 rebuilt (doc 08 §3.1) |
+| 3 | your note (mid-G1) | Right-lane gaps of the first S1 cut too large → failed jumps | P0 | **Fixed**: 2.0–2.1 m, rises ≤ 0.4 m; ref bot falls 27–71 → 3–5 per race |
+| 4 | your notes | Animations lack the genre's comedy | P1 | **Changed**: §C |
+| 5 | M4 §D | The Final too short (27–32 s) | P1 | **Fixed**: 1.0 s wobble + top-shelf respawn → ≈ 73 s |
+| 6 | M4 §D | Goo Tower short (66 s) | P1 | **Improved**: 85–89 s (bots), see §D |
+| 7 | found | Goo Tower outer "1.4 m gap" was really 3 m (two steps removed) + 0.62 m rise: impassable at v2 | P0 | **Fixed** (one step removed); route index 1 now escapes |
+| 8 | found | Goo Tower lap-1 blocks 1.11 m high vs a 1.2 m hop | P0 | **Fixed**: 4 × 0.83 m |
+| 9 | found | Star Scramble islands +1.0 m / pads tuned for v1 gravity | P1 | **Fixed**: 0.8 m, pads 5.8 m/s |
+| 10 | found | Bots' Goo-Tower ramp-gap jump point 0.8 m radius made them jump 2.7 m early | P1 | **Fixed** (0.35 m radius at the edge) |
+| 11 | found | MoonBounce races hit the 150 s timer (bots overshoot the small blocks) | P1 | **Fixed**: bots ease off precise jumps when the apex > 1.3 m |
+| 12 | §3.5.1 | Nameplates oversized / overlapping / "BOT BOT" stacks | P1 | **Fixed**: screen-space nameplates (doc 04 §7.x) |
+| 13 | found | (G1's first nameplates) drew over the result panels | P2 | **Fixed**: own canvas sorted below |
+| 14 | §3.5.2 | Developer text in the world | P1 | **Fixed**: `EditorOnly` labels (stripped from builds); titles, CHECKPOINT, FINISH kept as signs |
+| 15 | §3.5.3 | "BlockPartyDash", "No Chaos Capsule", no mode hints | P1 | **Fixed**: `UiNames`, modifier effect line, mode tip on every intro |
+| 16 | §3.5.4 | Camera clips into geometry / blocked in Goo Tower | P1 | **Fixed**: Decollider + Deoccluder, 6.6 m / 22.5°, distance + FOV settings, smooth spectate glide (before / after shots §H) |
+| 17 | §3.5.5 | Champion name over the podium Rushling | P1 | **Fixed**: name at the top |
+| 18 | §3.5.5 / found | QUALIFIED counter over the world title; the BPD title sign sat on the start gate, which lifted only 2.8 m into the top of the view | P1 | **Fixed**: counter smaller + outlined; gate lifts 5.2 m; that title sign dev-only |
+| 19 | §3.5.5 | Help bar always on | P2 | **Fixed**: 8 s after a map loads, then F1 |
+| 20 | §3.5.6 | WebGL initial connect gives up after 10 × 1 s | P1 | **Fixed**: 6 tries with 1/2/4/4/4 s backoff, "Connecting… (attempt n of 6)", Retry button |
+| 21 | §3.5.7 | Hidden tab / tab close + reopen within 20 s unverified in a real browser | P1 | **Steps for you** in §I; automated parts in §F |
+| 22 | §3.5.8 | Draw calls over budget (BPD 490, Goo 282) | P2 | **Improved**: dev labels gone from builds, WebGL static batching on, static render-only geometry; numbers §F. Art budgets are G2 |
+| 23 | §3.5.9 | PerformanceTestRun*.json appear after test runs | P2 | **Fixed**: git-ignored |
+| 24 | M4 §I | Leaderboard place columns misaligned (proportional font) | P2 | **Not fixed**: the only built-in font is proportional; G3 restyles the screens (UI kit) |
+| 25 | found | Map content hash covers hazards, not static geometry (an S1 change alone kept the BPD hash) | P2 | **Explained**: old builds are still refused (protocol v5); add static colliders to the hash in M5/M6 if mixed builds become possible |
+| 26 | found | ReducedMotion / Sensitivity read PlayerPrefs every frame per Rushling | P2 | **Fixed**: settings cached |
