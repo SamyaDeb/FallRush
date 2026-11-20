@@ -41,7 +41,10 @@ namespace FallRush.Shared
         /// <summary>Course centre line, x,y,z mm triplets (race ranking distance, GDD §5.1).</summary>
         public int[] CourseLineMm = Array.Empty<int>();
 
-        public byte[] Hash()
+        public byte[] Hash() => Sha256.Hash(CanonicalBytes());
+
+        /// <summary>The canonical little-endian encoding that <see cref="Hash"/> digests.</summary>
+        public byte[] CanonicalBytes()
         {
             var w = new CanonicalWriter();
             w.Str(Magic).I32(MapId).I32(Version).I32(KillYMm).Ints(SpawnsMm);
@@ -56,7 +59,7 @@ namespace FallRush.Shared
             w.I32(Variants.Length);
             foreach (var v in Variants)
                 HazardEncoding.Write(w, v, zeroPhase: true);
-            return w.Sha256();
+            return w.Bytes.ToArray();
         }
 
         public static string Short(byte[] hash) => hash == null || hash.Length < 4 ? "--------" : Sha256.Hex(hash).Substring(0, 8);

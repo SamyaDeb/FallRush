@@ -90,6 +90,9 @@ namespace FallRush.Client
         }
 
         /// <summary>Starts the +6° FOV kick (ignored with reduced motion).</summary>
+        /// <summary>Modifier FOV change (TinyTilt −8°, visual only).</summary>
+        public float FovOffset;
+
         public void DiveKick()
         {
             if (!GameSettings.ReducedMotion)
@@ -130,7 +133,7 @@ namespace FallRush.Client
             }
 
             var lens = _vcam.Lens;
-            lens.FieldOfView = BaseFov + DiveFovKick * Mathf.SmoothStep(0f, 1f, _kick);
+            lens.FieldOfView = BaseFov + FovOffset + DiveFovKick * Mathf.SmoothStep(0f, 1f, _kick);
             _vcam.Lens = lens;
 
             if (_shake > 0f)

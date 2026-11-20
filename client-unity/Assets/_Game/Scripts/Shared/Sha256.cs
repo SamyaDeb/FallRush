@@ -175,10 +175,11 @@ namespace FallRush.Shared
             return this;
         }
 
+        /// <summary>Length + values; null is encoded like an empty array (Unity serialises null arrays as empty ones).</summary>
         public CanonicalWriter Ints(int[] a)
         {
             if (a == null)
-                return I32(-1);
+                return I32(0);
             I32(a.Length);
             foreach (var v in a)
                 I32(v);

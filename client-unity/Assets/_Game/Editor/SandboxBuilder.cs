@@ -125,14 +125,25 @@ public static class SandboxBuilder
         Label(geo, "SWEEPER (jump the bar)", new Vector3(-30f, 2.6f, -36f));
         Label(geo, "MOVING PLATFORM → ISLAND", new Vector3(-42f, 2.4f, -24f));
 
+        // M3a: the obstacle kit row along z = 54 (walkway north of the slab): one of each new hazard type.
+        KitBuilder.Init();
+        var kit = BuildKitRow(hz, geo);
+
         var info = new GameObject("MapInfo").AddComponent<MapInfo>();
+        info.definition = MapDefinitionAsset("Sandbox", MapPoolV1.Sandbox, "Sandbox", -20f, new[] { 0, 1, 2, 3, 4, 5 });
         info.spawns = spawns;
         info.botAreaCenter = new Vector3(0f, 0f, -30f);
         info.botAreaHalfExtents = new Vector2(14f, 8f);
         info.playerMaterial = _player;
         info.unlitMaterial = _unlit;
-        info.sweepers = new[] { sweeper };
-        info.platforms = new[] { platform };
+        info.sweepers = new[] { sweeper, kit.spinner };
+        info.platforms = new[] { platform, kit.platform };
+        info.conveyors = new[] { kit.conveyor };
+        info.pads = new[] { kit.pad };
+        info.turnTables = new[] { kit.turnTable };
+        info.doors = new[] { kit.door };
+        info.mallets = new[] { kit.mallet };
+        info.bumpers = kit.bumpers;
 
         if (!EditorSceneManager.SaveScene(scene, ScenePath))
             throw new IOException($"Failed to save {ScenePath}");
@@ -145,7 +156,129 @@ public static class SandboxBuilder
         }
 
         AssetDatabase.SaveAssets();
-        Debug.Log($"[setup] built {ScenePath} (layer {PhysxMotorWorld.GameplayLayerName}={_layer})");
+        MapHashTool.Dump("Map_Sandbox-build", info);
+        var hash = info.ContentHash;
+        Debug.Log($"[setup] built {ScenePath} (layer {PhysxMotorWorld.GameplayLayerName}={_layer}) mapHash={Sha256.Hex(hash)}");
+        RecordMapHash("Map_Sandbox", hash);
+    }
+
+    // ------------------------------------------------------------------ M3a kit row
+
+    public const float KitLaneZ = 54f;
+
+    public struct Kit
+    {
+        public HazardSweeper spinner;
+        public HazardPlatform platform;
+        public HazardConveyor conveyor;
+        public HazardSpringPad pad;
+        public HazardTurnTable turnTable;
+        public HazardGateDoor door;
+        public HazardMallet mallet;
+        public HazardBumper[] bumpers;
+    }
+
+    /// <summary>
+    /// Kit row on a walkway z ∈ [50, 58] north of the slab (walk north from the spawn, then +X): high spinner bar (dive
+    /// under) → loop platform over a gap → conveyor against you → spring pad over a 5 m gap → turn table → gate door →
+    /// mallet → bumpers → end. Each station has a label; falls respawn at the spawn.
+    /// </summary>
+    private static Kit BuildKitRow(Transform hz, Transform geo)
+    {
+        const float z = KitLaneZ, z0 = 50f, z1 = 58f;
+        var k = new Kit();
+        void Walk(float x0, float x1) => Box(geo, $"KitWalk_{x0:0}_{x1:0}", new Vector3((x0 + x1) * 0.5f, -0.5f, (z0 + z1) * 0.5f), new Vector3(x1 - x0, 1f, z1 - z0), _walk);
+        Walk(-40f, -25f);
+        Walk(-17f, -14f);
+        Walk(-8f, -2.5f);
+        Walk(2.5f, 40f);
+        Label(geo, "OBSTACLE KIT ROW (M3) → walk +X", new Vector3(-36f, 2.4f, z));
+
+        // 1. SPINNER_BAR, high bar: dive under it (variant B turns the other way, faster).
+        k.spinner = KitBuilder.Spinner(hz, geo, "kit_spinner_high", new Vector3(-31f, 0f, z + 3.5f), 4f, 0.95f, 150, -120);
+        Label(geo, "SPINNER BAR (high: DIVE under)", new Vector3(-31f, 2.6f, z - 3f));
+
+        // 2. MOVING_PLATFORM, a diamond loop over the gap x ∈ [-25, -17] (variant B: a wider, flatter loop).
+        var pc = new Vector3(-21f, -0.25f, z);
+        k.platform = KitBuilder.LoopPlatform(hz, "kit_platform_loop", pc, new Vector3(3f, 0.5f, 3f),
+            new[] { new Vector3(-2.5f, 0f, 0f), new Vector3(0f, 0.3f, -1.5f), new Vector3(2.5f, 0f, 0f), new Vector3(0f, 0.3f, 1.5f) },
+            new[] { new Vector3(-2.5f, 0f, 0f), new Vector3(0f, 0f, -2.5f), new Vector3(2.5f, 0f, 0f), new Vector3(0f, 0f, 2.5f) }, 240);
+        Label(geo, "MOVING PLATFORM (loop; jump off keeps its speed)", new Vector3(-21f, 2.4f, z - 3f));
+
+        // 3. CONVEYOR against you.
+        k.conveyor = KitBuilder.Conveyor(hz, "kit_conveyor", new Vector3(-11f, -0.5f, (z0 + z1) * 0.5f), new Vector3(6f, 1f, z1 - z0), new Vector3(-2.5f, 0f, 0f));
+        Label(geo, "CONVEYOR (2.5 m/s against you)", new Vector3(-11f, 2.4f, z - 3f));
+
+        // 4. SPRING_PAD over a 5 m gap (a normal running jump is 4.7 m).
+        k.pad = KitBuilder.SpringPad(hz, "kit_spring", new Vector3(-4f, 0.1f, z), new Vector2(1.6f, 1.6f), new Vector3(8f, 11.5f, 0f));
+        Label(geo, "SPRING PAD (5 m gap)", new Vector3(-1f, 2.8f, z - 3f));
+
+        // 5. TURN_TABLE (raised 0.15 m; variant B spins the other way).
+        k.turnTable = KitBuilder.TurnTable(hz, "kit_turntable", new Vector3(8f, 0.15f, z), 3.5f, 360, -300);
+        Label(geo, "TURN TABLE", new Vector3(8f, 2.4f, z - 4f));
+
+        // 6. GATE_DOOR in a wall across the walkway.
+        const float wx = 15f, doorW = 3f, wallH = 3f;
+        Box(geo, "KitDoorWall_S", new Vector3(wx, wallH * 0.5f, (z0 + (z - doorW * 0.5f)) * 0.5f), new Vector3(0.6f, wallH, z - doorW * 0.5f - z0), _block);
+        Box(geo, "KitDoorWall_N", new Vector3(wx, wallH * 0.5f, ((z + doorW * 0.5f) + z1) * 0.5f), new Vector3(0.6f, wallH, z1 - (z + doorW * 0.5f)), _block);
+        Box(geo, "KitDoorLintel", new Vector3(wx, wallH + 2.25f, z), new Vector3(0.6f, 1.5f, doorW + 0.2f), _block);
+        k.door = KitBuilder.GateDoor(hz, "kit_door", new Vector3(wx, 1.5f, z), new Vector3(0.4f, 3f, doorW), 60, 6, 75, 15, 0, 45);
+        Label(geo, "GATE DOOR (timed; flashes before closing)", new Vector3(wx, 4.2f, z - 3.2f));
+
+        // 7. MALLET_SWING across the lane (head swings along Z).
+        k.mallet = KitBuilder.Mallet(hz, geo, "kit_mallet", new Vector3(23f, 5.5f, z), 2, 4.9f, 60f, 90, 75);
+        Label(geo, "MALLET (wind-up glow)", new Vector3(23f, 6.4f, z - 3.5f));
+
+        // 8. BUMPERs.
+        k.bumpers = new[]
+        {
+            KitBuilder.Bumper(hz, "kit_bumper_a", new Vector3(30f, 0f, z - 1.6f), 0.7f, 1.0f),
+            KitBuilder.Bumper(hz, "kit_bumper_b", new Vector3(32f, 0f, z + 1.4f), 0.7f, 1.0f),
+        };
+        Label(geo, "BUMPERS", new Vector3(31f, 2.4f, z - 3.2f));
+        Visual(geo, "KitEnd", new Vector3(38f, 0.005f, z), new Vector3(2f, 0.01f, 8f), _mint);
+        Label(geo, "END ← back", new Vector3(38f, 2f, z));
+        return k;
+    }
+
+    /// <summary>Creates or updates <c>ScriptableObjects/Maps/{name}.asset</c>.</summary>
+    public static MapDefinition MapDefinitionAsset(string name, byte id, string mode, float killY, int[] modifiers)
+    {
+        const string dir = ProjectSetup.Root + "/ScriptableObjects/Maps";
+        if (!AssetDatabase.IsValidFolder(ProjectSetup.Root + "/ScriptableObjects"))
+            AssetDatabase.CreateFolder(ProjectSetup.Root, "ScriptableObjects");
+        if (!AssetDatabase.IsValidFolder(dir))
+            AssetDatabase.CreateFolder(ProjectSetup.Root + "/ScriptableObjects", "Maps");
+        var path = $"{dir}/{name}.asset";
+        var d = AssetDatabase.LoadAssetAtPath<MapDefinition>(path);
+        if (d == null)
+        {
+            d = ScriptableObject.CreateInstance<MapDefinition>();
+            AssetDatabase.CreateAsset(d, path);
+        }
+
+        d.mapId = id;
+        d.mapKey = name;
+        d.mode = mode;
+        d.killY = killY;
+        d.allowedModifiers = modifiers;
+        d.variants = 2;
+        EditorUtility.SetDirty(d);
+        return d;
+    }
+
+    /// <summary>Writes the map content hash next to the hazard vectors (EditMode test: the committed scene still hashes to it).</summary>
+    public static void RecordMapHash(string scene, byte[] hash)
+    {
+        var path = Path.Combine(Application.dataPath, "_Game", "Tests", "Vectors", "map_hashes_v1.txt");
+        var lines = new List<string>();
+        if (File.Exists(path))
+            foreach (var l in File.ReadAllLines(path))
+                if (!l.StartsWith(scene + " "))
+                    lines.Add(l);
+        lines.Add($"{scene} {Sha256.Hex(hash)}");
+        lines.Sort(System.StringComparer.Ordinal);
+        File.WriteAllLines(path, lines);
     }
 
     // ------------------------------------------------------------------ M2b hazards

@@ -86,6 +86,18 @@ namespace FallRush.Net
             _world = map.CreateWorld(transform, cfg, in p, out var hazards);
             Core = new SimCore(cfg, _world, map.SpawnPoints(), hazards, map.SpawnYaws());
             Core.SetBotArea(map.botAreaCenter.x, map.botAreaCenter.z, map.botAreaHalfExtents.x, map.botAreaHalfExtents.y);
+            // MEASUREMENT: -fallrushBotArea cx,cz,hx,hz (e.g. 0,54,36,3 = the sandbox kit row).
+            var area = ArgStr("-fallrushBotArea", "GAMESERVER_BOT_AREA");
+            if (area != null)
+            {
+                var a = area.Split(',');
+                if (a.Length == 4 && float.TryParse(a[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cx) &&
+                    float.TryParse(a[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cz) &&
+                    float.TryParse(a[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var hx) &&
+                    float.TryParse(a[3], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var hzz))
+                    Core.SetBotArea(cx, cz, hx, hzz);
+            }
+
             Round = p;
             var problems = HazardAllowlist.Validate(hazards);
             if (problems.Count > 0)

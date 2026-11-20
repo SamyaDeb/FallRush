@@ -40,6 +40,7 @@ namespace FallRush.Client
         private string _photo;
         private Vector3 _lastOwnFeet;
         private bool _hasOwn;
+        private HazardViewDriver _hazardViews;
 
         private void Start()
         {
@@ -256,27 +257,12 @@ namespace FallRush.Client
             var t = cs.HazardRenderTick;
             if (t < 1)
                 return;
-            for (var i = 0; i < _map.sweepers.Length; i++)
-            {
-                var sw = _map.sweepers[i];
-                if (sw == null || sw.barVisual == null)
-                    continue;
-                var d = cs.Hazards.Sweepers[i];
-                sw.barVisual.rotation = Quaternion.Euler(0f, HazardMath.SweeperYawDegrees(in d, t), 0f);
-            }
-
-            for (var i = 0; i < _map.platforms.Length; i++)
-            {
-                var pl = _map.platforms[i];
-                if (pl == null || pl.visual == null)
-                    continue;
-                var d = cs.Hazards.Platforms[i];
-                var t0 = (uint)Math.Floor(t);
-                var a = HazardMath.PlatformCenter(in d, t0);
-                var b = HazardMath.PlatformCenter(in d, t0 + 1);
-                var f = (float)(t - t0);
-                pl.visual.position = new Vector3(a.X + (b.X - a.X) * f, a.Y + (b.Y - a.Y) * f, a.Z + (b.Z - a.Z) * f);
-            }
+            _hazardViews ??= new HazardViewDriver(_map);
+            var hz = cs.Hazards;
+            _hazardViews.Update(hz, t - hz.RoundStartTick, GameSettings.ReducedMotion);
+            // TinyTilt (visual-only modifier): FOV −8°.
+            var mod = cs.Round.HasValue ? ModifierEffects.Get(cs.Round.Value.Modifier) : ModifierEffects.Get(0);
+            _cam.FovOffset = mod.FovDeltaDeg;
         }
 
         private void RefreshHud(ClientSim cs)
@@ -323,6 +309,14 @@ namespace FallRush.Client
             _sb.Append("payload in ").Append((cs.BytesInPerSec / 1024f).ToString("F2")).Append(" KB/s  out ").Append((cs.BytesOutPerSec / 1024f).ToString("F2")).Append(" KB/s\n");
             _sb.Append("players ").Append(players).Append(" (").Append(bots).Append(" BOT)  my slot ").Append(cs.OwnSlot == SnapHeader.NoSlot ? "-" : cs.OwnSlot.ToString())
                 .Append("  ack ").Append(cs.LastAckSeq).Append("/").Append(cs.Seq).Append('\n');
+            if (cs.Round.HasValue)
+            {
+                var rp = cs.Round.Value;
+                _sb.Append("round ").Append(cs.Phase).Append(" tick ").Append(cs.Prediction != null ? (long)cs.Prediction.Tick - rp.RoundStartTick : 0)
+                    .Append("  map ").Append(_map != null ? MapContent.Short(_map.ContentHash) : "-").Append(cs.MapMismatch != null ? " MISMATCH" : "")
+                    .Append("  variant ").Append(rp.Variant == 0 ? "A" : "B").Append("  modifier ").Append(ModifierEffects.Get(rp.Modifier).Key).Append('\n');
+            }
+
             _sb.Append("FPS ").Append(_fps.ToString("F0"));
             _hudText.text = _sb.ToString();
         }
@@ -337,7 +331,7 @@ namespace FallRush.Client
             rt.SetParent(canvas, false);
             rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 1f);
             rt.anchoredPosition = new Vector2(12f, -12f);
-            rt.sizeDelta = new Vector2(600f, 262f);
+            rt.sizeDelta = new Vector2(640f, 286f);
             _hud.GetComponent<Image>().color = new Color(0.08f, 0.03f, 0.18f, 0.72f);
             var t = new GameObject("Text", typeof(RectTransform), typeof(Text)).GetComponent<Text>();
             var trt = (RectTransform)t.transform;
@@ -488,7 +482,7 @@ namespace FallRush.Client
         private static void OnLoaded(Scene scene, LoadSceneMode mode)
         {
             if (scene.name != NetBootstrap.SandboxScene)
-                return;
+                return; // Map_BlockPartyDash gets RaceView (M3b)
             var boot = NetBootstrap.Instance;
             if (boot == null || boot.IsServerRole || (boot.IsProbe && !SimProbe.ViewEnabled))
                 return;
