@@ -224,6 +224,11 @@ Proof: [`docs/proof/M4-match.md`](docs/proof/M4-match.md) · map QA [`docs/proof
 - Hazard seed: `Deal.HazardSeed` (u64 per round) → `H(vrf_seed ‖ round ‖ obstacleId)` with 32 bytes; widen `RoundMessage.HazardSeed`.
 - Re-run on the VPS: WebGL ↔ Linux server gate + a full match (the production pairing was not measured in M4).
 
+## Next: G1 gameplay polish (Phase A), prompt `docs/prompts/G1-PROMPT.md`
+- M4 verified independently 2026-11-19: EditMode **254/254** re-run, a match log re-verified with `scripts/m4-verify-log.py` (4 rounds, 38 events, transcript OK), git clean (no remote, no VPS identifiers).
+- Your play notes live in `docs/playtest/G1-notes.md` (too fast, S1 gaps too small and flat, genre animations, bugs). Add bugs there as you find them; G1 reads it first.
+- G1 plan: movement v2 (`movement_v2.json`, ~5 m/s, momentum, ~1.2 m hop, stumble, belly slide, tumble), own procedural animation set, all maps retuned (S1 wider gaps + height variation, Final 1.0 s wobble + respawning top tiles), nameplates/camera/UX bug list, settings, dev tuning mode.
+
 ## Next milestones
 - **M5:** Rush Relay (identity, directory, outbox from the M4 jsonl log). **M6:** chain integration (VRF seed swap, ER events, finalize) + the VPS deploy (`docs/14`).
 
