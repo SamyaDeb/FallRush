@@ -16,10 +16,11 @@ IMAGE=alpine:3.20.3@sha256:1e42bbe2508154c9126d48c2b8a75420c3544343bf86fd041fb75
 case "${1:-status}" in
   start)
     D="${2:-75}"; J="${3:-15}"; L="${4:-2}"
+    JIT=""; [[ "$J" != "0" ]] && JIT="${J}ms distribution normal"  # netem rejects a distribution with zero jitter
     docker rm -f "$NAME" >/dev/null 2>&1 || true
     docker run -d --name "$NAME" --cap-add NET_ADMIN -p 127.0.0.1:7778:7778 --cpus 0.5 --memory 128m "$IMAGE" sh -c "
         apk add --no-cache iproute2 socat >/dev/null &&
-        tc qdisc add dev eth0 root netem delay ${D}ms ${J}ms distribution normal loss ${L}% &&
+        tc qdisc add dev eth0 root netem delay ${D}ms ${JIT} loss ${L}% &&
         tc qdisc show dev eth0 &&
         exec socat TCP-LISTEN:7778,fork,reuseaddr,nodelay TCP:host.docker.internal:7777,nodelay" >/dev/null
     for _ in $(seq 1 30); do docker logs "$NAME" 2>&1 | grep -q netem && break; sleep 1; done

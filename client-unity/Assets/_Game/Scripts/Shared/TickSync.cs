@@ -26,6 +26,8 @@ namespace FallRush.Shared
         public const int MaxTicksPerAdvance = 5;
         /// <summary>After a re-sync or a target raise, reports already in flight are stale; ignore them this long.</summary>
         public const double HoldSeconds = 0.5;
+        /// <summary>Far-late reports without lost time must persist this long before they count as a clock that is really behind (a stall's backlog drains at ≤ 32 messages per server tick).</summary>
+        public const double StallPersistSeconds = 2.0;
 
         private readonly double _dt;
         private double _acc;
@@ -48,6 +50,10 @@ namespace FallRush.Shared
         public float Rate { get; private set; } = 1f;
         public int Resyncs { get; private set; }
         public int LateReports { get; private set; }
+        /// <summary>Far-late reports ignored because the clock had not lost time (transport stall).</summary>
+        public int StallReports { get; private set; }
+        private long _lostTicks; // ticks the clock dropped in capped Advance calls since the last normal report
+        private double _stallSince = -1;
 
         /// <summary>Latest server tick seen and the local time it arrived (for a server-time estimate).</summary>
         public uint LastServerTick { get; private set; }
@@ -64,6 +70,8 @@ namespace FallRush.Shared
         public void Reset()
         {
             Initialized = false;
+            _lostTicks = 0;
+            _stallSince = -1;
             _acc = 0;
             TargetLead = InitialTarget;
             Rate = 1f;
@@ -98,10 +106,36 @@ namespace FallRush.Shared
             if (lead < _windowMinLead)
                 _windowMinLead = lead;
 
+            if (lead - TargetLead >= -ResyncTicks)
+            {
+                _stallSince = -1;
+                _lostTicks = 0; // whatever was lost has been absorbed
+            }
+            else if (_lostTicks == 0 && (_stallSince < 0 || now - _stallSince < StallPersistSeconds))
+            {
+                if (_stallSince < 0)
+                    _stallSince = now;
+                // Far late, but our clock never lost time: the commands were held up in transit (a TCP stall on the
+                // network or on this machine) and arrive in a burst. Jumping now would put every following command
+                // ~stall-length too early (M2b VPS gate: 3 clients kicked after a ~3 s stall). Hold instead.
+                StallReports++;
+                _holdUntil = now + HoldSeconds;
+                _windowStart = now;
+                _windowMinLead = int.MaxValue;
+                return;
+            }
+
             if (lead - TargetLead < -ResyncTicks)
             {
-                // Clock far behind (start-up, hidden tab): a jump, not jitter — don't raise the target for it.
-                PredictedTick += (uint)(TargetLead - lead);
+                // Clock far behind because it lost time (or the reports stayed far late past the hold, so it really is
+                // behind) (hidden tab, long hitch): a jump, not jitter — don't raise the target for it.
+                // Jump by at most what the clock actually lost (+ target); the rest of the lateness is transit delay.
+                long jump = TargetLead - lead;
+                if (_lostTicks > 0 && (jump > _lostTicks + TargetLead || lead <= sbyte.MinValue + 1))
+                    jump = _lostTicks + TargetLead; // a saturated report (−127) only says "at least": trust the ticks we know we lost
+                _lostTicks = 0;
+                _stallSince = -1;
+                PredictedTick += (uint)jump;
                 Resyncs++;
                 Rate = 1f;
                 _holdUntil = now + HoldSeconds;
@@ -170,7 +204,8 @@ namespace FallRush.Shared
                 return 0;
             if (n > MaxTicksPerAdvance)
             {
-                // A long hitch (or a hidden tab): don't burst; the lead feedback re-syncs.
+                // A long hitch (or a hidden tab): don't burst; the lead feedback re-syncs (and is allowed to jump).
+                _lostTicks += n - MaxTicksPerAdvance;
                 _acc = 0;
                 n = MaxTicksPerAdvance;
             }

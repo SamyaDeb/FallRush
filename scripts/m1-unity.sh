@@ -9,7 +9,7 @@ MODE=build
 if [[ "${1:-}" == "--tests" || "${1:-}" == "--no-quit" ]]; then MODE=noquit; shift; fi
 
 [[ -x "$UNITY" ]] || { echo "Unity not found at $UNITY (set UNITY_EDITOR)"; exit 1; }
-if pgrep -f "Unity.app/Contents/MacOS/Unity" >/dev/null; then
+if pgrep -x Unity >/dev/null; then   # process name, not command line (a shell loop mentioning the path matched -f)
   echo "A Unity Editor process is running. Close it first (8 GB machine: never Editor + batch build at once)."; exit 1
 fi
 

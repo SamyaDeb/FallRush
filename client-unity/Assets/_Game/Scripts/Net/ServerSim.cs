@@ -154,6 +154,8 @@ namespace FallRush.Net
             Retired.Malformed += c.Malformed;
             Retired.Repeated += c.Repeated;
             Retired.Neutral += c.Neutral;
+            Retired.Early += c.Early;
+            Retired.Backlog += c.Backlog;
             Retired.Clamped += c.Clamped;
             Core.Remove(slot);
             FillBots();

@@ -9,8 +9,10 @@ namespace FallRush.Shared
         public long Accepted;
         public long Redundant;      // seq ≤ last accepted: the normal redundant copies (and replays / stale)
         public long Late;           // tick already simulated (press edges carried into the next tick)
-        public long FarFuture;      // tick beyond the lead window → violation
-        public long Flood;          // > MaxMessagesPerTick messages in one tick (dropped undecoded) → violation
+        public long FarFuture;      // tick more than ViolationLeadTicks ahead → violation
+        public long Early;          // tick beyond the lead window but within ViolationLeadTicks → dropped, not a violation (clock re-converging)
+        public long Flood;          // over the sustained message rate (token bucket empty; dropped undecoded) → violation
+        public long Backlog;        // > MaxMessagesPerTick in one tick but within the rate budget (a TCP stall releasing a burst): dropped undecoded, not a violation
         public long Burst;          // > MaxNewPerTick new commands in one tick (TCP catch-up after a hitch; redelivered by redundancy) — not a violation
         public long Malformed;      // decode failure → violation
         public long Clamped;        // axis/length/button sanitised (not a violation)
@@ -28,7 +30,9 @@ namespace FallRush.Shared
     /// <item>Freshness: <c>seq</c> must be newer than the last accepted one (older/duplicates are the normal redundancy; dropped).</item>
     /// <item>≤ <see cref="MaxNewPerTick"/> new commands per player per tick (extra on-time ones are deferred to the redundant copy in the next message:
     /// over WebSocket/TCP a stall releases a burst of legitimate messages). More than <see cref="MaxMessagesPerTick"/>
-    /// messages in one tick are dropped undecoded and count as flood violations.</item>
+    /// messages in one tick are dropped undecoded. Flood <b>violations</b> come from a token bucket
+    /// (<see cref="RateTokensPerTick"/> = 45 msg/s, capacity <see cref="RateBurst"/> ≈ 10 s of backlog), so a stall's
+    /// burst is tolerated and a sustained flood is not (M2b: a 3 s stall kicked honest clients under the old per-tick rule).</item>
     /// <item>Window: <c>tick</c> in [next, next + <see cref="MaxLeadTicks"/>]; late commands are dropped but their
     /// jump/dive press edges are applied on the next simulated tick; far-future commands are dropped and counted.</item>
     /// <item>Missing command: repeat the last one (edges cleared) for up to <see cref="RepeatTicks"/> ticks, then neutral.</item>
@@ -38,7 +42,15 @@ namespace FallRush.Shared
     {
         public const int MaxNewPerTick = 3;
         public const int MaxMessagesPerTick = 32;
+        public const float RateTokensPerTick = 1.5f; // 45 messages/s; an honest client sends 30
+        public const float RateBurst = 450f;
         public const int MaxLeadTicks = 30;
+        /// <summary>
+        /// Commands up to this far ahead are dropped but not counted as violations: an honest client whose clock is
+        /// re-converging (e.g. after a network stall) can briefly run ahead (M2b VPS gate: 3 clients were kicked after a
+        /// ~3 s stall). Dropping a future command gives no advantage; beyond 10 s it is treated as abuse.
+        /// </summary>
+        public const int ViolationLeadTicks = 300;
         public const int RepeatTicks = 3;
         private const int Ring = 64; // > MaxLeadTicks + slack, power of two
 
@@ -49,6 +61,7 @@ namespace FallRush.Shared
         private bool _anySeq;
         private int _newThisTick;
         private int _msgsThisTick;
+        private float _tokens = RateBurst;
         private byte _carryEdges;
         private InputCmd _lastApplied;
         private int _missing;
@@ -64,15 +77,23 @@ namespace FallRush.Shared
         {
             _newThisTick = 0;
             _msgsThisTick = 0;
+            _tokens = Math.Min(RateBurst, _tokens + RateTokensPerTick);
         }
 
         /// <summary>Message-level rate limit. False → drop the whole message without decoding it.</summary>
         public bool AdmitMessage()
         {
             Counters.Messages++;
+            if (_tokens < 1f)
+            {
+                Counters.Flood++; // sustained over-rate
+                return false;
+            }
+
+            _tokens -= 1f;
             if (++_msgsThisTick > MaxMessagesPerTick)
             {
-                Counters.Flood++;
+                Counters.Backlog++; // a burst within the rate budget: decode at most 32 per tick, no violation
                 return false;
             }
 
@@ -87,6 +108,7 @@ namespace FallRush.Shared
             Redundant,
             Late,
             FarFuture,
+            Early,
             Burst,
         }
 
@@ -103,10 +125,17 @@ namespace FallRush.Shared
                 Counters.Clamped++;
 
             var lead = (long)cmd.Tick - nextTick;
-            if (lead > MaxLeadTicks)
+            if (lead > ViolationLeadTicks)
             {
                 Counters.FarFuture++;
                 return Result.FarFuture;
+            }
+
+            if (lead > MaxLeadTicks)
+            {
+                Counters.Early++;
+                TrackLead(lead); // reported back, so the client's clock slows down / pauses and re-converges
+                return Result.Early;
             }
 
             if (lead < 0)

@@ -198,6 +198,9 @@ namespace FallRush.Net
             // disconnect timeout would drop it; 90 s keeps a tab hidden for a minute. A closed tab or a dead browser
             // still disconnects at once (the WebSocket's TCP connection closes).
             Transport.DisconnectTimeoutMS = ServerDisconnectTimeoutMs;
+            // After a TCP stall a client's backlog (~30 input messages per stalled second) lands in one server frame;
+            // with UTP's 128-packet receive queue the server's WebSocket layer aborts that connection (ProtocolError).
+            Transport.MaxPacketQueueSize = ClientPacketQueueSize;
 
             Manager.ConnectionApprovalCallback = ApproveConnection;
             Manager.OnClientConnectedCallback += HandleClientConnected;

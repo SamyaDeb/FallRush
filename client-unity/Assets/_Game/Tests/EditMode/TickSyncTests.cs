@@ -20,6 +20,35 @@ namespace FallRush.Tests
         }
 
         [Test]
+        public void HiddenTab_SaturatedLateReport_JumpsByTheLostTicksAtOnce()
+        {
+            var t = new TickSync(Rate);
+            t.OnSnapshot(1000, SnapHeader.LeadUnknown, 50f, 0);
+            t.Advance(60.0); // a 60 s hidden tab: ~1,795 ticks dropped
+            var before = t.PredictedTick;
+            t.OnSnapshot(2800, -127, 50f, 60.1); // i8-saturated report
+            Assert.That(t.PredictedTick - before, Is.GreaterThan(1700u), "one jump covers the whole gap");
+            Assert.That(t.Resyncs, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void FarLate_WithoutLostTime_IsATransportStall_NoJump()
+        {
+            // M2b VPS gate: after a ~3 s TCP stall the server reported the queued commands 90 ticks late. The clock
+            // had not lost time, so jumping forward made every following command 90 ticks early (kick).
+            var t = new TickSync(Rate);
+            t.OnSnapshot(1000, SnapHeader.LeadUnknown, 50f, 0);
+            for (var i = 0; i < 30; i++)
+                t.Advance(1.0 / Rate);
+            var before = t.PredictedTick;
+            t.OnSnapshot(1100, -90, 50f, 1.0);
+            Assert.That(t.PredictedTick, Is.EqualTo(before), "no jump");
+            Assert.That(t.Resyncs, Is.EqualTo(0));
+            Assert.That(t.StallReports, Is.EqualTo(1));
+            Assert.That(t.TargetLead, Is.EqualTo(TickSync.InitialTarget), "no target ratchet either");
+        }
+
+        [Test]
         public void Dilation_SlowsWhenEarly_SpeedsUpWhenLate_ResyncsWhenFar()
         {
             var t = new TickSync(Rate);
@@ -29,6 +58,7 @@ namespace FallRush.Tests
             t.OnSnapshot(1004, 1, 50f, 0.2);
             Assert.That(t.Rate, Is.GreaterThan(1f));
 
+            t.Advance(10.0); // a 10 s hitch: the clock loses time (capped at 5 ticks), so a far-late report must re-sync
             var before = t.PredictedTick;
             t.OnSnapshot(1006, -20, 50f, 0.3);
             Assert.That(t.Resyncs, Is.EqualTo(1));
@@ -70,8 +100,9 @@ namespace FallRush.Tests
         {
             var t = new TickSync(Rate);
             t.OnSnapshot(100, SnapHeader.LeadUnknown, 30f, 0);
-            // Commands start 3 s later from a clock that did not run: very late reports for a while.
-            for (var i = 0; i < 20; i++)
+            // Commands start 3 s later from a clock that did not run: very late reports that persist (> StallPersistSeconds,
+            // so this is a clock that is really behind, not a transport stall's backlog).
+            for (var i = 0; i < 50; i++)
                 t.OnSnapshot((uint)(200 + 2 * i), -80, 30f, 3.0 + i * 0.066);
             Assert.That(t.TargetLead, Is.EqualTo(TickSync.InitialTarget));
             Assert.That(t.Resyncs, Is.InRange(1, 3));

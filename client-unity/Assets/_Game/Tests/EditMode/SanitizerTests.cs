@@ -38,9 +38,22 @@ namespace FallRush.Tests
         public void FarFuture_IsViolation_AndNotStored()
         {
             var s = new InputSanitizer();
-            Assert.That(s.Offer(C(1, 100 + InputSanitizer.MaxLeadTicks + 1), 100), Is.EqualTo(InputSanitizer.Result.FarFuture));
+            Assert.That(s.Offer(C(1, 100 + InputSanitizer.ViolationLeadTicks + 1), 100), Is.EqualTo(InputSanitizer.Result.FarFuture));
             Assert.That(s.Counters.Violations, Is.EqualTo(1));
             Assert.That(s.Offer(C(2, 100 + InputSanitizer.MaxLeadTicks), 100), Is.EqualTo(InputSanitizer.Result.Accepted));
+        }
+
+        [Test]
+        public void Early_BeyondWindow_IsDroppedButNotAViolation_AndReportedAsLead()
+        {
+            var s = new InputSanitizer();
+            Assert.That(s.Offer(C(1, 100 + InputSanitizer.MaxLeadTicks + 1), 100), Is.EqualTo(InputSanitizer.Result.Early));
+            Assert.That(s.Offer(C(2, 100 + InputSanitizer.ViolationLeadTicks), 100), Is.EqualTo(InputSanitizer.Result.Early));
+            Assert.That(s.Counters.Violations, Is.EqualTo(0));
+            Assert.That(s.Counters.Early, Is.EqualTo(2));
+            Assert.That(s.TakeMinLead(), Is.EqualTo(InputSanitizer.MaxLeadTicks + 1), "the client hears it is early and re-converges");
+            var cmd = s.Consume(100 + InputSanitizer.MaxLeadTicks + 1, out var own);
+            Assert.That(own, Is.False, "not stored");
         }
 
         [Test]
@@ -80,6 +93,44 @@ namespace FallRush.Tests
         }
 
         [Test]
+        public void StallBurst_IsTolerated_SustainedFlood_IsNot()
+        {
+            // An honest client after a 5 s TCP stall: 150 messages arrive in one tick, then 1 per tick.
+            var s = new InputSanitizer();
+            for (var i = 0; i < 300; i++)
+            {
+                s.BeginTick();
+                s.AdmitMessage();
+            }
+
+            s.BeginTick();
+            for (var i = 0; i < 150; i++)
+                s.AdmitMessage();
+            for (var i = 0; i < 300; i++)
+            {
+                s.BeginTick();
+                s.AdmitMessage();
+            }
+
+            Assert.That(s.Counters.Violations, Is.EqualTo(0));
+            Assert.That(s.Counters.Backlog, Is.EqualTo(150 - InputSanitizer.MaxMessagesPerTick));
+
+            // A flooder: 200 messages per tick → violations within the first few ticks (kick at 50).
+            var f = new InputSanitizer();
+            var ticks = 0;
+            while (f.Counters.Violations < 50 && ticks < 10)
+            {
+                f.BeginTick();
+                for (var i = 0; i < 200; i++)
+                    f.AdmitMessage();
+                ticks++;
+            }
+
+            Assert.That(f.Counters.Violations, Is.GreaterThanOrEqualTo(50));
+            Assert.That(ticks, Is.LessThanOrEqualTo(3));
+        }
+
+        [Test]
         public void Flood_MessagesPerTickCapped_NewCommandsPerTickCapped()
         {
             var s = new InputSanitizer();
@@ -87,8 +138,9 @@ namespace FallRush.Tests
             for (var i = 0; i < 1000; i++)
                 if (s.AdmitMessage())
                     admitted++;
-            Assert.That(admitted, Is.EqualTo(InputSanitizer.MaxMessagesPerTick));
-            Assert.That(s.Counters.Flood, Is.EqualTo(1000 - InputSanitizer.MaxMessagesPerTick));
+            Assert.That(admitted, Is.EqualTo(InputSanitizer.MaxMessagesPerTick), "at most 32 decoded per tick");
+            Assert.That(s.Counters.Backlog, Is.EqualTo((long)InputSanitizer.RateBurst - InputSanitizer.MaxMessagesPerTick), "a burst within the budget is not a violation");
+            Assert.That(s.Counters.Flood, Is.EqualTo(1000 - (long)InputSanitizer.RateBurst), "beyond the budget it is");
 
             s.BeginTick();
             var accepted = 0;

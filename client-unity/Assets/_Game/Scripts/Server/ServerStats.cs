@@ -112,6 +112,8 @@ namespace FallRush.Server
                 totals.Malformed += c.Malformed;
                 totals.Repeated += c.Repeated;
                 totals.Neutral += c.Neutral;
+                totals.Early += c.Early;
+                totals.Backlog += c.Backlog;
             }
 
             sim.StepMs.Percentiles(0.5f, 0.95f, out var s50, out var s95);
@@ -121,7 +123,7 @@ namespace FallRush.Server
                       $"snapHz={30 / sim.SnapshotEveryTicks} snaps={sim.SnapshotsSent - _snaps} snapPayload/client={perClientBps:F0}B/s " +
                       $"inMsgs={sim.InputMessages - _inMsgs} inPayload={(sim.InputBytes - _inBytes) / elapsed:F0}B/s " +
                       $"accepted={totals.Accepted - _inputs.Accepted} late={totals.Late - _inputs.Late} repeated={totals.Repeated - _inputs.Repeated} neutral={totals.Neutral - _inputs.Neutral} " +
-                      $"burst={totals.Burst - _inputs.Burst} violations(far/flood/malformed)={totals.FarFuture - _inputs.FarFuture}/{totals.Flood - _inputs.Flood}/{totals.Malformed - _inputs.Malformed} kicks={sim.Kicks} snapsPausedIdleTotal={sim.SnapshotsPausedIdle} pushesTotal={core.PushEvents} hazardHitsTotal={core.HazardHits}");
+                      $"burst={totals.Burst - _inputs.Burst} early={totals.Early - _inputs.Early} backlog={totals.Backlog - _inputs.Backlog} violations(far/flood/malformed)={totals.FarFuture - _inputs.FarFuture}/{totals.Flood - _inputs.Flood}/{totals.Malformed - _inputs.Malformed} kicks={sim.Kicks} snapsPausedIdleTotal={sim.SnapshotsPausedIdle} pushesTotal={core.PushEvents} hazardHitsTotal={core.HazardHits}");
             _snaps = sim.SnapshotsSent;
             _snapBytes = sim.SnapBytesSent;
             _inMsgs = sim.InputMessages;
