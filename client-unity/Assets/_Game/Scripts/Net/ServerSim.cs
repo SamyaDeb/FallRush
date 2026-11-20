@@ -456,17 +456,62 @@ namespace FallRush.Net
 
         // ------------------------------------------------------------------ reactive elements (M4; filled in by step 3)
 
+        // State: the round's ReactiveSet log (Core.Hazards.Reactive); deltas go out after every step, the full log on
+        // join / reconnect / a client's gap report. Chunks of ≤ 80 entries (1,128 B) stay under NGO's 1,296 B
+        // non-fragmented message size; a "full" chunk resets the client's log, the chunks after it continue as deltas.
+        public const int RxChunk = 80;
+        private int _rxSent;
+        private readonly byte[] _rxBuf = new byte[ReactiveCodec.HeaderSize + RxChunk * RxEntry.Size];
+        public long RxBytesSent, RxMsgsSent, RxEntriesSent;
+
+        private byte RxEpoch => Match != null ? Match.Director.LoadSerial : (byte)0;
+
         private void OnWorldChanged(HazardSet hazards)
         {
+            _rxSent = 0;
+            if (_nm == null)
+                return;
+            foreach (var id in _nm.ConnectedClientsIds)
+                if (id != NetworkManager.ServerClientId)
+                    SendReactiveFull(id); // a new round: every client starts from an empty log
         }
 
         private void AfterStepReactive()
         {
+            var rx = Core.Hazards?.Reactive;
+            if (rx == null || rx.Log.Count <= _rxSent)
+                return;
+            foreach (var id in _nm.ConnectedClientsIds)
+                if (id != NetworkManager.ServerClientId)
+                    SendRx(id, ReactiveCodec.Delta, rx.Log, _rxSent, rx.Log.Count - _rxSent);
+            _rxSent = rx.Log.Count;
         }
 
         /// <summary>The full reactive state of the current round to one client (join, reconnect, seq gap).</summary>
         public void SendReactiveFull(ulong clientId)
         {
+            var rx = Core?.Hazards?.Reactive;
+            var log = rx != null ? rx.Log : new System.Collections.Generic.List<RxEntry>();
+            SendRx(clientId, ReactiveCodec.Full, log, 0, log.Count);
+        }
+
+        private void SendRx(ulong clientId, byte kind, System.Collections.Generic.List<RxEntry> log, int from, int count)
+        {
+            var first = true;
+            do
+            {
+                var n = Math.Min(RxChunk, count);
+                var len = ReactiveCodec.Encode(_rxBuf, first ? kind : ReactiveCodec.Delta, RxEpoch, log, from, n);
+                using var w = new FastBufferWriter(len, Allocator.Temp);
+                w.WriteBytesSafe(_rxBuf, len);
+                _nm.CustomMessagingManager.SendNamedMessage(Protocol.Msg.Reactive, clientId, w, NetworkDelivery.ReliableSequenced);
+                RxBytesSent += len;
+                RxMsgsSent++;
+                RxEntriesSent += n;
+                from += n;
+                count -= n;
+                first = false;
+            } while (count > 0);
         }
 
         private void CheckViolations()

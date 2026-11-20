@@ -32,7 +32,13 @@ namespace FallRush.Net
             var ok = HazardVectors.SelfTest(HazardVectorsExpected.Data, platform, out line);
             line += $" ms={sw.ElapsedMilliseconds}";
             Debug.Log(line);
-            return ok;
+            // M4: v2 = v1 + the goo / star / drop / tile cases.
+            sw.Restart();
+            var ok2 = HazardVectorsV2.SelfTest(HazardVectorsV2Expected.Data, HazardVectorsV2Expected.Digest, platform, out var line2);
+            line2 += $" ms={sw.ElapsedMilliseconds}";
+            Debug.Log(line2);
+            line += "\n" + line2;
+            return ok && ok2;
         }
     }
 }

@@ -15,6 +15,15 @@ namespace FallRush.Net
             {
                 case "Race":
                     return new RaceRules(map.CheckpointDefs(), map.CourseLineMm(), timer);
+                case "Survival":
+                {
+                    var cps = map.CheckpointDefs();
+                    return new SurvivalRules(cps.Length > 0 ? cps[cps.Length - 1] : default, timer); // the summit pad = the map's last "checkpoint"
+                }
+                case "Skill":
+                    return new SkillRules(timer);
+                case "Final":
+                    return new FinalRules(timer);
                 default:
                     return new LobbyRules();
             }

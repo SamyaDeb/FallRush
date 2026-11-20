@@ -102,6 +102,22 @@ namespace FallRush.Shared
             foreach (var d in h.Bumpers)
                 w.I32(d.CenterXMm).I32(d.CenterYMm).I32(d.CenterZMm).I32(d.RadiusMm).I32(d.HeightMm).I32(d.ContactMarginMm)
                     .I32(d.KnockbackCms).I32(d.KnockUpCms).I32(d.StunTicks).I32(d.ImmunityTicks);
+            if (!h.HasM4)
+                return; // M3 maps hash exactly as before
+            // M4 kit (goo, crumble grid, falling blocks, star field, spinner start).
+            w.Str("m4").I32(h.SweeperStartT).I32(h.Goo.Length);
+            foreach (var d in h.Goo)
+                w.I32(d.Y0Mm).I32(d.RiseMmPerSec).I32(d.DelayTicks).I32(d.MaxYMm).I32(d.CenterXMm).I32(d.CenterZMm).I32(d.HalfXMm).I32(d.HalfZMm).I32(d.WarnTicks);
+            w.I32(h.Grids.Length);
+            foreach (var d in h.Grids)
+                w.I32(d.OriginXMm).I32(d.OriginZMm).I32(d.TileMm).I32(d.GapMm).I32(d.Cols).I32(d.Rows).Ints(d.ShelfTopsMm).I32(d.ThicknessMm).I32(d.WobbleTicks);
+            w.I32(h.Blocks.Length);
+            foreach (var d in h.Blocks)
+                w.I32(d.CenterXMm).I32(d.CenterYMm).I32(d.CenterZMm).I32(d.HalfXMm).I32(d.HalfYMm).I32(d.HalfZMm).I32(d.DelayTicks).I32(d.GoneTicks);
+            w.I32(h.StarFields.Length);
+            foreach (var d in h.StarFields)
+                w.Ints(d.AnchorsMm).Ints(d.Attach).Ints(d.Golden).I32(d.WaveEveryTicks).I32(d.WaveSize).I32(d.WaveLifeTicks).I32(d.GoldenEveryTicks)
+                    .I32(d.GoldenLifeTicks).I32(d.GoldenValue).I32(d.PickupRadiusMm).I32(d.DropPopTicks).I32(d.DropLifeTicks).I32(d.DropDistanceMm);
         }
     }
 }

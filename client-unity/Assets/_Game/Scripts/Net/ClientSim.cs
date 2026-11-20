@@ -211,10 +211,85 @@ namespace FallRush.Net
             return false;
         }
 
-        // ---------------------------------------------------------------- reactive (filled in by step 3)
+        // ---------------------------------------------------------------- reactive elements (M4 §3.4)
+
+        /// <summary>The round's reactive log as received (full + deltas); replayed into every new prediction world.</summary>
+        public readonly System.Collections.Generic.List<RxEntry> RxLog = new System.Collections.Generic.List<RxEntry>();
+        private readonly System.Collections.Generic.List<RxEntry> _rxScratch = new System.Collections.Generic.List<RxEntry>();
+        private byte _rxEpoch = 0xFF;
+        private bool _rxResendAsked;
+        private int _rxAppliedToPrediction;
+        // ---- stats: changes that arrived after their effective tick in our predicted timeline (M4 §3.4 measurement) ----
+        public long RxReceived, RxGaps, RxLate, RxBytesIn;
+        public int RxLateMaxTicks;
 
         private void OnReactive(ulong sender, FastBufferReader reader)
         {
+            var len = reader.Length - reader.Position;
+            if (len <= 0 || len > _msgBuf.Length)
+                return;
+            RxBytesIn += len;
+            var buf = _msgBuf;
+            reader.ReadBytesSafe(ref buf, len);
+            if (!ReactiveCodec.TryDecode(new ReadOnlySpan<byte>(buf, 0, len), out var kind, out var epoch, out var first, _rxScratch))
+            {
+                Debug.LogWarning("[net] undecodable rx");
+                return;
+            }
+
+            if (kind == ReactiveCodec.Full)
+            {
+                RxLog.Clear();
+                _rxEpoch = epoch;
+                _rxResendAsked = false;
+                _rxAppliedToPrediction = 0;
+                if (Prediction?.Hazards.Reactive != null && Prediction.Hazards.Reactive.Log.Count > 0)
+                    Prediction.Hazards.InitReactive(); // start over from the full log
+            }
+            else if (epoch != _rxEpoch)
+            {
+                return; // a stale round
+            }
+            else if (first != RxLog.Count + 1)
+            {
+                RxGaps++;
+                if (!_rxResendAsked)
+                {
+                    _rxResendAsked = true;
+                    SendControl(ControlCmd.RxResend, (uint)RxLog.Count);
+                    Debug.LogWarning($"[net] rx gap: have {RxLog.Count}, got {first}; asked for the full state");
+                }
+
+                return;
+            }
+
+            RxLog.AddRange(_rxScratch);
+            RxReceived += _rxScratch.Count;
+            ApplyRxToPrediction(measure: true);
+        }
+
+        /// <summary>New log entries → the prediction's reactive set (it decides collider state per predicted tick).</summary>
+        private void ApplyRxToPrediction(bool measure)
+        {
+            var rx = Prediction?.Hazards.Reactive;
+            if (rx == null)
+                return;
+            for (; _rxAppliedToPrediction < RxLog.Count; _rxAppliedToPrediction++)
+            {
+                var e = RxLog[_rxAppliedToPrediction];
+                if (!rx.Apply(in e))
+                    break;
+                if (!measure || !Prediction.HasState)
+                    continue;
+                var eff = rx.EffectiveTick(in e);
+                if (eff <= Prediction.Tick && (e.Type == RxType.TileContact || e.Type == RxType.BlockTrigger))
+                {
+                    RxLate++;
+                    var late = (int)(Prediction.Tick - eff);
+                    if (late > RxLateMaxTicks)
+                        RxLateMaxTicks = late;
+                }
+            }
         }
 
         // ---------------------------------------------------------------- round (v3)
@@ -471,6 +546,8 @@ namespace FallRush.Net
             var cfg = MovementConfig.For(round.Modifier);
             _world = map.CreateWorld(transform, cfg, in round, out var hazards);
             Prediction = new ClientPrediction(cfg, _world, hazards) { PredictPushes = PredictPushesEnabled, RemoteFeet = RemoteFeetAt };
+            _rxAppliedToPrediction = 0;
+            ApplyRxToPrediction(measure: false);
             Debug.Log($"[net] prediction ready map={map.gameObject.scene.name} mapHash={MapContent.Short(map.ContentHash)} round: {round} hazards={hazards.Count}");
         }
 

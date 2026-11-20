@@ -26,6 +26,9 @@ namespace FallRush.Tests
             public int Surface; // −1 static, else HazardSet surface id
             public int Platform; // ≥ 0: posed from HazardSet.Platforms[Platform]
             public int Door;     // ≥ 0: posed from HazardSet.Doors[Door]
+            public int Tile;     // M4: ≥ 0 crumble tile (off once dropped)
+            public int Block;    // M4: ≥ 0 falling block (off while fallen)
+            public bool Off;
         }
 
         private struct Cyl
@@ -61,7 +64,7 @@ namespace FallRush.Tests
 
         public AnalyticWorld AddBox(Vec3 min, Vec3 max)
         {
-            _boxes.Add(new Box { Min = min, Max = max, Surface = -1, Platform = -1, Door = -1 });
+            _boxes.Add(new Box { Min = min, Max = max, Surface = -1, Platform = -1, Door = -1, Tile = -1, Block = -1 });
             return this;
         }
 
@@ -77,9 +80,9 @@ namespace FallRush.Tests
         {
             _hazards = hazards;
             for (var i = 0; i < hazards.Platforms.Length; i++)
-                _boxes.Add(new Box { Surface = hazards.PlatformSurface(i), Platform = i, Door = -1 });
+                _boxes.Add(new Box { Surface = hazards.PlatformSurface(i), Platform = i, Door = -1, Tile = -1, Block = -1 });
             for (var i = 0; i < hazards.Doors.Length; i++)
-                _boxes.Add(new Box { Surface = -1, Platform = -1, Door = i });
+                _boxes.Add(new Box { Surface = -1, Platform = -1, Door = i, Tile = -1, Block = -1 });
             for (var i = 0; i < hazards.Conveyors.Length; i++)
             {
                 ref readonly var d = ref hazards.Conveyors[i];
@@ -87,7 +90,7 @@ namespace FallRush.Tests
                     throw new NotSupportedException("analytic world: flat conveyors only");
                 var c = HazardMath.MmToVec(d.CenterXMm, d.CenterYMm, d.CenterZMm);
                 var h = HazardMath.MmToVec(d.HalfXMm, d.HalfYMm, d.HalfZMm);
-                _boxes.Add(new Box { Min = c - h, Max = c + h, Surface = hazards.ConveyorSurface(i), Platform = -1, Door = -1 });
+                _boxes.Add(new Box { Min = c - h, Max = c + h, Surface = hazards.ConveyorSurface(i), Platform = -1, Door = -1, Tile = -1, Block = -1 });
             }
 
             for (var i = 0; i < hazards.Pads.Length; i++)
@@ -98,7 +101,7 @@ namespace FallRush.Tests
                 {
                     Min = new Vec3((d.CenterXMm - d.HalfXMm) * 0.001f, top - d.ThicknessMm * 0.001f, (d.CenterZMm - d.HalfZMm) * 0.001f),
                     Max = new Vec3((d.CenterXMm + d.HalfXMm) * 0.001f, top, (d.CenterZMm + d.HalfZMm) * 0.001f),
-                    Surface = hazards.PadSurface(i), Platform = -1, Door = -1,
+                    Surface = hazards.PadSurface(i), Platform = -1, Door = -1, Tile = -1, Block = -1,
                 });
             }
 
@@ -114,6 +117,30 @@ namespace FallRush.Tests
                 _cyls.Add(new Cyl { X = d.CenterXMm * 0.001f, Z = d.CenterZMm * 0.001f, R = d.RadiusMm * 0.001f, Y0 = d.CenterYMm * 0.001f, Y1 = (d.CenterYMm + d.HeightMm) * 0.001f, Surface = -1 });
             }
 
+            // M4: crumble tiles and falling blocks (switched off from the reactive state per tick).
+            if (hazards.Grids.Length > 0)
+            {
+                var g = hazards.Grids[0];
+                for (var i = 0; i < g.Count; i++)
+                {
+                    g.Center(i, out var x, out var y, out var z);
+                    var hx = (g.TileMm - g.GapMm) / 2;
+                    _boxes.Add(new Box
+                    {
+                        Min = HazardMath.MmToVec(x - hx, y - g.ThicknessMm / 2, z - hx), Max = HazardMath.MmToVec(x + hx, y + g.ThicknessMm / 2, z + hx),
+                        Surface = -1, Platform = -1, Door = -1, Tile = i, Block = -1,
+                    });
+                }
+            }
+
+            for (var i = 0; i < hazards.Blocks.Length; i++)
+            {
+                ref readonly var d = ref hazards.Blocks[i];
+                var c = HazardMath.MmToVec(d.CenterXMm, d.CenterYMm, d.CenterZMm);
+                var h = HazardMath.MmToVec(d.HalfXMm, d.HalfYMm, d.HalfZMm);
+                _boxes.Add(new Box { Min = c - h, Max = c + h, Surface = -1, Platform = -1, Door = -1, Tile = -1, Block = i });
+            }
+
             BeginTick(0);
             return this;
         }
@@ -127,6 +154,14 @@ namespace FallRush.Tests
             for (var i = 0; i < _boxes.Count; i++)
             {
                 var b = _boxes[i];
+                if (b.Tile >= 0 || b.Block >= 0)
+                {
+                    var rx = _hazards.Reactive;
+                    b.Off = rx != null && (b.Tile >= 0 ? !rx.TileSolid(b.Tile, tick) : !rx.BlockSolid(b.Block, tick));
+                    _boxes[i] = b;
+                    continue;
+                }
+
                 if (b.Platform >= 0)
                 {
                     ref readonly var d = ref _hazards.Platforms[b.Platform];
@@ -198,6 +233,8 @@ namespace FallRush.Tests
 
             foreach (var bx in _boxes)
             {
+                if (bx.Off)
+                    continue;
                 // Closest point on the vertical segment to the box: pick y in the overlap, else the nearer end.
                 float sy;
                 if (y1 < bx.Min.Y)
@@ -362,6 +399,8 @@ namespace FallRush.Tests
 
             foreach (var b in _boxes)
             {
+                if (b.Off)
+                    continue;
                 var d = BoxDistance(b, p, out var n, out var cp);
                 if (d < best)
                 {

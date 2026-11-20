@@ -253,6 +253,7 @@ namespace FallRush.Shared
                 if (Rules != null && !Rules.AcceptsInput(this, i))
                     cmd = new InputCmd { Seq = cmd.Seq, Tick = cmd.Tick, CamYaw = cmd.CamYaw }; // countdown / finished: inputs ignored
 
+                p.LastStep = PlayerStep.Result.None;
                 if (Rules != null && !Rules.Simulates(this, i))
                     continue; // finished racers stand at the finish, out of the simulation (M4: and players out of the round)
 

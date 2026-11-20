@@ -20,6 +20,9 @@ namespace FallRush.Net
         private readonly HazardSet _hazards;
         private readonly Collider[] _platforms;
         private readonly Collider[] _doors;
+        private readonly Collider[] _tiles;
+        private readonly Collider[] _blocks;
+        private bool[] _tileOn, _blockOn;
         private readonly System.Collections.Generic.Dictionary<int, int> _surfaceOf = new System.Collections.Generic.Dictionary<int, int>();
         private uint _tick;
         private bool _posed;
@@ -41,6 +44,16 @@ namespace FallRush.Net
             cols ??= new MapInfo.Colliders();
             _platforms = cols.Platforms ?? System.Array.Empty<Collider>();
             _doors = cols.Doors ?? System.Array.Empty<Collider>();
+            _tiles = cols.Tiles ?? System.Array.Empty<Collider>();
+            _blocks = cols.Blocks ?? System.Array.Empty<Collider>();
+            _tileOn = new bool[_tiles.Length];
+            _blockOn = new bool[_blocks.Length];
+            for (var i = 0; i < _tiles.Length; i++)
+                _tileOn[i] = _tiles[i] != null && _tiles[i].enabled;
+            for (var i = 0; i < _blocks.Length; i++)
+                _blockOn[i] = _blocks[i] != null && _blocks[i].enabled;
+            Check(_tiles.Length, _hazards.Grids.Length > 0 ? _hazards.Grids[0].Count : 0, "crumble tile");
+            Check(_blocks.Length, _hazards.Blocks.Length, "falling block");
             Check(_platforms.Length, _hazards.Platforms.Length, "platform");
             Check(_doors.Length, _hazards.Doors.Length, "door");
             Check(cols.TurnTables?.Length ?? 0, _hazards.TurnTables.Length, "turn table");
@@ -78,6 +91,31 @@ namespace FallRush.Net
                 return;
             _tick = tick;
             _posed = true;
+            // M4 reactive colliders: on/off from the replicated state at this tick (the same lookup on server and client).
+            var rx = _hazards.Reactive;
+            if (rx != null)
+            {
+                for (var i = 0; i < _tiles.Length; i++)
+                {
+                    var on = rx.TileSolid(i, tick);
+                    if (on != _tileOn[i])
+                    {
+                        _tileOn[i] = on;
+                        _tiles[i].enabled = on;
+                    }
+                }
+
+                for (var i = 0; i < _blocks.Length; i++)
+                {
+                    var on = rx.BlockSolid(i, tick);
+                    if (on != _blockOn[i])
+                    {
+                        _blockOn[i] = on;
+                        _blocks[i].enabled = on;
+                    }
+                }
+            }
+
             if (_platforms.Length == 0 && _doors.Length == 0)
                 return;
             var t = _hazards.Time(tick);

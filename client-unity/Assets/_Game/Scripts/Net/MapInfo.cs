@@ -61,6 +61,8 @@ namespace FallRush.Net
             public Collider[] Conveyors = new Collider[0];
             public Collider[] Pads = new Collider[0];
             public Collider[] Doors = new Collider[0];
+            public Collider[] Tiles = new Collider[0];
+            public Collider[] Blocks = new Collider[0];
         }
 
         /// <summary>M2 form: variant A, no modifier, M2 phases (tests and tools).</summary>

@@ -60,8 +60,34 @@ namespace FallRush.Shared
 
         public static readonly HazardSet Empty = new HazardSet(null, null);
 
+        // ------------------------------------------------------------------ M4 kit (goo, crumble tiles, falling blocks, stars)
+
+        public GooDef[] Goo = Array.Empty<GooDef>();
+        public TileGridDef[] Grids = Array.Empty<TileGridDef>();
+        public FallingBlockDef[] Blocks = Array.Empty<FallingBlockDef>();
+        public StarFieldDef[] StarFields = Array.Empty<StarFieldDef>();
+        /// <summary>Crumble Shelf: spinner bars sweep only from this hazard time on (60 s); <see cref="int.MinValue"/> = always.</summary>
+        public int SweeperStartT = int.MinValue;
+        /// <summary>The round's hazard seed (star timeline).</summary>
+        public ulong Seed;
+        /// <summary>Server-owned reactive state (tiles, blocks, stars), replicated with <c>rx</c>; null when the map has none.</summary>
+        public ReactiveSet Reactive;
+
+        public bool HasM4 => Goo.Length + Grids.Length + Blocks.Length + StarFields.Length > 0 || SweeperStartT != int.MinValue;
+
         /// <summary>M4: number of reactive elements (tiles, falling blocks, star anchors).</summary>
-        public int ReactiveCount => 0;
+        public int ReactiveCount => (Grids.Length > 0 ? Grids[0].Count : 0) + Blocks.Length + (StarFields.Length > 0 ? StarFields[0].AnchorCount : 0);
+
+        /// <summary>Creates <see cref="Reactive"/> for the M4 elements (call after setting them).</summary>
+        public void InitReactive()
+        {
+            Reactive = Grids.Length > 0 || Blocks.Length > 0 || StarFields.Length > 0
+                ? new ReactiveSet(Grids.Length > 0 ? Grids[0] : (TileGridDef?)null, Blocks, StarFields.Length > 0 ? StarFields[0] : (StarFieldDef?)null, Seed)
+                : null;
+        }
+
+        /// <summary>Goo surface (mm) at <paramref name="tick"/>, or <see cref="int.MinValue"/> without goo.</summary>
+        public int GooYMm(uint tick) => Goo.Length > 0 ? HazardMath.GooYMm(in Goo[0], Time(tick)) : int.MinValue;
 
         public int Count => Sweepers.Length + Platforms.Length + Conveyors.Length + Pads.Length + TurnTables.Length + Doors.Length + Mallets.Length + Bumpers.Length;
 
@@ -182,6 +208,8 @@ namespace FallRush.Shared
             if (s.ImmunityTicks > 0 || s.Has(MotorState.Respawning))
                 return false;
             var t = Time(tick);
+            if (t < SweeperStartT)
+                return false; // M4 Crumble Shelf: the spinners sweep only from 60 s
             var r = MotorState.QuantizeMm(cfg.Radius);
             var h = HitHeightMm(in s, cfg);
             for (var i = 0; i < Sweepers.Length; i++)
@@ -339,6 +367,15 @@ namespace FallRush.Shared
             }
 
             var killed = hazards != null && hazards.KillYMm != int.MinValue ? s.PosY < hazards.KillYMm : s.PosY * 0.001f < cfg.KillY;
+            // M4 GOO_PLANE: feet below the goo surface → out (frozen like a fall; the survival rules eliminate).
+            if (!killed && hazards != null && hazards.Goo.Length > 0 && s.PosY < hazards.GooYMm(tick))
+            {
+                s.Velocity = Vec3.Zero;
+                s.Flags = MotorState.Respawning;
+                s.Surface = 0;
+                return r | Result.Gooed;
+            }
+
             if (killed)
             {
                 s.Velocity = Vec3.Zero;
