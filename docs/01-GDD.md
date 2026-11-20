@@ -97,11 +97,11 @@ The rule needs P ≥ 4. With fewer players, use a practice ruleset (no on-chain 
 
 ### 5.4 Final (Crumble Shelf)
 
-- A grid of toy-block tiles on stacked shelves (3 layers). A tile wobbles for 0.6 s after first contact, then drops.
+- A grid of toy-block tiles on stacked shelves (3 layers). A tile wobbles for **1.0 s** after first contact, then drops (G1; M4: 0.6 s). **Top-shelf tiles come back** 8 s after they drop (they blink for the last 1.5 s), so the top stays contested.
 - **Win:** the last Rushling standing wins.
 - **Timer (120 s) tiebreak:** lowest layer reached (higher is better), then tiles touched (fewer is better), then slot index.
 
-- **As built (M4, `FinalRules`):** tile contact = the server's own ground contact; the drop (collider off) is at contact + 18 ticks on both sides (replicated, so prediction is exact). Spinner bars (one low to jump, one high to dive) hang raised until 60 s. Below −6 m = out. Simultaneous last falls: the last to go ranks highest, then the tiebreak.
+- **As built (M4, `FinalRules`; G1 timing):** tile contact = the server's own ground contact; the drop (collider off) is at contact + 30 ticks on both sides (replicated, so prediction is exact); a top-shelf tile is solid again at contact + 30 + 240 ticks and a new contact starts a new cycle (`TileGridDef.RespawnTicks/RespawnShelves`, `ReactiveSet.TileContactAt`). Bot QA median **≈ 73 s** (M4: 27–32 s). Spinner bars (one low to jump, one high to dive) hang raised until 60 s. Below −6 m = out. Simultaneous last falls: the last to go ranks highest, then the tiebreak.
 
 ## 6. Controls (keyboard + mouse baseline; gamepad post-MVP)
 
@@ -110,37 +110,44 @@ The rule needs P ≥ 4. With fewer players, use a practice ruleset (no on-chain 
 | Move | WASD | Camera-relative |
 | Camera | Mouse | Adjustable sensitivity and invert |
 | Jump | Space | Coyote 0.10 s, buffer 0.12 s |
-| Dive | Shift / LMB | Forward burst, cooldown 1.0 s; the player is grounded-stunned 0.35 s after landing unless they jump-cancel within 0.15 s of landing (skill tech) |
+| Dive | Shift / LMB | Forward burst, cooldown 1.0 s; the landing is a **belly slide** (0.45 s, no control, slows at 12 m/s²) unless they jump-cancel within 0.15 s of landing (skill tech) |
 | Grab | E / RMB | Post-MVP (needs server-side grab rules) |
-| Emote | 1–4 | Lobby, intermission and spectating only |
+| Emote | 1–4 | Lobby, results, intermission, champion, receipt (G1: wave, dance, cheer, flop; relayed to everyone) |
+| Help | F1 | Shows / hides the controls bar (shown for 8 s after each map loads) |
 | Menu | Esc | Leaving mid-match asks for confirmation |
 
-## 7. Movement model (authoritative constants in `MovementConfig v1`)
+## 7. Movement model (authoritative constants in `movement_v2.json` since G1)
 
 The model is **kinematic**: a custom capsule motor runs the same C# code on the server and in client prediction. No rigidbody player physics.
 
-| Constant | Initial value (tune in M2) |
-|---|---|
-| Capsule | radius 0.31, height 1.0 |
-| Max run speed | 7.0 m/s |
-| Ground acceleration | 60 m/s² |
-| Ground deceleration | 45 m/s² |
-| Air control | 35% of ground acceleration |
-| Gravity | 24 m/s²; fall multiplier 1.35 |
-| Jump | apex 1.6 m (one jump; no double jump) |
-| Dive | horizontal impulse 9 m/s, vertical 3 m/s, cooldown 1.0 s |
-| Slope | max 45°; step offset 0.25 m |
-| Hazard knockback | defined per hazard profile; sets stun 0.3–0.8 s (no input) |
-| Player–player | soft separation push (max 2.5 m/s), no stun; prevents stacking exploits |
+**G1 movement v2** (`packages/shared/config/movement_v2.json`; v1 kept unchanged for history). Bolt is 1.0 m tall, so m/s = body heights per second. Feel targets and reasons: `docs/proof/G1-polish.md` §A–B.
 
-**Where the values live (M2):**
+| Constant | v1 (M2–M4) | **v2 (G1)** | Why |
+|---|---|---|---|
+| Capsule | radius 0.31, height 1.0 | same | |
+| Max run speed | 7.0 m/s | **5.0 m/s** | a jog with weight (5 body heights/s), not a sprint |
+| Ground acceleration | 60 m/s² | **28 m/s²** (0.18 s to full speed) | momentum you can feel |
+| Ground deceleration | 45 m/s² | **30 m/s²** (≈ 0.4 m stop slide) | a little slide when you stop |
+| Air control | 35 % | **30 %** | commit to jumps |
+| Gravity; fall multiplier | 24 m/s²; 1.35 | **20 m/s²; 1.35** | slightly floatier |
+| Jump apex | 1.6 m | **1.2 m** (airtime 0.64 s, ≈ 3.2 m running reach) | a hop, not a leap |
+| Dive | 9 / 3 m/s, cooldown 1.0 s, 0.35 s land stun | **7 / 2.5 m/s**, cooldown 1.0 s, **0.45 s belly slide at 12 m/s²** (jump-cancel 0.15 s) | reach extender, comedic |
+| Stumble (new) | – | landing after a fall **> 3 m**: **0.3 s** at **55 %** speed, input live, a jump ends it | weight on big drops |
+| Turn | instant | motor facing instant (dive direction stays precise); **visual turn ≤ 720°/s**; reversing costs the accel | weight |
+| Slope / step | 45°, 0.25 m | same | |
+| Hazard knockback | per hazard profile, stun 0.3–0.8 s | same (shown as a tumble: flop, roll, get up) | |
+| Player–player | soft push ≤ 2.5 m/s | same (shown as a bump wobble) | |
+
+Modifiers still scale the base: MoonBounce gravity ×0.7 / apex ×1.25 (→ 14 m/s², 1.5 m), ButterFloors ground and slide decel ×0.4 (→ 12 / 4.8 m/s²).
+
+**Where the values live (M2; v2 since G1):**
 - Today they are in `packages/shared/config/movement_v1.json`: integers in mm, mm/s and ms, with their own sha256, loaded by Unity through generated constants and checked by a hash test. The table above is unchanged by M2a and M2b (sha256 `1d966e17…`; nothing was retuned, because the gate passed with the GDD values and the feel verdict is still open).
 - **M2a added** four constants the table did not name:
   - max fall speed 30 m/s;
   - ground snap 0.25 m;
   - skin 1 cm;
   - ledge tolerance 5 cm (a landing on a ledge counts only if its top is ≤ 5 cm above the feet).
-- **Timer rounding at 30 Hz:** coyote 3 ticks (100 ms), jump buffer 4 ticks (133 ms), dive land stun 11 ticks (367 ms), jump-cancel window 5 ticks (167 ms).
+- **Timer rounding at 30 Hz:** coyote 3 ticks (100 ms), jump buffer 4 ticks (133 ms), dive land stun 11 ticks (367 ms), jump-cancel window 5 ticks (167 ms). v2: belly slide 14 ticks (450 ms → 13.5), stumble 9 ticks.
 - **Target (M6):** merge them into a ruleset v2 that is hashed into `ruleset_hash` and committed on-chain at match creation. `ruleset_v1.json` (already compiled into the deployed program) is not changed.
 
 ## 8. Chaos Capsule modifiers (VRF-dealt)

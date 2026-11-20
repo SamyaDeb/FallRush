@@ -449,7 +449,11 @@ namespace FallRush.Client
             ltr.offsetMin = ltr.offsetMax = Vector2.zero;
             _lagIcon.SetActive(false);
 
-            _plates = new Nameplates(canvas, PhysxMotorWorld.GameplayMask());
+            // Nameplates on their own canvas, sorted under every HUD / match panel (they drew over the result panels).
+            var plateCanvas = UiKit.CreateCanvas("NameplateCanvas");
+            plateCanvas.SetParent(transform, false);
+            plateCanvas.GetComponent<Canvas>().sortingOrder = -10;
+            _plates = new Nameplates(plateCanvas, PhysxMotorWorld.GameplayMask());
             var hint = UiKit.Label(canvas, "Click to capture the mouse · WASD move · Space jump · Shift / left click dive · 1–4 emote (lobby) · Esc settings · F1 hide this · Tab spectate", 16, UiKit.Ink);
             _hint = hint.gameObject;
             _hintUntil = Time.unscaledTime + 8f;

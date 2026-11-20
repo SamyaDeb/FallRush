@@ -144,7 +144,9 @@ public static class KitBuilder
         var go = Box(parent, name, center, size, mat, rot);
         Object.DestroyImmediate(go.GetComponent<BoxCollider>());
         go.layer = 0;
-        go.isStatic = false;
+        // G1 §3.5.8: render-only boxes straight under a map's static "Geometry" root never move: let static batching
+        // merge them (WebGL static batching is on since G1). Hazard visuals live under the hazard roots and stay dynamic.
+        go.isStatic = parent != null && parent.name == "Geometry";
         return go;
     }
 

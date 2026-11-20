@@ -76,6 +76,26 @@ Each expression and its trigger:
 
 **All of this runs on the client.** The dedicated server never runs animation (`-nographics`, components stripped).
 
+#### 2.3.1 As built (G1, `Client/RushlingVisuals.cs`, allocation-free per frame)
+
+Our own procedural animation on Bolt, driven only by the motor state the client already has (position, velocity, the motor flags `Grounded / Diving / DiveLanding / Stumbling`, stun ticks, facing). Remote players play the same states from interpolated snapshots: nothing new on the wire except the `Stumbling` flag bit (snap still 294 B for 12).
+
+| State | What you see |
+|---|---|
+| Facing | Visual turn rate ≤ 720°/s (×2.5 while diving), eased; the body leans into turns (≤ 12°) |
+| Run | A gait phase advances at `3.2 + 0.95 × speed` steps/s (8 steps/s at 5 m/s ≈ 0.6 m per step). Feet step in time with it: the stance foot stays planted in the world (no sliding), the swing foot lands half a step ahead with an arc; a waddle roll (±7°), a yaw wiggle (±5°) and a body bob (4 cm) per step; arms swing opposite the legs; a forward lean with speed plus the acceleration lean |
+| Idle | Breathing squash (±1.4 %), blinks, a slow look-around (±25°) after 1.5 s, a fidget bounce with a key spin every 5–9 s |
+| Jump / fall | Take-off: a quick squash that springs into a stretch; rising: lean back, arms up; falling fast (> 5 m/s): arms straight up and flailing faster, feet kicking, panic face; landing squash scaled by the impact |
+| Stumble | (fall > 3 m) a forward pitch of 24° with a decaying roll shake and windmilling arms for 0.6 s; "falling" face |
+| Dive | Belly-flop pitch 82°, arms reaching ahead (superhero), key ×3; the landing slaps (a little bounce) into the belly slide at 88°; when the slide ends a scramble (feet paddling, a body shake) and an underdamped spring pops past upright |
+| Hit / tumble | On a stun: flop over in the knock direction (0 → 90° in 0.12 s), a full roll on stuns ≥ 0.45 s, a bounce, lying on the side with ragdoll arms, then the get-up pop (back to upright with a 12° overshoot, a hop, stars, lid pop). Reduced motion: flop only, no roll |
+| Crowd | Rushlings closer than 0.7 m wobble away from each other (visual; pushes stay server-only) |
+| Celebrations | Round result: qualified = jumping for joy with arms up and a happy face; eliminated = slumped (pitch 22°, squashed, arms hanging, sad face). Champion podium: arms-up crown pose (the podium drives the hop and the crown) |
+| Emotes (1–4) | 1 wave, 2 dance (side-to-side, a full spin), 3 cheer (hops, arms up), 4 flop (belly-flop on the spot, pop up). Lobby, results, intermission, champion, receipt; relayed by the server (`ctl` Emote → `emo`, 1 per second per player) |
+| Faces | Two new glyphs in the 4×4 atlas: Happy (7), Sad (8) |
+
+**For G2 / G3 to build on (don't change the motor):** every pose is a function of the motor flags + velocity + timers in `RushlingVisuals`; restyle the meshes / materials freely, keep the node hierarchy (`Tilt` → `Squash` → parts; feet under the root; arms as world-space tubes). Natural hooks for juice: `StunStartedThisFrame`, `DiveStartedThisFrame`, the landing event (impact 0–1), stumble start, get-up pop, emote start — each wants a puff / stars / SFX in G3.
+
 ### 2.4 Customisation slots (cosmetics, no stats)
 
 | Slot | Variety |

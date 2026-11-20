@@ -228,7 +228,7 @@ namespace FallRush.Shared
                 double c = Math.Cos(wob), sn = Math.Sin(wob);
                 var rx = mx * c - my * sn;
                 var ry = mx * sn + my * c;
-                var k = precise ? 1.0 : S.SpeedPermille / 1000.0; // full speed for gap jumps (the jump points assume it)
+                var k = precise ? (_cfg != null && _cfg.JumpApex > 1.3f ? 0.7 : 1.0) : S.SpeedPermille / 1000.0; // G1: MoonBounce hops reach ~4.3 m: ease off so the small S1 blocks are not overshot // full speed for gap jumps (the jump points assume it)
                 var l = Math.Sqrt(rx * rx + ry * ry);
                 if (l > 127)
                     k *= 127 / l;

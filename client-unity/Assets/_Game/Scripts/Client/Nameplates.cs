@@ -9,7 +9,7 @@ namespace FallRush.Client
     /// overlapped and stacked "BOT BOT"): a constant-size label above each Rushling's head, faded with distance (full to
     /// 10 m, gone at 32 m), hidden when the head is behind level geometry (one raycast per player every third frame),
     /// a farther label that overlaps a nearer one is dimmed, the name carries a small BOT tag, and your own marker is a
-    /// distinct mint "▼ YOU". Off with Settings → Show nameplates (your marker stays). Allocation-free per frame.
+    /// distinct magenta "▼ YOU". Off with Settings → Show nameplates (your marker stays). Allocation-free per frame.
     /// </summary>
     public sealed class Nameplates
     {
@@ -55,7 +55,7 @@ namespace FallRush.Client
         }
 
         public static string LabelFor(string name, bool bot, bool own) =>
-            own ? "<color=#2EC4B6>▼ YOU</color>" : bot ? $"<size=11><color=#7B2FF7>BOT</color></size> {name}" : name;
+            own ? "<size=20><color=#FF3EA5>▼ YOU</color></size>" : bot ? $"<size=11><color=#7B2FF7>BOT</color></size> {name}" : name;
 
         /// <summary>Call once per frame per slot, before <see cref="Layout"/>.</summary>
         public void Set(int slot, bool visible, Vector3 headWorld, string text)

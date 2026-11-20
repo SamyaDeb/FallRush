@@ -58,12 +58,14 @@ public static class BlockPartyDashBuilder
         new S1Block(9.7f, 12.5f, 3.2f, 0.3f), new S1Block(14.2f, 17.0f, 3.0f, 0.6f), new S1Block(18.8f, 21.6f, 3.2f, 0.3f),
         new S1Block(23.3f, 26.1f, 3.0f, 0.6f), new S1Block(27.9f, 30.5f, 3.0f, 0.9f), new S1Block(32.3f, 35.2f, 3.2f, 0.45f),
     };
-    // Fast, risky lane (right): fewer, smaller blocks, gaps 2.3–2.7 m (≈ 70–85 % of the v2 running jump), steps up and
-    // down of 0.4–0.7 m, a 1.5 m stair top in the middle.
+    // Fast, risky lane (right): seven small 1.8 m blocks, gaps 2.0–2.1 m (≈ 65–70 % of the v2 running jump; the first
+    // G1 cut used 2.4–2.6 m with 0.5–0.6 m rises: too many misses, user playtest 2026-11-19), steps of ±0.3–0.5 m and a
+    // 1.4 m stair top in the middle.
     private static readonly S1Block[] BlocksR =
     {
-        new S1Block(10.5f, 12.5f, 2.2f, 0.4f), new S1Block(14.9f, 16.9f, 2.0f, 0.9f), new S1Block(19.3f, 20.9f, 1.8f, 1.5f),
-        new S1Block(23.4f, 25.4f, 2.0f, 0.8f), new S1Block(28.0f, 30.0f, 2.2f, 0.3f), new S1Block(32.4f, 34.4f, 2.0f, 0.7f),
+        new S1Block(10.1f, 11.9f, 2.2f, 0.3f), new S1Block(14.0f, 15.8f, 2.0f, 0.7f), new S1Block(17.9f, 19.7f, 2.0f, 1.1f),
+        new S1Block(21.8f, 23.6f, 1.8f, 1.4f), new S1Block(25.6f, 27.4f, 2.0f, 0.9f), new S1Block(29.4f, 31.2f, 2.2f, 0.5f),
+        new S1Block(33.2f, 35.0f, 2.0f, 0.8f),
     };
     // Middle lane: bobbing platforms (variant A vertical ±0.4 m, B lateral ±1.2 m), gaps ≈ 2.1 m at rest.
     private static readonly float[] BlocksM = { 11.2f, 15.7f, 20.2f, 24.7f, 29.2f, 33.7f };
