@@ -49,6 +49,21 @@
 | M4-13 | Map QA runs Survival / Skill / Final with the players those rounds have in a 12-player match (8 / 5 / 3), not 12 | 🟡 | a 12-bot Final consumes 81 tiles in ~3 s; the prompt said 12 |
 | M4-14 | Bots' noise (wobble, reaction delay, slower stick) is off during precise moves (gap jumps, landings, platforms, airborne) | 🟡 | with it on, normal bots fell ~15× per race |
 
+### G1 decisions (2026-11-19; made by Claude per the G1 prompt, recorded in docs/proof/G1-polish.md §G — say if you want any changed)
+| ID | Decision | State | Notes |
+|---|---|---|---|
+| G1-1 | Movement v2 = the prompt's start values unchanged (5 m/s, 28/30, 30 %, 20/1.35, 1.2 m, dive 7/2.5) + belly slide 0.45 s at 12 m/s², stumble > 3 m: 0.3 s at 55 % | 🟡 (GDD §7 v1 table replaced; feel = your call) | tune with the practice mode (F6/F7) after your playtest |
+| G1-2 | Stumble / slide reuse `LandTicks` + one new flag bit (`Stumbling`); snapshot layout unchanged, protocol v5 | ✅ | |
+| G1-3 | Turn rate is visual only (≤ 720°/s); the motor facing stays instant so the dive direction is exactly the input; the motor's turn cost is the lower accel | 🟡 | prompt allowed "a small motor cost if it helps" |
+| G1-4 | Final: wobble 1.0 s + top shelf respawn 8 s (no grid change) | ✅ | bots ≈ 73 s |
+| G1-5 | Goo Tower: geometry fixes only (4 blocks, single-step gap, slower belts); goo speed kept 0.3 m/s | 🟡 | bots 85–89 s, 1–5 s under the 90 s floor; humans are slower |
+| G1-6 | S1 right-lane gaps 2.0–2.1 m (≈ 65–70 % of reach), below the prompt's 70–85 % | 🟡 | your playtest note: the 2.4–2.6 m first cut failed too often |
+| G1-7 | Developer labels tagged `EditorOnly` (Unity strips them from player builds), titles / CHECKPOINT / FINISH kept as signs | ✅ | |
+| G1-8 | WebGL static batching turned on (Standalone already had it) | ✅ | draw calls |
+| G1-9 | Emotes relayed by the server as `emo` (not logged, not in the transcript), rate 1/s/player, outside round play | ✅ | |
+| G1-10 | Bots approach precise jumps at 70 % stick when the hop apex > 1.3 m (MoonBounce) | ✅ | MoonBounce races hit the 150 s timer otherwise |
+| G1-11 | Initial connect: 6 tries (1, 2, 4, 4, 4 s backoff) on top of UTP's own 10 × 1 s | ✅ | |
+
 ## Top risks (live; update daily in PROJECT_STATUS)
 
 | # | Risk | Likelihood | Impact | Mitigation |

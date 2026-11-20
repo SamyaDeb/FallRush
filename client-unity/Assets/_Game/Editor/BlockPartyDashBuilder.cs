@@ -138,12 +138,12 @@ public static class BlockPartyDashBuilder
             KitBuilder.Visual(_geo, $"SpawnPad_{i:00}", new Vector3(x, 0.005f, z), new Vector3(1.4f, 0.01f, 1.4f), KitBuilder.Mint);
         }
 
-        var gate = KitBuilder.GateDoor(_hz, "bpd_start_gate", new Vector3(0f, 1.25f, 6.6f), new Vector3(22f, 2.5f, 0.4f), 0, 10, 0, 0, 0, 0, lift: 2.8f);
+        var gate = KitBuilder.GateDoor(_hz, "bpd_start_gate", new Vector3(0f, 1.25f, 6.6f), new Vector3(22f, 2.5f, 0.4f), 0, 10, 0, 0, 0, 0, lift: 5.2f); // G1: lifts clear of the v2 camera (at 2.8 m it filled the top of the view)
         gate.def.Mode = 1;
         gate.variantB = gate.def;
         gate.hasVariantB = false;
         doors.Add(gate);
-        KitBuilder.Sign(_geo, "BLOCK PARTY DASH", new Vector3(0f, 4.4f, 7f), 0.06f);
+        KitBuilder.Label(_geo, "BLOCK PARTY DASH", new Vector3(0f, 4.4f, 7f), 0.06f); // G1: dev only (it sat behind the HUD counter); the intro names the map
 
         // ---------------- S1 Block Hop (G1 rebuild: wider gaps, height variation, varied sizes)
         for (var i = 0; i < BlocksL.Length; i++)

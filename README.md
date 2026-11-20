@@ -109,6 +109,19 @@ pnpm gen:modifiers                                             # after editing m
 ```
 Proof: `docs/proof/M3-race.md`.
 
+## G1: run it (gameplay polish: movement v2, animation, map retunes, UX)
+Status: **G1 built locally** (no VPS). Proof: [`docs/proof/G1-polish.md`](docs/proof/G1-polish.md), map QA [`docs/proof/g1-map-qa.md`](docs/proof/g1-map-qa.md), your play notes [`docs/playtest/G1-notes.md`](docs/playtest/G1-notes.md).
+
+**Play a match** (as in M4): `pnpm m1:build:macserver` → `bash scripts/m1-macserver.sh start` → Editor `Boot.unity` → Play → type your name → **Play (Quick Play)**. Esc = settings (sensitivity, invert Y, FOV, camera distance, reduced motion, volumes, nameplates); 1–4 = emotes in the lobby / between rounds; F1 = controls bar; F3 = netcode HUD.
+
+**Practice / tuning mode (Editor and development builds only):** the menu's **Practice / tuning (dev)** button, or `-fallrushPractice BlockPartyDash` (desktop dev build) / `?practice=GooTower` (WebGL development build). No server: the shared motor + the map's hazards run locally. **F6** tuning panel (PgUp/PgDn select, +/− change; readouts: speed, last jump apex / airtime / distance, stumble / slide), **F7** prints the values as JSON (console + clipboard) → paste into `packages/shared/config/movement_v2.json` → `pnpm gen:movement` → `pnpm hash` → rebuild. **R** respawn. Release builds cannot enter it.
+
+```bash
+pnpm gen:movement && pnpm hash                    # after editing movement_v2.json (C# constants + sha256)
+bash scripts/m1-unity.sh maps -executeMethod AllMapsBuilder.Run   # rebuild every map scene (Editor closed)
+bash scripts/g1-qa.sh 100                         # map QA → docs/proof/g1-map-qa.md
+```
+
 ## M4: run it (a full match: lobby → deal → 4 rounds → champion → receipt → lobby)
 Status: **M4 built locally** (no VPS: deferred to M6). Proof: [`docs/proof/M4-match.md`](docs/proof/M4-match.md), map QA [`docs/proof/m4-map-qa.md`](docs/proof/m4-map-qa.md).
 

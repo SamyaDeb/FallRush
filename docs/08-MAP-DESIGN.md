@@ -124,6 +124,16 @@ Allowlists unchanged (the new kit has no tunable speed beyond the goo, checked b
 
 ### 3.1 As built (M3, `Editor/BlockPartyDashBuilder.cs`)
 
+**G1 retune (movement v2: 5 m/s, 1.2 m hop, ≈ 3.2 m running reach):**
+- **S1 Block Hop rebuilt** (user note: gaps too small, every block at the same low height). Pillar blocks from y −1.5 to their own top.
+  - *Safe lane (left)*: six 3.0–3.2 m wide, 2.6–2.9 m deep blocks, gaps 1.6–1.9 m (≈ 50–60 % of reach), tops 0.3 / 0.6 / 0.3 / 0.6 / 0.9 / 0.45 m.
+  - *Fast, risky lane (right)*: seven 1.8–2.2 m blocks, gaps 2.0–2.1 m (≈ 65–70 %), tops 0.3 / 0.7 / 1.1 / **1.4 (stair)** / 0.9 / 0.5 / 0.8 m. A first cut with 2.4–2.6 m gaps and 0.5–0.6 m rises made even reference bots fall 27–71 times per race (and the user found the jumps failing): narrowed.
+  - *Middle*: six bobbing platforms 3 × 2.4 m, gaps ≈ 2.1 m at rest, variant A vertical ±0.4 m (was ±0.6), B lateral ±1.2 m, period 4 s.
+- S3: conveyor ramp against you 3.5 → **2.0 m/s** (net 3 m/s up at v2 speed). Spring pads unchanged (the v2 gravity lands pad 1 at z ≈ 94.3 on the 91.5–96 block, pad 2 at z ≈ 103 on the deck).
+- S2 bars (0.35 / 0.95 / 0.5 m), S4 doors (open 1.5 s, 3 m wide), S5 turn tables (2 m gaps ≈ 63 % of reach), S6 mallets, S7 bumpers: unchanged; QA below.
+- Developer labels (section names, "MID: JUMP", "CONVEYOR RAMP (…)") are `EditorOnly` (stripped from builds); the title, CHECKPOINT n and FINISH stay as signs.
+
+
 Course line ≈ 255 m (checkpoints at 47.0 / 115.3 / 132.3 / 175.8 / 226.3 m, finish 255.4 m along it). Kill-Y −10 m.
 - **Start deck** z −12…8, 12 staggered spawns (3 rows × 4, 2.5 m apart), start gate (`GATE_DOOR` mode 1) opens at RUSH over 10 ticks.
 - **S1 Block Hop** z 8…37: left lane 6 static 3 m blocks (1.5 m gaps), middle lane 6 bobbing blocks (variant A vertical ±0.6 m, B lateral ±1.2 m, period 120, seeded phase), right lane 5 static 2.4 m blocks (3.6 m gaps). **CP1** z 39.
@@ -138,6 +148,7 @@ Course line ≈ 255 m (checkpoints at 47.0 / 115.3 / 132.3 / 175.8 / 226.3 m, fi
 - **Not done:** formal colourblind simulation and a tris/draw-call count (doc 17 §3.2); the originality check needs two people (yours).
 
 ## 4. Map 1B — **Bonk Factory** (Race)
+
 
 **Layout:** an indoor toy factory with assembly lines.
 
@@ -167,6 +178,9 @@ Course line ≈ 255 m (checkpoints at 47.0 / 115.3 / 132.3 / 175.8 / 226.3 m, fi
 
 ### 5.1 As built (M4, `Editor/GooTowerBuilder.cs`)
 
+**G1 retune:** lap 1 big blocks 3 × 1.11 m → **4 × 0.83 m** (1.11 m was at the edge of the 1.2 m hop); belted treads 2.5 → 1.5 m/s, Z-side belt ramps 3 → 2 m/s, lift ramp unchanged; the X-side outer "steps with a gap" removed **two** steps (the gap code drops every step it overlaps; centred on a step boundary it made a 3 m gap + 0.62 m rise, beyond v2): now one 1.5 m step; the bot jump points moved to the edges. Goo 0.3 m/s unchanged: every route index escapes alone with **8.3–9.0 s** margin; bot rounds 85–89 s (M4 66 s).
+
+
 A square spiral ledge (6 m wide, two 3 m lanes) round a 24 × 24 m capsule-machine core: 3 laps × 4 sides, each side a 24 m climb of +3.33 m plus a 6 × 6 m corner landing (path ≈ 360 m, 40 m tall). Lap 1, sides 0–1 **stair blocks** (inner: 16 small steps; outer: three 8 m blocks, +1.11 m jumps; side 1's are **falling blocks**); sides 2–3 **moving lifts** (a 3.3 m wall mid-side: outer lane a 4.4 × 2.9 m lift, period A 150 / B 120 ticks; inner lane a 29° belt ramp at 1.5 m/s or steps). Lap 2 **conveyor ramps**: inner lane belts against you (3 m/s pitched belts on the Z sides, 2.5 m/s belted treads with 0.83 m risers on the X sides — a CONVEYOR only pitches about X), outer lane a faster static climb with a 1.4–1.6 m gap (a miss drops you a lap); railed. Lap 3 **bumpers on narrow ledges**: a 4.5 m stair ledge with three bumpers and an open edge behind a 0.7 m lip; side 10's 1.5 m safe lane is the **shortcut behind a gate** (variant A open from RUSH, B open 15 of every 639 ticks). **Summit pad** (5.6 m, mint + checker) on the last corner at 40 m. Ground ring at y 0 catches falls from lap 1; spawn deck west of the start corner. Goo: y0 −1.5 m, delay 6 s, **0.30 m/s** (tuned in QA), summit reached at ≈ 144 s; timer 150 s. Map hash and QA: §9.2.
 
 ## 6. Map 3 — **Star Scramble** (Skill)
@@ -183,6 +197,9 @@ A square spiral ledge (6 m wide, two 3 m lanes) round a 24 × 24 m capsule-machi
 
 ### 6.1 As built (M4, `Editor/StarScrambleBuilder.cs`)
 
+**G1 retune:** island tops 1.0 → **0.8 m** (2 m gap up to +0.8 m at v2), spring pads 6.5 → **5.8 m/s** outward (lands ≈ 0.5 m onto the island under v2 gravity).
+
+
 Ø 36 m arena (floor top y 0), central turn table r 5 m (20 s per turn; B the other way), four 4 × 4 m islands at r 22 m (top 1.0 m, just beyond the rim; A slide ±3 m along the rim in 12 s, B ±1.5 m in / out in 10 s), two spring pads at r 15.5 m toward islands 1 and 3 (launch 6.5 m/s out, 10 m/s up), six bumpers (r 8 / 13 m). Stars: 24 floor anchors (rings r 7 / 12 / 16), 4 on the turn table, 4 on the islands (golden only); waves of 8 every 8 s (life 16 s), golden +3 every 15 s (life 10 s). Timer 60 s. Spawns: a ring r 10 m.
 
 ## 7. Map 4 — **Crumble Shelf** (Final)
@@ -195,6 +212,9 @@ A square spiral ledge (6 m wide, two 3 m lanes) round a 24 × 24 m capsule-machi
 - **Originality note:** square block shelves with spinners and the claw-machine overhead are distinct from hex-tile designs.
 
 ### 7.1 As built (M4, `Editor/CrumbleShelfBuilder.cs`)
+
+**G1 retune:** wobble 18 → **30 ticks (1.0 s)**; **top-shelf tiles return 240 ticks (8 s) after they drop** (`TileGridDef.RespawnTicks = 240, RespawnShelves = 1`), blinking for the last 1.5 s; a new contact starts a new cycle (`ReactiveSet.TileContactAt`). Bot QA median **≈ 73 s** (M4: 27–32 s), inside 60–120 s. Dropping a shelf (6 m) now stumbles you on landing.
+
 
 Shelves at tile tops y 12 / 6 / 0, 9 × 9 tiles of 1.6 m (243 box colliders, 1.56 m wide with 4 cm gaps, 0.4 m thick; visuals: one chamfered-corner mesh drawn instanced, pink / mint / yellow alternating with white per shelf). Two foam spinner bars hang from the claw over the top shelf (arm 6.6 m; low 0.35 m to jump: A 330 / B 270 ticks per turn; high 0.95 m to dive under: A −400 / B −300), raised until 60 s. Kill-Y −6 m. Timer 120 s. Open claw-machine frame (visual only). 12 spawns on top-shelf tiles.
 
@@ -225,6 +245,9 @@ A 28 × 28 m toy plaza with 1.2 m walls, a capsule-machine plinth, four bumpers,
 
 `FallRushDevServer -batchmode -nographics -fallrushServer -fallrushMap BlockPartyDash -fallrushQA 100 -fallrushQAOut map-qa.md` (`Net/MapQa.cs`): variants A/B × allowed modifiers × 100 runs, 12 waypoint bots at reference speed (no noise), random spawn order and route choice per run seed, real PhysX world, no networking. 1,000 races take ≈ 70 s on the M2 Air.
 **Result (2026-11-19, `docs/proof/m3-map-qa.md`):** 0 soft-locks, every route reaches its next checkpoint, 0 ticks with every door closed, exactly N qualified 1000/1000, deterministic per run seed. **Median duration 31–34 s: the 75–95 s target is NOT MET** by noise-free bots; human times are UNVERIFIED (see the M3 proof for the tuning log).
+
+### 9.3 G1 (movement v2)
+`scripts/g1-qa.sh [runs] [maps…]` (same harness as M4; writes `docs/proof/g1-map-qa.md`). Block Party Dash was also run with reference bots (M4 ran it with normal bots only). Results and durations: `docs/proof/G1-polish.md` §D. `ModeQa` gained `-fallrushQaTrace` (per-tick state of the survival route probe on a section) and logs the last alive state of a failed route probe.
 
 ### 9.2 As built (M4)
 

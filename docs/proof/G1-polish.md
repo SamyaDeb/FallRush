@@ -33,4 +33,20 @@ What knockout party-game characters do, from general knowledge and public descri
 
 ## B. Movement v1 → v2 (`packages/shared/config/movement_v2.json`)
 
-(final table and reasons: section filled in below, §B.1)
+sha256 of the canonical JSON: see `pnpm hash` / `MovementConfigData.Sha256Hex` (`movement_v1.json` unchanged: `1d966e17…`, asserted by a test). **Final values = the prompt's start values**: tuned by running every map through the bots and the measurements in §D (they hit the feel targets above and every map passes); the user's playtest decides the next round of tuning (practice mode F6 / F7).
+
+| Constant | v1 | **v2** | Why |
+|---|---|---|---|
+| Max run speed | 7.0 m/s | **5.0 m/s** | 5 body heights/s: a jog with weight |
+| Ground accel / decel | 60 / 45 m/s² | **28 / 30 m/s²** | 0.18 s to full speed; a 0.4 m slide when you let go; reversing takes 0.36 s |
+| Air control | 35 % | **30 %** | commit to jumps (8.4 m/s² in the air) |
+| Gravity / fall multiplier | 24 / 1.35 | **20 / 1.35** | a slightly floatier top |
+| Jump apex | 1.6 m | **1.2 m** | a hop: airtime 0.64 s, running reach ≈ 3.2 m |
+| Dive | 9 / 3 m/s, 0.35 s stop | **7 / 2.5 m/s + 0.45 s belly slide at 12 m/s²** (jump-cancel 0.15 s kept) | a reach extender that ends in a comic slide (≈ 2 m) |
+| Stumble | – | **> 3 m fall → 0.3 s at 55 % speed** | weight on big drops; input never lost; a jump ends it |
+| Turn | instant | **visual 720°/s**, motor facing instant | the dive goes exactly where you point (decision G1-3) |
+| Coyote / buffer / cooldown | 100 / 120 / 1000 ms | same | |
+
+Modifiers on top: MoonBounce 14 m/s² / 1.5 m; ButterFloors decel 12 m/s², slide decel 4.8 m/s² (tests: `MovementConfigTests.MovementV2_Modifiers_StillScaleTheBase`, `KitTests.MoonBounce_Apex1p5m_ButterFloors_Decel`).
+
+**Measured in EditMode (AnalyticWorld, 30 Hz):** full speed in 5–6 ticks; stop from 5 m/s in 5 ticks; apex 1.20 m (± 2 cm); belly slide 1.5–3.5 m band asserted, decel exact per tick; stumble at 3.4 m and 8 m drops, none at 1.5 / 2.8 m.
