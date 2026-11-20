@@ -44,7 +44,7 @@ namespace FallRush.Shared
     /// checkpoint ↑, tick the last checkpoint was reached ↑, slot ↑. "Distance" is measured along the course polyline.</item>
     /// </list>
     /// </summary>
-    public sealed class RaceRules : ISimRules
+    public sealed class RaceRules : IRoundRules
     {
         /// <summary>15 m/s: run 7 + belt/carry 4 + spring launch horizontal ≤ 8 never all at once, dive 9; generous on purpose.</summary>
         public const int MaxCourseSpeedMms = 15000;
@@ -72,8 +72,16 @@ namespace FallRush.Shared
         public uint PhaseStartTick { get; private set; }
         public uint RushTick { get; private set; }
         public uint RushEndTick { get; private set; }
-        public int IntroTicks = 90, CountdownTicks = 90;
-        public uint TimerTicks;
+        public int IntroTicks { get; set; } = 90;
+        public int CountdownTicks { get; set; } = 90;
+        public uint TimerTicks { get; set; }
+        /// <summary>M4: the qualify count from <see cref="RoundTargets"/> (set by the match director); 0 = the M3 default ceil(P × 0.66).</summary>
+        public int Target { get; set; }
+        /// <summary>M4: the slots that race (alive players); null = every active slot (M3).</summary>
+        public bool[] Participants { get; set; }
+        public string Mode => "Race";
+        public int LiveCount => QualifiedCount;
+        public RoundResult RoundOutcome { get; private set; }
         public int QualifyCount { get; private set; }
         public int QualifiedCount { get; private set; }
         public int FinishedCount { get; private set; }
@@ -82,7 +90,7 @@ namespace FallRush.Shared
         public bool TimerExpired { get; private set; }
 
         /// <summary>Domain events in order (the server drains and sends them as <c>evt</c>, reliable, with a sequence number).</summary>
-        public readonly List<RaceEvent> Pending = new List<RaceEvent>();
+        public List<RaceEvent> Pending { get; } = new List<RaceEvent>();
         public uint EventSeq { get; private set; }
 
         /// <summary>Raised when a phase changes (the server sends a fresh <c>rstate</c>).</summary>
@@ -117,19 +125,20 @@ namespace FallRush.Shared
             for (var i = 0; i < SimCore.MaxSlots; i++)
             {
                 Racers[i] = default;
-                if (sim.Slots[i].Active)
+                if (sim.Slots[i].Active && (Participants == null || Participants[i]))
                 {
                     Racers[i].In = true;
                     players++;
                 }
             }
 
-            QualifyCount = Math.Min(players, RoundParams.RaceQualifyCount(players));
+            QualifyCount = Math.Min(players, Target > 0 ? Target : RoundParams.RaceQualifyCount(players));
             QualifiedCount = 0;
             FinishedCount = 0;
             FinishOrder.Clear();
             TimerExpired = false;
             Result = null;
+            RoundOutcome = null;
             Array.Clear(_respawnCursor, 0, _respawnCursor.Length);
             RushTick = tick + 1 + (uint)IntroTicks + (uint)CountdownTicks;
             RushEndTick = TimerTicks > 0 ? RushTick + TimerTicks : 0;
@@ -180,9 +189,13 @@ namespace FallRush.Shared
             return !Racers[slot].Finished;
         }
 
-        public bool Simulates(SimCore sim, int slot) => !(Racers[slot].In && Racers[slot].Finished);
+        // Before the first Begin (Waiting) everyone moves freely; after it only participants are in the round (M4:
+        // players eliminated in earlier rounds spectate and are left out of the simulation and the snapshot).
+        public bool Simulates(SimCore sim, int slot) => Phase == RoundPhase.Waiting ? true : Racers[slot].In && !Racers[slot].Finished;
 
-        public bool Collides(SimCore sim, int slot) => !(Racers[slot].In && Racers[slot].Finished);
+        public bool Collides(SimCore sim, int slot) => Simulates(sim, slot);
+
+        public bool InRound(int slot) => Phase == RoundPhase.Waiting || Racers[slot].In;
 
         public bool Respawn(SimCore sim, int slot)
         {
@@ -383,6 +396,19 @@ namespace FallRush.Shared
             }
 
             Result = res;
+            var reasons = new ElimReason[res.Order.Length];
+            var values = new int[res.Order.Length];
+            for (var p = 0; p < res.Order.Length; p++)
+            {
+                reasons[p] = res.Qualified[p] ? ElimReason.NotQualified : TimerExpired && res.FinishTicks[p] == 0 ? ElimReason.TimeoutRank : ElimReason.NotQualified;
+                values[p] = res.FinishTicks[p] > 0 ? (int)(res.FinishTicks[p] - RushTick) : -res.Checkpoints[p];
+            }
+
+            RoundOutcome = new RoundResult
+            {
+                Mode = Mode, Target = QualifyCount, Order = res.Order, Qualified = res.Qualified, Reasons = reasons, Value = values,
+                StartTick = RushTick, EndTick = tick, TimerExpired = TimerExpired,
+            };
             Emit(RaceEventType.RoundEnd, tick, 255, QualifiedCount);
             SetPhase(RoundPhase.Ended, tick);
         }

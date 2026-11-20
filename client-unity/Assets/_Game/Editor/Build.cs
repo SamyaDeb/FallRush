@@ -24,8 +24,18 @@ public static class Build
     public const string MacDevServerApp = "FallRushDevServer.app";
 
     /// <summary>Fixed scene lists. The server never loads client screens.</summary>
-    public static readonly string[] ClientScenes = { ProjectSetup.BootScene, ProjectSetup.MenuScene, ProjectSetup.LobbyScene, SandboxBuilder.ScenePath, BlockPartyDashBuilder.ScenePath };
-    public static readonly string[] ServerScenes = { ProjectSetup.BootScene, SandboxBuilder.ScenePath, BlockPartyDashBuilder.ScenePath };
+    // M4: the lobby room + the four round maps (scenes that do not exist yet are skipped with a warning by Run).
+    public static readonly string[] MapScenes = { LobbyBuilder.ScenePath, SandboxBuilder.ScenePath, BlockPartyDashBuilder.ScenePath, ProjectSetup.ScenesDir + "/Map_GooTower.unity", ProjectSetup.ScenesDir + "/Map_StarScramble.unity", ProjectSetup.ScenesDir + "/Map_CrumbleShelf.unity" };
+    public static readonly string[] ClientScenes = Concat(new[] { ProjectSetup.BootScene, ProjectSetup.MenuScene, ProjectSetup.LobbyScene }, MapScenes);
+    public static readonly string[] ServerScenes = Concat(new[] { ProjectSetup.BootScene }, MapScenes);
+
+    private static string[] Concat(string[] a, string[] b)
+    {
+        var r = new string[a.Length + b.Length];
+        a.CopyTo(r, 0);
+        b.CopyTo(r, a.Length);
+        return r;
+    }
 
     [MenuItem("Fall Rush/Build/WebGL (development)")]
     public static void WebGLDevMenu() => BuildWebGL(release: false, exitWhenDone: false);
@@ -117,14 +127,25 @@ public static class Build
 
     private static bool Run(string label, BuildPlayerOptions options, string outDir)
     {
+        var present = new System.Collections.Generic.List<string>();
         foreach (var scene in options.scenes)
         {
-            if (!File.Exists(scene))
+            if (File.Exists(scene))
+            {
+                present.Add(scene);
+                continue;
+            }
+
+            if (scene == ProjectSetup.BootScene || scene == ProjectSetup.MenuScene || scene == ProjectSetup.LobbyScene)
             {
                 Debug.LogError($"[build] FAILED {label}: missing scene {scene} (run ProjectSetup.Run)");
                 return false;
             }
+
+            Debug.LogWarning($"[build] {label}: map scene {scene} not built yet; skipped");
         }
+
+        options.scenes = present.ToArray();
 
         Debug.Log($"[build] start {label} target={options.target} subtarget={options.subtarget} scenes={string.Join(",", options.scenes)} out={options.locationPathName}");
         var report = BuildPipeline.BuildPlayer(options);

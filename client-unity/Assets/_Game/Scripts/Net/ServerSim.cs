@@ -71,8 +71,8 @@ namespace FallRush.Net
         private PhysxMotorWorld _world;
         private CapsuleCollider _probe;
         private readonly byte[] _roundBuf = new byte[RoundMessage.Size];
-        /// <summary>Race maps only (M3b): the round loop.</summary>
-        public ServerRace Race { get; private set; }
+        /// <summary>M4: the match (lobby → deal → rounds → champion → receipt); null in free play (<c>-fallrushMap Sandbox</c>).</summary>
+        public ServerMatch Match { get; private set; }
 
         private void Init(NetworkManager nm, MapInfo map)
         {
@@ -83,11 +83,10 @@ namespace FallRush.Net
             Physics.simulationMode = SimulationMode.Script;
             Physics.SyncTransforms();
             MapHash = map.ContentHash;
-            var p = ChooseRoundParams(map, out var fixedVariant, out var fixedModifier);
-            var isRace = map.definition != null && map.definition.IsRace;
-            // Free play: hazard time = server tick. Race: hazard time is far negative while waiting (start gate closed);
-            // each round sets its RUSH tick.
-            p.RoundStartTick = isRace ? ServerRace.WaitingRoundStart : 0;
+            var matchMode = NetBootstrap.MatchMode;
+            var p = matchMode ? new RoundParams { MapId = map.MapId } : ChooseRoundParams(map, out _, out _);
+            // Free play and the lobby: hazard time = server tick. Round maps get their RUSH tick from the match director.
+            p.RoundStartTick = 0;
             var cfg = MovementConfig.For(p.Modifier);
             _probe = PhysxMotorWorld.CreateProbe(transform, cfg.Radius, cfg.Height);
             _world = map.CreateWorld(_probe, cfg, in p, out var hazards);
@@ -116,14 +115,14 @@ namespace FallRush.Net
             var snapHz = ArgInt("-fallrushSnapHz", "GAMESERVER_SNAP_HZ", 15);
             SnapshotEveryTicks = snapHz >= 30 ? 1 : 2;
             BotTarget = Mathf.Clamp(ArgInt("-fallrushBots", "GAMESERVER_BOTS", 0), 0, Protocol.MaxPlayers);
-            FillBots();
-
-            if (isRace && Refused == null)
-                Race = new ServerRace(this, map, nm, p, fixedVariant, fixedModifier);
+            if (!matchMode)
+                FillBots(); // free play: TEST bots now; in a match bots fill the roster at the lock (M4-2)
 
             nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Input, OnInput);
             nm.OnClientConnectedCallback += OnClientConnected;
             nm.OnClientDisconnectCallback += OnClientDisconnected;
+            if (matchMode)
+                Match = new ServerMatch(this, nm);
             HookTick();
             foreach (var id in nm.ConnectedClientsIds)
                 OnClientConnected(id); // anyone who connected while the map was loading
@@ -190,6 +189,47 @@ namespace FallRush.Net
 
         public void SetRound(in RoundParams p) => Round = p;
 
+        /// <summary>
+        /// M4 scene flow: the match director's next map is loaded (or the same scene gets new round params). Rebuilds the
+        /// motor world and hazards for <paramref name="p"/>, keeps slots and connections, puts everyone on their spawn.
+        /// </summary>
+        public void SwitchMap(MapInfo map, RoundParams p)
+        {
+            Map = map;
+            MapHash = map.ContentHash;
+            Physics.SyncTransforms();
+            var cfg = MovementConfig.For(p.Modifier);
+            _world = map.CreateWorld(_probe, cfg, in p, out var hazards);
+            Refused = null;
+            var problems = HazardAllowlist.Validate(hazards);
+            if (problems.Count > 0)
+            {
+                Refused = string.Join("; ", problems);
+                Debug.LogError($"[gs] ROUND REFUSED map={map.gameObject.scene.name} {p}: {Refused}");
+            }
+
+            Core.Reconfigure(cfg, _world, hazards, map.SpawnPoints(), map.SpawnYaws());
+            Core.SetBotArea(map.botAreaCenter.x, map.botAreaCenter.z, map.botAreaHalfExtents.x, map.botAreaHalfExtents.y);
+            Round = p;
+            OnWorldChanged(hazards);
+            Debug.Log($"[gs] map {map.gameObject.scene.name} mapHash={MapContent.Short(MapHash)} {p} hazards={hazards.Count} reactive={hazards.ReactiveCount}");
+        }
+
+        /// <summary>Called by NetBootstrap when a map scene finished loading (after the first one).</summary>
+        public void OnMapLoaded(MapInfo map)
+        {
+            if (Match != null)
+                Match.OnMapLoaded(map);
+        }
+
+        /// <summary>A human (re)took a slot: fresh flood window and snapshot-pause state.</summary>
+        public void OnSlotAttached(int slot)
+        {
+            _violationWindowStart[slot] = Core.Tick;
+            _violationsAtWindowStart[slot] = 0;
+            _lastInputTick[slot] = 0;
+        }
+
         public void BroadcastRound()
         {
             foreach (var id in _nm.ConnectedClientsIds)
@@ -207,7 +247,7 @@ namespace FallRush.Net
             _nm.CustomMessagingManager.SendNamedMessage(Protocol.Msg.Round, clientId, w, NetworkDelivery.ReliableSequenced);
         }
 
-        private static string ArgStr(string arg, string env)
+        public static string ArgStr(string arg, string env)
         {
             var args = Environment.GetCommandLineArgs();
             for (var i = 0; i < args.Length - 1; i++)
@@ -228,6 +268,7 @@ namespace FallRush.Net
             _nm.OnClientConnectedCallback -= OnClientConnected;
             _nm.OnClientDisconnectCallback -= OnClientDisconnected;
             _nm.CustomMessagingManager?.UnregisterNamedMessageHandler(Protocol.Msg.Input);
+            Match?.Dispose();
         }
 
         private void HookTick()
@@ -251,6 +292,13 @@ namespace FallRush.Net
         {
             if (clientId == NetworkManager.ServerClientId)
                 return;
+            if (Match != null)
+            {
+                Match.OnClientConnected(clientId);
+                return;
+            }
+
+            NetBootstrap.TakeHello(clientId);
             var slot = Core.AddHuman(clientId);
             if (slot < 0)
             {
@@ -263,7 +311,6 @@ namespace FallRush.Net
             _violationsAtWindowStart[slot] = 0;
             _lastInputTick[slot] = 0;
             SendRound(clientId);
-            Race?.SendState(clientId);
             Debug.Log($"[gs] slot {slot} → client={clientId} humans={Core.HumanCount} bots={Core.BotCount}");
         }
 
@@ -271,7 +318,11 @@ namespace FallRush.Net
         {
             var slot = Core.FindSlot(clientId);
             if (slot < 0)
+            {
+                Match?.OnClientDisconnected(clientId, -1);
                 return;
+            }
+
             var c = Core.Input(slot).Counters;
             Retired.Messages += c.Messages;
             Retired.Accepted += c.Accepted;
@@ -286,6 +337,12 @@ namespace FallRush.Net
             Retired.Early += c.Early;
             Retired.Backlog += c.Backlog;
             Retired.Clamped += c.Clamped;
+            if (Match != null)
+            {
+                Match.OnClientDisconnected(clientId, slot);
+                return;
+            }
+
             Core.Remove(slot);
             FillBots();
             Debug.Log($"[gs] slot {slot} freed (client={clientId}) humans={Core.HumanCount} bots={Core.BotCount}");
@@ -321,18 +378,31 @@ namespace FallRush.Net
             for (var i = count - 1; i >= 0; i--)
                 input.Offer(_inCmds[i], Core.NextTick);
             _lastInputTick[slot] = Core.Tick == 0 ? 1u : Core.Tick;
-            Race?.OnHumanInput(Core.Tick);
         }
 
         private void OnTick()
         {
-            if (Refused != null)
-                return; // allowlist failure: the round does not start
+            if (Refused != null && Match == null)
+                return; // allowlist failure: the round does not start (free play)
             var t0 = Stopwatch.GetTimestamp();
-            Race?.BeforeStep();
-            Core.Step();
-            Race?.AfterStep();
-            if (Core.Tick % (uint)SnapshotEveryTicks == 0)
+            // Soak: with nobody watching, several ticks per network tick (the same code path, faster than real time).
+            var steps = Match != null && Match.SimSpeed > 1 && _nm.ConnectedClientsIds.Count <= (_nm.IsHost ? 1 : 0) ? Match.SimSpeed : 1;
+            for (var k = 0; k < steps; k++)
+            {
+                if (Match != null && !Match.BeforeStep())
+                {
+                    Core.SkipTick(); // the server is loading the next map this frame
+                    break;
+                }
+
+                if (Refused != null && Match == null)
+                    return;
+                Core.Step();
+                Match?.AfterStep();
+                AfterStepReactive();
+            }
+
+            if (Core.Tick % (uint)SnapshotEveryTicks == 0 || steps > 1)
                 SendSnapshots();
             CheckViolations();
             StepMs.Add((float)((Stopwatch.GetTimestamp() - t0) * 1000.0 / Stopwatch.Frequency));
@@ -368,6 +438,35 @@ namespace FallRush.Net
                 SnapshotsSent++;
                 SnapBytesSent += size;
             }
+
+            if (Match == null)
+                return;
+            foreach (var id in Match.Viewers)
+            {
+                var h = Core.HeaderFor(-1, count);
+                NetMessages.EncodeSnapHeader(_snapHeader, h);
+                using var w = new FastBufferWriter(size, Allocator.Temp);
+                w.WriteBytesSafe(_snapHeader, SnapHeader.Size);
+                w.WriteBytesSafe(_snapBody, bodyLen);
+                _nm.CustomMessagingManager.SendNamedMessage(Protocol.Msg.Snap, id, w, SnapDelivery);
+                SnapshotsSent++;
+                SnapBytesSent += size;
+            }
+        }
+
+        // ------------------------------------------------------------------ reactive elements (M4; filled in by step 3)
+
+        private void OnWorldChanged(HazardSet hazards)
+        {
+        }
+
+        private void AfterStepReactive()
+        {
+        }
+
+        /// <summary>The full reactive state of the current round to one client (join, reconnect, seq gap).</summary>
+        public void SendReactiveFull(ulong clientId)
+        {
         }
 
         private void CheckViolations()
@@ -396,7 +495,7 @@ namespace FallRush.Net
             }
         }
 
-        private static int ArgInt(string arg, string env, int fallback)
+        public static int ArgInt(string arg, string env, int fallback)
         {
             var args = Environment.GetCommandLineArgs();
             for (var i = 0; i < args.Length - 1; i++)

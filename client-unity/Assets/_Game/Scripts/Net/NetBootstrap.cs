@@ -30,20 +30,91 @@ namespace FallRush.Net
         public const string LobbyScene = "Lobby";
         public const string SandboxScene = "Map_Sandbox";
         public const string BlockPartyDashScene = "Map_BlockPartyDash";
-        private const string MapArg = "-fallrushMap"; // server: Sandbox (default) | BlockPartyDash; env GAMESERVER_MAP
+        public const string LobbyMapScene = "Map_Lobby";
+        public const string GooTowerScene = "Map_GooTower";
+        public const string StarScrambleScene = "Map_StarScramble";
+        public const string CrumbleShelfScene = "Map_CrumbleShelf";
+        // server: unset = a full match (Map_Lobby first); Sandbox = M2 free play; a pool map = a one-round dev match on it.
+        private const string MapArg = "-fallrushMap"; // env GAMESERVER_MAP
+
+        /// <summary>Scene of a map id (pool ids, <see cref="MapPoolV1.Lobby"/>, <see cref="MapPoolV1.Sandbox"/>).</summary>
+        public static string SceneForMap(byte mapId) => mapId switch
+        {
+            MapPoolV1.BlockPartyDash => BlockPartyDashScene,
+            MapPoolV1.GooTower => GooTowerScene,
+            MapPoolV1.StarScramble => StarScrambleScene,
+            MapPoolV1.CrumbleShelf => CrumbleShelfScene,
+            MapPoolV1.Lobby => LobbyMapScene,
+            _ => SandboxScene,
+        };
+
+        private static string MapArgValue() => GetArgValue(MapArg) ?? Environment.GetEnvironmentVariable("GAMESERVER_MAP");
+
+        /// <summary>Map id named by <c>-fallrushMap</c> (scene name, key or short alias), or −1.</summary>
+        public static int MapIdFromArg(string v)
+        {
+            if (string.IsNullOrEmpty(v))
+                return -1;
+            if (v.StartsWith("Map_", StringComparison.Ordinal))
+                v = v.Substring(4);
+            for (var i = 0; i < MapPoolV1.Keys.Length; i++)
+                if (string.Equals(v, MapPoolV1.Keys[i], StringComparison.OrdinalIgnoreCase))
+                    return i;
+            switch (v.ToLowerInvariant())
+            {
+                case "bpd": return MapPoolV1.BlockPartyDash;
+                case "goo": return MapPoolV1.GooTower;
+                case "stars": return MapPoolV1.StarScramble;
+                case "crumble": return MapPoolV1.CrumbleShelf;
+                case "lobby": return MapPoolV1.Lobby;
+                case "sandbox": return MapPoolV1.Sandbox;
+                default: return -1;
+            }
+        }
+
+        /// <summary>M4: the server runs matches (the director) unless <c>-fallrushMap Sandbox</c> asks for M2 free play.</summary>
+        public static bool MatchMode => MapIdFromArg(MapArgValue()) != MapPoolV1.Sandbox;
+
+        /// <summary>Dev plan: <c>-fallrushMap GooTower</c> = a one-round match on that map (it crowns the winner). Null = the deal.</summary>
+        public static byte[] PlanFromArgs()
+        {
+            var id = MapIdFromArg(MapArgValue());
+            return id >= 0 && id < MapPoolV1.Keys.Length ? new[] { (byte)id } : null;
+        }
 
         /// <summary>True for a loadable round map scene (<c>Map_*</c>).</summary>
         public static bool IsMapScene(string sceneName) => sceneName != null && sceneName.StartsWith("Map_", StringComparison.Ordinal);
 
         /// <summary>The server's map scene from <c>-fallrushMap</c> / <c>GAMESERVER_MAP</c>.</summary>
-        public static string ServerMapScene()
+        public static string ServerMapScene() => MatchMode ? LobbyMapScene : SandboxScene;
+
+        /// <summary>The map the offline QA runs on (<c>-fallrushMap</c>; Block Party Dash by default).</summary>
+        public static string QaMapScene()
         {
-            var v = GetArgValue(MapArg) ?? Environment.GetEnvironmentVariable("GAMESERVER_MAP");
-            if (string.IsNullOrEmpty(v))
-                return SandboxScene;
-            if (v.StartsWith("Map_", StringComparison.Ordinal))
-                return v;
-            return string.Equals(v, "BlockPartyDash", StringComparison.OrdinalIgnoreCase) || v == "bpd" ? BlockPartyDashScene : SandboxScene;
+            var id = MapIdFromArg(MapArgValue());
+            return id >= 0 ? SceneForMap((byte)id) : BlockPartyDashScene;
+        }
+
+        // ---- approval → connect: the hello (name, reconnect token) of each pending client ----
+        private static readonly Dictionary<ulong, Protocol.Hello> s_Hellos = new Dictionary<ulong, Protocol.Hello>();
+
+        /// <summary>The approved hello of <paramref name="clientId"/> (removed). Default if none.</summary>
+        public static Protocol.Hello TakeHello(ulong clientId)
+        {
+            if (s_Hellos.TryGetValue(clientId, out var h))
+            {
+                s_Hellos.Remove(clientId);
+                return h;
+            }
+
+            return default;
+        }
+
+        /// <summary>Client: the display name sent in hello (desktop: <c>-fallrushName</c>; WebGL: <c>?name=</c>).</summary>
+        public static string ClientName()
+        {
+            var n = GetArgValue("-fallrushName") ?? NetTargets.GetQueryParam(Application.absoluteURL, "name");
+            return string.IsNullOrEmpty(n) ? null : n;
         }
         public const int ServerDisconnectTimeoutMs = 90000;
         public const int ClientPacketQueueSize = 1024;
@@ -171,7 +242,10 @@ namespace FallRush.Net
                     return;
                 }
 
-                ServerSim.Install(Manager, map);
+                if (ServerSim.Instance != null)
+                    ServerSim.Instance.OnMapLoaded(map); // M4: the next map of the match
+                else
+                    ServerSim.Install(Manager, map);
             }
         }
 
@@ -185,7 +259,7 @@ namespace FallRush.Net
                 // Map QA (doc 08 §9): no networking; load the map and run the bots offline, then quit.
                 QualitySettings.vSyncCount = 0;
                 Application.targetFrameRate = -1;
-                SceneManager.LoadScene(ServerMapScene());
+                SceneManager.LoadScene(QaMapScene());
                 return;
             }
 
@@ -299,7 +373,8 @@ namespace FallRush.Net
             }
 
             response.Approved = true;
-            Debug.Log($"[gs] approve client={request.ClientNetworkId} build={hello.BuildVersion} cosmetic={hello.CosmeticPreset}");
+            s_Hellos[request.ClientNetworkId] = hello;
+            Debug.Log($"[gs] approve client={request.ClientNetworkId} build={hello.BuildVersion} cosmetic={hello.CosmeticPreset} name=\"{hello.Name}\" token={(hello.Token != null && hello.Token[0] + hello.Token[15] != 0 ? "yes" : "no")}");
         }
 
         private static void Reject(NetworkManager.ConnectionApprovalResponse response, ulong clientId, string reason)
@@ -424,6 +499,8 @@ namespace FallRush.Net
                 ProtocolVersion = ClientProtocolVersion,
                 BuildVersion = Application.version,
                 CosmeticPreset = clientConfig != null ? clientConfig.cosmeticPreset : (byte)0,
+                Name = ClientName() ?? string.Empty,
+                Token = SessionToken.Load(), // M4-6: a reconnect within 20 s takes the same slot
             };
             Manager.NetworkConfig.ConnectionData = Protocol.EncodeHello(hello);
 

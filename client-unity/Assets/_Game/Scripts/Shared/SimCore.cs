@@ -20,6 +20,10 @@ namespace FallRush.Shared
             public MotorState State;
             public int RespawnTicks;
             public uint Respawns;
+            /// <summary>M4: a human whose connection dropped: the Rushling stays in the world on neutral input (grace, M4-6).</summary>
+            public bool Detached;
+            /// <summary>What <see cref="PlayerStep.Run"/> reported on the last simulated tick (rules read goo / fall-out / hits).</summary>
+            public PlayerStep.Result LastStep;
         }
 
         public readonly Slot[] Slots = new Slot[MaxSlots];
@@ -108,9 +112,50 @@ namespace FallRush.Shared
         public int FindSlot(ulong clientId)
         {
             for (var i = 0; i < MaxSlots; i++)
-                if (Slots[i].Active && !Slots[i].Bot && Slots[i].ClientId == clientId)
+                if (Slots[i].Active && !Slots[i].Bot && !Slots[i].Detached && Slots[i].ClientId == clientId)
                     return i;
             return -1;
+        }
+
+        /// <summary>M4-6: the human's connection dropped; the slot stays in the world on neutral input (no new commands arrive).</summary>
+        public void Detach(int slot)
+        {
+            if (!Slots[slot].Active || Slots[slot].Bot)
+                return;
+            Slots[slot].Detached = true;
+            Slots[slot].ClientId = ulong.MaxValue;
+        }
+
+        /// <summary>M4-6: a reconnect takes the same slot back (fresh input buffer: the client's seq restarts).</summary>
+        public void Attach(int slot, ulong clientId)
+        {
+            if (!Slots[slot].Active || Slots[slot].Bot)
+                return;
+            Slots[slot].Detached = false;
+            Slots[slot].ClientId = clientId;
+            _inputs[slot] = new InputSanitizer();
+        }
+
+        /// <summary>A human slot at <paramref name="slot"/> (the lobby re-seats a player). False if taken.</summary>
+        public bool AddHumanAt(int slot, ulong clientId)
+        {
+            if (Slots[slot].Active)
+                return false;
+            Activate(slot, bot: false, clientId);
+            _inputs[slot] = new InputSanitizer();
+            HumanCount++;
+            return true;
+        }
+
+        /// <summary>A bot at <paramref name="slot"/> (roster lock fills the free slots). False if taken.</summary>
+        public bool AddBotAt(int slot)
+        {
+            if (Slots[slot].Active)
+                return false;
+            Activate(slot, bot: true, 0);
+            _bots[slot] = new TestBotInput(slot) { AreaCenterX = _botAreaCx, AreaCenterZ = _botAreaCz, AreaHalfX = _botAreaHx, AreaHalfZ = _botAreaHz };
+            BotCount++;
+            return true;
         }
 
         /// <summary>Lowest free slot; if none, replaces the highest-numbered bot. −1 if all slots are humans.</summary>
@@ -208,6 +253,9 @@ namespace FallRush.Shared
                 if (Rules != null && !Rules.AcceptsInput(this, i))
                     cmd = new InputCmd { Seq = cmd.Seq, Tick = cmd.Tick, CamYaw = cmd.CamYaw }; // countdown / finished: inputs ignored
 
+                if (Rules != null && !Rules.Simulates(this, i))
+                    continue; // finished racers stand at the finish, out of the simulation (M4: and players out of the round)
+
                 if (p.State.Has(MotorState.Respawning))
                 {
                     if (--p.RespawnTicks <= 0)
@@ -219,17 +267,15 @@ namespace FallRush.Shared
                     continue;
                 }
 
-                if (Rules != null && !Rules.Simulates(this, i))
-                    continue; // finished racers stand at the finish, out of the simulation
-
                 var r = PlayerStep.Run(_motor, ref p.State, in cmd, Tick, _world, _hazards);
+                p.LastStep = r;
                 if ((r & PlayerStep.Result.HazardHit) != 0)
                 {
                     HazardHits++;
                     HitsBySlot[i]++;
                 }
 
-                if ((r & PlayerStep.Result.FellOut) != 0)
+                if ((r & (PlayerStep.Result.FellOut | PlayerStep.Result.Gooed)) != 0)
                 {
                     p.RespawnTicks = Cfg.RespawnTicks;
                     p.Respawns++;
@@ -242,6 +288,22 @@ namespace FallRush.Shared
 
             for (var i = 0; i < MaxSlots; i++)
                 _inputs[i]?.BeginTick();
+        }
+
+        /// <summary>
+        /// M4: advances the tick without simulating anyone (the server is loading the next map this frame). Inputs for the
+        /// tick are consumed and dropped, so the sanitisers' tick windows stay aligned with the clock.
+        /// </summary>
+        public void SkipTick()
+        {
+            Tick++;
+            for (var i = 0; i < MaxSlots; i++)
+            {
+                if (!Slots[i].Active || Slots[i].Bot || _inputs[i] == null)
+                    continue;
+                _inputs[i].Consume(Tick, out _);
+                _inputs[i].BeginTick();
+            }
         }
 
         /// <summary>Soft player–player separation: overlapping capsules are pushed apart at up to <see cref="MovementConfig.PushMaxSpeed"/>; no stun.</summary>
@@ -312,8 +374,8 @@ namespace FallRush.Shared
             var n = 0;
             for (var i = 0; i < MaxSlots; i++)
             {
-                if (!Slots[i].Active)
-                    continue;
+                if (!Slots[i].Active || (Rules is IRoundRules rr && !rr.InRound(i)))
+                    continue; // M4: players out of the round (eliminated earlier, late loaders) are not drawn
                 dst[n++] = PlayerState.From((byte)i, in Slots[i].State, Slots[i].Bot ? MotorState.Bot : (byte)0, Rules != null ? Rules.RaceByte(i) : (byte)0);
             }
 

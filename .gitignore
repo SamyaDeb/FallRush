@@ -37,3 +37,7 @@ dist/
 .m1-logs/
 .m1-certs/
 .playwright-mcp/
+
+# ---- M4 match event logs (jsonl; M5 outbox input) ----
+match-logs/
+match-*.jsonl

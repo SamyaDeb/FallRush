@@ -116,6 +116,14 @@ namespace FallRush.Client
                 UiKit.SetButtonText(_enter, label);
             }
 
+            // M4: a match server (it sends `match`) drives the scene flow: go straight to the lobby room.
+            if (cs != null && cs.Match != null && boot.State == ClientState.Connected)
+            {
+                cs.FollowScenes = true;
+                _state.text = "Joining the lobby…";
+                return;
+            }
+
             if (_autoplay && boot.State == ClientState.Connected && hasRound)
             {
                 _autoplay = false;

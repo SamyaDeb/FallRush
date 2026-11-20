@@ -60,6 +60,9 @@ namespace FallRush.Shared
 
         public static readonly HazardSet Empty = new HazardSet(null, null);
 
+        /// <summary>M4: number of reactive elements (tiles, falling blocks, star anchors).</summary>
+        public int ReactiveCount => 0;
+
         public int Count => Sweepers.Length + Platforms.Length + Conveyors.Length + Pads.Length + TurnTables.Length + Doors.Length + Mallets.Length + Bumpers.Length;
 
         /// <summary>Round-relative hazard time of server tick <paramref name="tick"/> (negative before the round starts).</summary>
@@ -315,6 +318,7 @@ namespace FallRush.Shared
             FellOut = 2,
             Launched = 4,
             DoorPushed = 8,
+            Gooed = 16, // M4: touched the goo plane (frozen like a fall; survival eliminates)
         }
 
         public static Result Run(KinematicMotor motor, ref MotorState s, in InputCmd cmd, uint tick, IMotorWorld world, HazardSet hazards)

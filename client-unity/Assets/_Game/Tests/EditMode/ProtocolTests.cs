@@ -14,7 +14,7 @@ namespace FallRush.Tests
             var bytes = Protocol.EncodeHello(hello);
 
             Assert.That(bytes.Length, Is.EqualTo(Protocol.HelloMinBytes + 8));
-            Assert.That(bytes[0], Is.EqualTo(3)); // u16 little-endian (protocol v3, M3)
+            Assert.That(bytes[0], Is.EqualTo(4)); // u16 little-endian (protocol v4, M4)
             Assert.That(bytes[1], Is.EqualTo(0));
 
             Assert.That(Protocol.TryDecodeHello(bytes, out var decoded, out var error), Is.True, error);
@@ -109,9 +109,38 @@ namespace FallRush.Tests
         }
 
         [Test]
+        public void HelloV4_NameAndToken_RoundTrip_AndBadExtensionRejected()
+        {
+            var token = new byte[16];
+            for (var i = 0; i < 16; i++)
+                token[i] = (byte)(i * 17 + 3);
+            var bytes = Protocol.EncodeHello(new Protocol.Hello { ProtocolVersion = Protocol.Version, BuildVersion = "m4", CosmeticPreset = 2, Name = "Bolt fan ⚡ with a long name", Token = token });
+            Assert.That(bytes.Length, Is.LessThanOrEqualTo(Protocol.HelloV4MaxBytes));
+            Assert.That(Protocol.TryDecodeHello(bytes, out var d, out var err), Is.True, err);
+            Assert.That(d.Token, Is.EqualTo(token));
+            Assert.That(System.Text.Encoding.UTF8.GetByteCount(d.Name), Is.LessThanOrEqualTo(Protocol.MaxNameBytes));
+            Assert.That(d.Name, Does.StartWith("Bolt fan"));
+            for (var cut = bytes.Length - 1; cut > bytes.Length - 18; cut--)
+            {
+                var b = new byte[cut];
+                Array.Copy(bytes, b, cut);
+                Assert.That(Protocol.TryDecodeHello(b, out _, out _), Is.False, $"cut {cut}");
+            }
+
+            var plain = Protocol.EncodeHello(new Protocol.Hello { ProtocolVersion = Protocol.Version, BuildVersion = "m4" });
+            Assert.That(Protocol.TryDecodeHello(plain, out var p, out _), Is.True);
+            Assert.That(p.Token, Is.Null, "no extension: a new player");
+        }
+
+        [Test]
         public void MessageNames_AreStable()
         {
-            Assert.That(Protocol.Version, Is.EqualTo(3));
+            Assert.That(Protocol.Version, Is.EqualTo(4));
+            Assert.That(Protocol.Msg.Match, Is.EqualTo("match"));
+            Assert.That(Protocol.Msg.MatchEvent, Is.EqualTo("mevt"));
+            Assert.That(Protocol.Msg.Reactive, Is.EqualTo("rx"));
+            Assert.That(Protocol.Msg.Ready, Is.EqualTo("ready"));
+            Assert.That(Protocol.Msg.Control, Is.EqualTo("ctl"));
             Assert.That(Protocol.Msg.Round, Is.EqualTo("round"));
             Assert.That(Protocol.Msg.RaceState, Is.EqualTo("rstate"));
             Assert.That(Protocol.Msg.Event, Is.EqualTo("evt"));

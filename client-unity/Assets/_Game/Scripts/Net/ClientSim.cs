@@ -3,6 +3,7 @@ using FallRush.Shared;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace FallRush.Net
 {
@@ -87,6 +88,133 @@ namespace FallRush.Net
             _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Round, OnRound);
             _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.RaceState, OnRaceState);
             _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Event, OnEvent);
+            _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Match, OnMatch);
+            _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.MatchEvent, OnMatchEvent);
+            _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Reactive, OnReactive);
+        }
+
+        // ---------------------------------------------------------------- match (v4)
+
+        /// <summary>The newest full match state (<c>match</c>), or null before the first one.</summary>
+        public MatchStateMessage Match { get; private set; }
+        /// <summary>Transcript events of the current match (<c>mevt</c>), in seq order.</summary>
+        public readonly System.Collections.Generic.List<MatchEvent> MatchEvents = new System.Collections.Generic.List<MatchEvent>();
+        public event Action MatchChanged;
+        public event Action<MatchEvent> MatchEventReceived;
+        /// <summary>Follow the server's scene flow: load the map each <c>round</c> names (menu Play, probe).</summary>
+        public bool FollowScenes;
+        public long MatchMsgs, MatchBytesIn;
+        private byte _readySerial = 0xFF;
+        private byte _readyMap = 0xFF;
+        private bool _sceneLoading;
+        private string _sceneTarget;
+
+        private void OnMatch(ulong sender, FastBufferReader reader)
+        {
+            var len = reader.Length - reader.Position;
+            if (len <= 0 || len > _msgBuf.Length)
+                return;
+            var buf = _msgBuf;
+            reader.ReadBytesSafe(ref buf, len);
+            if (!MatchStateMessage.TryDecode(new ReadOnlySpan<byte>(buf, 0, len), out var m))
+            {
+                Debug.LogWarning($"[net] undecodable match message ({len} B)");
+                return;
+            }
+
+            MatchMsgs++;
+            MatchBytesIn += len;
+            var newMatch = Match == null || Match.MatchSerial != m.MatchSerial || m.Phase == MatchPhase.LobbyOpen;
+            if (newMatch && (Match == null || m.MatchSerial != Match.MatchSerial))
+                MatchEvents.Clear();
+            Match = m;
+            SessionToken.Save(m.Token);
+            MatchChanged?.Invoke();
+        }
+
+        private void OnMatchEvent(ulong sender, FastBufferReader reader)
+        {
+            var len = reader.Length - reader.Position;
+            if (len <= 0 || len > _msgBuf.Length)
+                return;
+            var buf = _msgBuf;
+            reader.ReadBytesSafe(ref buf, len);
+            if (!MatchEventCodec.TryDecode(new ReadOnlySpan<byte>(buf, 0, len), out var e))
+                return;
+            if (e.Seq == 0)
+                MatchEvents.Clear(); // a new match (or the full log after a reconnect)
+            if (e.Seq < MatchEvents.Count)
+                return; // duplicate (the full log after a reconnect)
+            MatchEvents.Add(e);
+            MatchEventReceived?.Invoke(e);
+        }
+
+        /// <summary>Loads the map the server's round names, and reports <c>ready</c> once it is loaded with a matching hash (M4-3).</summary>
+        private void FollowServerScene()
+        {
+            if (!FollowScenes || !Round.HasValue || _nm == null || !_nm.IsConnectedClient)
+                return;
+            var want = SceneFor(Round.Value.MapId);
+            var active = SceneManager.GetActiveScene().name;
+            if (active != want)
+            {
+                if (_sceneLoading && _sceneTarget == want)
+                    return;
+                _sceneLoading = true;
+                _sceneTarget = want;
+                Debug.Log($"[net] loading {want} (round {Round.Value.RoundIndex})");
+                SceneManager.LoadScene(want);
+                return;
+            }
+
+            _sceneLoading = false;
+            var map = MapInfo.Current;
+            if (map == null || Match == null || MapMismatch != null || map.MapId != Round.Value.MapId)
+                return;
+            if (_readySerial == Match.LoadSerial && _readyMap == map.MapId)
+                return;
+            _readySerial = Match.LoadSerial;
+            _readyMap = map.MapId;
+            var msg = new ReadyMessage { LoadSerial = Match.LoadSerial, MapHashPrefix = ReadyMessage.Prefix(map.ContentHash) };
+            var n = msg.Encode(_msgBuf);
+            using var w = new FastBufferWriter(n, Allocator.Temp);
+            w.WriteBytesSafe(_msgBuf, n);
+            _nm.CustomMessagingManager.SendNamedMessage(Protocol.Msg.Ready, NetworkManager.ServerClientId, w, NetworkDelivery.ReliableSequenced);
+        }
+
+        /// <summary>Small command to the server (host start, back to lobby, reactive resend).</summary>
+        public void SendControl(ControlCmd cmd, uint arg = 0)
+        {
+            if (_nm == null || !_nm.IsConnectedClient)
+                return;
+            var n = ControlCodec.Encode(_msgBuf, cmd, arg);
+            using var w = new FastBufferWriter(n, Allocator.Temp);
+            w.WriteBytesSafe(_msgBuf, n);
+            _nm.CustomMessagingManager.SendNamedMessage(Protocol.Msg.Control, NetworkManager.ServerClientId, w, NetworkDelivery.ReliableSequenced);
+        }
+
+        /// <summary>Our slot in the match (from <c>match</c>; 255 = watching).</summary>
+        public int MatchSlot => Match != null ? Match.OwnSlot : SnapHeader.NoSlot;
+
+        public bool TryGetSlotInfo(int slot, out MatchSlotInfo info)
+        {
+            info = default;
+            if (Match == null)
+                return false;
+            foreach (var s in Match.Slots)
+                if (s.Slot == slot)
+                {
+                    info = s;
+                    return true;
+                }
+
+            return false;
+        }
+
+        // ---------------------------------------------------------------- reactive (filled in by step 3)
+
+        private void OnReactive(ulong sender, FastBufferReader reader)
+        {
         }
 
         // ---------------------------------------------------------------- round (v3)
@@ -102,7 +230,7 @@ namespace FallRush.Net
         public long EventsReceived { get; private set; }
         public event Action<RaceEvent> RaceEventReceived;
         public event Action RoundChanged;
-        private readonly byte[] _msgBuf = new byte[512];
+        private readonly byte[] _msgBuf = new byte[8192];
         private RoundParams _predictionRound;
 
         /// <summary>R14 experiment: <c>-fallrushPredictPush</c> / <c>?pushpred=1</c> (or 0 to force off).</summary>
@@ -145,8 +273,8 @@ namespace FallRush.Net
             return c;
         }
 
-        /// <summary>Scene name for a map id (dev sandbox = 255).</summary>
-        public static string SceneFor(byte mapId) => mapId == MapPoolV1.BlockPartyDash ? NetBootstrap.BlockPartyDashScene : NetBootstrap.SandboxScene;
+        /// <summary>Scene name for a map id (dev sandbox = 255, lobby = 254).</summary>
+        public static string SceneFor(byte mapId) => NetBootstrap.SceneForMap(mapId);
 
         private void OnRound(ulong sender, FastBufferReader reader)
         {
@@ -244,6 +372,9 @@ namespace FallRush.Net
             LastEventSeq = 0;
             OwnRace = 0;
             OwnOutOfSim = false;
+            _readySerial = 0xFF;
+            _readyMap = 0xFF;
+            _sceneLoading = false;
         }
 
         public static double Now => Time.realtimeSinceStartupAsDouble;
@@ -288,6 +419,17 @@ namespace FallRush.Net
             if (Prediction != null && Active && h.OwnSlot != SnapHeader.NoSlot)
             {
                 Prediction.TeleportsExpected = HasRaceState && (RaceState.Phase == RoundPhase.Intro || RaceState.Phase == RoundPhase.Countdown);
+                var found = false;
+                for (var i = 0; i < h.Count; i++)
+                    if (_scratch[i].Slot == h.OwnSlot)
+                        found = true;
+                if (!found)
+                {
+                    // M4: we are not in this round (eliminated earlier, late loader): spectate.
+                    OwnRace = 0;
+                    OwnOutOfSim = true;
+                }
+
                 for (var i = 0; i < h.Count; i++)
                 {
                     if (_scratch[i].Slot != h.OwnSlot)
@@ -343,6 +485,7 @@ namespace FallRush.Net
             var now = Now;
             var dt = _lastNow > 0 ? now - _lastNow : 0;
             _lastNow = now;
+            FollowServerScene();
             EnsurePrediction();
 
             if (_nm != null && _nm.IsConnectedClient && !_nm.IsServer)

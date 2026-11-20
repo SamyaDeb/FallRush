@@ -22,6 +22,9 @@ namespace FallRush.Shared
         Respawned = 5,  // arg = checkpoint index respawned at
         RoundEnd = 6,   // arg = qualified count
         Phase = 7,      // arg = new RoundPhase
+        Out = 8,        // M4: knocked out during the round (survival / final), arg = ElimReason (decided at round end)
+        Scored = 9,     // M4: skill, arg = new score
+        Dropped = 10,   // M4: skill, lost a star on a knockback, arg = new score
     }
 
     /// <summary><c>evt</c> (S→C, reliable, 14 B): one domain event with a sequence number (the HUD, later the chain worker).</summary>
@@ -56,7 +59,7 @@ namespace FallRush.Shared
             e.Tick = NetMessages.ReadU32(s, ref o);
             e.Slot = s[o++];
             e.Arg = NetMessages.ReadI32(s, ref o);
-            return e.Type >= RaceEventType.Checkpoint && e.Type <= RaceEventType.Phase && (e.Slot < Protocol.MaxPlayers || e.Slot == 255);
+            return e.Type >= RaceEventType.Checkpoint && e.Type <= RaceEventType.Dropped && (e.Slot < Protocol.MaxPlayers || e.Slot == 255);
         }
 
         public override string ToString() => $"evt#{Seq} {Type} tick={Tick} slot={Slot} arg={Arg}";
