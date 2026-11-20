@@ -25,7 +25,7 @@ The match deal comes from MagicBlock VRF and is verified on-chain. Results are c
 | Threat | Control |
 |---|---|
 | Speed / teleport / fly hacks | Inputs only. The server motor is authoritative. Client positions are ignored. (Fallback F1, if invoked, is server-validated bounds with a snap-back.) |
-| Input flooding / malformed packets | Size and rate caps; finite / range checks; drop and count; kick after 50 violations per minute |
+| Input flooding / malformed packets | Size and rate caps; finite / range checks; drop and count; kick after 50 violations per minute. **As built (M2b):** ≤ 32 messages decoded per tick; rate violations from a token bucket (45 msg/s, burst 450) so a TCP stall's backlog is not a violation; commands > 300 ticks ahead are violations (31–300 dropped silently). Measured: a 200-msg/frame flood is kicked within 3 ticks; a 5 s stall is not (doc 04 §4.2, M2 proof B10) |
 | Checkpoint skipping | Ordered checkpoints, server-side trigger plus a reachability check (distance from the previous one) |
 | Replay / forged join | Single-use HMAC join tickets bound to user + server + expiry |
 | Operator rerolls the deal | The deal is derived **in the VRF callback**; the pool hash is committed before the request; no reroll path in the program |

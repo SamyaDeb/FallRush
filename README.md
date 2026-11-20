@@ -53,7 +53,7 @@ pnpm m1:down
 Server env: `GAMESERVER_PORT` (default 7777; `-port N` wins), `GAMESERVER_ID`. Proof and measurements: [`docs/proof/M1-transport.md`](docs/proof/M1-transport.md).
 
 ## M2: run it (networked movement)
-Status: **M2b done locally**: client prediction + reconciliation, remote interpolation, the Cinemachine camera, Bolt v1, a sweeper bar and a moving platform. Gate data for localhost and 150 ms is in; the VPS run waits for approval. Proof and numbers are in [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md). Movement constants live in `packages/shared/config/movement_v1.json`; after editing it, run `pnpm gen:movement`.
+Status: **M2b done locally**: client prediction + reconciliation, remote interpolation, the Cinemachine camera, Bolt v1, a sweeper bar and a moving platform. Gate data for localhost, the real VPS and 150 ms is in [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md). Proof and numbers are in [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md). Movement constants live in `packages/shared/config/movement_v1.json`; after editing it, run `pnpm gen:movement`.
 
 ```bash
 # once (Editor closed): build the local server (includes Map_Sandbox)

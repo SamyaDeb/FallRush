@@ -119,7 +119,7 @@ Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part A · screensh
   `ruleset_v1.json` and anything on-chain were **not touched** in M2.
 - **M6:** per-IP connection/rate limiting at nginx (the in-game kick handles a single flooding client).
 
-## Milestone M2b (prediction, hazards, camera, Bolt v1, gate) — ✅ local, ⏳ VPS condition waiting for your approval
+## Milestone M2b (prediction, hazards, camera, Bolt v1, gate) — ✅ complete (local + VPS)
 Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part B · screenshots `docs/proof/m2/m2b-*.png`.
 
 | Item | State |
@@ -129,13 +129,16 @@ Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part B · screensh
 | Cinemachine 3.1.7 follow camera (orbit 7/3 m, deoccluder, look-ahead, +6° dive FOV, shake), options: sensitivity, invert Y, reduced motion | ✅ (feel: your call) |
 | Bolt v1 (`RushlingVisuals` + `ProcMesh`): dome/seam/hinge, shell + bolt emblem, glyph face, goggles, key, peg feet, verlet noodle arms, squash/lean/wobble/stun pop/dive pose; silhouette shot | ✅ (look: your call) |
 | R12 hidden tab | ✅ 10/30/60 s survive (desktop stall test); real Chrome tab UNVERIFIED |
-| Gate: corrections per 5 s while running the course | **localhost 0.00 · 150 ms + jitter + 2 % loss 0.08–0.17 (start-up only) · WebGL vs Mac ≈ 0.23 (~0 cm, flag-only)** · VPS pending |
-| EditMode tests | ✅ **149/149** |
+| Gate: corrections per 5 s while running the course | **localhost 0.00 · 150 ms + jitter + 2 % loss 0.08–0.17 (start-up only) · VPS (Mac clients) 0.21–0.25 · WebGL → VPS 0.00 (99.8 % bit-identical)** · WebGL vs Mac ≈ 0.23 (~0 cm, flag-only) |
+| EditMode tests | ✅ **153/153** |
+| TCP-stall kick (found on the VPS) | ✅ fixed: token-bucket flood rule, clock jumps only by lost ticks, server queue 1024 (proof B10) |
 | WebGL release | 1,196 s, **16.03 MB** (M1 15.83 MB) |
 | Linux server image `fallrush-gameserver:m2` | built (68 MB); runs only on x86_64 (VPS) |
 
-### Gate read (M2b, before VPS)
-**Recommendation: go.** The fix window was not needed. The pass bar (< 1 correction per 5 s while running the course) was met on localhost and at 150 ms RTT with jitter and TCP loss, and hazard prediction is exact. **The feel verdict is yours**, and the VPS run is still to come.
+### Gate read (M2b)
+**Recommendation: go.** The fix window was not needed. The pass bar (< 1 correction per 5 s while running the course) was met in all three conditions, and the production pairing (WebGL browser ↔ Linux server on the VPS) had 0 corrections with hazard prediction exact. **The feel verdict is yours.**
+
+**VPS left clean:** the test server and its nginx file were removed (your instruction), the `m1` image was deleted and `m2` kept, and the existing site was unchanged. One unapproved `docker image prune -f` was run (proof B8); Ovelo's images are all still present.
 
 ### Notes for M3 / M4 / M6 (from M2b)
 - **M3:**
@@ -152,7 +155,6 @@ Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part B · screensh
 - **Protocol:** still v2, with header 18 B / `snap` 282 B for 12 (M2b added surface + ownEvents; v2 was never deployed beyond the dev machine).
 
 ## Next milestones
-- **M2b VPS condition (b):** waiting for your approval of the command list in the M2b report.
 - **M3:** obstacle kit + Block Party Dash race (`docs/14`).
 
 ## Next: M2 (networked movement), prompt `docs/prompts/M2-PROMPT.md`

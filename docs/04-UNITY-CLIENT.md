@@ -124,6 +124,7 @@ NGO is used for:
    - **Rate:** at most **3 new commands per player per tick**. Extra on-time ones wait for their redundant copy in the next message. Over 32 messages per tick, the extra are dropped undecoded and count as violations.
    - **Window:** `tick` must be within `[next, next+30]`. Further ahead is a violation. A late command (tick already simulated) is dropped, but its jump/dive press edges are applied on the next tick.
    - **Kick:** 50 violations in a minute (doc 11). **Measured:** a 200-message junk burst was kicked within its first tick, and server RSS rose 0.3 MB.
+   - **M2b, TCP-stall tolerance (proof B10):** more than 32 messages in one tick are dropped undecoded as `backlog`. Flood **violations** come from a token bucket (45 msg/s, burst 450), so a stall's burst is tolerated and a sustained flood is not. Commands 31–300 ticks ahead are dropped as `early` with no violation; beyond 300 they are violations. Server `MaxPacketQueueSize` is 1024.
 2. **Step (PreUpdate tick):** for each occupied slot, take the command for exactly this tick, then run `KinematicMotor.Step(ref state, cmd, 1/30, PhysxMotorWorld)`.
    - **Missing command:** repeat the last one, with edges cleared, for up to 3 ticks; then neutral.
    - **Bots:** the same motor, fed by `TestBotInput`.
@@ -145,6 +146,7 @@ NGO is used for:
 - **Server feedback:** on arrival the server records `lead = cmd.tick − nextServerTick` and puts the window minimum in each snapshot (`inputLead`).
 - **Dilation:** the client runs its 30 Hz clock at `rate = 1 − 0.02·(lead − target)`, clamped to ±6 %, so `lead` settles at `target`. When `lead` is more than 8 ticks off it re-syncs in one jump: forward, or a pause when ahead. Ticks never go backwards. Reports in flight are ignored for 0.5 s after a jump.
 - **Adaptive target:** starts at 2 ticks. A command late by k ticks → target += max(1, k) (max 6) and the clock jumps straight to the new target (M2b; with +1 steps, 150 ms + jitter + loss gave 10–13 start-up corrections per client, now 2–4). −1 (min 1) after 10 s in which the lead never dipped below the target.
+- **Stalls vs lost time (M2b, proof B10):** the clock jumps forward only by ticks it actually lost (a capped `Advance`: a long frame or a hidden tab). A saturated −127 report jumps by all of them. Far-late reports without lost time are a transport stall's backlog: they are held, and re-sync only if they persist for 2 s.
 - **Start:** `predTick = serverTick + ceil(RTT/dt) + target`. The clock keeps running before input starts (lobby, map load), so the first commands are on time.
 - **Steady state:** `predTick ≈ serverTickNow + (RTT/2 + send/receive quantisation)/dt + target`. That is the "RTT/2 + one tick" of the spec, with the quantisation measured rather than guessed.
 - **Measured (M2a, localhost):** lead holds at target 2 (67 ms), 0 late commands, 0 re-syncs over 60 s windows. The closed-loop EditMode test at 20/75/150 ms one-way latency with jitter converges to target 2 with 0 late commands after 10 s.

@@ -167,22 +167,22 @@
 | | (a) localhost | (b) real VPS (Mumbai) | (c) 150 ms RTT + jitter + 2 % loss |
 |---|---|---|---|
 | Path | `ws://127.0.0.1:7777` | `wss://gs1.<VPS_IP>.sslip.io` → nginx → container | `ws://127.0.0.1:7778` → tc-netem relay → Mac server |
-| Duration | 3 clients × 120 s (5 laps each) | **pending your approval (B8)** | 3 × 120 s (5 laps each) |
-| RTT p50 / p95 (in-game ping) | 16.6–16.7 / 17–33 ms | | 183–185 / 252–284 ms |
-| **Corrections per 5 s while running the course** | **0.00 / 0.00 / 0.00** | | **0.08 / 0.12 / 0.17** (2, 3, 4 in total; **all in the first 10 s**, 0 in every later window) |
-| Push corrections (server-only, B5) | 2 / 0 / 0 | | 0 / 1 / 1 |
-| Mean / max correction distance (jump of the predicted present) | — (none) | | 57–71 cm / 70–122 cm (start-up only) |
-| Bit-identical snapshots | 1785/1791, 1784/1788, 1788/1791 (99.7 %) | | 1770/1775, 1773/1780, 1773/1781 (99.6 %) |
-| Reconcile replay length | mean 0–0.1, max 1–3 ticks | | mean ≈ 0 (no mismatch), max 10–13 ticks |
-| Input lead (client clock) | 1 tick (33 ms) | | 5–6 ticks |
-| **Hazard-contact mismatches** | **0** (9 sweeper hits, all predicted) | | **0** (9 hits) |
-| Interpolation delay | 105–125 ms (lateness p95 ≤ 14 ms) | | 141–150 ms (lateness p95 ≤ 297 ms) |
-| Remote extrapolating / frozen frames | 0 % / 0 % | | 2.0–2.7 % / ≤ 2.9 % (worst window) |
-| Remote stutter p95 | ≤ 1.10 m/s | | ≤ 1.30 m/s |
-| Server sim step p95 (12 occupants) | 0.15–0.24 ms | | 0.16–0.24 ms |
-| Server frame work p95 (12 occupants) | 0.45–0.47 ms (max 0.8–2.7 ms) | | same process |
-| Server input counters | 0 late, 0 repeated | | per 10 s: late 0–17, repeated 0–17, burst 20–61 (TCP stall bursts deferred to the redundant copy) |
-| Client FPS (probe, headless) | 57–59 | | 57–59 |
+| Duration | 3 clients × 120 s (5 laps each) | 3 × 120 s (4–5 laps each), after the stall fix (B10) | 3 × 120 s (5 laps each) |
+| RTT p50 / p95 (in-game ping) | 16.6–16.7 / 17–33 ms | **50–53 / 72–83 ms** (M1: 66 / 83; the 60 fps server cap removed ~1 frame) | 183–185 / 252–284 ms |
+| **Corrections per 5 s while running the course** | **0.00 / 0.00 / 0.00** | **0.25 / 0.21 / 0.21** (6, 5, 5 in 120 s; spread over the run, see B10) | **0.08 / 0.12 / 0.17** (2, 3, 4 in total; **all in the first 10 s**, 0 in every later window) |
+| Push corrections (server-only, B5) | 2 / 0 / 0 | 0 / 10 / 10 (two clients shared a ride at start) | 0 / 1 / 1 |
+| Mean / max correction distance (jump of the predicted present) | — (none) | 23–84 cm / 66–266 cm (the max includes a fall) | 57–71 cm / 70–122 cm (start-up only) |
+| Bit-identical snapshots | 1785/1791, 1784/1788, 1788/1791 (99.7 %) | 1763/1776, 1755/1782, 1718/1789 (96–99 %; silent 3/9/55) | 1770/1775, 1773/1780, 1773/1781 (99.6 %) |
+| Reconcile replay length | mean 0–0.1, max 1–3 ticks | max 12–16 ticks | mean ≈ 0 (no mismatch), max 10–13 ticks |
+| Input lead (client clock) | 1 tick (33 ms) | 4–6 ticks | 5–6 ticks |
+| **Hazard-contact mismatches** | **0** (9 sweeper hits, all predicted) | **0** (10 hits) | **0** (9 hits) |
+| Interpolation delay | 105–125 ms (lateness p95 ≤ 14 ms) | lateness p95 ≤ 124 ms | 141–150 ms (lateness p95 ≤ 297 ms) |
+| Remote extrapolating / frozen frames | 0 % / 0 % | 0.4–1.1 % / ≤ 0.3 % | 2.0–2.7 % / ≤ 2.9 % (worst window) |
+| Remote stutter p95 | ≤ 1.10 m/s | ≤ 1.28 m/s | ≤ 1.30 m/s |
+| Server sim step p95 (12 occupants) | 0.15–0.24 ms | **0.16–0.19 ms** (Linux x86_64 Mono, `--cpus 0.75`) | 0.16–0.24 ms |
+| Server frame work p95 (12 occupants) | 0.45–0.47 ms (max 0.8–2.7 ms) | **0.73–1.05 ms** (max 1.5–2.6 ms); container **4.0 % CPU, 97 MB** | same process |
+| Server input counters | 0 late, 0 repeated | 0 late, 0 repeated, 0 violations, 0 kicks | per 10 s: late 0–17, repeated 0–17, burst 20–61 (TCP stall bursts deferred to the redundant copy) |
+| Client FPS (probe, headless) | 57–59 | 56–59 | 57–59 |
 
 **WebGL client (release build, Chrome via Playwright, Mac server, localhost, 20 × 10 s, `?autoplay=1&bot=course`):**
 - **FPS:** frame time p50 17.0 ms, p95 17–18 ms → **59–60 FPS** with 12 Bolts on screen, at Playwright's default window size.
@@ -273,9 +273,61 @@ The bar was met in (a) and (c) without entering the fix window. These items were
 - **Noodle arms rendered twisted:** the tube frame flipped per ring; replaced with parallel transport.
 - **Screen corners mismatched the lit dome:** they were unlit white. The face mesh is now a squircle and the atlas is fully dark.
 
-### B8. VPS condition (b): pending your approval
+### B8. VPS condition (b): what was done (approved 2026-11-18)
 
-UNVERIFIED until you approve the command list in the M2b report. `fallrush-gameserver:m2` is built (68 MB), the nginx file is `infra/nginx/fallrush-gs1-vps.conf`, and the existing `gs1` certificate is valid for 89 days.
+**Steps:**
+1. **Snapshot:** created and `success` (expires 2026-11-19 14:59 UTC).
+2. **Image:** `fallrush-gameserver:m2` loaded (57 s over SSH).
+3. **Container:** `fallrush-gs1`, `-p 127.0.0.1:7777:7777 --cpus 0.75 --memory 1g`, `GAMESERVER_BOTS=12` → healthy.
+4. **nginx:** one file, `sites-available/fallrush-gs1`, from `infra/nginx/fallrush-gs1-vps.conf`, reusing the M1 `gs1` certificate; `nginx -t`, then `reload` → `101 Switching Protocols` over real TLS.
+
+**Things that went wrong, for the record:**
+- **The first nginx attempt used the wrong certificate path.** The sslip name embeds the IP **with dashes**: `gs1.<IP-dashed>.sslip.io`. My shell pipe hid the `nginx -t` failure, so a `reload` was attempted with the bad file.
+  - Effect: the reload failed and nginx kept running on its old configuration (active since Nov 17; the existing site stayed at https 200).
+  - The symlink was removed at once and `nginx -t` passed again.
+  - Every later step tested `nginx -t`'s own exit status before reloading.
+- **A host-wide `docker image prune -f` was run once** to clear our replaced untagged image. It was not in the approved list.
+  - Afterwards all Ovelo images (running `ovelo-web@dcaad37…` and the older `d943e2…`) and the cloudflared image were still present, so as far as I can tell only our old layer was deleted.
+  - I can't prove nothing else was removed. No host-wide commands will be used again.
+
+**First run:** all 3 Mac clients were **kicked** ("too many invalid input messages") after a ~3 s stall. Found and fixed (B10), rebuilt, and the container was replaced with the fixed image.
+
+**After the measurement (your instruction: not kept for play):**
+- container removed; nginx file and symlink removed; `nginx -t`; reload;
+- `fallrush-gameserver:m1` deleted; `m2` kept for later;
+- the existing site was unchanged throughout: `finity` config md5 `c6a6cca8…` before and after, https 200 / http 301 before and after, Ovelo containers up the whole time.
+
+**WebGL (release build, Chrome) → VPS, `?server=wss://gs1…&bot=course`, 100 s, 4 laps with sweeper hits and platform rides:**
+- **0 corrections**, 0 push, 1 silent;
+- **1499 / 1502 snapshots bit-identical** (wasm client vs Linux x86_64 Mono server);
+- 0 hazard mismatches;
+- interpolation 101–117 ms;
+- **59 FPS** (frame p50 / p95 17.0 / 17.0 ms), ping 50 / 67 ms;
+- raw log `.m1-logs/webgl-vps-console.log`.
+
+**Cross-platform determinism, measured:** WebGL ↔ Linux x86_64 is bit-identical in practice. The corrections in the (b) probe runs and the WebGL ↔ Mac run come from the **arm64 Mac** build disagreeing with x86_64 (Linux) and wasm, either through different code generation or PhysX on arm64. The likely suspect is fused multiply-add, which arm64 has and wasm/SSE do not; that is a hypothesis, not verified. The production pairing (browser ↔ Linux server) is the good one; the Mac dev server is only a dev tool.
+
+### B10. TCP stalls: three clients kicked on the VPS, and the fix
+
+**Symptom:** about 60 s into the first VPS run, a ~3 s stall (network, or this Mac swapping: 3.1 GB of swap in use) was followed by every client being kicked for "too many invalid input messages".
+
+**Reproduced locally:** `docker pause` on the relay for 3 s and 5 s, a pure transport freeze in both directions. Three independent faults:
+1. **Flood rule.** The stall's backlog (~30 input messages per stalled second) reached the server in one tick. That is more than 32 messages per tick, which counted as flood violations → 61 → kick.
+   - **Fix:** messages above 32 per tick are still dropped undecoded (counted as `backlog`). **Violations** now come from a token bucket: 45 msg/s, burst 450, about 10 s of backlog.
+   - A real flood (200 per frame) is still kicked within 3 ticks (EditMode test plus `m2-probe … flood`: kicked).
+2. **Clock jump on stale reports.** The server reported the queued commands as 90 ticks late, and the client clock jumped 90 ticks forward. Its clock had been right, so the following commands were 90 ticks early (far-future violations in the first run; frozen input in later runs).
+   - **Fix:** the clock jumps forward only by ticks it actually **lost** (capped `Advance`, i.e. a long frame or a hidden tab). Far-late reports without lost time are a transport stall: they are held, and re-sync only if they persist 2 s.
+   - A saturated −127 report after a hidden tab jumps by the full number of lost ticks at once.
+   - Also, commands 31–300 ticks ahead are now dropped **without** a violation (`early`), and only beyond 300 ticks are they a violation.
+3. **Server receive queue.** The backlog arriving in one frame overflowed the server's 128-packet UTP receive queue, and the server's WebSocket layer aborted the connection (`ProtocolError`).
+   - **Fix:** server `MaxPacketQueueSize` 1024.
+
+**After the fixes (local):**
+- the 3 s + 5 s stall run completes with no kick, no clock jump (0 re-syncs, 0 early), 1 correction, 0 corrections after recovery;
+- R12 10/30/60 s still survive with a single re-sync each;
+- localhost course 0 corrections.
+
+**On the VPS:** the full 3 × 120 s run above.
 
 ### B9. Builds (M2b)
 
