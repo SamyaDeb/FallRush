@@ -1,6 +1,6 @@
 # Fall Rush — Project Status
 
-_Last updated: 2026-11-18 (D0, M0 + M1 complete; M2a at checkpoint)_
+_Last updated: 2026-11-18 (D0, M0 + M1 + M2 complete; M2 verified independently: 153/153 EditMode, VPS clean)_
 
 **Hackathon:** MagicBlock Blitz V10, running Nov 20 to Nov 27, 2026.
 - **Submission deadline:** Nov 27, 14:00 UTC (19:30 IST).
@@ -157,11 +157,11 @@ Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part B · screensh
 ## Next milestones
 - **M3:** obstacle kit + Block Party Dash race (`docs/14`).
 
-## Next: M2 (networked movement), prompt `docs/prompts/M2-PROMPT.md`
+## M2 kickoff notes (done; kept for history)
 - Agreed 2026-11-18: VPS check first (✅ done in M1 §4.7), SDK pin (D-15 ✅), **one M2 prompt with an M2a → M2b checkpoint**, and **Bolt v1 built in Unity from shapes** (no Blender).
 - Spec fix before M2: doc 04 §4.1 snapshot position is now **i32 mm** (the old i16 at 2.5 mm covered only ±82 m, too short for a ~500 m race). The server quantises its own state to wire precision every tick.
 - Open question for you: the Blitz rules don't say whether code written before Nov 20 is allowed. Check the Luma / Discord rules; we disclose either way (doc 18).
-- VPS cleanup pending your word: the `gs1` cert (renewal fails without its server block) and the M1 image. The snapshot expires by itself on 2026-11-19 10:15 UTC.
+- VPS: `m1` image deleted, `m2` image kept, test container + nginx file removed. Still open: the `gs1` Let's Encrypt cert has no server block, so auto-renewal will fail (harmless for 89 days; re-added when gs1 goes live).
 
 ## Decisions (all approved 2026-11-18, incl. D-15 SDK pin and D-16 Mac dev server — see docs/15)
 | ID | Decision |
@@ -187,7 +187,7 @@ Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part B · screensh
 - [ ] Recruit 8–12 playtesters for Nov 25 and Nov 26.
 
 ## Blockers
-- None. M2b is waiting for your "continue" at the M2a checkpoint.
+- None. M3 prompt next (discuss first).
 
 ## Known bugs
 - None open in our code. Upstream: Solana.Unity-SDK v1.2.9 WebGL link failure (#257), worked around by D-15.
