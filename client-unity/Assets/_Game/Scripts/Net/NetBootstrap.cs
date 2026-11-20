@@ -29,7 +29,8 @@ namespace FallRush.Net
         public const string MenuScene = "Menu";
         public const string LobbyScene = "Lobby";
         public const string SandboxScene = "Map_Sandbox";
-        private const string ServerFpsArg = "-fallrushServerFps"; // M2 measurement: server frame cap (default = tick rate)
+        private const string ServerFpsArg = "-fallrushServerFps"; // server frame cap override (30–240)
+        public const int DefaultServerFps = 60;
         private const string ServerArg = "-fallrushServer";
         private const string ListenArg = "-fallrushListen"; // dev only: e.g. 127.0.0.1 for the local Mac dev server
         private const string ProtoOverrideQueryKey = "proto";
@@ -176,7 +177,8 @@ namespace FallRush.Net
         {
             QualitySettings.vSyncCount = 0;
             var fps = GetArgValue(ServerFpsArg);
-            Application.targetFrameRate = int.TryParse(fps, out var f) && f >= 30 && f <= 240 ? f : (int)Manager.NetworkConfig.TickRate;
+            // M2 measured (docs/proof/M2-netcode.md): a 60 fps cap halves localhost RTT (33 → 17 ms p50) for +0.7 % CPU.
+            Application.targetFrameRate = int.TryParse(fps, out var f) && f >= 30 && f <= 240 ? f : DefaultServerFps;
 
             ListenPort = NetTargets.ResolvePort(Environment.GetCommandLineArgs(), Environment.GetEnvironmentVariable, out var portSource, out var warning);
             if (warning != null)

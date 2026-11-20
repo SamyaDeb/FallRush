@@ -24,6 +24,20 @@ namespace FallRush.Net
 
         public static string TargetFromArgs() => GetArg(Arg);
 
+        /// <summary><c>-fallrushProbeView</c>: run windowed with the normal client view (for screenshots).</summary>
+        public static bool ViewEnabled => HasArg("-fallrushProbeView");
+
+        private string _shotPath;
+        private float _shotAt = float.MaxValue;
+
+        private static bool HasArg(string name)
+        {
+            foreach (var a in Environment.GetCommandLineArgs())
+                if (string.Equals(a, name, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            return false;
+        }
+
         private void Start()
         {
             _script = GetArg("-fallrushProbeScript") ?? "run";
@@ -31,6 +45,10 @@ namespace FallRush.Net
             _endAt = Time.realtimeSinceStartup + secs;
             _nextLog = Time.realtimeSinceStartup + 10f;
             Application.targetFrameRate = 60;
+            QualitySettings.vSyncCount = 0;
+            _shotPath = GetArg("-fallrushScreenshot");
+            if (_shotPath != null && int.TryParse(GetArg("-fallrushScreenshotAt"), out var at))
+                _shotAt = Time.realtimeSinceStartup + at;
             Debug.Log($"[probe] start target={NetBootstrap.Instance.Target.Url} script={_script} secs={secs}");
             NetBootstrap.Instance.StateChanged += OnState;
             NetBootstrap.Instance.Connect();
@@ -59,7 +77,7 @@ namespace FallRush.Net
 
         public void Sample(ref InputCmd cmd)
         {
-            if (_script == "idle")
+            if (_script == "idle" || _script == "flood")
                 return;
             // 6 s forward, 6 s back; hop every 1.5 s.
             var t = (int)(cmd.Tick % 360);
@@ -93,10 +111,52 @@ namespace FallRush.Net
                 _phase++;
             }
 
+            if (_script == "flood" && cs != null && cs.Active)
+                Flood();
+
+            if (now >= _shotAt)
+            {
+                _shotAt = float.MaxValue;
+                ScreenCapture.CaptureScreenshot(_shotPath);
+                Debug.Log($"[probe] screenshot → {_shotPath}");
+            }
+
             if (now >= _endAt)
             {
                 Debug.Log("[probe] done");
                 Application.Quit(0);
+            }
+        }
+
+        // ---- flood script (doc 11: size/rate caps, drop + count, kick after 50 violations/min) ----
+        private readonly System.Random _rng = new System.Random(11);
+        private readonly byte[] _junk = new byte[64];
+        public long FloodSent;
+
+        private void Flood()
+        {
+            var nm = Unity.Netcode.NetworkManager.Singleton;
+            if (nm == null || !nm.IsConnectedClient)
+                return;
+            for (var i = 0; i < 200; i++)
+            {
+                var len = _rng.Next(0, _junk.Length);
+                _rng.NextBytes(_junk);
+                if ((i & 3) == 0 && len >= 14)
+                {
+                    // Well-formed but far-future command.
+                    len = 14;
+                    _junk[0] = 1;
+                    _junk[5] = 0xFF;
+                    _junk[6] = 0xFF;
+                    _junk[7] = 0xFF;
+                    _junk[8] = 0x7F;
+                }
+
+                using var w = new Unity.Netcode.FastBufferWriter(Math.Max(1, len), Unity.Collections.Allocator.Temp);
+                w.WriteBytesSafe(_junk, len);
+                nm.CustomMessagingManager.SendNamedMessage(Protocol.Msg.Input, Unity.Netcode.NetworkManager.ServerClientId, w, Unity.Netcode.NetworkDelivery.Unreliable);
+                FloodSent++;
             }
         }
 

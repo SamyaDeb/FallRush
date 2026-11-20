@@ -36,6 +36,8 @@ namespace FallRush.Net
         public long InputMessages;
         public long InputBytes;
         public long Kicks;
+        /// <summary>Input counters of players who already left (so 10 s deltas never go negative).</summary>
+        public InputCounters Retired;
         public readonly RollingSamples StepMs = new RollingSamples(1024);
 
         private NetworkManager _nm;
@@ -136,6 +138,18 @@ namespace FallRush.Net
             var slot = Core.FindSlot(clientId);
             if (slot < 0)
                 return;
+            var c = Core.Input(slot).Counters;
+            Retired.Messages += c.Messages;
+            Retired.Accepted += c.Accepted;
+            Retired.Redundant += c.Redundant;
+            Retired.Late += c.Late;
+            Retired.FarFuture += c.FarFuture;
+            Retired.Flood += c.Flood;
+            Retired.Burst += c.Burst;
+            Retired.Malformed += c.Malformed;
+            Retired.Repeated += c.Repeated;
+            Retired.Neutral += c.Neutral;
+            Retired.Clamped += c.Clamped;
             Core.Remove(slot);
             FillBots();
             Debug.Log($"[gs] slot {slot} freed (client={clientId}) humans={Core.HumanCount} bots={Core.BotCount}");

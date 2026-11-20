@@ -32,8 +32,12 @@ namespace FallRush.Tests
             var before = t.PredictedTick;
             t.OnSnapshot(1006, -20, 50f, 0.3);
             Assert.That(t.Resyncs, Is.EqualTo(1));
-            Assert.That(t.PredictedTick, Is.GreaterThan(before + 15));
+            Assert.That(t.PredictedTick, Is.EqualTo(before + 22));
+            Assert.That(t.TargetLead, Is.EqualTo(TickSync.InitialTarget), "a clock jump is a re-sync, not jitter");
+
+            t.OnSnapshot(1030, -1, 50f, 1.0); // after the hold: a little late → raise the target
             Assert.That(t.TargetLead, Is.EqualTo(TickSync.InitialTarget + 1), "late raises the target");
+            Assert.That(t.LateReports, Is.EqualTo(1));
         }
 
         [Test]
@@ -46,6 +50,31 @@ namespace FallRush.Tests
                 ticks += t.Advance(1.0 / 60);
             Assert.That(ticks, Is.InRange(29, 30));
             Assert.That(t.Advance(10.0), Is.EqualTo(TickSync.MaxTicksPerAdvance), "a hidden-tab hitch does not burst");
+        }
+
+        [Test]
+        public void Target_Lowers_After10sWithoutDippingBelowIt()
+        {
+            var t = new TickSync(Rate);
+            t.OnSnapshot(100, SnapHeader.LeadUnknown, 30f, 0);
+            t.OnSnapshot(102, -1, 30f, 0.1);               // late once → target 3
+            Assert.That(t.TargetLead, Is.EqualTo(3));
+            var now = 1.0;
+            for (var i = 0; i < 160; i++, now += 0.066)    // ~10.5 s at lead == target
+                t.OnSnapshot((uint)(104 + 2 * i), 3, 30f, now);
+            Assert.That(t.TargetLead, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void StaleStart_ResyncsOnce_WithoutRaisingTarget()
+        {
+            var t = new TickSync(Rate);
+            t.OnSnapshot(100, SnapHeader.LeadUnknown, 30f, 0);
+            // Commands start 3 s later from a clock that did not run: very late reports for a while.
+            for (var i = 0; i < 20; i++)
+                t.OnSnapshot((uint)(200 + 2 * i), -80, 30f, 3.0 + i * 0.066);
+            Assert.That(t.TargetLead, Is.EqualTo(TickSync.InitialTarget));
+            Assert.That(t.Resyncs, Is.InRange(1, 3));
         }
 
         /// <summary>

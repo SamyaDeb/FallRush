@@ -168,11 +168,18 @@ namespace FallRush.Net
             var dt = _lastNow > 0 ? now - _lastNow : 0;
             _lastNow = now;
 
-            if (_nm != null && _nm.IsConnectedClient && !_nm.IsServer && Active)
+            if (_nm != null && _nm.IsConnectedClient && !_nm.IsServer)
             {
+                // The clock keeps running while we are not sending yet (lobby / map loading), so the first
+                // commands are stamped for the right tick instead of a stale one.
                 var n = Clock.Advance(dt);
                 for (var i = 0; i < n; i++)
-                    SampleAndSend();
+                {
+                    if (Active)
+                        SampleAndSend();
+                    else
+                        Clock.NextTick();
+                }
             }
 
             if (now - _statsAt >= 1.0)

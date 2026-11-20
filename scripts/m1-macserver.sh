@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # LOCAL TEST ONLY: run the native macOS dev server (Build.MacDevServer) headless on 127.0.0.1.
-# usage: scripts/m1-macserver.sh start|stop|status
+# usage: scripts/m1-macserver.sh start [extra player args, e.g. -fallrushBots 12 -fallrushSnapHz 30 -fallrushServerFps 60]|stop|status
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/client-unity/Builds/MacDevServer/FallRushDevServer.app"
@@ -13,7 +13,7 @@ case "${1:-}" in
     [[ -x "$BIN" ]] || { echo "build it first: pnpm m1:build:macserver"; exit 1; }
     if [[ -f "$PIDF" ]] && kill -0 "$(cat "$PIDF")" 2>/dev/null; then echo "[m1] mac server already running pid $(cat "$PIDF")"; exit 0; fi
     GAMESERVER_PORT="${GAMESERVER_PORT:-7777}" GAMESERVER_ID="${GAMESERVER_ID:-gs-mac-dev}" \
-      nohup "$BIN" -batchmode -nographics -fallrushServer -fallrushListen 127.0.0.1 -logFile - >> "$LOG" 2>&1 &
+      nohup "$BIN" -batchmode -nographics -fallrushServer -fallrushListen 127.0.0.1 -logFile - "${@:2}" >> "$LOG" 2>&1 &
     echo $! > "$PIDF"
     for _ in $(seq 1 30); do grep -q "\[gs\] listening" "$LOG" 2>/dev/null && break; sleep 1; done
     grep "\[gs\] listening" "$LOG" | tail -1 || { echo "[m1] server did not report listening; see $LOG"; exit 1; }

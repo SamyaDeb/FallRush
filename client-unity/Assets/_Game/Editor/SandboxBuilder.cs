@@ -240,8 +240,9 @@ public static class SandboxBuilder
         var tm = go.AddComponent<TextMesh>();
         tm.text = text;
         tm.font = _font;
-        tm.fontSize = 64;
-        tm.characterSize = 0.06f;
+        tm.fontSize = 96;
+        tm.characterSize = 0.035f;
+        tm.fontStyle = FontStyle.Bold;
         tm.anchor = TextAnchor.MiddleCenter;
         tm.color = new Color(0.16f, 0.07f, 0.31f);
         go.GetComponent<MeshRenderer>().sharedMaterial = _font.material;

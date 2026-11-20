@@ -77,8 +77,10 @@ namespace FallRush.Client
                 label.transform.localPosition = new Vector3(0f, 1.45f, 0f);
                 label.font = UiKit.Font;
                 label.GetComponent<MeshRenderer>().sharedMaterial = UiKit.Font.material;
-                label.fontSize = 48;
-                label.characterSize = 0.05f;
+                label.fontSize = 64;
+                label.characterSize = 0.035f;
+                label.fontStyle = FontStyle.Bold;
+                label.color = UiKit.Ink;
                 label.anchor = TextAnchor.MiddleCenter;
                 label.alignment = TextAlignment.Center;
                 _labels[i] = label;
@@ -106,7 +108,8 @@ namespace FallRush.Client
             var cs = ClientSim.Instance;
             if (cs != null)
             {
-                cs.InputSource = _sampler;
+                if (NetBootstrap.Instance == null || !NetBootstrap.Instance.IsProbe)
+                    cs.InputSource = _sampler; // the probe keeps its scripted input
                 cs.Active = true;
             }
 
@@ -288,7 +291,7 @@ namespace FallRush.Client
             if (scene.name != NetBootstrap.SandboxScene)
                 return;
             var boot = NetBootstrap.Instance;
-            if (boot == null || boot.IsServerRole || boot.IsProbe)
+            if (boot == null || boot.IsServerRole || (boot.IsProbe && !SimProbe.ViewEnabled))
                 return;
             new GameObject("SandboxView").AddComponent<SandboxView>();
         }
