@@ -104,6 +104,15 @@ namespace FallRush.Shared
         public const byte BlockPartyDash = 0, GooTower = 1, StarScramble = 2, CrumbleShelf = 3;
         /// <summary>Not in the pool: the dev sandbox. Uses BlockPartyDash's tables.</summary>
         public const byte Sandbox = 255;
+        /// <summary>Not in the pool: the M4 lobby room (<c>Map_Lobby</c>).</summary>
+        public const byte Lobby = 254;
+
+        /// <summary>The <c>rounds</c> table: eligible map ids per round (round 1 first). The deal picks one per round.</summary>
+        public static readonly int[][] RoundMaps = { new[] { 0 }, new[] { 1 }, new[] { 2 }, new[] { 3 } };
+
+        public static string ModeOf(byte mapId) => mapId < Modes.Length ? Modes[mapId] : mapId == Lobby ? "Lobby" : "Sandbox";
+
+        public static string KeyOf(byte mapId) => mapId < Keys.Length ? Keys[mapId] : mapId == Lobby ? "Lobby" : "Sandbox";
 
         public static readonly string[] Keys = { "BlockPartyDash", "GooTower", "StarScramble", "CrumbleShelf" };
         public static readonly string[] Modes = { "Race", "Survival", "Skill", "Final" };

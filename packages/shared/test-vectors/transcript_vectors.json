@@ -1,0 +1,1056 @@
+{
+ "version": 1,
+ "targets": [
+  {
+   "p": 4,
+   "targets": [
+    3,
+    2,
+    1,
+    1
+   ]
+  },
+  {
+   "p": 5,
+   "targets": [
+    4,
+    3,
+    2,
+    1
+   ]
+  },
+  {
+   "p": 6,
+   "targets": [
+    4,
+    3,
+    2,
+    1
+   ]
+  },
+  {
+   "p": 7,
+   "targets": [
+    5,
+    4,
+    3,
+    1
+   ]
+  },
+  {
+   "p": 8,
+   "targets": [
+    6,
+    4,
+    3,
+    1
+   ]
+  },
+  {
+   "p": 9,
+   "targets": [
+    6,
+    4,
+    3,
+    1
+   ]
+  },
+  {
+   "p": 10,
+   "targets": [
+    7,
+    5,
+    3,
+    1
+   ]
+  },
+  {
+   "p": 11,
+   "targets": [
+    8,
+    5,
+    3,
+    1
+   ]
+  },
+  {
+   "p": 12,
+   "targets": [
+    8,
+    5,
+    3,
+    1
+   ]
+  },
+  {
+   "p": 13,
+   "targets": [
+    9,
+    6,
+    3,
+    1
+   ]
+  },
+  {
+   "p": 14,
+   "targets": [
+    10,
+    7,
+    3,
+    1
+   ]
+  },
+  {
+   "p": 15,
+   "targets": [
+    10,
+    7,
+    3,
+    1
+   ]
+  },
+  {
+   "p": 16,
+   "targets": [
+    11,
+    7,
+    3,
+    1
+   ]
+  },
+  {
+   "p": 17,
+   "targets": [
+    12,
+    8,
+    3,
+    1
+   ]
+  },
+  {
+   "p": 18,
+   "targets": [
+    12,
+    8,
+    3,
+    1
+   ]
+  },
+  {
+   "p": 19,
+   "targets": [
+    13,
+    9,
+    3,
+    1
+   ]
+  },
+  {
+   "p": 20,
+   "targets": [
+    14,
+    9,
+    3,
+    1
+   ]
+  }
+ ],
+ "rosters": [
+  {
+   "name": "12-practice-h0",
+   "entries": [
+    {
+     "slot": 0,
+     "bot": false,
+     "userId": "guest:practice:0"
+    },
+    {
+     "slot": 1,
+     "bot": true,
+     "userId": "bot:1"
+    },
+    {
+     "slot": 2,
+     "bot": true,
+     "userId": "bot:2"
+    },
+    {
+     "slot": 3,
+     "bot": true,
+     "userId": "bot:3"
+    },
+    {
+     "slot": 4,
+     "bot": true,
+     "userId": "bot:4"
+    },
+    {
+     "slot": 5,
+     "bot": true,
+     "userId": "bot:5"
+    },
+    {
+     "slot": 6,
+     "bot": true,
+     "userId": "bot:6"
+    },
+    {
+     "slot": 7,
+     "bot": true,
+     "userId": "bot:7"
+    },
+    {
+     "slot": 8,
+     "bot": true,
+     "userId": "bot:8"
+    },
+    {
+     "slot": 9,
+     "bot": true,
+     "userId": "bot:9"
+    },
+    {
+     "slot": 10,
+     "bot": true,
+     "userId": "bot:10"
+    },
+    {
+     "slot": 11,
+     "bot": true,
+     "userId": "bot:11"
+    }
+   ],
+   "hash": "1d4972b321c001902a253bc4685ea88618719439f0a7d614a4a739043b16247a"
+  },
+  {
+   "name": "4-all-guests",
+   "entries": [
+    {
+     "slot": 0,
+     "bot": false,
+     "userId": "guest:practice:0"
+    },
+    {
+     "slot": 1,
+     "bot": false,
+     "userId": "guest:practice:1"
+    },
+    {
+     "slot": 2,
+     "bot": false,
+     "userId": "guest:practice:2"
+    },
+    {
+     "slot": 3,
+     "bot": false,
+     "userId": "guest:practice:3"
+    }
+   ],
+   "hash": "939c8720fe4d1bc0112ee14dc379fcc37405a6a2dad6d3e82bb551b85cda51e4"
+  },
+  {
+   "name": "20-bots",
+   "entries": [
+    {
+     "slot": 0,
+     "bot": true,
+     "userId": "bot:0"
+    },
+    {
+     "slot": 1,
+     "bot": true,
+     "userId": "bot:1"
+    },
+    {
+     "slot": 2,
+     "bot": true,
+     "userId": "bot:2"
+    },
+    {
+     "slot": 3,
+     "bot": true,
+     "userId": "bot:3"
+    },
+    {
+     "slot": 4,
+     "bot": true,
+     "userId": "bot:4"
+    },
+    {
+     "slot": 5,
+     "bot": true,
+     "userId": "bot:5"
+    },
+    {
+     "slot": 6,
+     "bot": true,
+     "userId": "bot:6"
+    },
+    {
+     "slot": 7,
+     "bot": true,
+     "userId": "bot:7"
+    },
+    {
+     "slot": 8,
+     "bot": true,
+     "userId": "bot:8"
+    },
+    {
+     "slot": 9,
+     "bot": true,
+     "userId": "bot:9"
+    },
+    {
+     "slot": 10,
+     "bot": true,
+     "userId": "bot:10"
+    },
+    {
+     "slot": 11,
+     "bot": true,
+     "userId": "bot:11"
+    },
+    {
+     "slot": 12,
+     "bot": true,
+     "userId": "bot:12"
+    },
+    {
+     "slot": 13,
+     "bot": true,
+     "userId": "bot:13"
+    },
+    {
+     "slot": 14,
+     "bot": true,
+     "userId": "bot:14"
+    },
+    {
+     "slot": 15,
+     "bot": true,
+     "userId": "bot:15"
+    },
+    {
+     "slot": 16,
+     "bot": true,
+     "userId": "bot:16"
+    },
+    {
+     "slot": 17,
+     "bot": true,
+     "userId": "bot:17"
+    },
+    {
+     "slot": 18,
+     "bot": true,
+     "userId": "bot:18"
+    },
+    {
+     "slot": 19,
+     "bot": true,
+     "userId": "bot:19"
+    }
+   ],
+   "hash": "d0a7aceafe6a4c8a0a088300c86634b928fda25ffa4824d608b52e9c51939f0f"
+  },
+  {
+   "name": "5-with-wallet",
+   "entries": [
+    {
+     "slot": 0,
+     "bot": false,
+     "userId": "guest:practice:0"
+    },
+    {
+     "slot": 1,
+     "bot": false,
+     "userId": "user:7f3a",
+     "wallet": "88b25ebd15621261264ec8685ff73a344031f588b2a64eabdad4c524dc8cbc11"
+    },
+    {
+     "slot": 2,
+     "bot": true,
+     "userId": "bot:2"
+    },
+    {
+     "slot": 3,
+     "bot": true,
+     "userId": "bot:3"
+    },
+    {
+     "slot": 4,
+     "bot": true,
+     "userId": "bot:4"
+    }
+   ],
+   "hash": "aa02641ec4248486336b7a1673e1fc1e3e69f21fde631fd871709e45ca72f22f"
+  }
+ ],
+ "matches": [
+  {
+   "name": "full-12p-4r",
+   "seed": "8d80e1dabca00c27a4788a48bac6fc89e5b7bf6b19bf6f5e48338433627c2a80",
+   "matchId": "4a24a7024568998823626103f9ee8423",
+   "players": 12,
+   "humans": [
+    0
+   ],
+   "rosterHash": "1d4972b321c001902a253bc4685ea88618719439f0a7d614a4a739043b16247a",
+   "targets": [
+    8,
+    5,
+    3,
+    1
+   ],
+   "deal": {
+    "maps": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "variants": [
+     1,
+     1,
+     0,
+     1
+    ],
+    "modifiers": [
+     1,
+     0,
+     0,
+     0
+    ]
+   },
+   "orders": [
+    [
+     3,
+     0,
+     7,
+     1,
+     9,
+     4,
+     11,
+     2,
+     5,
+     6,
+     8,
+     10
+    ],
+    [
+     0,
+     9,
+     2,
+     3,
+     7,
+     1,
+     4,
+     11
+    ],
+    [
+     9,
+     2,
+     0,
+     7,
+     3
+    ],
+    [
+     2,
+     9,
+     0
+    ]
+   ],
+   "reasons": [
+    [
+     0,
+     0,
+     4,
+     0
+    ],
+    [
+     1,
+     2,
+     3
+    ],
+    [
+     3,
+     3
+    ],
+    [
+     2,
+     4
+    ]
+   ],
+   "init": "fe4a3f646539ec466cc05e0e1a82c51b9b2c5d8a8ebed65ae09eb9da3c8c7212",
+   "events": [
+    {
+     "tag": 1,
+     "round": 0,
+     "slot": 255,
+     "arg": "8d80e1dabca00c27a4788a48bac6fc89e5b7bf6b19bf6f5e48338433627c2a80",
+     "seq": 0,
+     "after": "66528168f5eaf9e58f5bb9fbab1f8a7614c87d452aa09ea7696488a7f92f9895"
+    },
+    {
+     "tag": 2,
+     "round": 1,
+     "slot": 255,
+     "arg": "",
+     "seq": 1,
+     "after": "158407d484b615571754fb15da0415373f93e1adfc69e081f7b43601e43e3a93"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 3,
+     "arg": "01",
+     "seq": 2,
+     "after": "e88cf6e300cab39f67d69d7c68ab0b3ea90a179824d07a8ff190288df4031c5b"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 0,
+     "arg": "02",
+     "seq": 3,
+     "after": "12b1af0b17afc13e74bfacbb9d132047890030ce24ba9676718cf53a922c1385"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 7,
+     "arg": "03",
+     "seq": 4,
+     "after": "8225b410519bff5f24c382683a368578cfe29fadbf10af3fca58ab67152aabe2"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 1,
+     "arg": "04",
+     "seq": 5,
+     "after": "fa7737afe36efd219af9c94e5078bd3c5ddd9d0085dcea7a696ff534e186507f"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 9,
+     "arg": "05",
+     "seq": 6,
+     "after": "18d6f905747d1844db01e2a80095d6f2f5fb4b0dd027db8094ba33543d6b683d"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 4,
+     "arg": "06",
+     "seq": 7,
+     "after": "e203920785a6e667660e187b313cac387a04731c9f73efea86de268576e59495"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 11,
+     "arg": "07",
+     "seq": 8,
+     "after": "533e0a1f75d751afca70f0a5e6faa8018b6a83dbb35712d5fc6580c70146708b"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 2,
+     "arg": "08",
+     "seq": 9,
+     "after": "883f89ad8cad8251f7d9c320b54f428055848cd5807ee2c560636527a13617b3"
+    },
+    {
+     "tag": 4,
+     "round": 1,
+     "slot": 5,
+     "arg": "00",
+     "seq": 10,
+     "after": "5f1d8ec79f39104bd714da4d1698c608b1babb293fae62bfe723aa4af8ccdf10"
+    },
+    {
+     "tag": 4,
+     "round": 1,
+     "slot": 6,
+     "arg": "00",
+     "seq": 11,
+     "after": "85fef9e39139161777fd39fe388d24607908255a70fdc05914cb7c2acebe07f3"
+    },
+    {
+     "tag": 4,
+     "round": 1,
+     "slot": 8,
+     "arg": "04",
+     "seq": 12,
+     "after": "dfd1e1db25117276cddca5e269c709bcdfe7914b6f0458c61f232405563b793a"
+    },
+    {
+     "tag": 4,
+     "round": 1,
+     "slot": 10,
+     "arg": "00",
+     "seq": 13,
+     "after": "076272f2a05edb03e64cc00f2f71236387d5dbf1c8c6ecc95c739e158b16aaf9"
+    },
+    {
+     "tag": 5,
+     "round": 1,
+     "slot": 255,
+     "arg": "08",
+     "seq": 14,
+     "after": "7aeae75c4ea73956b91917d3438846d37773bef49af6b4e94ee5adff824cda30"
+    },
+    {
+     "tag": 2,
+     "round": 2,
+     "slot": 255,
+     "arg": "",
+     "seq": 15,
+     "after": "79c029d349979c166a5883f2a4168d8ea8afc9af06128179b83097bcab2b420c"
+    },
+    {
+     "tag": 3,
+     "round": 2,
+     "slot": 0,
+     "arg": "01",
+     "seq": 16,
+     "after": "c33e0662f26c41c89ed1af48b1f3dd763ef5042aadbcef3f9b6ff3f758660112"
+    },
+    {
+     "tag": 3,
+     "round": 2,
+     "slot": 9,
+     "arg": "02",
+     "seq": 17,
+     "after": "9dca0b6f8d5e971840c5090fcee2c6f61c8fb4dd01fce92e389b88634a4be5ec"
+    },
+    {
+     "tag": 3,
+     "round": 2,
+     "slot": 2,
+     "arg": "03",
+     "seq": 18,
+     "after": "d801b4942d4b3971767bb77da4435e86265d6660fc5b435e2786c39cf3ff5968"
+    },
+    {
+     "tag": 3,
+     "round": 2,
+     "slot": 3,
+     "arg": "04",
+     "seq": 19,
+     "after": "e55237de3702269bfd451743f5e97c0d0a07b765df7912f7f3f402a4078f9068"
+    },
+    {
+     "tag": 3,
+     "round": 2,
+     "slot": 7,
+     "arg": "05",
+     "seq": 20,
+     "after": "bf8e82b74b454d5626a9213847f57fc9a7e6923e5d7fc39a7f62d0384a6ad6ce"
+    },
+    {
+     "tag": 4,
+     "round": 2,
+     "slot": 1,
+     "arg": "01",
+     "seq": 21,
+     "after": "3a0ac55b6b71e35138aeb6900197655cd7f0efa0a61b0cfec07f51911ccd905f"
+    },
+    {
+     "tag": 4,
+     "round": 2,
+     "slot": 4,
+     "arg": "02",
+     "seq": 22,
+     "after": "428e3366191dd5e9e199f9d5cef29965141673a5b685d8ee757223df7483e65a"
+    },
+    {
+     "tag": 4,
+     "round": 2,
+     "slot": 11,
+     "arg": "03",
+     "seq": 23,
+     "after": "39b3fe7ede3f5e8925068907df8fb5048cff4da796f6560b61dd3f94ad4457f9"
+    },
+    {
+     "tag": 5,
+     "round": 2,
+     "slot": 255,
+     "arg": "05",
+     "seq": 24,
+     "after": "dcd5a85fb843cc1e51a16c3203fc5e53faf5514fe12d995b147ac3e3fbb6ef6d"
+    },
+    {
+     "tag": 2,
+     "round": 3,
+     "slot": 255,
+     "arg": "",
+     "seq": 25,
+     "after": "3d5080cb06d7b209fa25c0c3b67dfc7ca25166b91aac0bc5342cb48f424e21b7"
+    },
+    {
+     "tag": 3,
+     "round": 3,
+     "slot": 9,
+     "arg": "01",
+     "seq": 26,
+     "after": "a2fbd6048aff0122ade13f79963a22806824e20fa836d6033d257c852332cd54"
+    },
+    {
+     "tag": 3,
+     "round": 3,
+     "slot": 2,
+     "arg": "02",
+     "seq": 27,
+     "after": "47df3546e5b6d91893eb92abe8884958902eadce079a1b047522b18d020702fc"
+    },
+    {
+     "tag": 3,
+     "round": 3,
+     "slot": 0,
+     "arg": "03",
+     "seq": 28,
+     "after": "65e6a77b2bbcc7788ae4a14883bfb68dcc0a2ecad7c5314086050e4fe13fd555"
+    },
+    {
+     "tag": 4,
+     "round": 3,
+     "slot": 7,
+     "arg": "03",
+     "seq": 29,
+     "after": "34af087f50fbff265cb2fbdc85b9df3ad8a63f207f57045c2ee9d9f2c41c89f8"
+    },
+    {
+     "tag": 4,
+     "round": 3,
+     "slot": 3,
+     "arg": "03",
+     "seq": 30,
+     "after": "21669d3f65c123062cec441353e60b635a23be2ec59c8c89fc4e43e44b49ee6d"
+    },
+    {
+     "tag": 5,
+     "round": 3,
+     "slot": 255,
+     "arg": "03",
+     "seq": 31,
+     "after": "c54e6ad25b5537cc11884e97c7561900c57c9e09096f8d172bd4387227090009"
+    },
+    {
+     "tag": 2,
+     "round": 4,
+     "slot": 255,
+     "arg": "",
+     "seq": 32,
+     "after": "2360288de550428baa94c83c1c6e25aeed4cfdfef69d44528891ffd30343d682"
+    },
+    {
+     "tag": 3,
+     "round": 4,
+     "slot": 2,
+     "arg": "01",
+     "seq": 33,
+     "after": "ee5d84f382e58921a1ee3a30d5b0445eb44cc135577c69e1ab7c4606e66b9e0f"
+    },
+    {
+     "tag": 4,
+     "round": 4,
+     "slot": 9,
+     "arg": "02",
+     "seq": 34,
+     "after": "cd61609965c62878f5ee2c86247ac71f9de929b7300d892fdd9f617ee25b97d5"
+    },
+    {
+     "tag": 4,
+     "round": 4,
+     "slot": 0,
+     "arg": "04",
+     "seq": 35,
+     "after": "57364f8d4d4dd5a880ace9a0cfff9eac86548d04814580fb35f732b8fdac33d5"
+    },
+    {
+     "tag": 5,
+     "round": 4,
+     "slot": 255,
+     "arg": "01",
+     "seq": 36,
+     "after": "82f9e5fade9fd3869d242b3c733c00ddce81f048fd47c87ea70e93df5acfc64f"
+    },
+    {
+     "tag": 6,
+     "round": 4,
+     "slot": 2,
+     "arg": "",
+     "seq": 37,
+     "after": "7d07c8d008bf640811289552290ab79a3ba7c6c1817e83fd6e7e4aa8b12dbe54"
+    }
+   ],
+   "final": "7d07c8d008bf640811289552290ab79a3ba7c6c1817e83fd6e7e4aa8b12dbe54"
+  },
+  {
+   "name": "survival-one-survivor",
+   "seed": "ae86199ecc45be11fe829c413a5f9179072447599cb789082bb086d26dee314e",
+   "matchId": "28e70e193f72d333e401202086d4b198",
+   "players": 12,
+   "humans": [
+    0,
+    5
+   ],
+   "rosterHash": "af925973fad9d9112fabc49820eeb851ed16161ddcc0515d99c5bc2d34705a05",
+   "init": "9ca012e9a689e1d6660d74da51f79dabb2d06484219fb78e85aa8efbe15674e2",
+   "events": [
+    {
+     "tag": 1,
+     "round": 0,
+     "slot": 255,
+     "arg": "ae86199ecc45be11fe829c413a5f9179072447599cb789082bb086d26dee314e",
+     "seq": 0,
+     "after": "a02aeaab86bb28a73836985599bcb06a514d79f2e107c8c05a29d477a9e6a4e5"
+    },
+    {
+     "tag": 2,
+     "round": 1,
+     "slot": 255,
+     "arg": "",
+     "seq": 1,
+     "after": "09b9e44f766fa61b7b793f7c93a412e041ff7d0a8042e7c65ba45908aa1cccb5"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 5,
+     "arg": "01",
+     "seq": 2,
+     "after": "3673afff65239a55d2ada1dc9e1397463b6c2e2438bcd36bbd61770d8896bf9d"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 1,
+     "arg": "02",
+     "seq": 3,
+     "after": "488009bfba87eacfe1776c31c8b98af058f9d4255ad5507647b922632e4089de"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 2,
+     "arg": "03",
+     "seq": 4,
+     "after": "bf97aa88a9b1675db757597591e7a01dadac7890a29e3fb4275181e0461fa964"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 3,
+     "arg": "04",
+     "seq": 5,
+     "after": "fa6157c51c45ac0d74af78661437b99a418e1680463a93859b76e1cc6794277d"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 4,
+     "arg": "05",
+     "seq": 6,
+     "after": "800068fd7de9e181dc9261e49ccb434d687fb1ee1003999daa96cf648171f552"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 0,
+     "arg": "06",
+     "seq": 7,
+     "after": "16f3ff1950c01ebd7a5d03e36fb39129fc54d245ee3030c30b73dd25fd40cff8"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 6,
+     "arg": "07",
+     "seq": 8,
+     "after": "2d93434064efe61c92c9e1dd5cbe57013b9c229e7dae5237c8f6fd16ed2ddcfb"
+    },
+    {
+     "tag": 3,
+     "round": 1,
+     "slot": 7,
+     "arg": "08",
+     "seq": 9,
+     "after": "4ceb7d43976e9527b4e7e977f474c72bfc367acc976e530d2fbf5ab5bd59bd68"
+    },
+    {
+     "tag": 4,
+     "round": 1,
+     "slot": 8,
+     "arg": "00",
+     "seq": 10,
+     "after": "183dce99232a5f0c9fa5215879e4f949bbe1b08e29cc15d16fdb51aedef0739e"
+    },
+    {
+     "tag": 4,
+     "round": 1,
+     "slot": 9,
+     "arg": "00",
+     "seq": 11,
+     "after": "dd737ffe191f72ee19d3442e56ad373b57c3e3c8478ac0c1a60ebd97567bebf9"
+    },
+    {
+     "tag": 4,
+     "round": 1,
+     "slot": 10,
+     "arg": "00",
+     "seq": 12,
+     "after": "f42281e11d32fbe7bd9aa3f7d46f273f56f186d9ff26691a9866307862c6541c"
+    },
+    {
+     "tag": 4,
+     "round": 1,
+     "slot": 11,
+     "arg": "00",
+     "seq": 13,
+     "after": "89d799504e79620c900e7c81cd9d96dd373c8fdefe857cfa351f33e87ed20401"
+    },
+    {
+     "tag": 5,
+     "round": 1,
+     "slot": 255,
+     "arg": "08",
+     "seq": 14,
+     "after": "dd4c22f4eb9bbf021a149c92f5b008d9f8c7a70685b0550926fb8907d6ca5a81"
+    },
+    {
+     "tag": 2,
+     "round": 2,
+     "slot": 255,
+     "arg": "",
+     "seq": 15,
+     "after": "f6be42f2dcaafc7ad272ee12c5acf53424440d1bc9f7f00abbabd4fbde55835d"
+    },
+    {
+     "tag": 3,
+     "round": 2,
+     "slot": 3,
+     "arg": "01",
+     "seq": 16,
+     "after": "01d729a5c2b5827ae1d60c650db4f1e56bb4b71d99e78d17659124dbbb820886"
+    },
+    {
+     "tag": 4,
+     "round": 2,
+     "slot": 5,
+     "arg": "01",
+     "seq": 17,
+     "after": "83fd535c0c33bb376cc15138565d0f494f20e5d1e12fbc9d41f17e49c98238a2"
+    },
+    {
+     "tag": 4,
+     "round": 2,
+     "slot": 1,
+     "arg": "01",
+     "seq": 18,
+     "after": "8a237551f5e91614827018b7ed19692206e4bbd953aa82632cd54afc5a00fb0d"
+    },
+    {
+     "tag": 4,
+     "round": 2,
+     "slot": 2,
+     "arg": "01",
+     "seq": 19,
+     "after": "8df6f942ffc170b4840e36b67faa4f3a1b99a5b5ac36101fca02a46bd840c374"
+    },
+    {
+     "tag": 4,
+     "round": 2,
+     "slot": 4,
+     "arg": "01",
+     "seq": 20,
+     "after": "9e31595800c84231d704917befecd1628104f3fb98dddf434ebf2f681e083283"
+    },
+    {
+     "tag": 4,
+     "round": 2,
+     "slot": 0,
+     "arg": "01",
+     "seq": 21,
+     "after": "2eb69ed693ae2454b9b86151c2152e0b2b307e8f1a52f54595e029449d90ca09"
+    },
+    {
+     "tag": 4,
+     "round": 2,
+     "slot": 6,
+     "arg": "01",
+     "seq": 22,
+     "after": "0a6074f26b131eb93e3f2cbef50eca580e5523159aaebbe68daf8050e3888e87"
+    },
+    {
+     "tag": 4,
+     "round": 2,
+     "slot": 7,
+     "arg": "01",
+     "seq": 23,
+     "after": "33414407a58f8cefe7be97a057da8cdd4f5479549376519b5ae6775d2d8ba53c"
+    },
+    {
+     "tag": 5,
+     "round": 2,
+     "slot": 255,
+     "arg": "01",
+     "seq": 24,
+     "after": "16bc65b537f3b027e0bd865e89b83a729f9da629d9af9acf7fb303e0584bded7"
+    },
+    {
+     "tag": 6,
+     "round": 2,
+     "slot": 3,
+     "arg": "",
+     "seq": 25,
+     "after": "bb2b3fb5993d31d766b3bed2a169e9916989861fcca4ee8c056dc3a364c60631"
+    }
+   ],
+   "final": "bb2b3fb5993d31d766b3bed2a169e9916989861fcca4ee8c056dc3a364c60631"
+  },
+  {
+   "name": "abort-r1",
+   "seed": "7964e28a855cc99e61b2993acbac1503a78d468783629e2ab5581a5dadca8f32",
+   "matchId": "6903e266182040cf444a2233fecc3e70",
+   "players": 12,
+   "humans": [
+    0
+   ],
+   "rosterHash": "1d4972b321c001902a253bc4685ea88618719439f0a7d614a4a739043b16247a",
+   "init": "89d567e7e3378938e9b2264911a42e0f9f61aa8cd0083d871a9396468e0c4608",
+   "events": [
+    {
+     "tag": 1,
+     "round": 0,
+     "slot": 255,
+     "arg": "7964e28a855cc99e61b2993acbac1503a78d468783629e2ab5581a5dadca8f32",
+     "seq": 0,
+     "after": "1fa901ebc6987eab02ebdab282f81d3a14fae74a0b8b203663f366591c5880b0"
+    },
+    {
+     "tag": 2,
+     "round": 1,
+     "slot": 255,
+     "arg": "",
+     "seq": 1,
+     "after": "33775d2b9b52cad5199ed26e439808d3eef9727c5129314c99b5c5d9cfeef7ce"
+    },
+    {
+     "tag": 7,
+     "round": 1,
+     "slot": 255,
+     "arg": "01",
+     "seq": 2,
+     "after": "80a4fe00fc59309ee8ff95b799d56d1693d8b3bf58dfeab72c887cfaf073ebf7"
+    }
+   ],
+   "final": "80a4fe00fc59309ee8ff95b799d56d1693d8b3bf58dfeab72c887cfaf073ebf7"
+  }
+ ]
+}
