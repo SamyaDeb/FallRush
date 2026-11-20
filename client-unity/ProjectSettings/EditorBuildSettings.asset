@@ -23,6 +23,15 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Game/Scenes/Map_Lobby.unity
     guid: 4c0cf60402807493890508d69fe26806
+  - enabled: 1
+    path: Assets/_Game/Scenes/Map_CrumbleShelf.unity
+    guid: d331482e54cfd48c6844f215f358e167
+  - enabled: 1
+    path: Assets/_Game/Scenes/Map_StarScramble.unity
+    guid: d52ea21802c06470f8f61a9383f4dd4c
+  - enabled: 1
+    path: Assets/_Game/Scenes/Map_GooTower.unity
+    guid: 6b6d28e71b4f740a0a685a085820e269
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

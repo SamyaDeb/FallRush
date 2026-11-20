@@ -13,6 +13,10 @@ namespace FallRush.Shared
         GateDoor = 6,
         MalletSwing = 7,
         Bumper = 8,
+        GooPlane = 9,     // M4
+        CrumbleTile = 10, // M4 (a grid of tiles)
+        StarPickup = 11,  // M4 (a star field)
+        FallingBlock = 12, // M4
     }
 
     /// <summary>

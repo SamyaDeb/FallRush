@@ -30,6 +30,11 @@ namespace FallRush.Net
         public HazardGateDoor[] doors = new HazardGateDoor[0];
         public HazardMallet[] mallets = new HazardMallet[0];
         public HazardBumper[] bumpers = new HazardBumper[0];
+        // M4 kit
+        public HazardGoo[] goo = new HazardGoo[0];
+        public HazardCrumbleGrid[] grids = new HazardCrumbleGrid[0];
+        public HazardFallingBlock[] fallingBlocks = new HazardFallingBlock[0];
+        public HazardStarField[] starFields = new HazardStarField[0];
 
         [Tooltip("Ordered checkpoints (race maps); the last is the finish.")]
         public RaceCheckpoint[] checkpoints = new RaceCheckpoint[0];
@@ -128,7 +133,32 @@ namespace FallRush.Net
             for (var i = 0; i < bm.Length; i++)
                 bm[i] = bumpers[i].Resolve(in q, zeroPhase);
 
-            return new HazardSet(sw, pl, cv, pd, tt, dr, ml, bm) { RoundStartTick = p.RoundStartTick, KillYMm = definition != null ? KillYMm : int.MinValue };
+            var h = new HazardSet(sw, pl, cv, pd, tt, dr, ml, bm) { RoundStartTick = p.RoundStartTick, KillYMm = definition != null ? KillYMm : int.MinValue, Seed = zeroPhase ? 0 : p.HazardSeed };
+            // M4 kit (variant-resolved; modifiers do not change them: Goo Tower allows None only, tiles and stars are not tuned).
+            var goos = new GooDef[Len(goo)];
+            for (var i = 0; i < goos.Length; i++)
+                goos[i] = goo[i].Resolve(in q);
+            h.Goo = goos;
+            if (Len(grids) > 0)
+            {
+                h.Grids = new[] { grids[0].def };
+                h.SweeperStartT = grids[0].SpinnerStart(in q);
+                cols.Tiles = grids[0].tiles;
+            }
+
+            var fb = new FallingBlockDef[Len(fallingBlocks)];
+            cols.Blocks = new Collider[fb.Length];
+            for (var i = 0; i < fb.Length; i++)
+            {
+                fb[i] = fallingBlocks[i].def;
+                cols.Blocks[i] = fallingBlocks[i].motorCollider;
+            }
+
+            h.Blocks = fb;
+            if (Len(starFields) > 0)
+                h.StarFields = new[] { starFields[0].Resolve(in q) };
+            h.InitReactive();
+            return h;
         }
 
         private static int Len<T>(T[] a) => a?.Length ?? 0;
@@ -246,6 +276,10 @@ namespace FallRush.Net
             foreach (var a in doors) yield return a;
             foreach (var a in mallets) yield return a;
             foreach (var a in bumpers) yield return a;
+            foreach (var a in goo) yield return a;
+            foreach (var a in grids) yield return a;
+            foreach (var a in fallingBlocks) yield return a;
+            foreach (var a in starFields) yield return a;
         }
 
         private byte[] _hash;
