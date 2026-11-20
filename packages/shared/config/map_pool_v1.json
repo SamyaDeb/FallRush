@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "modifiers": [
+    { "id": 0, "key": "None" },
+    { "id": 1, "key": "MoonBounce" },
+    { "id": 2, "key": "ButterFloors" },
+    { "id": 3, "key": "TurboToys" },
+    { "id": 4, "key": "BigBonk" },
+    { "id": 5, "key": "TinyTilt" }
+  ],
+  "maps": [
+    { "id": 0, "key": "BlockPartyDash", "mode": "Race",     "variants": 2,
+      "modifierWeights": [ { "modifier": 0, "weight": 40 }, { "modifier": 1, "weight": 15 }, { "modifier": 2, "weight": 15 }, { "modifier": 3, "weight": 15 }, { "modifier": 5, "weight": 15 } ] },
+    { "id": 1, "key": "GooTower",       "mode": "Survival", "variants": 2,
+      "modifierWeights": [ { "modifier": 0, "weight": 40 } ] },
+    { "id": 2, "key": "StarScramble",   "mode": "Skill",    "variants": 2,
+      "modifierWeights": [ { "modifier": 0, "weight": 40 }, { "modifier": 1, "weight": 15 }, { "modifier": 3, "weight": 15 }, { "modifier": 4, "weight": 15 } ] },
+    { "id": 3, "key": "CrumbleShelf",   "mode": "Final",    "variants": 2,
+      "modifierWeights": [ { "modifier": 0, "weight": 40 }, { "modifier": 1, "weight": 15 }, { "modifier": 2, "weight": 15 } ] }
+  ],
+  "rounds": [
+    { "round": 1, "maps": [0] },
+    { "round": 2, "maps": [1] },
+    { "round": 3, "maps": [2] },
+    { "round": 4, "maps": [3] }
+  ]
+}

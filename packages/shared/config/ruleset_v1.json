@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "name": "fall-rush-mvp",
+  "minPlayers": 4,
+  "maxPlayers": 20,
+  "rounds": [
+    { "round": 1, "mode": "Race",     "qualify": { "rule": "ceil_pct_of_start", "pct": 66 } },
+    { "round": 2, "mode": "Survival", "qualify": { "rule": "ceil_pct_of_prev",  "pct": 62 } },
+    { "round": 3, "mode": "Skill",    "qualify": { "rule": "min_cap_prev_minus", "cap": 3, "minus": 1 } },
+    { "round": 4, "mode": "Final",    "qualify": { "rule": "fixed", "count": 1 } }
+  ]
+}

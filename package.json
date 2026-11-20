@@ -1,0 +1,17 @@
+{
+  "name": "fall-rush",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Fall Rush — 12-player knockout party game on MagicBlock Ephemeral Rollups (Blitz V10)",
+  "packageManager": "pnpm@10.18.3",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "hash": "pnpm --filter @fall-rush/shared hash",
+    "m0:build": "cd programs && anchor build -- --features localnet",
+    "m0:test:local": "bash scripts/m0-test-local.sh",
+    "m0:devnet:deploy": "bash scripts/m0-devnet-deploy.sh",
+    "m0:devnet": "tsx scripts/devnet-lifecycle.ts"
+  }
+}

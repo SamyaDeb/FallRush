@@ -1,0 +1,34 @@
+# ---- secrets (never commit) ----
+.env
+.env.*
+!.env.example
+# keypairs: any *keypair*.json, Solana CLI id.json, authority keys, local key folders
+*keypair*.json
+*-authority*.json
+id.json
+.keys/
+keys/
+*.pem
+
+# ---- build output ----
+target/
+**/target/
+.anchor/
+**/.anchor/
+test-ledger/
+magicblock-test-storage/
+*.so
+
+# ---- node ----
+node_modules/
+dist/
+*.tsbuildinfo
+
+# ---- logs from the local MagicBlock stack ----
+*.log
+.m0-logs/
+
+# ---- OS / editors ----
+.DS_Store
+.idea/
+.vscode/

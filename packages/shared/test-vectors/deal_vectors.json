@@ -1,0 +1,2348 @@
+{
+ "version": 1,
+ "mapPoolHash": "67d6537224942690971d2f6b25fa6f6f49494793520f64e8e78c474307c2c896",
+ "deals": [
+  {
+   "randomness": "8d8a65e81784bd63994edcf55d9e30e23fca134c73587c25c55bfd82e94dabf9",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    3,
+    0,
+    3,
+    1
+   ]
+  },
+  {
+   "randomness": "df94e1697689786d07bca078d2ac224c36bfd5327a865111d0b5865590737e4a",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    0,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    1,
+    1
+   ]
+  },
+  {
+   "randomness": "7e64c56d4e32204daa2e769caaa953f062dbc32ae4b59ebece488dfba4518302",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    0,
+    0
+   ],
+   "modifiers": [
+    5,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "randomness": "a688eca1521f49746a417e91bfd41fb573427e911ab7ff820a2506e74819c93a",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "randomness": "23bee742a38570875b65ec94709688e3e75051d887dacb65dab122eacc12a964",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    1,
+    1
+   ]
+  },
+  {
+   "randomness": "0167b3fe3ecee7c2ef546589cd8485b1bf0e59c03827c6486052678189c93b45",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    4,
+    0
+   ]
+  },
+  {
+   "randomness": "1d329f263b50ff03afc318196c8cc7e244359faaf847eab0d4214631905914cd",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    1,
+    0,
+    4,
+    1
+   ]
+  },
+  {
+   "randomness": "4d61fc8aff161269d9020a29c03117488ef707d557a7047d1a687e4151fcb4b2",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    3,
+    0
+   ]
+  },
+  {
+   "randomness": "aaf4816032530b3f0e5abc3b28321331dac145c682bb2c11a10c9b2611aaac3c",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    0
+   ],
+   "modifiers": [
+    3,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "c8ba0bf0c0ae5bf0b003909f780b1788c11e951b2119e14964a83f310d62e451",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    3,
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "randomness": "8727cc6010535d35373a1ddb6fffc8270af1564557c4d93d488f659ef04b77bf",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    0,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "765a99bb3ebf0889e5a56b3ec00107dcb95ec5d8d650914f972ed00c2077e88a",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    3,
+    1
+   ]
+  },
+  {
+   "randomness": "cc9cb76b6860db725f4d5b2ab3516c311bdedcabacafab62f19a14e7fce8e4cd",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    0,
+    0
+   ],
+   "modifiers": [
+    2,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "8a750bf5461af6f7d266f15d6e9625b8395b8f562c46d7043545107612338464",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    5,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "6dcf40b84896975c773dc908700a2d82c953b26fb4379d422316743d079edc96",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    2,
+    0,
+    3,
+    1
+   ]
+  },
+  {
+   "randomness": "334f821e3f031d68a3d54f3f45c53a326d61d4466a068cb0dedd60436673bb74",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "randomness": "4e55edcd1d687133117da208ad80bbf0c9e7c3e5e2f4ab0b6336296073a6dbe1",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    0,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "a151945de691e83f08e90f545cb952a627a15d37e0357c9a4ef4d733dc0dbedd",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    3,
+    0
+   ]
+  },
+  {
+   "randomness": "5bc25ba56841bb6558df486c4c04d85133654465c520323e4018c6b71f81930d",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    0,
+    1
+   ],
+   "modifiers": [
+    2,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "3c98d38246cf4a744020759c9277247eec16cdb7727f1212e5adb67986a9ce0d",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    3,
+    0
+   ]
+  },
+  {
+   "randomness": "4e4c1422f4354541a37892fbab4eda2db7107d35f53b459a7e25c64ee607cc3f",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    1,
+    2
+   ]
+  },
+  {
+   "randomness": "0dec6124883ff0477646736de666b5302e3e07aae527c2824a050fac68cd87d7",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    0
+   ],
+   "modifiers": [
+    5,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "fa667e69c9d1c87cf68d3e5ce6bacebaafc54b743e4f6164ac8f444f90f682fe",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    1
+   ],
+   "modifiers": [
+    5,
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "randomness": "664de07c5fd5c1bf73e4cecae44ba292c9e990898d0ab589cc30412233339ccb",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    4,
+    0
+   ]
+  },
+  {
+   "randomness": "3991336c5032ea316cc99c6b3317609647393d6a8bd13ba4804722171daed0ba",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    1
+   ],
+   "modifiers": [
+    5,
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "randomness": "be58bdb8d9b8fb18ce81b5113f00fedd588200320e79545d0a77ac7545d720c4",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    0,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "fcb8d00c5150ecd6a2649fe63cd88ec095bba8468e9497261d0e4760af921e32",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    0,
+    1
+   ],
+   "modifiers": [
+    5,
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "randomness": "f7bc53122cf2f1cc8e6abc1c796290fe502793f628de8e2e5756c8740da44a8c",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    5,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "811fb6592f16fec529c5faf69d248061402d864388b46dc58e936caa3e1acdd1",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    3,
+    1
+   ]
+  },
+  {
+   "randomness": "45b0c757ceab566c934e9c36ab1e9bcca8ce033850aa8e24d0aba5263aac9c56",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    2,
+    0,
+    3,
+    1
+   ]
+  },
+  {
+   "randomness": "8d97879424b5dde51275864832ed1952513aff2edce54c9657ced31f4a1d220d",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    1,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "303d080d7f8fe98710503d3354fb7642a710d29566d1b25a7bdac0c528dea531",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    5,
+    0,
+    3,
+    0
+   ]
+  },
+  {
+   "randomness": "c11096178b62cc9fe4b9acefbf170bfaeaf4e8483d0d0bdbd6dedaddcdce049c",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    3,
+    0,
+    3,
+    2
+   ]
+  },
+  {
+   "randomness": "34e724a4695afae14a37f57945bcde4c42587f0b365d7bca3f2f7ab830cca06e",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    0,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    4,
+    2
+   ]
+  },
+  {
+   "randomness": "c90c5fc5d2e7719a915f2872c96d26fb5286452a01a7ae95c97fee08ce8f1ba8",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "ba775908afe31ba9c5b7b1242d80c7061d9646ed9d6112aa7808c1f96cae3cb4",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    0,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "049bc8b4af91fe58c70297080a6917e6b8bce326ac1ed1f14fd5c4c96e9b4cf3",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    0
+   ],
+   "modifiers": [
+    3,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "4b8d5d3ceb2d6771d473556921b73149422bb55ffd232e4abd93893f43a28bf6",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    2,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "3117493da06ec47806d125ad5fbc64d0d7ac81a3717a8358d3f1e74636636d3e",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    1,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "0f0368a12363c8ae8efe243383d23df92b39b6a5e4f2cdb6a9b9c3d430353eb7",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    2,
+    0,
+    1,
+    2
+   ]
+  },
+  {
+   "randomness": "9cdf64659329f342a750f194795b3c922b3a37d9669a55dd46373692ee538680",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    0,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "73512d27afa33dfa3202955335f82bbc1edce9194bbff48d4599258f041148e2",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    1,
+    0
+   ],
+   "modifiers": [
+    3,
+    0,
+    1,
+    1
+   ]
+  },
+  {
+   "randomness": "52926bf06e44269dc84f07d699efbb496e9cc536d1a812318a8389ee3f9f03ba",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "modifiers": [
+    1,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "57ee05144e2d3a4d9b79d663ce2e864807dbc3e8b0ff2e278c3450606b8c3848",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    3,
+    2
+   ]
+  },
+  {
+   "randomness": "1f7704b75353656e8e8d58a73f2ea32b9b5fa504c89a8c9fe60d02fdadf70093",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    1,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "27e00af9383dcca8e4a4b22c33a528bd2aef633bab25cd4aa3bc33d95495481e",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    1
+   ],
+   "modifiers": [
+    3,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "46d20dd7592988d763d692d1e2e59341c73669868c7cff2dfdb46df5f72940ba",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    0,
+    1
+   ],
+   "modifiers": [
+    1,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "994c1beb8b94419706cd88d08b0415ab1c4610febf85d980aef1b3689860de71",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "7750fbd001ba59ed41712dec7b6e4ef482841fd050a2c26748adfdaa0bf07817",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    3,
+    0
+   ]
+  },
+  {
+   "randomness": "28f4b876812cd0be266838099c5655778ac4642b6f7f52aaae58f8bc93d2e324",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    4,
+    1
+   ]
+  },
+  {
+   "randomness": "a28daeb595d37a8f5c8f7860d27f1cb5e4f38a22402f932fef6993e02111132b",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    0,
+    0
+   ],
+   "modifiers": [
+    5,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "1c82eb45b6b6fb4c10b4cc214d4aa54232323db53a7814b12b2713c6f6a17dce",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    3,
+    0,
+    4,
+    0
+   ]
+  },
+  {
+   "randomness": "3ecbeeaa8d7da2d716e1588e06b74e76b2dbaa657b6a35f19ca26249ce9b44d6",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    0,
+    1
+   ],
+   "modifiers": [
+    5,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "randomness": "ad872d081b88c036e3bd54c014db21a82991be5a02fdc69d8882a6a6978d9dd7",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "68c5c20f4553db0fc0c9f8bec0fa74a758423af5ebc0ddab146b97dd0c14b7c2",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    0,
+    1
+   ],
+   "modifiers": [
+    3,
+    0,
+    3,
+    2
+   ]
+  },
+  {
+   "randomness": "acc6f4a67bf92c166d9c592dd548a4be95d5d17c7c0c5fc0a04cb83290f5d462",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    1,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "494eefc600132ba05f71ab19906df78222c3da60610622d7310956d7013ef79e",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    4,
+    1
+   ]
+  },
+  {
+   "randomness": "40bda4ea9ade8e95202c0e86d7104ae3722b354e9ae56ecc1f6689d8caead739",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    1,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "7c975a2baca2037b98305a38aeddf7ba6437223bc6f927d948ac0a1b770abd5f",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    0
+   ],
+   "modifiers": [
+    3,
+    0,
+    3,
+    0
+   ]
+  },
+  {
+   "randomness": "91cea004e4ec911796f234b0868ba63b17b5acbed52c15ee3e8079b4602e23aa",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    0,
+    0
+   ],
+   "modifiers": [
+    3,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "969721c9e81d68426c5291cf4f3708b6bed283d05ecf41717ffb401faa2520bd",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    0,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "c24cba25a59e555d1555c4df222faa0f9b24536279aa757c9b1f67db2293ade3",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    1,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "3809f70f9b0bbc0ba72346a171e347fc9c4288fc7070664cfe9f4b14041e13d3",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    0,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "randomness": "009954db605e45542b3fd3060bcd386c95cb3fe92c503ff86c05807fbd32ec1a",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    3,
+    0
+   ]
+  },
+  {
+   "randomness": "bed02839295814a001ed3537daced25c5d914d46bf14429653ccf09bc90ae2b7",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "b15ca06638a24a04e2efd6c45ba5f3862a08f23e8cf33e700fc5e74cb322ac25",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    1,
+    0
+   ],
+   "modifiers": [
+    1,
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "randomness": "7a357bcf68401c810afbe1c8885741c88238e4fc162111c09c221cdc5e2e70f9",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    0
+   ],
+   "modifiers": [
+    2,
+    0,
+    3,
+    0
+   ]
+  },
+  {
+   "randomness": "8f73ebb9a27e317f5440e034689377151b4530e1917bf50ae1300ecc05f9091a",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    0,
+    1
+   ],
+   "modifiers": [
+    5,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "cfcf20fb221f418e98d96d42ed3533a54a395fe38c1a5f86f9088769cfb852c4",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    3,
+    0,
+    3,
+    0
+   ]
+  },
+  {
+   "randomness": "fe420982c2086f582047c084751950a20117635c8310b79c1aa2d4d88e2c7863",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    5,
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "randomness": "2ae0c283f5152a00b260660b78eed2ab46754407b85d4e0949a7d6175f1eda4b",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    0,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    3,
+    0
+   ]
+  },
+  {
+   "randomness": "0a8c4d5281b04be7c77749c4c2378906e873765d1e613290f0d2a1281e7706b2",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    4,
+    0
+   ]
+  },
+  {
+   "randomness": "2617420359df8661236dc9b44ee2a6f5719a0857598af8f9ce98ff014dad8f60",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "bd5b74f641de61a97142da157d24479293ad8d6807226b18bc01665503c4ce63",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    1,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "b655dbfa8f59c741c9309b83e3a4e73014d13f4ec85c645e45c810073969f92e",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    2,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "325505c891bd481b49bae6bc1fa4b1a65e0e8097ffddfd174baab363ade9481a",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    5,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "ccf90c6d27ecbf52bd54816996d710d9234db31af013384d6e8eba156c302fe9",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    0,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "2047d527e637b31e71816fdf17b8e387d92f824f54486ee9f9b6c2f8dad1da44",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    0,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    1,
+    1
+   ]
+  },
+  {
+   "randomness": "f9e875007673349f160d3e421c6d20709ee5ac83ec264fa881c9463ea355cbc5",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    1,
+    0,
+    1,
+    1
+   ]
+  },
+  {
+   "randomness": "a6c6da8202c4d58dae563fe0c7afe6e5146338660146bd06b4918eddb00e2f8f",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    1,
+    0,
+    4,
+    1
+   ]
+  },
+  {
+   "randomness": "9cfa06fb1bec997025b10ac15ed8d18cc9459d5d079346bb64ebc53a0979d379",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    4,
+    2
+   ]
+  },
+  {
+   "randomness": "83b0ed3ef6de8f3b952684297dc9ef9575eec75c3199d393fae840b99c0b7abf",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "randomness": "74d3827810137d2ebd488c44b3ad0cac0652c297199fdb66dff9d3503523a76b",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    5,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "randomness": "0b38447e918a82440cb3fe1cd80ae7e4da32540cab97321770e5cc2887f85396",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    0,
+    1
+   ],
+   "modifiers": [
+    5,
+    0,
+    4,
+    0
+   ]
+  },
+  {
+   "randomness": "cd62c0768043a92a196b5f5beed44ec6777e465e3e2e8404d44b3b559af366b8",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "randomness": "1e3e18b341797eacf4bf6a283cc47b8a4ba161a32c92fa5a251538b75485517e",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    5,
+    0,
+    3,
+    1
+   ]
+  },
+  {
+   "randomness": "5e3e5910a5ad0c1a7ec4f3aa0b5e8007ad044168e4fce9ab9f7fb7479868276a",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    0,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "7d7fb53e9ce4adb99578dca597e5d41405c69b8069790d6f616b1757c30f0e3e",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    0,
+    1
+   ],
+   "modifiers": [
+    3,
+    0,
+    4,
+    2
+   ]
+  },
+  {
+   "randomness": "fbd5121babdfb528b2ab01803f457cc4ca1f5f54cf40c7a57f6f87397465fe16",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    3,
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "randomness": "aa8b651f605b59d1bd8d72939e4500bf91cd8afd1b2f0850e14858f805b82211",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    1,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    3,
+    0
+   ]
+  },
+  {
+   "randomness": "d3d4b2506e1bc65e5d95d6fadcf04b0d0256a8a4c7359e105e9cb30c2b4d4068",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    1,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    3,
+    0
+   ]
+  },
+  {
+   "randomness": "560bf04801e9dd07ead1a1895cb6ef0ba1443081df8a6dc7861bb0e1383af897",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    1,
+    0,
+    0
+   ],
+   "modifiers": [
+    5,
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "randomness": "8867b7dea153c79c3e3580347e592edcf30ca6447f8916550e89f9b550c8e544",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    4,
+    2
+   ]
+  },
+  {
+   "randomness": "8c1096b7307d2c6527bbcc8d759fffe4d59b8966a947daa25025e0ff7ded540e",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    0
+   ],
+   "modifiers": [
+    5,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "1afef46ca7f6e1b25ba56ee01a55ce959ea95b64b40b0f5480a83d4bfbc9a3d1",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    1,
+    1,
+    0
+   ],
+   "modifiers": [
+    2,
+    0,
+    3,
+    2
+   ]
+  },
+  {
+   "randomness": "61cf8ca2679bc792b888392c79de4b80940a1e9b857157c12f8a0ee30c97d3d6",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    0,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "randomness": "38da22808a7b27d9096c02ccd44dce7220b8434dafc628a994e193b0fda0f6e1",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    0,
+    1
+   ],
+   "modifiers": [
+    3,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "0592eb8675a81d353981161c0a0cb4e11ee7698190be1388ccae1f0293469433",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    0
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    2
+   ]
+  },
+  {
+   "randomness": "92bb1f69cec02b952529f92c2c7b42a3128496d82a70f857bd52cfcc36fe41c1",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    0,
+    0,
+    1,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    3,
+    1
+   ]
+  },
+  {
+   "randomness": "a842e4dfbbee5a355b25049bd3cb36c79305a3f01530f0acc7a9915a0e62b23f",
+   "maps": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "variants": [
+    1,
+    0,
+    0,
+    1
+   ],
+   "modifiers": [
+    0,
+    0,
+    0,
+    0
+   ]
+  }
+ ],
+ "rnd": [
+  {
+   "randomness": "12f842e784b05fd9614b9f33abb0e18c3ae49733f7f4db0186309720561c2204",
+   "label": "edge0",
+   "n": 1,
+   "out": 0
+  },
+  {
+   "randomness": "1282a061dfac7d5c638b03d34d60912363dede99d538650b0469849dc0a277f4",
+   "label": "edge1",
+   "n": 2,
+   "out": 1
+  },
+  {
+   "randomness": "c23e7593c809ccb130db53b634b965f1736c49e7953698ccf799d9d6f27bdc02",
+   "label": "edge2",
+   "n": 3,
+   "out": 0
+  },
+  {
+   "randomness": "f75e77182d8f11435dda510665c731d0fecc43e8f8b675c6b9b11af34cc77ecf",
+   "label": "edge3",
+   "n": 7,
+   "out": 4
+  },
+  {
+   "randomness": "9b7a2bf9fddf39dd3289111fa03586ef66a40ebe37de1455e9767e5a5551a833",
+   "label": "edge4",
+   "n": 100,
+   "out": 91
+  },
+  {
+   "randomness": "fe98102c2edb8e3f5449aff73eb26bf1a69c840a8263b9c4e32113bb3259bac4",
+   "label": "edge5",
+   "n": 2147483649,
+   "out": 804629019
+  },
+  {
+   "randomness": "21be7f3cb0bb5661fff26e24eefcf1268d4bc4cef06bc6fe18e1250902ad5036",
+   "label": "edge6",
+   "n": 3000000000,
+   "out": 730466316
+  },
+  {
+   "randomness": "83717b3f24cd15c92690502256092f1545fa97a1ae6038ea4dbebab62527a5e9",
+   "label": "edge7",
+   "n": 4294967295,
+   "out": 3347649679
+  },
+  {
+   "randomness": "160c46005fbb5d99c936864321fef6bc5f35da9570f63a0ce3496da712df2550",
+   "label": "edge8",
+   "n": 1,
+   "out": 0
+  },
+  {
+   "randomness": "bdc8b41c48963fa28f7b277660737de2fc62b86610ee27d1d784834ff035ad18",
+   "label": "edge9",
+   "n": 2,
+   "out": 1
+  },
+  {
+   "randomness": "e64dc72632488481982755a1dfce8648e883280e1fd92fb2bf50301c1a53b91e",
+   "label": "edge10",
+   "n": 3,
+   "out": 2
+  },
+  {
+   "randomness": "e3c05138eaef986f28cee717cb9a9869267545782ab111f8d82f239fe1081efa",
+   "label": "edge11",
+   "n": 7,
+   "out": 5
+  },
+  {
+   "randomness": "eb30d9a32e0f2a59072d8186b6a9eaf1cd51e29bdf4900373818e2c84b131cc6",
+   "label": "edge12",
+   "n": 100,
+   "out": 97
+  },
+  {
+   "randomness": "35a5164665f4e25dc2bf8df3796ce78a02416ae14e31f1fcbcf3aa0dc0804d18",
+   "label": "edge13",
+   "n": 2147483649,
+   "out": 1483338272
+  },
+  {
+   "randomness": "75fa0e95b3df85acee8d4ac7807c36b2b20881f5e6a5fafd20c3b5f8c2a6d55e",
+   "label": "edge14",
+   "n": 3000000000,
+   "out": 1145575053
+  },
+  {
+   "randomness": "7b637173508370f24d5fb8c89e5c85c6c48c22b30e78bf9bb9c7be72b4a605ee",
+   "label": "edge15",
+   "n": 4294967295,
+   "out": 2800168763
+  },
+  {
+   "randomness": "a75ebf0047f5e7306f500b328f1f797d88829d5a3daf3460f7f0d64f72487ad4",
+   "label": "edge16",
+   "n": 1,
+   "out": 0
+  },
+  {
+   "randomness": "edc5d94ef9c1df3cb62dfc58c8b2e6be5a3b90942d77ea0cfae235a32c86ac9c",
+   "label": "edge17",
+   "n": 2,
+   "out": 0
+  },
+  {
+   "randomness": "6a4f0cbd29e91788a4226330f41cb6e3c96dc754977f9782a13545f0caaa7035",
+   "label": "edge18",
+   "n": 3,
+   "out": 1
+  },
+  {
+   "randomness": "a15758db073571783f4537d6c60a9937e0bc10668ad4e42d80d784e70922ad37",
+   "label": "edge19",
+   "n": 7,
+   "out": 2
+  },
+  {
+   "randomness": "07499655c9e8aaf3fcfe5b5f0333d88bf963c192003ab17f8ac10de49d50c5e0",
+   "label": "edge20",
+   "n": 100,
+   "out": 30
+  },
+  {
+   "randomness": "61362a74f766c345bb89d9a7c7d124a7a7b3441b55cab5c35c7182d01a04189c",
+   "label": "edge21",
+   "n": 2147483649,
+   "out": 1838672751
+  },
+  {
+   "randomness": "aab472f0762c87420a931521d98a16fc2cccb70fa87166584782916c48194183",
+   "label": "edge22",
+   "n": 3000000000,
+   "out": 1694230603
+  },
+  {
+   "randomness": "43266a24b38cc618ad7c7562d73c41290c57854b5b61b998962c2853b447165b",
+   "label": "edge23",
+   "n": 4294967295,
+   "out": 1593775953
+  },
+  {
+   "randomness": "18b633f6c052e7d56ac5fde09a59400faf2b82e3de4f89d7d7fd1a8b6c50d1de",
+   "label": "edge24",
+   "n": 1,
+   "out": 0
+  },
+  {
+   "randomness": "b418ce82980e31528a613bcb180aa75b0d8ab9d44c846db426281cab2a35dbea",
+   "label": "edge25",
+   "n": 2,
+   "out": 1
+  },
+  {
+   "randomness": "b98dc9b1abf02540a3c4875c26c00a7393965f99b206ecbbeaae697d1b72f15c",
+   "label": "edge26",
+   "n": 3,
+   "out": 2
+  },
+  {
+   "randomness": "f4822fc5ea99c2143dd573b1b92df69a8ccc1fa7bbf28669abce5fca6afbde5e",
+   "label": "edge27",
+   "n": 7,
+   "out": 3
+  },
+  {
+   "randomness": "17ff193bede2af08495d957e5d0cca348e7fbf711b89bbab335800cbdae3e55f",
+   "label": "edge28",
+   "n": 100,
+   "out": 23
+  },
+  {
+   "randomness": "4447e00677715a4197e6b668535da4228f3553321f3e44bd95753e7f4a82f840",
+   "label": "edge29",
+   "n": 2147483649,
+   "out": 1693282579
+  },
+  {
+   "randomness": "61c58348f0aee45c4c340059905aa72cb9504f402ea5bc8abbc2da569709e484",
+   "label": "edge30",
+   "n": 3000000000,
+   "out": 1038708311
+  },
+  {
+   "randomness": "cf2ec3d63de2931b2d1299707492ad7abd1afa72d9f27c43b835c9b78d464ff0",
+   "label": "edge31",
+   "n": 4294967295,
+   "out": 3349777285
+  },
+  {
+   "randomness": "2478f0716e5be596d01b596c9780ea3fd82226315614f46b0f11b02c9c55376b",
+   "label": "edge32",
+   "n": 1,
+   "out": 0
+  },
+  {
+   "randomness": "5fd1568bc78fe709ec574854917770092043e0de5ccdc78fe52f971369914cdb",
+   "label": "edge33",
+   "n": 2,
+   "out": 0
+  },
+  {
+   "randomness": "b6ed5556faa814df395d2c997dcbc6b088c34c630998b000286b2caa0f612661",
+   "label": "edge34",
+   "n": 3,
+   "out": 0
+  },
+  {
+   "randomness": "a8996eb5c0d345eb9e17ceba672476af9cacb696b821b79ddbdf2448c67d66ea",
+   "label": "edge35",
+   "n": 7,
+   "out": 6
+  },
+  {
+   "randomness": "b1d3d648d37b98df8cd0d5b9622535e6e8f9391d1c0d3349a6d3878484150e25",
+   "label": "edge36",
+   "n": 100,
+   "out": 9
+  },
+  {
+   "randomness": "7a64f30fba3b16f7c780c5dcbfd7751ce95eeebc30161a977b7064bdbcc869ca",
+   "label": "edge37",
+   "n": 2147483649,
+   "out": 636324104
+  },
+  {
+   "randomness": "c7e56dd1d179df136961173fd750424f45857aa0f97f059671b7fecdf6e50957",
+   "label": "edge38",
+   "n": 3000000000,
+   "out": 2384636664
+  },
+  {
+   "randomness": "eff869c53b76450a5871bba8fdd50ad012f3e06e22b240867832540db5a28830",
+   "label": "edge39",
+   "n": 4294967295,
+   "out": 222513857
+  }
+ ]
+}
