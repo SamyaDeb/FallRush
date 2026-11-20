@@ -29,9 +29,9 @@ public static class GooTowerBuilder
     public const int Sides = 12;
     public const float Height = 40f;
     public const float Rise = Height / Sides;     // 3.333 m per side
-    public const float Core = 9f;                 // core half-size (18 × 18 m)
-    public const float Mid = 12f;                 // ledge centre line (band 9…15)
-    public const float HalfLen = 9f;              // straight part of a side: s ∈ [−9, 9]
+    public const float Core = 12f;                // core half-size (24 × 24 m)
+    public const float Mid = 15f;                 // ledge centre line (band 12…18)
+    public const float HalfLen = 12f;             // straight part of a side: s ∈ [−12, 12] (QA: 18 m sides gave 53 s rounds)
 
     private static Transform _geo, _hz;
     private static Material _step, _block, _ledge, _rail;
@@ -81,11 +81,11 @@ public static class GooTowerBuilder
         KitBuilder.Label(_geo, "GOO TOWER", new Vector3(0f, 6f, -Core - 0.05f), 0.1f);
 
         // Ground ring at y = 0 (catches falls from lap 1) + the spawn deck south of the start corner.
-        KitBuilder.Box(_geo, "GroundS", new Vector3(0f, -0.5f, -Mid), new Vector3(30f, 1f, 6f), _ledge);
-        KitBuilder.Box(_geo, "GroundN", new Vector3(0f, -0.5f, Mid), new Vector3(30f, 1f, 6f), _ledge);
-        KitBuilder.Box(_geo, "GroundE", new Vector3(Mid, -0.5f, 0f), new Vector3(6f, 1f, 18f), _ledge);
-        KitBuilder.Box(_geo, "GroundW", new Vector3(-Mid, -0.5f, 0f), new Vector3(6f, 1f, 18f), _ledge);
-        KitBuilder.Box(_geo, "SpawnDeck", new Vector3(-7.5f, -0.5f, -18.5f), new Vector3(15f, 1f, 7f), _ledge);
+        KitBuilder.Box(_geo, "GroundS", new Vector3(0f, -0.5f, -Mid), new Vector3(2f * Mid + 6f, 1f, 6f), _ledge);
+        KitBuilder.Box(_geo, "GroundN", new Vector3(0f, -0.5f, Mid), new Vector3(2f * Mid + 6f, 1f, 6f), _ledge);
+        KitBuilder.Box(_geo, "GroundE", new Vector3(Mid, -0.5f, 0f), new Vector3(6f, 1f, 2f * Mid - 6f), _ledge);
+        KitBuilder.Box(_geo, "GroundW", new Vector3(-Mid, -0.5f, 0f), new Vector3(6f, 1f, 2f * Mid - 6f), _ledge);
+        KitBuilder.Box(_geo, "SpawnDeck", new Vector3(-Mid - 7.5f, -0.5f, -Mid), new Vector3(9f, 1f, 9f), _ledge); // west of the start corner
 
         for (var k = 0; k < Sides; k++)
         {
@@ -143,10 +143,10 @@ public static class GooTowerBuilder
         var spawns = new Transform[Protocol.MaxPlayers];
         for (var i = 0; i < Protocol.MaxPlayers; i++)
         {
-            var pos = new Vector3(-13.5f + (i % 4) * 2.6f + (i / 4 == 1 ? 1.3f : 0f), 0.05f, -20.5f + (i / 4) * 2f);
+            var pos = new Vector3(-Mid - 10.5f + (i / 4) * 2.2f, 0.05f, -Mid - 3f + (i % 4) * 2f + (i / 4 == 1 ? 1f : 0f));
             var t = new GameObject($"Spawn_{i:00}").transform;
             t.SetParent(spawnsRoot, false);
-            t.SetPositionAndRotation(pos, Quaternion.LookRotation(new Vector3(1f, 0f, 1f)));
+            t.SetPositionAndRotation(pos, Quaternion.LookRotation(Vector3.right));
             spawns[i] = t;
             KitBuilder.Visual(_geo, $"SpawnPad_{i:00}", new Vector3(pos.x, 0.008f, pos.z), new Vector3(1.2f, 0.01f, 1.2f), KitBuilder.Mint);
         }
@@ -160,8 +160,8 @@ public static class GooTowerBuilder
         EditorUtility.SetDirty(def);
         info.definition = def;
         info.spawns = spawns;
-        info.botAreaCenter = new Vector3(-7.5f, 0f, -18.5f);
-        info.botAreaHalfExtents = new Vector2(6f, 3f);
+        info.botAreaCenter = new Vector3(-Mid - 7.5f, 0f, -Mid);
+        info.botAreaHalfExtents = new Vector2(3.5f, 3.5f);
         info.playerMaterial = AssetDatabase.LoadAssetAtPath<Material>(SandboxBuilder.MaterialsDir + "/PlayerPlaceholder.mat");
         info.unlitMaterial = AssetDatabase.LoadAssetAtPath<Material>(SandboxBuilder.MaterialsDir + "/CharacterUnlit.mat");
         info.conveyors = Conveyors.ToArray();
@@ -176,7 +176,7 @@ public static class GooTowerBuilder
     }
 
     /// <summary>Goo rise speed (mm/s): tuned in the map QA (doc 08 §5 constraint), see docs/proof/m4-map-qa.md.</summary>
-    public const int GooRiseMmPerSec = 400;
+    public const int GooRiseMmPerSec = 300; // tuned 400 → 300 with the 24 m sides (QA: 400 left 2–3 of 8 escaping)
 
     // ------------------------------------------------------------------ geometry helpers (axis-aligned in the side frame)
 
@@ -216,7 +216,7 @@ public static class GooTowerBuilder
             if (!float.IsNaN(gapAt) && b > gapAt - gapLen * 0.5f && a < gapAt + gapLen * 0.5f)
                 continue; // the gap to jump
             var top = y0 + (y1 - y0) * (i + 1) / n;
-            SideBox(k, $"{name}{i:00}", a, b, w0, w1, top - 1f, top, mat);
+            SideBox(k, $"{name}{i:00}", a, b, w0, w1, k < 4 ? -0.5f : top - 1f, top, mat); // lap 1: solid down to the ground ring
         }
     }
 
@@ -250,18 +250,19 @@ public static class GooTowerBuilder
         // Inner lane: 16 small steps (walk up).
         Steps(k, "Step", -HalfLen, HalfLen, -3f, 0f, y0, y1, 16, _step);
         // Outer lane: three big blocks (+1.11 m each: jump up).
+        var bl = HalfLen * 2f / 3f;
         for (var j = 0; j < 3; j++)
         {
-            var a = -HalfLen + j * 6f;
+            var a = -HalfLen + j * bl;
             var top = y0 + Rise * (j + 1) / 3f;
             if (!falling)
             {
-                SideBox(k, $"Block{j}", a, a + 6f, 0f, 3f, top - 1f, top, _block);
+                SideBox(k, $"Block{j}", a, a + bl, 0f, 3f, -0.5f, top, _block);
                 continue;
             }
 
-            var c = P(k, a + 3f, 1.5f, top - 0.5f);
-            var size = SideSize(k, 6f, 3f, 1f);
+            var c = P(k, a + bl * 0.5f, 1.5f, top - 0.5f);
+            var size = SideSize(k, bl, 3f, 1f);
             var root = new GameObject($"FallingBlock_gt_{k}_{j}").transform;
             root.SetParent(_hz, false);
             var fb = root.gameObject.AddComponent<HazardFallingBlock>();
@@ -287,9 +288,9 @@ public static class GooTowerBuilder
         KitBuilder.Label(_geo, falling ? "FALLING BLOCKS (keep moving!) | STEPS" : "BIG BLOCKS (jump) | STEPS", P(k, -HalfLen, 0f, y0 + 3f), 0.03f);
         Route(k, "steps", StartCorner(k), W(k, -HalfLen + 0.5f, -1.5f, y0), W(k, 0f, -1.5f, (y0 + y1) * 0.5f), W(k, HalfLen - 0.5f, -1.5f, y1), EndCorner(k));
         Route(k, falling ? "falling" : "blocks", StartCorner(k), W(k, -HalfLen - 1.0f, 1.5f, y0, WaypointAction.Jump),
-            W(k, -HalfLen + 3f, 1.5f, y0 + Rise / 3f, WaypointAction.Land, 0, 1.2f), W(k, -3.8f, 1.5f, y0 + Rise / 3f, WaypointAction.Jump),
-            W(k, 0f, 1.5f, y0 + 2f * Rise / 3f, WaypointAction.Land, 0, 1.2f), W(k, 2.2f, 1.5f, y0 + 2f * Rise / 3f, WaypointAction.Jump),
-            W(k, 6f, 1.5f, y1, WaypointAction.Land, 0, 1.2f), EndCorner(k));
+            W(k, -HalfLen + 3f, 1.5f, y0 + Rise / 3f, WaypointAction.Land, 0, 1.2f), W(k, -HalfLen + bl - 0.8f, 1.5f, y0 + Rise / 3f, WaypointAction.Jump),
+            W(k, -HalfLen + bl + 2.5f, 1.5f, y0 + 2f * Rise / 3f, WaypointAction.Land, 0, 1.2f), W(k, -HalfLen + 2f * bl - 0.8f, 1.5f, y0 + 2f * Rise / 3f, WaypointAction.Jump),
+            W(k, -HalfLen + 2f * bl + 2.5f, 1.5f, y1, WaypointAction.Land, 0, 1.2f), EndCorner(k));
     }
 
     private static void Lift(int k)
@@ -297,9 +298,9 @@ public static class GooTowerBuilder
         var y0 = H(k);
         var y1 = H(k + 1);
         // Floor: low half (s −9…0) except the lift shaft (outer lane, s −3…0); the high half (s 0…9) at y1.
-        SideBox(k, "LowFloorIn", -HalfLen, -6f, -3f, 0f, y0 - 1f, y0, _ledge);
-        SideBox(k, "LowFloorOut", -HalfLen, -3f, 0f, 3f, y0 - 1f, y0, _ledge);
-        SideBox(k, "HighFloor", 0f, HalfLen, -3f, 3f, y1 - 1f, y1, _ledge);
+        SideBox(k, "LowFloorIn", -HalfLen, -6f, -3f, 0f, -0.5f, y0, _ledge);
+        SideBox(k, "LowFloorOut", -HalfLen, -4.5f, 0f, 3f, -0.5f, y0, _ledge);
+        SideBox(k, "HighFloor", 0f, HalfLen, -3f, 3f, -0.5f, y1, _ledge);
         // Inner lane: a 29 degree conveyor ramp up the wall (s -6..0), belt 1.5 m/s against you.
         if (Mathf.Abs(U(k).z) > 0.5f)
         {
@@ -318,14 +319,14 @@ public static class GooTowerBuilder
         }
 
         // Outer lane: the lift (3 × 3 m, top from y0 to y1 on a sine; variant = timing).
-        var c = P(k, -1.5f, 1.5f, (y0 + y1) * 0.5f - 0.2f);
+        var c = P(k, -2.25f, 1.5f, (y0 + y1) * 0.5f - 0.2f);
         var travel = Vector3.up * (Rise * 0.5f + 0.05f);
-        var lift = StarScrambleBuilder.SinePlatform(_hz, $"gt_lift_{k}", c, SideSize(k, 2.9f, 2.9f, 0.4f), travel, travel, 150, 120);
+        var lift = StarScrambleBuilder.SinePlatform(_hz, $"gt_lift_{k}", c, SideSize(k, 4.4f, 2.9f, 0.4f), travel, travel, 150, 120);
         Platforms.Add(lift);
         Rail(k, 0f, HalfLen, y1, y1, 1);
         KitBuilder.Label(_geo, "LIFT (wait for it) | BELT RAMP", P(k, -HalfLen, 0f, y0 + 3f), 0.03f);
         var liftIndex = Platforms.Count - 1;
-        Route(k, "lift", StartCorner(k), W(k, -4.2f, 1.5f, y0, WaypointAction.JumpToPlatform, liftIndex, 0.6f), W(k, -1.5f, 1.5f, y1, WaypointAction.Platform, liftIndex, 0.9f),
+        Route(k, "lift", StartCorner(k), W(k, -5.0f, 1.5f, y0, WaypointAction.JumpToPlatform, liftIndex, 0.6f), W(k, -2.25f, 1.5f, y1, WaypointAction.Platform, liftIndex, 0.9f),
             W(k, 1.5f, 1.5f, y1, WaypointAction.Run, 0, 0.9f), W(k, HalfLen - 0.5f, 0f, y1), EndCorner(k));
         Route(k, "ramp", StartCorner(k), W(k, -6.8f, -1.5f, y0), W(k, 0.8f, -1.5f, y1, WaypointAction.Run, 0, 0.9f), W(k, HalfLen - 0.5f, -1f, y1), EndCorner(k));
     }
@@ -344,7 +345,7 @@ public static class GooTowerBuilder
             var rot = Quaternion.Euler(-sp, 0f, 0f);
             var climb = (U(k) * len + Vector3.up * Rise).normalized;
             var slopeLen = Mathf.Sqrt(len * len + Rise * Rise);
-            Conveyors.Add(KitBuilder.Conveyor(_hz, $"gt_belt_{k}", P(k, 0f, -1.5f, (y0 + y1) * 0.5f) - rot * Vector3.up * 0.25f, new Vector3(3f, 0.5f, slopeLen), -climb * 2.5f, sp));
+            Conveyors.Add(KitBuilder.Conveyor(_hz, $"gt_belt_{k}", P(k, 0f, -1.5f, (y0 + y1) * 0.5f) - rot * Vector3.up * 0.25f, new Vector3(3f, 0.5f, slopeLen), -climb * 3f, sp)); // tuned 2.5 → 3 m/s (QA)
             var part = (slopeLen - 1.6f) * 0.5f;
             for (var j = 0; j < 2; j++)
             {
@@ -360,18 +361,25 @@ public static class GooTowerBuilder
         else
         {
             // Inner: four belted treads (2 m/s against you) with 0.83 m risers. Outer: small steps with a 1.4 m gap.
+            var tl = HalfLen * 0.5f;
             for (var j = 0; j < 4; j++)
             {
-                var a = -HalfLen + j * 4.5f;
+                var a = -HalfLen + j * tl;
                 var top = y0 + Rise * (j + 1) / 4f;
-                Conveyors.Add(KitBuilder.Conveyor(_hz, $"gt_tread_{k}_{j}", P(k, a + 2.25f, -1.5f, top - 0.25f), SideSize(k, 4.5f, 3f, 0.5f), -U(k) * 2f));
+                Conveyors.Add(KitBuilder.Conveyor(_hz, $"gt_tread_{k}_{j}", P(k, a + tl * 0.5f, -1.5f, top - 0.25f), SideSize(k, HalfLen * 0.5f, 3f, 0.5f), -U(k) * 2.5f));
             }
 
             Steps(k, "Step", -HalfLen, HalfLen, 0f, 3f, y0, y1, 16, _step, 0f, 1.4f);
-            Route(k, "treads", StartCorner(k), W(k, -HalfLen - 0.9f, -1.5f, y0, WaypointAction.Jump), W(k, -HalfLen + 2.2f, -1.5f, y0 + Rise / 4f, WaypointAction.Land, 0, 1.2f),
-                W(k, -HalfLen + 3.9f, -1.5f, y0 + Rise / 4f, WaypointAction.Jump), W(k, -HalfLen + 6.7f, -1.5f, y0 + Rise / 2f, WaypointAction.Land, 0, 1.2f),
-                W(k, -HalfLen + 8.4f, -1.5f, y0 + Rise / 2f, WaypointAction.Jump), W(k, -HalfLen + 11.2f, -1.5f, y0 + 3f * Rise / 4f, WaypointAction.Land, 0, 1.2f),
-                W(k, -HalfLen + 12.9f, -1.5f, y0 + 3f * Rise / 4f, WaypointAction.Jump), W(k, -HalfLen + 15.7f, -1.5f, y1, WaypointAction.Land, 0, 1.2f), EndCorner(k));
+            var tr = new List<Waypoint> { StartCorner(k), W(k, -HalfLen - 0.9f, -1.5f, y0, WaypointAction.Jump) };
+            for (var j = 0; j < 4; j++)
+            {
+                tr.Add(W(k, -HalfLen + j * tl + 2.2f, -1.5f, y0 + Rise * (j + 1) / 4f, WaypointAction.Land, 0, 1.2f));
+                if (j < 3)
+                    tr.Add(W(k, -HalfLen + (j + 1) * tl - 0.6f, -1.5f, y0 + Rise * (j + 1) / 4f, WaypointAction.Jump));
+            }
+
+            tr.Add(EndCorner(k));
+            Route(k, "treads", tr.ToArray());
             Route(k, "steps", StartCorner(k), W(k, -HalfLen + 0.5f, 1.5f, y0), W(k, -1.2f, 1.5f, (y0 + y1) * 0.5f, WaypointAction.Jump, 0, 0.6f),
                 W(k, 1.6f, 1.5f, (y0 + y1) * 0.5f + 0.3f, WaypointAction.Land, 0, 1.0f), W(k, HalfLen - 0.5f, 1.5f, y1), EndCorner(k));
         }
@@ -384,8 +392,16 @@ public static class GooTowerBuilder
     {
         var y0 = H(k);
         var y1 = H(k + 1);
-        // A 4.5 m stair ledge (w −3…1.5); beyond it the edge is open (a bonk drops you to the lap below).
+        // A 4.5 m stair ledge (w −3…1.5) with a low lip on its open edge: a bonk (6 m/s + 3.5 m/s up) stuns you and costs
+        // time, but cannot throw you off the tower (QA: without it, knocked players flew past the lap below into the void).
         Steps(k, "Ledge", -HalfLen, HalfLen, -3f, 1.5f, y0, y1, 16, _step);
+        var len = HalfLen * 2f / 16f;
+        for (var i = 0; i < 16; i++)
+        {
+            var top = y0 + Rise * (i + 1) / 16f;
+            SideBox(k, $"Lip{i:00}", -HalfLen + i * len, -HalfLen + (i + 1) * len, 1.5f, 1.75f, top - 0.2f, top + 0.7f, _rail);
+        }
+
         KitBuilder.Visual(_geo, $"S{k}_SafeStripe", P(k, 0f, -1.5f, (y0 + y1) * 0.5f + 0.02f), SideSize(k, HalfLen * 2f, 0.06f, 0.02f), KitBuilder.Mint);
         var bumperW = new[] { 0.4f, -0.2f, 0.5f };
         for (var j = 0; j < 3; j++)

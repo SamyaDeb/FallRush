@@ -228,7 +228,11 @@ namespace FallRush.Net
             if (_qaRuns > 0)
             {
                 var qaMap = MapInfo.Current;
-                MapQa.RunAll(qaMap, _qaRuns);
+                // M4: every mode through ModeQa (BotBrain tiers); the M3 race QA (waypoint bots, route table) with -fallrushQATier m3.
+                if (qaMap.definition != null && qaMap.definition.IsRace && ModeQa.TierArg() == "m3")
+                    MapQa.RunAll(qaMap, _qaRuns);
+                else
+                    ModeQa.RunAll(qaMap, _qaRuns);
                 Application.Quit(0);
                 return;
             }

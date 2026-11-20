@@ -88,6 +88,28 @@ namespace FallRush.Shared
         public string CurrentRouteName => _route >= 0 && _route < _routes.Length ? _routes[_route].Name : "-";
         public int Waypoint => _wp;
 
+        /// <summary>The current waypoint's action (BotBrain keeps its noise out of precise moves: jumps, landings, platforms).</summary>
+        public WaypointAction CurrentAction => _route >= 0 && _route < _routes.Length && _wp < _routes[_route].Points.Length ? _routes[_route].Points[_wp].Action : WaypointAction.Run;
+
+        /// <summary>Is the current or the next waypoint a precise move (jump / land / platform / dive)?</summary>
+        public bool Precise
+        {
+            get
+            {
+                if (_route < 0 || _route >= _routes.Length)
+                    return false;
+                var pts = _routes[_route].Points;
+                for (var k = _wp; k <= _wp + 1 && k < pts.Length; k++)
+                {
+                    var a = pts[k].Action;
+                    if (a == WaypointAction.Jump || a == WaypointAction.Land || a == WaypointAction.JumpToPlatform || a == WaypointAction.Platform || a == WaypointAction.Dive || a == WaypointAction.WaitClear || a == WaypointAction.Door)
+                        return true;
+                }
+
+                return false;
+            }
+        }
+
         /// <summary>The command for <paramref name="tick"/>; <paramref name="checkpoints"/> = checkpoints this player has reached.</summary>
         public InputCmd Next(uint tick, in MotorState s, int checkpoints)
         {
