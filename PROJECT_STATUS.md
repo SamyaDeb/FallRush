@@ -88,6 +88,12 @@ Proof: [`docs/proof/M1-transport.md`](docs/proof/M1-transport.md) · screenshots
 ## Next milestones
 - **M2a:** KinematicMotor + input + server sim + snapshots (docs/14).
 
+## Next: M2 (networked movement), prompt `docs/prompts/M2-PROMPT.md`
+- Agreed 2026-11-18: VPS check first (✅ done in M1 §4.7), SDK pin (D-15 ✅), **one M2 prompt with an M2a → M2b checkpoint**, and **Bolt v1 built in Unity from shapes** (no Blender).
+- Spec fix before M2: doc 04 §4.1 snapshot position is now **i32 mm** (the old i16 at 2.5 mm covered only ±82 m, too short for a ~500 m race). The server quantises its own state to wire precision every tick.
+- Open question for you: the Blitz rules don't say whether code written before Nov 20 is allowed. Check the Luma / Discord rules; we disclose either way (doc 18).
+- VPS cleanup pending your word: the `gs1` cert (renewal fails without its server block) and the M1 image. The snapshot expires by itself on 2026-11-19 10:15 UTC.
+
 ## Decisions (all approved 2026-11-18, incl. D-15 SDK pin and D-16 Mac dev server — see docs/15)
 | ID | Decision |
 |---|---|

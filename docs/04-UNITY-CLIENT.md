@@ -83,11 +83,14 @@ NGO is used for:
 | Name | Direction | Delivery | Payload |
 |---|---|---|---|
 | `in` | C→S | Unreliable (WS: effectively reliable) | `lastSeq u32`, 3 redundant `InputCmd` (seq, tick, moveX i8, moveY i8, buttons u8, camYaw u16) |
-| `snap` | S→C | UnreliableSequenced | `serverTick u32`, `ackSeq u32` (per recipient), N × `PlayerState` (slot u8, pos 3×i16 at cm/4 precision relative to map origin, vel 3×i16, yaw u8, flags u8, stunTicks u8) |
+| `snap` | S→C | UnreliableSequenced | `serverTick u32`, `ackSeq u32` (per recipient), N × `PlayerState` (slot u8, pos 3×i32 in **mm** relative to map origin, vel 3×i16 in cm/s, yaw u8, flags u8, stunTicks u8) |
 | `evt` | S→C | ReliableSequenced | Match / round / checkpoint / qualify / eliminate / tile-drop / star / chain-status events with a `seq` |
 | `hello` | C→S | Reliable | protocolVersion, buildVersion, cosmeticPreset |
 
-**Snapshot size:** about 12 × 20 B = 240 B, at 15 Hz ≈ 3.6 KB/s per client.
+**Snapshot size:** about 12 × 22 B ≈ 270 B, at 15 Hz ≈ 4 KB/s per client.
+
+**Position encoding (corrected 2026-11-18):** v2 had `3×i16 at cm/4`, which covers only ±82 m. A 75–110 s race at up to 7 m/s needs a course of up to ~500 m, so positions are `i32` millimetres (±2,147 km).
+- **The server quantises its own authoritative state to the wire precision after every step** (pos to 1 mm, vel to 1 cm/s). The state the client receives is then exactly the state the server keeps simulating, so reconciliation never chases rounding error.
 
 ### 4.2 Server tick (30 Hz, `ServerSim`)
 
