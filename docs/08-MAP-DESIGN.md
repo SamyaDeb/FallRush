@@ -102,22 +102,28 @@ Code: `client-unity/Assets/_Game/Scripts/Shared/Hazards/`. Hazard time `t = serv
 | CP2 | — | — |
 | S4 Door Dash-free gate wall | Five `GATE_DOOR`s cycling open in a sweep pattern. Not "guess the fake door": all doors are real and timed. | Sweep order A/B |
 | CP3 | — | — |
-| S5 Finish ramp | Broad ramp, `BUMPER`s scattered, checkered finish arch | — |
+| S5 Turntable Islands | Three `TURN_TABLE` discs over the void linked by short jumps (risky, fast), or a narrow walkway on either side (safe) | Rotation directions A/B |
+| CP4 | — | — |
+| S6 Mallet Bridge | A railed bridge under four foam-roller `MALLET_SWING`s swinging along it: run between them; a hit bounces you back. Narrow edge beams outside their reach (safe, slow) | Swing period set A/B |
+| CP5 | — | — |
+| S7 Finish ramp | Broad ramp, `BUMPER`s scattered, checkered finish arch | — |
 
-- **Length:** about 160 m; best line ≈ 45 s, average 75–95 s.
+- **Length:** about 250 m (lengthened 2026-11-19 from ~160 m: the reference bots finished the short course in ~31 s). Reference-bot median ≈ 47 s, best ≈ 41 s; target for humans 75–110 s (UNVERIFIED until a playtest).
 - **Fall volume:** below y = −10, respawn at the last checkpoint.
 
 ### 3.1 As built (M3, `Editor/BlockPartyDashBuilder.cs`)
 
-Course line ≈ 166 m (checkpoints at 47.0 / 115.3 / 132.3 m, finish 166.4 m along it). Kill-Y −10 m.
+Course line ≈ 255 m (checkpoints at 47.0 / 115.3 / 132.3 / 175.8 / 226.3 m, finish 255.4 m along it). Kill-Y −10 m.
 - **Start deck** z −12…8, 12 staggered spawns (3 rows × 4, 2.5 m apart), start gate (`GATE_DOOR` mode 1) opens at RUSH over 10 ticks.
 - **S1 Block Hop** z 8…37: left lane 6 static 3 m blocks (1.5 m gaps), middle lane 6 bobbing blocks (variant A vertical ±0.6 m, B lateral ±1.2 m, period 120, seeded phase), right lane 5 static 2.4 m blocks (3.6 m gaps). **CP1** z 39.
 - **S2 Spinner Alley** z 45…85: 10 m bridge with 3 spinner bars (arm 5 m, period 171 = ω 1.1 rad/s; low 0.35 m jump, high 0.95 m dive under, mid 0.5 m jump; variant A directions + − +, B − + −) and two 1 m edge beams outside the bars' reach (safe, slow, narrow).
 - **S3 Conveyor Climb** z 85…105, +3 m: left a 10.6° conveyor ramp running down at **3.5 m/s** (tuned from 2.5); right two spring pads over void (pad 1 (0, 11, 7.5) m/s onto a block at +1.5 m, pad 2 (0, 11, **9**) m/s onto the deck). **CP2** z 107.
 - **S4 Gate wall** z 117: five 3 m doors between 2 m pillars; cycle **210** ticks (closed 141, opening 6, open 45, closing 18), offsets 42 apart (variant A left→right, B reversed) → always ≥ 1 open. **CP3** z 124.
-- **S5 Finish ramp** z 135…155 (+2 m), 7 bumpers (r 0.7 m), checkered arch, **finish** z 158.
-- Two or more routes per section; bottlenecks ≥ 10 m wide except the optional beams. Greybox palette per doc 17 §3.1 (hazards striped yellow/magenta, goals mint/checkered). Map content hash `6780ef6c…`.
-- **Timer cap 110 s** (the upper end of the target; QA medians are far below it, see §9).
+- **S5 Turntable Islands** z 135…163 (y 3, added 2026-11-19): three turn tables (r 4 m, centres z 139 / 149 / 159, 2 m gaps; periods A 360 / −300 / 360 ticks, B reversed) or a 1.5 m walkway at |x| 9…10.5. **CP4** z 167.5.
+- **S6 Mallet Bridge** z 175…216 (added 2026-11-19): a 6 m bridge with 1.2 m side rails under four mallets 10 m apart (z 181 / 191 / 201 / 211; pivot 8.5 m, arm 4.9 m, amplitude 70°, swinging **along** the bridge, roller head half-width 2.5 m; periods A 120 / 112 / 128 / 116, B permuted; knock_hard). Edge beams at |x| 5…6 are outside the head. Overhead gantries, posts at |x| 6.6. Tuned in QA: mallets swinging *across* the bridge threw ~20 racers per race off it (no rails) or pinned them against the rails (413 hits in one race). **CP5** z 218.
+- **S7 Finish ramp** z 224…244 (+2 m), 7 bumpers (r 0.7 m), checkered arch, **finish** z 247.
+- Two or more routes per section; bottlenecks ≥ 10 m wide except the optional beams. Greybox palette per doc 17 §3.1 (hazards striped yellow/magenta, goals mint/checkered). Map content hash `ffc099ad…` (was `6780ef6c…` before the 2026-11-19 lengthening).
+- **Timer cap 150 s** (raised from 110 s with the longer course; reference bots finish in ~47 s, humans slower).
 - **Not done:** formal colourblind simulation and a tris/draw-call count (doc 17 §3.2); the originality check needs two people (yours).
 
 ## 4. Map 1B — **Bonk Factory** (Race)

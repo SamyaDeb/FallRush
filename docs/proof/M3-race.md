@@ -45,8 +45,8 @@ Mac dev server build, `-fallrushQA 100`, 12 waypoint bots, random start slots + 
 | Every route reaches its next checkpoint | yes (15 routes, all with finishers) |
 | Ticks with every S4 door closed | **0** |
 | Deterministic for a run seed | yes |
-| Median / p90 round duration | **31–34 s / 33–35 s**; best line median 26–28 s |
-| Duration target (avg 75–95 s, best ≈ 45 s) | **NOT MET** by reference bots (no noise/mistakes; M4 adds them). Human times UNVERIFIED |
+| Median / p90 round duration | **46–49 s / 48–51 s**; best line median 40–42 s (after the 2026-11-19 lengthening, §I; was 31–34 s) |
+| Duration target (reference bots 40–60 s ≈ humans 75–110 s) | **met** (overall median 47.0 s). Human times UNVERIFIED until a playtest |
 
 **Tuning changes (each one from a QA run):**
 1. S1 lanes: bots overshot jump points, turned back, fell (≈ 100 falls/race) → jump points count once passed; block centres are `Land` targets (air control brakes over them).
@@ -104,3 +104,22 @@ Mac dev server build, `-fallrushQA 100`, 12 waypoint bots, random start slots + 
 - **Null vs empty arrays in the map hash:** Unity serialises null arrays as empty; the hash changed after a save. Null is now encoded as empty.
 - **Finished racers kept their velocity** (frozen but "running"): zeroed at the finish.
 - **Gate counters went negative** when the prediction was rebuilt for a new round: reset per prediction instance.
+
+## I. Course lengthened (2026-11-19, your decision 1a) and push result accepted (1b)
+
+**Why:** reference bots finished the ~166 m course in ~31 s, far below a 75–110 s human round.
+
+**What changed** (`Editor/BlockPartyDashBuilder.cs`, doc 08 §3.1): two new sections between CP3 and the finish, **S5 Turntable Islands** and **S6 Mallet Bridge**, plus CP4 and CP5; the finish ramp moved to z 224…247. Course line 166 → 255 m, 6 checkpoints, timer cap 110 → 150 s, map hash `ffc099ad…`. The QA duration target is now stated for reference bots (40–60 s), since they run ~1.5–2× faster than humans.
+
+**Tuning (each from a traced QA run):**
+1. Mallets swinging across a 6 m bridge with no rails: ~20 falls per race (knock_hard throws you off).
+2. Added 1.2 m rails: falls gone, but racers were pinned between mallet and rail (one race: 413 hits, 5 soft-locks, timer expiry).
+3. Mallets now swing **along** the bridge with a 2.5 m half-width roller head (allowlist max), 10 m apart, amplitude 70°, ~4 s period: a hit bounces you back down the bridge. Bot wait points moved to the safe pockets between mallets.
+
+**Map QA (100 runs × A/B × 5 modifiers, Mac dev server, 105 s wall):** PASS. 0 soft-locks, N = 8 in 1000/1000, 0 ticks with every door closed, deterministic, every route reaches its next checkpoint, median 46.2–48.9 s, falls 0.2–2.1 per race. Table: `m3-map-qa.md`.
+
+**Localhost gate on the long course** (`scripts/m3-gate.sh`, 3 probe clients + 9 bots, 150 s): hazard mismatches **0**; corrections from the new sections **0**. Client 1: 0.00 non-push / 0.77 push per 5 s while racing. Clients 2 and 3: 1.00–1.05 non-push and 1.9 push per 5 s, **all inside one 10 s window** at the S4 gate wall (x 10, z 115.6) while bots crowded a door: the known crowd-push effect (R14), not hazard prediction.
+
+**Pushes (1b):** accepted as is for M3: push prediction stays on, push strength unchanged (2.5 m/s). Re-measure on the real VPS and in the M4 playtest; softening pushes stays an option.
+
+**Not redone after the change (UNVERIFIED for the long course):** the WebGL release build and its FPS (§F was measured on the short course), the 150 ms run and the VPS run. The VPS work is deferred by your decision ("plan the VPS for later": M6 deploy).

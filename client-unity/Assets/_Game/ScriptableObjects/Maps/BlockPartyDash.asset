@@ -18,9 +18,9 @@ MonoBehaviour:
   mode: Race
   minPlayers: 1
   maxPlayers: 12
-  targetDuration: {x: 75, y: 110}
-  timerCapSeconds: 110
-  checkpointCount: 4
+  targetDuration: {x: 75, y: 120}
+  timerCapSeconds: 150
+  checkpointCount: 6
   variants: 2
   allowedModifiers: 0000000001000000020000000300000005000000
   killY: -10

@@ -165,18 +165,20 @@ Proof: [`docs/proof/M3-race.md`](docs/proof/M3-race.md) · QA table [`docs/proof
 | Determinism self-test `hazard_vectors_v1` (digest `fc06826c…`) | ✅ Editor, Mac arm64, WebGL, **Linux x86_64 (VPS)**: all PASS |
 | `RaceRules` (countdown, ordered checkpoints + reachability, respawn 30 ticks on free spots, N qualify, timer ranking along the course, `RaceResult`), waypoint bot, `Map_BlockPartyDash`, race HUD + results + spectate | ✅ |
 | EditMode tests | ✅ **207/207** (M2: 153); full race on the real scene as an EditMode test (reason in proof) |
-| Map QA 2 variants × 5 modifiers × 100 runs | ✅ 0 soft-locks, all routes finish, doors never all closed, N = 8 every race, deterministic · ❌ **median 31–34 s vs 75–95 s target** (noise-free bots) |
+| Map QA 2 variants × 5 modifiers × 100 runs | ✅ 0 soft-locks, all routes finish, doors never all closed, N = 8 every race, deterministic, **median 47 s** (reference-bot target 40–60 s) after the lengthening |
 | Gate: non-push corrections / 5 s while racing | ✅ localhost ≤ 0.08 · 150 ms + loss ≤ 0.38 · hazard mismatches 0 |
 | Gate incl. crowd pushes | ❌ localhost 0.21–1.12, 150 ms 1.2–1.7 (push prediction on: 2.73 → 0.73 mean on localhost) |
 | VPS gate (b) | ⚠️ link degraded during the run (85 % ICMP loss): server healthy (sim p95 0.20–0.25 ms, 3.2 % CPU, 99 MB), netcode numbers **not valid** → re-run |
 | WebGL release | ✅ 411 s, **16.22 MB** (M2 16.03), 59 FPS with 12 Rushlings racing |
 | VPS left clean | ✅ container + nginx file removed, `finity` md5 `c6a6cca8` / https 200, Ovelo up; images `m2` + `m3` kept; **no snapshot** (Hostinger CLI token expired) → `/etc/nginx` backup tarball in `/root` |
 
-### Decisions for you (M3)
-- 🟡 **Course length / difficulty:** reference bots finish in ~31 s. Lengthen now, or wait for M4 noisy bots + the playtest?
-- 🟡 **Pushes (R14):** keep push prediction on; additionally soften pushes (2.5 → 1.5 m/s) or accept ~1 push correction per 5 s in crowds?
+### Decisions (M3), answered 2026-11-19
+- ✅ **Course length:** lengthened now. Block Party Dash is ~255 m with two new sections (S5 Turntable Islands, S6 Mallet Bridge); reference bots 47 s median (was 31 s); timer cap 150 s; map hash `ffc099ad…`; QA PASS (proof §I).
+- ✅ **Pushes (R14):** accepted as is (push prediction on, 2.5 m/s). Re-measure on the VPS and in the M4 playtest.
+- ✅ **VPS:** deferred. Finish the game locally first; the VPS deploy and gate re-run move to M6 (deploy milestone).
 - 🟡 **Motor change:** air control no longer brakes above run speed (spring hops). `movement_v1.json` values unchanged.
-- Run `hostinger auth login` so the next VPS step can take its snapshot; re-run the VPS gate on a healthy link.
+- Before the M6 deploy: run `hostinger auth login` (token expired) so VPS steps can take a snapshot; re-run the VPS gate on a healthy link.
+- After the lengthening, not yet re-measured: the WebGL release build + FPS and the 150 ms run (proof §I). Do them with M4's build.
 - Optional: `certbot delete` the old gs1 cert is still pending from M1/M2 (it was reused in M3).
 
 ### Notes for M4 / M6 (from M3)

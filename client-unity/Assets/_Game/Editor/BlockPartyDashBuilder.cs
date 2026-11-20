@@ -10,7 +10,8 @@ using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Builds <c>Map_BlockPartyDash</c> (doc 08 §3, M3b), code-built and re-runnable like <see cref="SandboxBuilder"/>.
-/// +Z is the course direction; about 160 m from the start plaza to the finish arch, a sunny toy-block sky course.
+/// +Z is the course direction; about 250 m from the start plaza to the finish arch, a sunny toy-block sky course
+/// (lengthened 2026-11-19 from ~160 m: reference bots finished in ~31 s; S5 Turntable Islands and S6 Mallet Bridge added).
 /// <list type="bullet">
 /// <item>Start deck (z −12…8): 12 staggered spawns, start gate across the deck that opens at RUSH.</item>
 /// <item>S1 Block Hop (z 8…37): three lanes of floating blocks: left static (1.5 m gaps), middle bobbing
@@ -23,7 +24,14 @@ using UnityEngine.SceneManagement;
 /// <item>CP2 deck (z 100/105…117).</item>
 /// <item>S4 Gate wall (z 117): five real, timed gate doors opening in a sweep (variant = sweep order), always ≥ 1 open.</item>
 /// <item>CP3 deck (z 117…135).</item>
-/// <item>S5 Finish ramp (z 135…155, +2 m): broad ramp with scattered bumpers, then the checkered finish arch at z 158.</item>
+/// <item>S5 Turntable Islands (z 135…163, y 3): three spinning discs (r 4 m, 2 m gaps; variant = directions), or a 1.5 m
+/// walkway on either side (safe, narrow).</item>
+/// <item>CP4 deck (z 165…175).</item>
+/// <item>S6 Mallet Bridge (z 175…216): a 6 m railed bridge under four foam-roller mallets swinging along it, 10 m apart
+/// (time your run between them; a hit bounces you back), or a 1 m edge beam outside their reach on either side (safe,
+/// narrow). Overhead gantries; the posts stand outside the beams.</item>
+/// <item>CP5 deck (z 216…224).</item>
+/// <item>S7 Finish ramp (z 224…244, +2 m): broad ramp with scattered bumpers, then the checkered finish arch at z 247.</item>
 /// </list>
 /// Fall volume y &lt; −10 → respawn at the last checkpoint. Menu: Fall Rush/Setup/Build Map_BlockPartyDash ·
 /// batch: <c>-executeMethod BlockPartyDashBuilder.Run</c>.
@@ -41,7 +49,13 @@ public static class BlockPartyDashBuilder
     private static readonly float[] SpinnerZ = { 53f, 65f, 77f };
     private static readonly float[] DoorX = { -10f, -5f, 0f, 5f, 10f };
     private const float WallZ = 117f;
-    private static readonly Vector2[] Bumpers = { new Vector2(-5f, 140f), new Vector2(0f, 143f), new Vector2(5f, 140f), new Vector2(-2.5f, 148f), new Vector2(2.5f, 148f), new Vector2(-7f, 152.5f), new Vector2(7f, 152.5f) };
+    private static readonly float[] TableZ = { 139f, 149f, 159f };
+    private const float TableR = 4f;
+    private static readonly float[] MalletZ = { 181f, 191f, 201f, 211f };
+    private const float BridgeEnd = 216f;
+    private const float RampZ0 = 224f; // S7 finish ramp start (deck y 3 → 5 over 20 m)
+    private const float FinishZ = 247f;
+    private static readonly Vector2[] Bumpers = { new Vector2(-5f, RampZ0 + 5f), new Vector2(0f, RampZ0 + 8f), new Vector2(5f, RampZ0 + 5f), new Vector2(-2.5f, RampZ0 + 13f), new Vector2(2.5f, RampZ0 + 13f), new Vector2(-7f, RampZ0 + 17.5f), new Vector2(7f, RampZ0 + 17.5f) };
 
     private static Transform _geo, _hz;
     private static Material _walk, _deck, _block, _wall;
@@ -80,6 +94,8 @@ public static class BlockPartyDashBuilder
         var pads = new List<HazardSpringPad>();
         var doors = new List<HazardGateDoor>();
         var bumpers = new List<HazardBumper>();
+        var tables = new List<HazardTurnTable>();
+        var mallets = new List<HazardMallet>();
 
         // ---------------- start deck + start gate
         Deck("StartDeck", -11f, 11f, -12f, 8f, 0f);
@@ -177,30 +193,83 @@ public static class BlockPartyDashBuilder
         // ---------------- CP3
         var cp3 = Checkpoint(3, new Vector3(0f, 4.5f, 124f), new Vector3(25f, 4f, 2f), 3f, 127f, 129f, false);
 
-        // ---------------- S5 finish ramp (+2 m over 20 m) with bumpers, finish arch
+        // ---------------- S5 Turntable Islands (y 3): three discs (r 4, 2 m gaps) or a narrow walkway on either side.
+        int[] tableA = { 360, -300, 360 };
+        for (var i = 0; i < TableZ.Length; i++)
+            tables.Add(KitBuilder.TurnTable(_hz, $"bpd_turntable_{i + 1}", new Vector3(0f, 3f, TableZ[i]), TableR, tableA[i], -tableA[i]));
+        Deck("S5WalkL", -10.5f, -9f, 135f, 165f, 3f);
+        Deck("S5WalkR", 9f, 10.5f, 135f, 165f, 3f);
+        KitBuilder.Label(_geo, "S5 TURNTABLE ISLANDS (walkways: narrow & safe)", new Vector3(0f, 6.5f, 135.5f));
+
+        // ---------------- CP4
+        Deck("CP4Deck", -11f, 11f, 165f, 175f, 3f);
+        var cp4 = Checkpoint(4, new Vector3(0f, 4.5f, 167.5f), new Vector3(22f, 4f, 2f), 3f, 170f, 172f, false);
+
+        // ---------------- S6 Mallet Bridge: 6 m railed bridge, four mallets swinging along it (along Z) with a 5 m-wide roller
+        // head (half-width 2.5 m: no gap past it on the bridge); 1 m beams at |x| 5…6, outside the head (|x| ≤ 2.5 + 0.31).
+        // Tuned (QA): swinging across the bridge threw racers off (no rails) or pinned them against the rails.
+        Deck("S6Bridge", -3f, 3f, 175f, BridgeEnd, 3f);
+        Deck("S6BeamL", -6f, -5f, 175f, BridgeEnd, 3f);
+        Deck("S6BeamR", 5f, 6f, 175f, BridgeEnd, 3f);
+        // Side rails (1.2 m): a mallet hit bounces you along the bridge and costs time instead of throwing you off
+        // (QA, first pass without rails: ~20 falls per race on this bridge).
+        Box("S6RailL", new Vector3(-3.1f, 3.6f, (175.5f + BridgeEnd) * 0.5f), new Vector3(0.2f, 1.2f, BridgeEnd - 175.5f), _wall);
+        Box("S6RailR", new Vector3(3.1f, 3.6f, (175.5f + BridgeEnd) * 0.5f), new Vector3(0.2f, 1.2f, BridgeEnd - 175.5f), _wall);
+        int[] malletA = { 120, 112, 128, 116 }; // ~4 s swings, amplitude 70°: the head is low (dangerous) about a third of the time
+        int[] malletB = { 116, 128, 112, 120 };
+        for (var i = 0; i < MalletZ.Length; i++)
+        {
+            var id = $"bpd_mallet_{i + 1}";
+            var ml = KitBuilder.Mallet(_hz, _geo, id, new Vector3(0f, 8.5f, MalletZ[i]), 2, 4.9f, 70f, malletA[i], malletB[i]);
+            ml.def.HeadHalfWidthMm = 2500;
+            ml.variantB.HeadHalfWidthMm = 2500;
+            var head = ml.visual.Find("Head");
+            if (head != null)
+                head.localScale = new Vector3(2500f / 750f, 1f, 1f); // the kit head is 1.5 m wide along X
+            mallets.Add(ml);
+            // The kit frame puts its posts on the axle (on the bridge here): replace them with a gantry standing off the bridge.
+            foreach (var post in new[] { $"MalletPostA_{id}", $"MalletPostB_{id}" })
+            {
+                var t = _geo.Find(post);
+                if (t != null)
+                    Object.DestroyImmediate(t.gameObject);
+            }
+
+            Box($"S6GantryL_{i}", new Vector3(-6.6f, 5.75f, MalletZ[i]), new Vector3(0.4f, 5.5f, 0.4f), KitBuilder.Grape);
+            Box($"S6GantryR_{i}", new Vector3(6.6f, 5.75f, MalletZ[i]), new Vector3(0.4f, 5.5f, 0.4f), KitBuilder.Grape);
+            KitBuilder.Visual(_geo, $"S6GantryTop_{i}", new Vector3(0f, 8.7f, MalletZ[i]), new Vector3(13.6f, 0.4f, 0.4f), KitBuilder.Grape);
+        }
+
+        KitBuilder.Label(_geo, "S6 MALLET BRIDGE (time your run; edge beams: narrow & safe)", new Vector3(0f, 10f, 175.5f));
+
+        // ---------------- CP5
+        Deck("CP5Deck", -11f, 11f, BridgeEnd, RampZ0, 3f);
+        var cp5 = Checkpoint(5, new Vector3(0f, 4.5f, BridgeEnd + 2f), new Vector3(22f, 4f, 2f), 3f, BridgeEnd + 4.5f, BridgeEnd + 6.5f, false);
+
+        // ---------------- S7 finish ramp (+2 m over 20 m) with bumpers, finish arch
         var fPitch = Mathf.Atan2(2f, 20f) * Mathf.Rad2Deg;
         var fRot = Quaternion.Euler(-fPitch, 0f, 0f);
         var fUp = fRot * Vector3.up;
         var fLen = Mathf.Sqrt(400f + 4f);
-        Box("S5Ramp", new Vector3(0f, 4f, 145f) - fUp * 0.25f, new Vector3(24f, 0.5f, fLen), _walk, fRot);
-        Deck("FinishDeck", -12f, 12f, 155f, 166f, 5f);
+        Box("S7Ramp", new Vector3(0f, 4f, RampZ0 + 10f) - fUp * 0.25f, new Vector3(24f, 0.5f, fLen), _walk, fRot);
+        Deck("FinishDeck", -12f, 12f, RampZ0 + 20f, RampZ0 + 31f, 5f);
         foreach (var b in Bumpers)
             bumpers.Add(KitBuilder.Bumper(_hz, $"bpd_bumper_{bumpers.Count + 1}", new Vector3(b.x, RampY(b.y) - 0.05f, b.y), 0.7f, 1.05f));
-        var finish = Checkpoint(4, new Vector3(0f, 6.5f, 158f), new Vector3(24f, 4f, 2f), 5f, 161f, 163f, true);
+        var finish = Checkpoint(6, new Vector3(0f, 6.5f, FinishZ), new Vector3(24f, 4f, 2f), 5f, FinishZ + 3f, FinishZ + 5f, true);
         // Checkered finish arch: posts are solid (Gameplay), the banner is visual only.
-        Box("ArchPostL", new Vector3(-11.6f, 7f, 158f), new Vector3(0.8f, 4f, 0.8f), KitBuilder.Checker);
-        Box("ArchPostR", new Vector3(11.6f, 7f, 158f), new Vector3(0.8f, 4f, 0.8f), KitBuilder.Checker);
+        Box("ArchPostL", new Vector3(-11.6f, 7f, FinishZ), new Vector3(0.8f, 4f, 0.8f), KitBuilder.Checker);
+        Box("ArchPostR", new Vector3(11.6f, 7f, FinishZ), new Vector3(0.8f, 4f, 0.8f), KitBuilder.Checker);
         for (var i = 0; i < 24; i++)
             for (var j = 0; j < 2; j++)
-                KitBuilder.Visual(_geo, $"ArchCheck_{i}_{j}", new Vector3(-11.5f + i + 0.5f, 9.25f + j * 0.5f, 158f), new Vector3(1f, 0.5f, 0.3f), (i + j) % 2 == 0 ? KitBuilder.Checker : KitBuilder.BeltArrow);
-        KitBuilder.Label(_geo, "FINISH", new Vector3(0f, 10.6f, 157.7f), 0.07f);
+                KitBuilder.Visual(_geo, $"ArchCheck_{i}_{j}", new Vector3(-11.5f + i + 0.5f, 9.25f + j * 0.5f, FinishZ), new Vector3(1f, 0.5f, 0.3f), (i + j) % 2 == 0 ? KitBuilder.Checker : KitBuilder.BeltArrow);
+        KitBuilder.Label(_geo, "FINISH", new Vector3(0f, 10.6f, FinishZ - 0.3f), 0.07f);
 
         // ---------------- MapInfo, definition, course line, bot routes
         var info = new GameObject("MapInfo").AddComponent<MapInfo>();
         var def = SandboxBuilder.MapDefinitionAsset("BlockPartyDash", MapPoolV1.BlockPartyDash, "Race", KillY, new[] { 0, 1, 2, 3, 5 });
-        def.checkpointCount = 4;
-        def.targetDuration = new Vector2Int(75, 110);
-        def.timerCapSeconds = 110;
+        def.checkpointCount = 6;
+        def.targetDuration = new Vector2Int(75, 120);
+        def.timerCapSeconds = 150; // lengthened course (~250 m): reference bots ~50 s, humans slower
         def.introSeconds = 3f;
         def.countdownSeconds = 3f;
         def.minPlayers = 1;
@@ -217,19 +286,22 @@ public static class BlockPartyDashBuilder
         info.pads = pads.ToArray();
         info.doors = doors.ToArray();
         info.bumpers = bumpers.ToArray();
+        info.turnTables = tables.ToArray();
+        info.mallets = mallets.ToArray();
         info.courseLine = new[]
         {
             new Vector3(0, 0, -8), new Vector3(0, 0, 8), new Vector3(0, 0, 37), new Vector3(0, 0, 45), new Vector3(0, 0, 85), new Vector3(0, 0, 89),
-            new Vector3(0, 3, 105), new Vector3(0, 3, 117), new Vector3(0, 3, 135), new Vector3(0, 5, 155), new Vector3(0, 5, 158),
+            new Vector3(0, 3, 105), new Vector3(0, 3, 117), new Vector3(0, 3, 135), new Vector3(0, 3, 165), new Vector3(0, 3, 175),
+            new Vector3(0, 3, BridgeEnd), new Vector3(0, 3, RampZ0), new Vector3(0, 5, RampZ0 + 20f), new Vector3(0, 5, FinishZ),
         };
-        var cps = new[] { cp1, cp2, cp3, finish };
+        var cps = new[] { cp1, cp2, cp3, cp4, cp5, finish };
         foreach (var cp in cps)
             cp.courseDistance = CourseDistance(info.courseLine, cp.transform.position);
         info.checkpoints = cps;
         info.botRoutes = Routes();
 
         // Fall volume / bounds marker (visual only, far below).
-        KitBuilder.Visual(_geo, "FallVolumeMarker", new Vector3(0f, KillY, 75f), new Vector3(60f, 0.02f, 200f), KitBuilder.Mint).GetComponent<MeshRenderer>().enabled = false;
+        KitBuilder.Visual(_geo, "FallVolumeMarker", new Vector3(0f, KillY, 120f), new Vector3(60f, 0.02f, 290f), KitBuilder.Mint).GetComponent<MeshRenderer>().enabled = false;
 
         if (!EditorSceneManager.SaveScene(scene, ScenePath))
             throw new IOException($"Failed to save {ScenePath}");
@@ -249,11 +321,11 @@ public static class BlockPartyDashBuilder
         for (byte v = 0; v < 2; v++)
             foreach (var m in def.allowedModifiers)
                 problems.AddRange(info.Validate(new RoundParams { MapId = MapPoolV1.BlockPartyDash, Variant = v, Modifier = (byte)m }));
-        Debug.Log($"[setup] built {ScenePath} mapHash={Sha256.Hex(hash)} hazards: {sweepers.Count} spinner, {platforms.Count} platform, {conveyors.Count} conveyor, {pads.Count} pad, {doors.Count} door (incl. start gate), {bumpers.Count} bumper; " +
+        Debug.Log($"[setup] built {ScenePath} mapHash={Sha256.Hex(hash)} hazards: {sweepers.Count} spinner, {platforms.Count} platform, {tables.Count} turn table, {mallets.Count} mallet, {conveyors.Count} conveyor, {pads.Count} pad, {doors.Count} door (incl. start gate), {bumpers.Count} bumper; " +
                   $"checkpoints at {string.Join(", ", System.Array.ConvertAll(cps, x => x.courseDistance.ToString("F1")))} m; allowlist problems: {problems.Count} {string.Join("; ", problems)}");
     }
 
-    private static float RampY(float z) => 3f + (z - 135f) * 0.1f;
+    private static float RampY(float z) => 3f + (z - RampZ0) * 0.1f;
 
     private static Material Mat(string name, Color color)
     {
@@ -400,10 +472,39 @@ public static class BlockPartyDashBuilder
                 Points = new[] { W(DoorX[i] * 0.7f, 3, 112.5f), W(DoorX[i], 3, 115.6f, WaypointAction.Door, i + 1, 0.4f), W(DoorX[i], 3, 119f), W(DoorX[i] * 0.5f, 3, 125.5f) },
             });
 
-        // Section 3: CP3 → finish, around the bumpers (left / centre / right).
-        r.Add(new BotRoute { Section = 3, Name = "S5-left", Points = new[] { W(-8.5f, 3, 135.5f), W(-9.5f, RampY(145f), 145f), W(-9.5f, 5, 155.5f), W(-3f, 5, 160f) } });
-        r.Add(new BotRoute { Section = 3, Name = "S5-centre", Points = new[] { W(0f, 3, 136f), W(2.5f, RampY(141.5f), 141.5f), W(0f, RampY(146f), 146f), W(0f, RampY(151f), 151f), W(0f, 5, 160f) } });
-        r.Add(new BotRoute { Section = 3, Name = "S5-right", Points = new[] { W(8.5f, 3, 135.5f), W(9.5f, RampY(145f), 145f), W(9.5f, 5, 155.5f), W(3f, 5, 160f) } });
+        // Section 3: CP3 → CP4: across the three turn tables (jump the 2 m gaps) or a walkway on either side.
+        r.Add(new BotRoute
+        {
+            Section = 3, Name = "S5-tables",
+            Points = new[]
+            {
+                W(0f, 3, 133.5f), W(0f, 3, TableZ[0], WaypointAction.Land, 0, 1.5f), W(0f, 3, TableZ[0] + TableR - 0.6f, WaypointAction.Jump, 0, 0.5f),
+                W(0f, 3, TableZ[1], WaypointAction.Land, 0, 1.5f), W(0f, 3, TableZ[1] + TableR - 0.6f, WaypointAction.Jump, 0, 0.5f),
+                W(0f, 3, TableZ[2], WaypointAction.Land, 0, 1.5f), W(0f, 3, TableZ[2] + TableR - 0.6f, WaypointAction.Jump, 0, 0.5f),
+                W(0f, 3, 166.8f, WaypointAction.Run, 0, 1.0f), W(0f, 3, 170.5f),
+            },
+        });
+        r.Add(new BotRoute { Section = 3, Name = "S5-walkL", Points = new[] { W(-7f, 3, 132.5f), W(-9.75f, 3, 135.6f, WaypointAction.Run, 0, 0.35f), W(-9.75f, 3, 164.8f, WaypointAction.Run, 0, 0.35f), W(-5f, 3, 170.5f) } });
+        r.Add(new BotRoute { Section = 3, Name = "S5-walkR", Points = new[] { W(7f, 3, 132.5f), W(9.75f, 3, 135.6f, WaypointAction.Run, 0, 0.35f), W(9.75f, 3, 164.8f, WaypointAction.Run, 0, 0.35f), W(5f, 3, 170.5f) } });
+
+        // Section 4: CP4 → CP5: under the mallets (wait for each to clear) or an edge beam.
+        var bridge = new List<Waypoint> { W(0f, 3, 175.5f) };
+        foreach (var mz in MalletZ)
+        {
+            bridge.Add(W(0f, 3, mz - 5f, WaypointAction.WaitClear, 0, 0.6f)); // the safe pocket before this mallet
+            bridge.Add(W(0f, 3, mz + 4.6f, WaypointAction.Run, 0, 0.8f));
+        }
+
+        bridge.Add(W(0f, 3, BridgeEnd + 1f));
+        bridge.Add(W(0f, 3, BridgeEnd + 5.5f));
+        r.Add(new BotRoute { Section = 4, Name = "S6-bridge", Points = bridge.ToArray() });
+        r.Add(new BotRoute { Section = 4, Name = "S6-beamL", Points = new[] { W(-4f, 3, 173.5f), W(-5.5f, 3, 175.6f, WaypointAction.Run, 0, 0.35f), W(-5.5f, 3, BridgeEnd - 0.4f, WaypointAction.Run, 0, 0.35f), W(-3f, 3, BridgeEnd + 5.5f) } });
+        r.Add(new BotRoute { Section = 4, Name = "S6-beamR", Points = new[] { W(4f, 3, 173.5f), W(5.5f, 3, 175.6f, WaypointAction.Run, 0, 0.35f), W(5.5f, 3, BridgeEnd - 0.4f, WaypointAction.Run, 0, 0.35f), W(3f, 3, BridgeEnd + 5.5f) } });
+
+        // Section 5: CP5 → finish, around the bumpers (left / centre / right).
+        r.Add(new BotRoute { Section = 5, Name = "S7-left", Points = new[] { W(-8.5f, 3, RampZ0 + 0.5f), W(-9.5f, RampY(RampZ0 + 10f), RampZ0 + 10f), W(-9.5f, 5, RampZ0 + 20.5f), W(-3f, 5, FinishZ + 2f) } });
+        r.Add(new BotRoute { Section = 5, Name = "S7-centre", Points = new[] { W(0f, 3, RampZ0 + 1f), W(2.5f, RampY(RampZ0 + 6.5f), RampZ0 + 6.5f), W(0f, RampY(RampZ0 + 11f), RampZ0 + 11f), W(0f, RampY(RampZ0 + 16f), RampZ0 + 16f), W(0f, 5, FinishZ + 2f) } });
+        r.Add(new BotRoute { Section = 5, Name = "S7-right", Points = new[] { W(8.5f, 3, RampZ0 + 0.5f), W(9.5f, RampY(RampZ0 + 10f), RampZ0 + 10f), W(9.5f, 5, RampZ0 + 20.5f), W(3f, 5, FinishZ + 2f) } });
         return r.ToArray();
     }
 }
