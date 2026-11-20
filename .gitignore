@@ -35,3 +35,4 @@ dist/
 
 # ---- Unity M1 ----
 .m1-logs/
+.m1-certs/

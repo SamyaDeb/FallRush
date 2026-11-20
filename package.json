@@ -17,6 +17,8 @@
     "m1:build:webgl": "bash scripts/m1-unity.sh webgl-dev -buildTarget WebGL -executeMethod Build.WebGL",
     "m1:build:webgl:release": "bash scripts/m1-unity.sh webgl-release -buildTarget WebGL -executeMethod Build.WebGL -fallrushRelease",
     "m1:build:server": "bash scripts/m1-unity.sh server -buildTarget Linux64 -standaloneBuildSubtarget Server -executeMethod Build.Server",
-    "m1:test:unity": "bash scripts/m1-unity.sh editmode-tests --tests -runTests -testPlatform EditMode -testResults \"$PWD/.m1-logs/editmode-results.xml\""
+    "m1:test:unity": "bash scripts/m1-unity.sh editmode-tests --tests -runTests -testPlatform EditMode -testResults \"$PWD/.m1-logs/editmode-results.xml\"",
+    "m1:up": "bash scripts/m1-certs.sh && chmod -R a+rX client-unity/Builds/WebGL && docker compose -f infra/docker-compose.m1.yml up -d --build",
+    "m1:down": "docker compose -f infra/docker-compose.m1.yml down"
   }
 }

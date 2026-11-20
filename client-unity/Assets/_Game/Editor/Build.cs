@@ -43,6 +43,7 @@ public static class Build
     private static void BuildWebGL(bool release, bool exitWhenDone)
     {
         var previousExceptions = PlayerSettings.WebGL.exceptionSupport;
+        var ok = false;
         try
         {
             ProjectSetup.ApplyPlayerSettings();
@@ -58,14 +59,17 @@ public static class Build
                 targetGroup = BuildTargetGroup.WebGL,
                 options = release ? BuildOptions.None : BuildOptions.Development,
             };
-            Run($"webgl-{(release ? "release" : "dev")}", options, WebGLOut, exitWhenDone);
+            ok = Run($"webgl-{(release ? "release" : "dev")}", options, WebGLOut);
         }
         finally
         {
             // Keep ProjectSettings.asset stable in git: the committed value is the release one.
+            // (Must run before EditorApplication.Exit, which never returns.)
             PlayerSettings.WebGL.exceptionSupport = previousExceptions;
-            AssetDatabase.SaveAssets();
+            SavePlayerSettings();
         }
+
+        Finish(ok, exitWhenDone);
     }
 
     private static void BuildServer(bool exitWhenDone)
@@ -80,14 +84,21 @@ public static class Build
             subtarget = (int)StandaloneBuildSubtarget.Server,
             options = BuildOptions.None,
         };
-        Run("server", options, ServerOut, exitWhenDone);
+        var ok = Run("server", options, ServerOut);
+        SavePlayerSettings();
+        Finish(ok, exitWhenDone);
     }
 
-    private static void Run(string label, BuildPlayerOptions options, string outDir, bool exitWhenDone)
+    private static bool Run(string label, BuildPlayerOptions options, string outDir)
     {
         foreach (var scene in options.scenes)
+        {
             if (!File.Exists(scene))
-                Fail(label, $"missing scene {scene} (run ProjectSetup.Run)", exitWhenDone);
+            {
+                Debug.LogError($"[build] FAILED {label}: missing scene {scene} (run ProjectSetup.Run)");
+                return false;
+            }
+        }
 
         Debug.Log($"[build] start {label} target={options.target} subtarget={options.subtarget} scenes={string.Join(",", options.scenes)} out={options.locationPathName}");
         var report = BuildPipeline.BuildPlayer(options);
@@ -95,26 +106,30 @@ public static class Build
         var outBytes = DirSize(outDir);
         Debug.Log($"[build] result {label} {s.result} time={s.totalTime.TotalSeconds:F1}s reportedSize={s.totalSize} outDirBytes={outBytes} errors={s.totalErrors} warnings={s.totalWarnings}");
 
-        if (s.result != BuildResult.Succeeded)
-        {
-            foreach (var step in report.steps)
-                foreach (var m in step.messages.Where(m => m.type == LogType.Error || m.type == LogType.Exception))
-                    Debug.LogError($"[build] {step.name}: {m.content}");
-            Fail(label, s.result.ToString(), exitWhenDone);
-            return;
-        }
+        if (s.result == BuildResult.Succeeded)
+            return true;
 
-        if (exitWhenDone)
-            EditorApplication.Exit(0);
+        foreach (var step in report.steps)
+            foreach (var m in step.messages.Where(m => m.type == LogType.Error || m.type == LogType.Exception))
+                Debug.LogError($"[build] {step.name}: {m.content}");
+        Debug.LogError($"[build] FAILED {label}: {s.result}");
+        return false;
     }
 
-    private static void Fail(string label, string why, bool exitWhenDone)
+    private static void Finish(bool ok, bool exitWhenDone)
     {
-        Debug.LogError($"[build] FAILED {label}: {why}");
         if (exitWhenDone)
-            EditorApplication.Exit(1);
-        else
-            throw new BuildFailedException($"{label}: {why}");
+            EditorApplication.Exit(ok ? 0 : 1);
+        else if (!ok)
+            throw new BuildFailedException("Fall Rush build failed (see [build] lines in the console).");
+    }
+
+    /// <summary>PlayerSettings are not flushed by AssetDatabase.SaveAssets unless the settings object is dirty.</summary>
+    private static void SavePlayerSettings()
+    {
+        foreach (var ps in Resources.FindObjectsOfTypeAll<PlayerSettings>())
+            EditorUtility.SetDirty(ps);
+        AssetDatabase.SaveAssets();
     }
 
     private static long DirSize(string dir)
