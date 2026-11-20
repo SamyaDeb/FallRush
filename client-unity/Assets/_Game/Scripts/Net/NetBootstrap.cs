@@ -82,6 +82,7 @@ namespace FallRush.Net
         public ushort ListenPort { get; private set; }
 
         private string _pendingDisconnectReason;
+        private bool _quitting;
         private Coroutine _reconnect;
 
         public static bool IsDedicatedServerBuild
@@ -105,6 +106,17 @@ namespace FallRush.Net
             }
 
             Instance = this;
+            if (SelfTest.Requested())
+            {
+                var ok = SelfTest.Run(out _);
+                if (Application.platform != RuntimePlatform.WebGLPlayer)
+                {
+                    _quitting = true;
+                    Application.Quit(ok ? 0 : 4);
+                    return;
+                }
+            }
+
             Manager = GetComponent<NetworkManager>();
             Transport = GetComponent<UnityTransport>();
             Transport.UseWebSockets = true;
@@ -156,6 +168,8 @@ namespace FallRush.Net
 
         private void Start()
         {
+            if (_quitting)
+                return;
             if (IsServerRole)
                 StartDedicatedServer();
             else if (IsProbe)

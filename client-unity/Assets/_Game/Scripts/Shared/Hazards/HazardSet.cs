@@ -11,6 +11,9 @@ namespace FallRush.Shared
     /// </summary>
     public sealed class HazardSet
     {
+        // Effect counters (server statistics / QA; never read by the simulation).
+        public long Launches, DoorPushes;
+
         public enum SurfaceKind : byte
         {
             None,
@@ -143,8 +146,12 @@ namespace FallRush.Shared
         /// <summary>Velocity override + stun + immunity (doc 08 §2 knockback rules). Ends any dive / landing / ride.</summary>
         public static void Knock(ref MotorState s, float nx, float nz, int pushCms, int upCms, int stunTicks, int immunityTicks)
         {
-            var k = pushCms * 0.01f;
-            s.Velocity = new Vec3(nx * k, upCms * 0.01f, nz * k);
+            // Straight to cm/s; the explicit casts round each product (no fused multiply-add on any platform).
+            var vx = (float)(nx * pushCms);
+            var vz = (float)(nz * pushCms);
+            s.VelX = (short)HazardMath.RoundMm(vx);
+            s.VelY = (short)upCms;
+            s.VelZ = (short)HazardMath.RoundMm(vz);
             s.StunTicks = (byte)Math.Min(255, Math.Max(0, stunTicks));
             s.ImmunityTicks = (byte)Math.Min(255, Math.Max(0, immunityTicks));
             s.Set(MotorState.Grounded, false);
@@ -156,17 +163,28 @@ namespace FallRush.Shared
             s.Surface = 0;
         }
 
+        /// <summary>
+        /// Hit height for the analytic knock hazards: a diving (or dive-landed) Rushling lies nearly flat (80° pitch), so it
+        /// presents 0.5 m instead of the 1.0 m standing capsule. That is how the high spinner bar is dived under; the motor's
+        /// collision capsule stays upright.
+        /// </summary>
+        public const int DiveHitHeightMm = 500;
+
+        public static int HitHeightMm(in MotorState s, MovementConfig cfg) =>
+            s.Has(MotorState.Diving) || s.Has(MotorState.DiveLanding) ? DiveHitHeightMm : MotorState.QuantizeMm(cfg.Height);
+
         /// <summary>M2 API: sweeper hits only. Returns true on a new hit.</summary>
         public bool ApplySweepers(ref MotorState s, uint tick, MovementConfig cfg)
         {
             if (s.ImmunityTicks > 0 || s.Has(MotorState.Respawning))
                 return false;
             var t = Time(tick);
-            var feet = s.Position;
+            var r = MotorState.QuantizeMm(cfg.Radius);
+            var h = HitHeightMm(in s, cfg);
             for (var i = 0; i < Sweepers.Length; i++)
             {
                 ref readonly var d = ref Sweepers[i];
-                if (!HazardMath.SweeperContact(in d, t, feet, cfg.Radius, cfg.Height, out var nx, out var nz))
+                if (!HazardMath.SweeperContactMm(in d, t, s.PosX, s.PosY, s.PosZ, r, h, out var nx, out var nz))
                     continue;
                 Knock(ref s, nx, nz, d.KnockbackCms, d.KnockUpCms, d.StunTicks, d.ImmunityTicks);
                 return true;
@@ -186,11 +204,12 @@ namespace FallRush.Shared
             if (ApplySweepers(ref s, tick, cfg))
                 return true;
             var t = Time(tick);
-            var feet = s.Position;
+            var r = MotorState.QuantizeMm(cfg.Radius);
+            var h = HitHeightMm(in s, cfg);
             for (var i = 0; i < Mallets.Length; i++)
             {
                 ref readonly var d = ref Mallets[i];
-                if (!HazardMath.MalletContact(in d, t, feet, cfg.Radius, cfg.Height, out var nx, out var nz))
+                if (!HazardMath.MalletContactMm(in d, t, s.PosX, s.PosY, s.PosZ, r, h, out var nx, out var nz))
                     continue;
                 Knock(ref s, nx, nz, d.KnockbackCms, d.KnockUpCms, d.StunTicks, d.ImmunityTicks);
                 return true;
@@ -199,7 +218,7 @@ namespace FallRush.Shared
             for (var i = 0; i < Bumpers.Length; i++)
             {
                 ref readonly var d = ref Bumpers[i];
-                if (!HazardMath.BumperContact(in d, feet, cfg.Radius, cfg.Height, out var nx, out var nz))
+                if (!HazardMath.BumperContactMm(in d, s.PosX, s.PosY, s.PosZ, r, h, out var nx, out var nz))
                     continue;
                 Knock(ref s, nx, nz, d.KnockbackCms, d.KnockUpCms, d.StunTicks, d.ImmunityTicks);
                 return true;
@@ -216,7 +235,9 @@ namespace FallRush.Shared
             if (KindOf(s.Surface - 1, out var i) != SurfaceKind.SpringPad)
                 return false;
             ref readonly var d = ref Pads[i];
-            s.Velocity = new Vec3(d.LaunchXCms * 0.01f, d.LaunchYCms * 0.01f, d.LaunchZCms * 0.01f);
+            s.VelX = (short)d.LaunchXCms;
+            s.VelY = (short)d.LaunchYCms;
+            s.VelZ = (short)d.LaunchZCms;
             s.Set(MotorState.Grounded, false);
             s.Set(MotorState.Diving, false);
             s.Set(MotorState.DiveLanding, false);
@@ -224,6 +245,7 @@ namespace FallRush.Shared
             s.CoyoteTicks = 0;
             s.JumpBufferTicks = 0;
             s.Surface = 0;
+            Launches++;
             return true;
         }
 
@@ -271,6 +293,8 @@ namespace FallRush.Shared
                 pushed = true;
             }
 
+            if (pushed)
+                DoorPushes++;
             return pushed;
         }
     }

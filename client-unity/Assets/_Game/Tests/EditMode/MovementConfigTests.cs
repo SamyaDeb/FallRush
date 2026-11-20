@@ -57,7 +57,7 @@ namespace FallRush.Tests
 
         // ---- canonical JSON (doc 03 §5): sorted keys, no whitespace, integers/strings only ----
 
-        private static string Canonicalize(object v)
+        internal static string Canonicalize(object v)
         {
             switch (v)
             {
@@ -99,7 +99,7 @@ namespace FallRush.Tests
         }
 
         /// <summary>Tiny strict JSON reader for the config files (objects, arrays, strings without escapes beyond \" \\, integers, booleans).</summary>
-        private sealed class MiniJson
+        internal sealed class MiniJson
         {
             private readonly string _s;
             private int _i;

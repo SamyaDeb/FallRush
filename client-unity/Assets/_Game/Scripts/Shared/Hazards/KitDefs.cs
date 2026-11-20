@@ -103,19 +103,17 @@ namespace FallRush.Shared
         {
             var p0 = TurnTablePhase(in d, t - 1);
             var p1 = TurnTablePhase(in d, t);
-            var fx = feetMmX - d.CenterXMm;
-            var fz = feetMmZ - d.CenterZMm;
-            float c0 = Cos16(p0), s0 = Sin16(p0);
-            // local = R(−a0)·offset, with R(a) rotating +X toward +Z.
-            var lxf = fx * c0 + fz * s0;
-            var lzf = fz * c0 - fx * s0;
-            var lx = 2 * RoundMm(lxf * 0.5f);
-            var lz = 2 * RoundMm(lzf * 0.5f);
-            float c1 = Cos16(p1), s1 = Sin16(p1);
-            var wx = RoundMm(lx * c1 - lz * s1);
-            var wz = RoundMm(lx * s1 + lz * c1);
-            dx = wx - fx;
-            dz = wz - fz;
+            long fx = feetMmX - d.CenterXMm;
+            long fz = feetMmZ - d.CenterZMm;
+            long c0 = CosQ30(p0), s0 = SinQ30(p0);
+            // local = R(−a0)·offset (R(a) rotates +X toward +Z), snapped to the 2 mm grid: integers only.
+            var lx = 2 * RoundShift(fx * c0 + fz * s0, 31);
+            var lz = 2 * RoundShift(fz * c0 - fx * s0, 31);
+            long c1 = CosQ30(p1), s1 = SinQ30(p1);
+            var wx = RoundShift(lx * c1 - lz * s1, 30);
+            var wz = RoundShift(lx * s1 + lz * c1, 30);
+            dx = (int)(wx - fx);
+            dz = (int)(wz - fz);
         }
 
         /// <summary>Disc yaw for rendering (Unity degrees about +Y), fractional ticks allowed.</summary>
@@ -173,66 +171,68 @@ namespace FallRush.Shared
         // ------------------------------------------------------------------ mallet
 
         /// <summary>Swing angle at <paramref name="t"/> in phase16 units (16384 = 90°).</summary>
-        public static int MalletAngle16(in MalletDef d, int t)
+        public static int MalletAngle16(in MalletDef d, int t) => MulQ30(d.AmplitudePhase16, SinQ30(PhaseAt(t, d.PeriodTicks, d.Phase16)));
+
+        /// <summary>Head-axis centre at <paramref name="t"/> in mm, and the sign of the head's velocity along the swing axis (0 at the turning points).</summary>
+        public static void MalletHeadMm(in MalletDef d, int t, out int x, out int y, out int z, out int velSign)
         {
             var p = PhaseAt(t, d.PeriodTicks, d.Phase16);
-            return RoundMm(d.AmplitudePhase16 * Sin16(p));
+            var a = MulQ30(d.AmplitudePhase16, SinQ30(p));
+            var off = MulQ30(d.ArmMm, SinQ30(a));
+            x = d.PivotXMm;
+            z = d.PivotZMm;
+            y = d.PivotYMm - MulQ30(d.ArmMm, CosQ30(a));
+            if (d.SwingAxis == 0)
+                x += off;
+            else
+                z += off;
+            var cv = CosQ30(p);
+            const int eps = Q30 / 1000;
+            velSign = (d.PeriodTicks >= 0 ? 1 : -1) * (cv > eps ? 1 : cv < -eps ? -1 : 0);
         }
 
-        /// <summary>Head-axis centre at <paramref name="t"/> in metres, and the sign of the head's horizontal velocity along the swing axis.</summary>
         public static Vec3 MalletHead(in MalletDef d, int t, out float velSign)
         {
-            var p = PhaseAt(t, d.PeriodTicks, d.Phase16);
-            var a = RoundMm(d.AmplitudePhase16 * Sin16(p));
-            var s = Sin16(a);
-            var c = Cos16(a);
-            var arm = d.ArmMm * 0.001f;
-            var off = arm * s;
-            var hx = d.PivotXMm * 0.001f;
-            var hz = d.PivotZMm * 0.001f;
-            var hy = d.PivotYMm * 0.001f - arm * c;
-            if (d.SwingAxis == 0)
-                hx += off;
-            else
-                hz += off;
-            var cv = Cos16(p);
-            velSign = (d.PeriodTicks >= 0 ? 1f : -1f) * (cv > 1e-3f ? 1f : cv < -1e-3f ? -1f : 0f);
-            return new Vec3(hx, hy, hz);
+            MalletHeadMm(in d, t, out var x, out var y, out var z, out var vs);
+            velSign = vs;
+            return MmToVec(x, y, z);
         }
 
+        public static bool MalletContact(in MalletDef d, int t, Vec3 feet, float r, float h, out float pushX, out float pushZ) =>
+            MalletContactMm(in d, t, MotorState.QuantizeMm(feet.X), MotorState.QuantizeMm(feet.Y), MotorState.QuantizeMm(feet.Z),
+                MotorState.QuantizeMm(r), MotorState.QuantizeMm(h), out pushX, out pushZ);
+
         /// <summary>
-        /// Capsule vs the mallet head (horizontal cylinder across the swing) at <paramref name="t"/>. Push direction: the
-        /// head's direction of travel along the swing axis (away from the head at the turning points).
+        /// Capsule vs the mallet head (horizontal cylinder across the swing) at <paramref name="t"/>, integer mm. Push
+        /// direction: the head's direction of travel along the swing axis (away from the head at the turning points).
         /// </summary>
-        public static bool MalletContact(in MalletDef d, int t, Vec3 feet, float r, float h, out float pushX, out float pushZ)
+        public static bool MalletContactMm(in MalletDef d, int t, int fx, int fy, int fz, int r, int h, out float pushX, out float pushZ)
         {
             pushX = pushZ = 0f;
-            var head = MalletHead(in d, t, out var vs);
-            var hr = d.HeadRadiusMm * 0.001f;
-            var hw = d.HeadHalfWidthMm * 0.001f;
-            var y0 = feet.Y + r;
-            var y1 = feet.Y + h - r;
-            var dv = head.Y < y0 ? y0 - head.Y : head.Y > y1 ? head.Y - y1 : 0f;
-            var reach = r + hr;
+            MalletHeadMm(in d, t, out var hx, out var hy, out var hz, out var vs);
+            var y0 = fy + r;
+            var y1 = fy + h - r;
+            long dv = hy < y0 ? y0 - hy : hy > y1 ? hy - y1 : 0;
+            long reach = r + d.HeadRadiusMm;
             if (dv >= reach)
                 return false;
-            float dw, du;
+            long dw, du;
             if (d.SwingAxis == 0)
             {
-                dw = feet.X - head.X;
-                du = feet.Z - head.Z;
+                dw = fx - hx;
+                du = fz - hz;
             }
             else
             {
-                dw = feet.Z - head.Z;
-                du = feet.X - head.X;
+                dw = fz - hz;
+                du = fx - hx;
             }
 
-            var au = du < 0f ? -du : du;
-            var eu = au > hw ? au - hw : 0f;
+            var au = du < 0 ? -du : du;
+            var eu = au > d.HeadHalfWidthMm ? au - d.HeadHalfWidthMm : 0;
             if (eu * eu + dw * dw + dv * dv >= reach * reach)
                 return false;
-            var dir = vs != 0f ? vs : dw >= 0f ? 1f : -1f;
+            var dir = vs != 0 ? vs : dw >= 0 ? 1 : -1;
             if (d.SwingAxis == 0)
                 pushX = dir;
             else
@@ -256,22 +256,25 @@ namespace FallRush.Shared
 
         // ------------------------------------------------------------------ bumper
 
-        public static bool BumperContact(in BumperDef d, Vec3 feet, float r, float h, out float pushX, out float pushZ)
+        public static bool BumperContact(in BumperDef d, Vec3 feet, float r, float h, out float pushX, out float pushZ) =>
+            BumperContactMm(in d, MotorState.QuantizeMm(feet.X), MotorState.QuantizeMm(feet.Y), MotorState.QuantizeMm(feet.Z),
+                MotorState.QuantizeMm(r), MotorState.QuantizeMm(h), out pushX, out pushZ);
+
+        public static bool BumperContactMm(in BumperDef d, int fx, int fy, int fz, int r, int h, out float pushX, out float pushZ)
         {
             pushX = pushZ = 0f;
-            var by = d.CenterYMm * 0.001f;
-            var top = by + d.HeightMm * 0.001f;
-            if (feet.Y >= top || feet.Y + h <= by)
+            var top = d.CenterYMm + d.HeightMm;
+            if (fy >= top || fy + h <= d.CenterYMm)
                 return false;
-            var dx = feet.X - d.CenterXMm * 0.001f;
-            var dz = feet.Z - d.CenterZMm * 0.001f;
-            var reach = (d.RadiusMm + d.ContactMarginMm) * 0.001f + r;
+            long dx = fx - d.CenterXMm;
+            long dz = fz - d.CenterZMm;
+            long reach = d.RadiusMm + d.ContactMarginMm + r;
             var d2 = dx * dx + dz * dz;
             if (d2 >= reach * reach)
                 return false;
-            var l = (float)Math.Sqrt(d2);
-            if (l > 1e-4f)
+            if (d2 > 0)
             {
+                var l = (float)Math.Sqrt(d2);
                 pushX = dx / l;
                 pushZ = dz / l;
             }
@@ -285,13 +288,8 @@ namespace FallRush.Shared
 
         // ------------------------------------------------------------------ spring pad
 
-        /// <summary>Feet over the pad's top face (within its footprint, ±5 cm of the top).</summary>
-        public static bool OnSpringPad(in SpringPadDef d, Vec3 feet)
-        {
-            var dx = feet.X - d.CenterXMm * 0.001f;
-            var dz = feet.Z - d.CenterZMm * 0.001f;
-            var dy = feet.Y - d.CenterYMm * 0.001f;
-            return dx >= -d.HalfXMm * 0.001f && dx <= d.HalfXMm * 0.001f && dz >= -d.HalfZMm * 0.001f && dz <= d.HalfZMm * 0.001f && dy > -0.05f && dy < 0.05f;
-        }
+        /// <summary>Feet over the pad's top face (within its footprint, ±5 cm of the top), mm.</summary>
+        public static bool OnSpringPad(in SpringPadDef d, int fx, int fy, int fz) =>
+            Math.Abs(fx - d.CenterXMm) <= d.HalfXMm && Math.Abs(fz - d.CenterZMm) <= d.HalfZMm && Math.Abs(fy - d.CenterYMm) < 50;
     }
 }

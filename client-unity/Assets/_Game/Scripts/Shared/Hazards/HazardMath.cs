@@ -85,7 +85,6 @@ namespace FallRush.Shared
     public static partial class HazardMath
     {
         public const int PhaseOne = 65536;
-        private const float HalfPi = 1.57079632679f;
 
         /// <summary>Start phase (0..65535) from a hazard seed; a fixed integer hash (murmur3 finaliser style).</summary>
         public static int PhaseFromSeed(uint seed)
@@ -131,21 +130,42 @@ namespace FallRush.Shared
             return r < 0 ? r + m : r;
         }
 
-        /// <summary>sin(2π · phase / 65536) from a 9th-order odd polynomial on one quadrant (|error| &lt; 4e-6). Float ops only.</summary>
-        public static float Sin16(int phase)
+        public const int Q30 = 1 << 30;
+
+        /// <summary>
+        /// sin(2π · phase / 65536) in Q30 (2^30 = 1.0), integers only: a literal quarter-wave table (1025 entries) with
+        /// linear interpolation (|error| &lt; 3e-7). Every hazard pose is built on this, so poses are bit-identical on
+        /// every platform (no libm, no float contraction).
+        /// </summary>
+        public static int SinQ30(int phase)
         {
             phase &= 0xFFFF;
             var quadrant = phase >> 14;
             var within = phase & 0x3FFF;
             if ((quadrant & 1) == 1)
                 within = 0x4000 - within;
-            var x = within * (HalfPi / 16384f);
-            var x2 = x * x;
-            var s = x * (1f + x2 * (-1f / 6f + x2 * (1f / 120f + x2 * (-1f / 5040f + x2 * (1f / 362880f)))));
-            return quadrant >= 2 ? -s : s;
+            var i = within >> 4;
+            var f = within & 15;
+            var v = f == 0 ? SinQ30Quarter[i] : SinQ30Quarter[i] + (int)(((long)(SinQ30Quarter[i + 1] - SinQ30Quarter[i]) * f) >> 4);
+            return quadrant >= 2 ? -v : v;
         }
 
+        public static int CosQ30(int phase) => SinQ30(phase + 0x4000);
+
+        /// <summary>sin(2π · phase / 65536) as a float (exact scaling of <see cref="SinQ30"/>).</summary>
+        public static float Sin16(int phase) => SinQ30(phase) * (1f / Q30);
+
         public static float Cos16(int phase) => Sin16(phase + 0x4000);
+
+        /// <summary>round(v · q / 2^30), half away from zero, integers only.</summary>
+        public static int MulQ30(long v, int q) => (int)RoundShift(v * q, 30);
+
+        /// <summary>round(a / 2^n), half away from zero.</summary>
+        public static long RoundShift(long a, int n)
+        {
+            var half = 1L << (n - 1);
+            return a >= 0 ? (a + half) >> n : -((-a + half) >> n);
+        }
 
         /// <summary>Round half away from zero to an integer (mm / cm/s quantisation).</summary>
         public static int RoundMm(float v) => v >= 0f ? (int)(v + 0.5f) : -(int)(-v + 0.5f);
@@ -164,17 +184,17 @@ namespace FallRush.Shared
             var k = d.KnotsMm;
             if (k == null || k.Length < 6)
             {
-                var s = Sin16(phase);
-                x = d.CenterXMm + RoundMm(d.TravelXMm * s);
-                y = d.CenterYMm + RoundMm(d.TravelYMm * s);
-                z = d.CenterZMm + RoundMm(d.TravelZMm * s);
+                var s = SinQ30(phase);
+                x = d.CenterXMm + MulQ30(d.TravelXMm, s);
+                y = d.CenterYMm + MulQ30(d.TravelYMm, s);
+                z = d.CenterZMm + MulQ30(d.TravelZMm, s);
                 return;
             }
 
             var n = k.Length / 3;
             var u = phase * n;              // 16.16: segment index and fraction
             var seg = u >> 16;
-            var f = (u & 0xFFFF) * (1f / 65536f);
+            var f = u & 0xFFFF;             // Q16
             var i0 = (seg + n - 1) % n * 3;
             var i1 = seg * 3;
             var i2 = (seg + 1) % n * 3;
@@ -184,17 +204,17 @@ namespace FallRush.Shared
             z = d.CenterZMm + CatmullRom(k[i0 + 2], k[i1 + 2], k[i2 + 2], k[i3 + 2], f);
         }
 
-        /// <summary>Uniform Catmull-Rom between p1 and p2 at f in [0,1): integer coefficients, then one float Horner chain.</summary>
-        private static int CatmullRom(int p0, int p1, int p2, int p3, float f)
+        /// <summary>Uniform Catmull-Rom between p1 and p2 at f (Q16, [0, 1)): integer Horner chain in Q16, result in mm.</summary>
+        private static int CatmullRom(int p0, int p1, int p2, int p3, int f)
         {
-            var a = 2 * p1;
-            var b = p2 - p0;
-            var c = 2 * p0 - 5 * p1 + 4 * p2 - p3;
-            var e = -p0 + 3 * p1 - 3 * p2 + p3;
-            var inner = c + f * e;
-            var mid = b + f * inner;
-            var v = 0.5f * (a + f * mid);
-            return RoundMm(v);
+            long a = 2 * p1;
+            long b = p2 - p0;
+            long c = 2 * p0 - 5 * p1 + 4 * p2 - p3;
+            long e = -p0 + 3 * p1 - 3 * p2 + p3;
+            var inner = (c << 16) + f * e;            // Q16
+            var mid = (b << 16) + RoundShift(f * inner, 16);
+            var v = (a << 16) + RoundShift(f * mid, 16);
+            return (int)RoundShift(v, 17);            // × 0.5, Q16 → mm
         }
 
         public static void PlatformCenterMm(in PlatformDef d, uint tick, out int x, out int y, out int z) =>
@@ -242,50 +262,52 @@ namespace FallRush.Shared
         public static bool SweeperContact(in SweeperDef d, uint tick, Vec3 feet, float r, float h, out float pushX, out float pushZ) =>
             SweeperContact(in d, unchecked((int)tick), feet, r, h, out pushX, out pushZ);
 
+        public static bool SweeperContact(in SweeperDef d, int t, Vec3 feet, float r, float h, out float pushX, out float pushZ) =>
+            SweeperContactMm(in d, t, MotorState.QuantizeMm(feet.X), MotorState.QuantizeMm(feet.Y), MotorState.QuantizeMm(feet.Z),
+                MotorState.QuantizeMm(r), MotorState.QuantizeMm(h), out pushX, out pushZ);
+
         /// <summary>
-        /// Upright capsule (feet, r, h) against the bar at hazard time <paramref name="t"/>. On contact,
-        /// <paramref name="pushX"/>/<paramref name="pushZ"/> is the unit horizontal knockback direction: away from the bar
-        /// (M2), or along the bar's direction of travel at the contact point (<see cref="SweeperDef.Tangential"/>; a
-        /// player who runs into the back of the bar is pushed away from it instead).
+        /// Upright capsule (feet in mm, radius r and height h in mm) against the bar at hazard time <paramref name="t"/>,
+        /// in integer mm. On contact, <paramref name="pushX"/>/<paramref name="pushZ"/> is the unit horizontal knockback
+        /// direction: away from the bar (M2), or along the bar's direction of travel at the contact point
+        /// (<see cref="SweeperDef.Tangential"/>; a player who runs into the back of the bar is pushed away from it instead).
         /// </summary>
-        public static bool SweeperContact(in SweeperDef d, int t, Vec3 feet, float r, float h, out float pushX, out float pushZ)
+        public static bool SweeperContactMm(in SweeperDef d, int t, int fx, int fy, int fz, int r, int h, out float pushX, out float pushZ)
         {
             pushX = pushZ = 0f;
-            SweeperDir(in d, t, out var dx, out var dz);
-            var px = d.PivotXMm * 0.001f;
-            var pz = d.PivotZMm * 0.001f;
-            var by = (d.PivotYMm + d.BarHeightMm) * 0.001f;
-            var arm = d.ArmMm * 0.001f;
-            var br = d.BarRadiusMm * 0.001f;
+            var p = PhaseAt(t, d.PeriodTicks, d.Phase16);
+            var c = CosQ30(p);
+            var sn = SinQ30(p);
+            var by = d.PivotYMm + d.BarHeightMm;
 
             // Vertical gap between the bar axis and the capsule's axis segment.
-            var y0 = feet.Y + r;
-            var y1 = feet.Y + h - r;
-            var dv = by < y0 ? y0 - by : by > y1 ? by - y1 : 0f;
-            var reach = r + br;
+            var y0 = fy + r;
+            var y1 = fy + h - r;
+            long dv = by < y0 ? y0 - by : by > y1 ? by - y1 : 0;
+            long reach = r + d.BarRadiusMm;
             if (dv >= reach)
                 return false;
 
             // Horizontal distance from the capsule axis to the bar segment.
-            var qx = feet.X - px;
-            var qz = feet.Z - pz;
-            var tt = qx * dx + qz * dz;
-            if (tt > arm) tt = arm;
-            if (tt < -arm) tt = -arm;
-            var ex = qx - dx * tt;
-            var ez = qz - dz * tt;
+            long qx = fx - d.PivotXMm;
+            long qz = fz - d.PivotZMm;
+            long tt = RoundShift(qx * c + qz * sn, 30);
+            if (tt > d.ArmMm) tt = d.ArmMm;
+            if (tt < -d.ArmMm) tt = -d.ArmMm;
+            var ex = qx - RoundShift(c * tt, 30);
+            var ez = qz - RoundShift(sn * tt, 30);
             var dh2 = ex * ex + ez * ez;
             if (dh2 + dv * dv >= reach * reach)
                 return false;
 
-            // Direction the bar moves at the contact point.
-            var sign = (d.PeriodTicks >= 0 ? 1f : -1f) * (tt >= 0f ? 1f : -1f);
-            var tx = -dz * sign;
-            var tz = dx * sign;
-            var dh = (float)Math.Sqrt(dh2);
+            // Direction the bar moves at the contact point: ±(−sin, cos).
+            var sign = (d.PeriodTicks >= 0 ? 1 : -1) * (tt >= 0 ? 1 : -1);
+            var tx = -sn * (1f / Q30) * sign;
+            var tz = c * (1f / Q30) * sign;
             float nx, nz;
-            if (dh > 1e-4f)
+            if (dh2 > 0)
             {
+                var dh = (float)Math.Sqrt(dh2);
                 nx = ex / dh;
                 nz = ez / dh;
             }
@@ -295,7 +317,7 @@ namespace FallRush.Shared
                 nz = tz;
             }
 
-            if (d.Tangential != 0 && nx * tx + nz * tz >= 0f)
+            if (d.Tangential != 0 && ex * (long)(-sn) * sign + ez * (long)c * sign >= 0)
             {
                 pushX = tx;
                 pushZ = tz;
