@@ -121,7 +121,15 @@ The model is **kinematic**: a custom capsule motor runs the same C# code on the 
 | Hazard knockback | defined per hazard profile; sets stun 0.3–0.8 s (no input) |
 | Player–player | soft separation push (max 2.5 m/s), no stun; prevents stacking exploits |
 
-All values live in the ruleset, are hashed into `ruleset_hash`, and that hash is committed on-chain at match creation.
+**Where the values live (M2):**
+- Today they are in `packages/shared/config/movement_v1.json`: integers in mm, mm/s and ms, with their own sha256, loaded by Unity through generated constants and checked by a hash test. The table above is unchanged by M2a.
+- **M2a added** four constants the table did not name:
+  - max fall speed 30 m/s;
+  - ground snap 0.25 m;
+  - skin 1 cm;
+  - ledge tolerance 5 cm (a landing on a ledge counts only if its top is ≤ 5 cm above the feet).
+- **Timer rounding at 30 Hz:** coyote 3 ticks (100 ms), jump buffer 4 ticks (133 ms), dive land stun 11 ticks (367 ms), jump-cancel window 5 ticks (167 ms).
+- **Target (M6):** merge them into a ruleset v2 that is hashed into `ruleset_hash` and committed on-chain at match creation. `ruleset_v1.json` (already compiled into the deployed program) is not changed.
 
 ## 8. Chaos Capsule modifiers (VRF-dealt)
 

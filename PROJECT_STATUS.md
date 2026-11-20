@@ -1,6 +1,6 @@
 # Fall Rush — Project Status
 
-_Last updated: 2026-11-18 (D0, M0 + M1 complete)_
+_Last updated: 2026-11-18 (D0, M0 + M1 complete; M2a at checkpoint)_
 
 **Hackathon:** MagicBlock Blitz V10, running Nov 20 to Nov 27, 2026.
 - **Submission deadline:** Nov 27, 14:00 UTC (19:30 IST).
@@ -85,8 +85,42 @@ Proof: [`docs/proof/M1-transport.md`](docs/proof/M1-transport.md) · screenshots
 - `UNITY_SERVER` asmdef constraints strip client code; Multiplayer Roles must still be used for components on shared prefabs.
 - Dedicated-server player ignores `-batchmode`/`-nographics` ("Unknown arg"); harmless.
 
+## Milestone M2a (shared motor + input + server sim + snapshots) — ✅ at checkpoint, waiting for your "continue"
+Proof: [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md) Part A · screenshot `docs/proof/m2/m2a-sandbox-hud.png`.
+
+| Item | State |
+|---|---|
+| `movement_v1.json` (canonical, sha256 `1d966e17…`), `pnpm gen:movement` → C# constants, hash-match tests (file on disk + typed constants) | ✅ |
+| `KinematicMotor` (pure, integer mm / cm/s state = wire precision), `InputCmd`, `MotorState`, `MovementConfig`, `IMotorWorld` (PhysX + analytic) | ✅ |
+| Protocol v2: `in` 40 B, `snap` 280 B for 12; `InputSanitizer`; `TickSync` clock; `SimCore` + `ServerSim` (12 bots, separation push, fall → respawn 1 s) | ✅ |
+| Client: Input System sampler, pointer lock on click, all players from snapshots (no prediction), placeholder capsules + orbit camera, F3 HUD | ✅ (Mac build; WebGL UNVERIFIED) |
+| `Map_Sandbox` greybox (ramps 15/30/44/50°, steps 0.2/0.3, gaps 1.0/1.4/1.8, walls 1.5/1.7, beam, fall-off edge, 12 spawns) | ✅ |
+| EditMode tests | ✅ **130/130** (was 52) |
+| Server with 12 occupants (Mac dev server) | frame work p95 **≤ 0.7 ms** at 60 fps cap, sim step p95 ≤ 0.25 ms, CPU 1.7 % |
+| Snapshot bandwidth per client | 15 Hz: 4.2 KB/s payload / **5.2 KB/s socket**; 30 Hz: 8.4 / **10.1 KB/s** |
+| Server frame cap 30 → 60 fps | localhost RTT p50 **33 → 17 ms**; kept as default |
+| Flood (200 junk msgs/frame) | kicked in the first tick, RSS +0.3 MB |
+
+### Notes for M2b / M3 / M4 / M6 (from M2a)
+- **M2b:**
+  - History is keyed by **tick**, not seq: the server applies the command with `tick == S`, so reconcile compares `history[S]`.
+  - The snapshot carries the owner's timers, so a rewind is exact.
+  - Linux server build and the VPS deploy with the M2 code are still to do.
+  - One WebGL build at the end.
+- **M3:** `IMotorWorld.MotorHit.SurfaceId` is reserved for moving platforms; hazards must be `pose = f(params, seed, tick)` only.
+- **M4:**
+  - NGO scene management is still off; both sides load `Map_Sandbox` locally.
+  - `TestBotInput` is a load-test stand-in, not `BotBrain`.
+  - `lastCheckpoint` belongs in round rules, not `MotorState`.
+- **M6, ruleset v2 merge:** fold `movement_v1.json` (hash `1d966e17…`) into a new ruleset version committed on-chain. This needs:
+  - a program upgrade;
+  - a config update (`update_config` is not implemented yet).
+  
+  `ruleset_v1.json` and anything on-chain were **not touched** in M2.
+- **M6:** per-IP connection/rate limiting at nginx (the in-game kick handles a single flooding client).
+
 ## Next milestones
-- **M2a:** KinematicMotor + input + server sim + snapshots (docs/14).
+- **M2b (after your "continue"):** client prediction + reconciliation, remote interpolation, Cinemachine camera, Bolt v1, hazards for the gate, R12 hidden-tab test, go/no-go data (localhost / VPS / 150 ms).
 
 ## Next: M2 (networked movement), prompt `docs/prompts/M2-PROMPT.md`
 - Agreed 2026-11-18: VPS check first (✅ done in M1 §4.7), SDK pin (D-15 ✅), **one M2 prompt with an M2a → M2b checkpoint**, and **Bolt v1 built in Unity from shapes** (no Blender).
@@ -118,7 +152,7 @@ Proof: [`docs/proof/M1-transport.md`](docs/proof/M1-transport.md) · screenshots
 - [ ] Recruit 8–12 playtesters for Nov 25 and Nov 26.
 
 ## Blockers
-- None for M2a.
+- None. M2b is waiting for your "continue" at the M2a checkpoint.
 
 ## Known bugs
 - None open in our code. Upstream: Solana.Unity-SDK v1.2.9 WebGL link failure (#257), worked around by D-15.

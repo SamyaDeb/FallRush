@@ -51,3 +51,34 @@ pnpm m1:down
 ```
 
 Server env: `GAMESERVER_PORT` (default 7777; `-port N` wins), `GAMESERVER_ID`. Proof and measurements: [`docs/proof/M1-transport.md`](docs/proof/M1-transport.md).
+
+## M2: run it (networked movement)
+Status: **M2a done** (shared motor, server sim, snapshots, sandbox map, no prediction yet). **M2b is next**: prediction, interpolation, camera and Bolt v1. Proof and numbers are in [`docs/proof/M2-netcode.md`](docs/proof/M2-netcode.md). Movement constants live in `packages/shared/config/movement_v1.json`; after editing it, run `pnpm gen:movement`.
+
+```bash
+# once (Editor closed): build the local server (includes Map_Sandbox)
+pnpm m1:build:macserver
+# server with 12 occupants (11 TEST bots + you), 15 Hz snapshots, 60 fps frame cap
+bash scripts/m1-macserver.sh start -fallrushBots 12
+```
+
+To play, use either:
+- **The Editor:** open `client-unity` in Unity 6000.3.28f1 → `Assets/_Game/Scenes/Boot.unity` → Play → **Play (connect)** → **Enter Sandbox (M2)**.
+- **A browser:** a **fresh** WebGL build (`pnpm m1:build:webgl`, with the Editor closed), served by `pnpm m1:up:mac`, at `http://localhost:8080/?server=ws://localhost:7777&autoplay=1`. An old M1 build is rejected as protocol v1.
+
+Controls: click to capture the mouse · WASD move · Space jump · Shift/LMB dive · Esc release · **F3** netcode HUD.
+
+```bash
+bash scripts/m1-macserver.sh stop          # stop the local server
+# measurements (Editor closed):
+bash scripts/m2-measure.sh 15 60 60 mylabel                 # 12 occupants, headless probe client, nettop bytes
+bash scripts/m2-probe.sh ws://127.0.0.1:7777 20 flood flood # input-flood kick test
+```
+
+Server flags:
+
+| Flag | Env var | Default | Meaning |
+|---|---|---|---|
+| `-fallrushBots N` | `GAMESERVER_BOTS` | 0 | fill to N occupants with test bots |
+| `-fallrushSnapHz 15\|30` | `GAMESERVER_SNAP_HZ` | 15 | snapshot rate |
+| `-fallrushServerFps N` | — | 60 | server frame cap |

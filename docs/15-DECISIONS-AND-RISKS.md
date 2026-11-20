@@ -35,7 +35,7 @@
 | # | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|---|
 | R1 | **7-day window** vs scope | High | High | Day plan + cut order (doc 14 §1); daily gate check |
-| R2 | Prediction feel not good enough by Nov 22 | Med | High | Go/no-go gate; fallback F1 |
+| R2 | Prediction feel not good enough by Nov 22 | Med | High | Go/no-go gate; fallback F1. **M2a (measured):** the shared motor is bit-deterministic for the same inputs (analytic + PhysX EditMode); state = wire precision (mm, cm/s); tick-keyed inputs with a feedback clock (lead held at 2 ticks, 0 late on localhost). Server cost with 12 occupants ≤ 0.7 ms frame work p95 (Mac). Prediction / correction data comes in M2b |
 | R3 | UTP WebSockets through a TLS-terminating nginx proxy fails | **Retired** | High | **M1 (measured):** local nginx 1.24 TLS (same origin, 101 in access log, 10-min soak, restart + reconnect) **and the VPS** (Let's Encrypt on `gs1.<VPS_IP>.sslip.io`, 2 Chrome clients, RTT p50 66 / p95 83 ms) all pass. Fallback not needed |
 | R4 | Devnet ER / VRF instability during demo or recording | Med | High | Record proof runs early; Unranked fallback; multiple recorded matches |
 | R5 | Solana.Unity-SDK breaks on Unity 6 WebGL | **Happened** (tag v1.2.9) → **Low** with the fix | Low | **M1 (measured):** v1.2.9 fails the WebGL link (BouncyCastle, upstream #257); upstream fix `1da8fd7f` builds WebGL + server, +4.0 MB compressed, wallet picker opens in Chrome. Real Phantom connect UNVERIFIED. Fallback still: web wallet link (doc 04 §8) |
