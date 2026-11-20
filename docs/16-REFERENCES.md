@@ -62,7 +62,7 @@
 
 | Resource | URL |
 |---|---|
-| Railway networking (no inbound UDP; WebSocket OK) | https://docs.railway.com/networking/public-networking/specs-and-limits |
+| nginx WebSocket proxying | https://nginx.org/en/docs/http/websocket.html |
 | Hetzner | https://www.hetzner.com/cloud |
 | DigitalOcean | https://www.digitalocean.com/pricing/droplets |
 

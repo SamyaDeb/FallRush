@@ -51,25 +51,26 @@ _Last updated: 2026-11-18 (D0, M0 complete)_
 ## Next milestones
 - **M1:** Unity foundation + WebGL ↔ Linux server WebSocket spike. Prompt: `docs/prompts/M1-PROMPT.md`. **Blocked until Unity 6000.3.28f1 is installed.**
 
-## Decisions pending (🟡)
-| ID | Decision | Default |
-|---|---|---|
-| D-1b | Netcode fallback | F1 |
-| D-3 | Where the VRF runs | In the ER |
-| D-4 | Client platform | WebGL |
-| D-5 | Hosting | Railway |
-| D-8 | Where Fan Picks are made | Web |
-| D-11 | Match account design | Single PDA |
-| D-12 | Commits to Solana | Once per round |
-| D-13 | Bots | Inside the server process |
-| D-14 | Bonk Factory map | Stretch goal |
+## Decisions: all approved (2026-11-18)
+| ID | Decision |
+|---|---|
+| D-1b | **Fix first:** if the Nov 22 go/no-go fails, find and fix prediction until Nov 23 12:00 UTC (doc 04 §4.5 checklist); F1 only if it still fails |
+| D-3 | VRF requested inside the ER |
+| D-4 | WebGL client |
+| D-5 | **Hostinger VPS** (your KVM 2, Mumbai): Docker Compose behind the VPS's existing nginx + Let's Encrypt (replaces Railway). The existing site on the VPS must stay untouched. |
+| D-8 | Fan Picks on the web page (session keys) |
+| D-11 | Single `Match` PDA |
+| D-12 | Commit to Solana once per round |
+| D-13 | Bots inside the server process, labelled |
+| D-14 | Bonk Factory is a stretch goal |
 
 ## Your tasks for today
-- [ ] Install Unity 6000.3.28f1 LTS with the Web, Linux Dedicated Server and Linux Mono modules.
-- [ ] Register for the event on Luma (luma.com/hedv5sgh).
-- [ ] Create a Railway project.
+- [ ] **Unity:** Hub 4.0.1 is installed and was opened on 6000.3.28f1 (changeset `8f082d2fe476`). Sign in, install it with **Web Build Support**, **Linux Dedicated Server Build Support** and **Linux Build Support (Mono)** (~12 GB), and activate a free Personal license.
+- [x] Register for the event on Luma.
+- [x] Domain: none for now, so use sslip.io hostnames (verified to resolve to the VPS).
+- [x] Hostinger: the CLI is signed in; the `ovelo-vps-admin` key is attached and matches `~/.ssh/ovelo_vps_ed25519`.
 - [x] Create a devnet wallet and fund it.
-- [ ] Start recruiting 8–12 playtesters for Nov 25 and Nov 26.
+- [ ] Recruit 8–12 playtesters for Nov 25 and Nov 26.
 
 ## Blockers
 - Unity is not installed yet.

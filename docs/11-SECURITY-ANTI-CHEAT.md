@@ -35,7 +35,7 @@ The match deal comes from MagicBlock VRF and is verified on-chain. Results are c
 | Game authority key leak | Key scoped to `fall_rush` match instructions only; ≤ 5 devnet SOL; `admin` can rotate it via `update_config` or `set_paused` |
 | Session key abuse (picks) | A session token is scoped to the `fall_rush` program with short validity (1 h). Picks have no value. The program checks the token's authority equals `picker`. |
 | Trophy double-mint | Unique `trophies(match_id)`; check for an existing asset with the `matchPda` attribute before any retry |
-| Secrets in builds | No keys in Unity or web builds. RPC URLs are public endpoints only. Secrets live only in Railway variables. `.env` is git-ignored and `.env.example` holds placeholders. |
+| Secrets in builds | No keys in Unity or web builds. RPC URLs are public endpoints only. Secrets live only in `/opt/fallrush/.env` on the VPS (chmod 600). `.env` is git-ignored and `.env.example` holds placeholders. |
 | Bots inflating results | Bots are flagged in the roster hash and HUD. Ranked status requires ≥ 4 humans. |
 
 ## 3. Keys
@@ -44,7 +44,7 @@ The match deal comes from MagicBlock VRF and is verified on-chain. Results are c
 |---|---|---|
 | Program upgrade authority | Developer's local wallet (devnet) → multisig before mainnet | Upgrade program |
 | `admin` (GameConfig) | Same as above for the hackathon | Config, pause, rotate |
-| `game_authority` | Rush Relay (Railway secret) | Match lifecycle only |
+| `game_authority` | Rush Relay (VPS `.env`, chmod 600) | Match lifecycle only |
 | `mint_authority` | Rush Relay (separate secret) | Crown Capsule collection |
 
 There is no treasury and no token custody.

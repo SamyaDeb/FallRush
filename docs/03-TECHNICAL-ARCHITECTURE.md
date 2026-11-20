@@ -57,7 +57,7 @@ fall-rush/
   server/                Rush Relay (TS)
   web/                   Next.js (landing, /play, /live, /receipt, picks)
   packages/shared/       TS: protocol types, deal.ts, ruleset/map_pool JSON + hashes, IDL types
-  infra/                 Dockerfiles, railway configs, local docker-compose (postgres)
+  infra/                 Dockerfiles, docker-compose (local + prod), nginx site configs
   docs/                  this documentation (v2)
   fall-rush-docs/        original v1 spec (frozen, reference only)
 ```

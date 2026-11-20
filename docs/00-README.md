@@ -26,7 +26,7 @@ Built for **MagicBlock Solana Blitz V10** (Entertainment Finance). Window: Nov 2
 | 10 | [API Contracts](10-API-CONTRACTS.md) | REST + realtime events |
 | 11 | [Security](11-SECURITY-ANTI-CHEAT.md) | Trust statement, threats → controls, keys |
 | 12 | [Testing](12-TESTING-PLAN.md) | Automated, end-to-end, playtests, release checklist |
-| 13 | [Deployment](13-DEPLOYMENT.md) | Environments, Railway, env vars, release steps |
+| 13 | [Deployment](13-DEPLOYMENT.md) | Environments, Hostinger VPS, env vars, release steps |
 | 16 | [References](16-REFERENCES.md) | Verified sources |
 
 ## Non-negotiables

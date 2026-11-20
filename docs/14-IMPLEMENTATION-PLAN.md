@@ -14,13 +14,13 @@
 
 | Day | Date | Milestones | Exit check |
 |---|---|---|---|
-| D0 | Wed 18 | Docs v2 ✔ · **U:** install Unity 6000.3.28f1 + Web + Linux Dedicated Server modules; register on Luma; create a Railway project; fund a devnet keypair | You have approved the docs |
+| D0 | Wed 18 | Docs v2 ✔ · **U:** install Unity 6000.3.28f1 + Web + Linux Dedicated Server modules; register on Luma; pick the Fall Rush subdomains on the Hostinger VPS; fund a devnet keypair | You have approved the docs |
 | D1 | Thu 19 | **M0** repo + chain spike (local stack) · **M1** Unity project, NGO/UTP WebSocket, WebGL ↔ Linux server connectivity spike (local Docker) | M0: lifecycle test green locally · M1: WebGL client in the browser connects to the server container |
 | D2 | Fri 20 (kickoff 14:00) | M0 on devnet · **M2a** KinematicMotor + input + server sim + snapshots · **U:** Bolt model blockout (capsule shell, screen face) | Devnet signatures saved · 2 clients move around |
 | D3 | Sat 21 | **M2b** prediction + reconciliation + interpolation + camera + Rushling procedural animation | Feel test at 150 ms |
 | D4 | Sun 22 | **M3** obstacle kit (HazardMath + 8 types), checkpoints, respawn, **Block Party Dash** greybox, race rules · **⚑ Netcode go/no-go** (doc 04 §4.5) | Bot race completes; prediction holds against spinners |
 | D5 | Mon 23 | **M4** match director: lobby, 4-round flow, Goo Tower, Star Scramble, Crumble Shelf greyboxes, bots, disconnects · **U:** greybox polish in ProBuilder | 12-bot match completes ×10 |
-| D6 | Tue 24 | **M5** Rush Relay (identity, directory, outbox) + **M6** full `fall_rush` program + chain worker + VRF deal driving the game · deploy to Railway | Devnet ranked match: receipt on Solana matches the DB |
+| D6 | Tue 24 | **M5** Rush Relay (identity, directory, outbox) + **M6** full `fall_rush` program + chain worker + VRF deal driving the game · deploy to the Hostinger VPS | Devnet ranked match: receipt on Solana matches the DB |
 | D7 | Wed 25 | **M7** art & juice pass (toon shader, palette, props, UI, audio, VFX, claw, capsule machine) · **M8** web: home, /play, /live (ER feed), /receipt · **Playtest 1** (≥ 8 humans) | Playtest bug list |
 | D8 | Thu 26 | Fix the playtest bugs · **P1:** Fan Picks (session keys) + Crown Capsule mint · **Playtest 2 (recorded)** | Two clean recorded matches |
 | D9 | Fri 27 | 08:00 freeze · README, PROOF.md, video edit (U+C) · submit by **12:00** | Submitted |
@@ -114,7 +114,7 @@
   - all security tests
   - `ChainAdapter` + worker
   - Deal integrated into the server (Deal screen)
-  - Railway deploy
+  - Hostinger VPS deploy (compose + nginx + certbot)
 - **Verify:** ranked devnet match end-to-end; the receipt equals the DB; `PROOF.md` exported.
 
 ### M7: art & juice
@@ -136,7 +136,7 @@ Session-key Fan Picks on the web live page; guest picks in the DB; Crown Capsule
 
 ## 3. What you can do in parallel (highest value first)
 
-1. **Today:** install Unity and modules; register on Luma; create a Railway account/project; create a devnet wallet and fund it (faucet).
+1. **Today:** install Unity and modules; register on Luma; choose the domain/subdomains for the Hostinger VPS; create a devnet wallet and fund it (faucet).
 2. **Recruit 8–12 playtesters** for Nov 25 and Nov 26 (friends, Discord). This is the single biggest demo-quality lever.
 3. **Bolt model** in Blender or ProBuilder, following doc 17 §2.1. I'll write the procedural animation; you own the look.
 4. **Greybox maps** in ProBuilder from doc 08, once M3 lands the obstacle prefabs.

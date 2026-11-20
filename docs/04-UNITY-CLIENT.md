@@ -31,7 +31,7 @@ Both share the movement, hazard and deal code, which is what makes client predic
 
 - **Why:** WebGL clients cannot use UDP. Every client in a match must share one transport.
 - **The server** listens with UTP WebSockets enabled (`UnityTransport.UseWebSockets = true`).
-- **TLS** terminates at the host edge (Railway domain, or Caddy on a VPS). The browser connects with `wss://`, and the server sees plain `ws`.
+- **TLS** terminates at the VPS's nginx (doc 13 §2). The browser connects with `wss://`, and the server sees plain `ws`.
   - **UNVERIFIED:** UTP WebSocket behind a TLS-terminating proxy. **This is the M1 spike's first test.**
   - Fallback: UTP's built-in secure WebSocket with certificates.
 - **Consequence:** WebSocket is TCP, so everything is reliable and ordered. Snapshots go out at 15 Hz (tunable to 30 Hz). Loss shows up as jitter, so the interpolation buffer is 100 ms, adaptive up to 150 ms.
@@ -113,7 +113,14 @@ Snapshot interpolation at `renderTime = serverTimeEstimate − interpDelay` (100
   - the local player feels responsive;
   - corrections are < 1 per 5 s while running the course;
   - no visible rubber-banding on hazards.
-- **Fail → fallback F1** (needs approval; documented in doc 15 D-1b): **owner-predicted movement with server validation**.
+- **Fail → fix window first (D-1b, approved):** until **Mon Nov 23 12:00 UTC**, find and fix the cause. Work through this in order, measuring each:
+  1. **Determinism:** client and server motor produce identical results for the same inputs (EditMode replay test of a recorded input log). Any float or order difference is the usual cause of constant corrections.
+  2. **Tick alignment:** the client predicts the same tick number the server simulates; check the input-delay buffer and clock-sync estimate.
+  3. **Input delivery:** 3 redundant inputs per packet; the server never stalls on a missing input (it repeats the last one).
+  4. **Moving-platform and hazard state:** hazards come from `pose = f(seed, tick)`, so the client must use the same tick; platform carry must be in the motor, not in a Unity physics callback.
+  5. **Correction smoothing:** blend small errors over 100–150 ms instead of snapping; snap only above a threshold.
+  6. **Server tick jitter:** p95 frame time under the tick budget on the VPS.
+- **Still failing after the fix window → fallback F1:** **owner-predicted movement with server validation**.
   - The client is authoritative for its own position.
   - The server runs the same motor as a validator: speed, acceleration, jump and teleport bounds; hazard and stun authority stays on the server, and the server snaps a client back on violation.
   - This is weaker anti-cheat, disclosed in the demo.

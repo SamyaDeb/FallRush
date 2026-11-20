@@ -83,7 +83,7 @@ api/          public REST /v1 (doc 10)
    - Then mark `final_signature` and, if the champion has a linked wallet and the match is ranked, enqueue the Crown Capsule mint.
 
 **Signer:**
-- `GAME_AUTHORITY_KEYPAIR` comes from the secret store (Railway variable, base58).
+- `GAME_AUTHORITY_KEYPAIR` comes from the secret store (`/opt/fallrush/.env` on the VPS, chmod 600, base58).
 - It pays base-layer fees for create/delegate (devnet SOL).
 - It is **never** the program upgrade authority and never holds more than 5 devnet SOL.
 
@@ -96,7 +96,7 @@ api/          public REST /v1 (doc 10)
 
 ## 7. Deployment (doc 13)
 
-**Railway** (WebSocket and HTTPS via Railway domains; no UDP needed with WebGL) runs:
+**Hostinger VPS** (Docker Compose behind the host's nginx with Let's Encrypt; WebSocket and HTTPS only, no UDP needed with WebGL) runs:
 - `relay`
 - `postgres`
 - `web`
