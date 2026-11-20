@@ -1,0 +1,19 @@
+{
+    "name": "FallRush.Net",
+    "rootNamespace": "FallRush.Net",
+    "references": [
+        "FallRush.Shared",
+        "Unity.Netcode.Runtime",
+        "Unity.Networking.Transport",
+        "Unity.Collections"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

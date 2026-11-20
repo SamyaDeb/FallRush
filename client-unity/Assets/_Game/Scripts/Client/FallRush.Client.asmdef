@@ -1,0 +1,22 @@
+{
+    "name": "FallRush.Client",
+    "rootNamespace": "FallRush.Client",
+    "references": [
+        "FallRush.Shared",
+        "FallRush.Net",
+        "Unity.Netcode.Runtime",
+        "UnityEngine.UI",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "!UNITY_SERVER"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,20 @@
+{
+    "name": "FallRush.Editor",
+    "rootNamespace": "",
+    "references": [
+        "FallRush.Shared",
+        "FallRush.Net",
+        "Unity.Netcode.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
