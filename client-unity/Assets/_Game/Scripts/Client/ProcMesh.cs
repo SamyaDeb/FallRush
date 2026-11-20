@@ -363,6 +363,8 @@ namespace FallRush.Client
             Stunned = 4,   // @ @ (spirals)
             Falling = 5,   // O ◡ O (panic)
             Blink = 6,     // – –
+            Happy = 7,     // ^‿^ (G1: qualified, champion, emotes)
+            Sad = 8,       // ╥ ╥ (G1: eliminated)
         }
 
         /// <summary>4×4 atlas of 32 px cells: dark screen with mint LED glyphs (the face mesh provides the rounded outline).</summary>
@@ -396,7 +398,7 @@ namespace FallRush.Client
                     for (var x = 0; x < AtlasCell; x++)
                         px[(oy + y) * size + ox + x] = screen;
 
-                if (g > (int)Glyph.Blink)
+                if (g > (int)Glyph.Sad)
                     continue;
                 void Dot(float cx, float cy, float r) => Disc(px, size, ox, oy, cx, cy, r, glyph);
                 void Line(float x0, float y0, float x1, float y1, float w) => Seg(px, size, ox, oy, x0, y0, x1, y1, w, glyph);
@@ -429,6 +431,16 @@ namespace FallRush.Client
                         break;
                     case Glyph.Blink:
                         Line(lx - 3.5f, ey, lx + 3.5f, ey, 1.6f); Line(rx - 3.5f, ey, rx + 3.5f, ey, 1.6f);
+                        break;
+                    case Glyph.Happy:
+                        Line(lx - 3.5f, ey - 2f, lx, ey + 2f, 1.6f); Line(lx, ey + 2f, lx + 3.5f, ey - 2f, 1.6f);
+                        Line(rx - 3.5f, ey - 2f, rx, ey + 2f, 1.6f); Line(rx, ey + 2f, rx + 3.5f, ey - 2f, 1.6f);
+                        Line(12f, 10.5f, 16f, 8f, 1.4f); Line(16f, 8f, 20f, 10.5f, 1.4f); // smile
+                        break;
+                    case Glyph.Sad:
+                        Line(lx - 3.5f, ey + 1.5f, lx + 3.5f, ey + 1.5f, 1.6f); Line(lx, ey + 1f, lx, ey - 4f, 1.2f);
+                        Line(rx - 3.5f, ey + 1.5f, rx + 3.5f, ey + 1.5f, 1.6f); Line(rx, ey + 1f, rx, ey - 4f, 1.2f);
+                        Line(12f, 8f, 16f, 10.5f, 1.4f); Line(16f, 10.5f, 20f, 8f, 1.4f); // frown
                         break;
                 }
             }

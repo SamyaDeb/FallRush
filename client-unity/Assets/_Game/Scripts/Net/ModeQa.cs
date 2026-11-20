@@ -180,18 +180,28 @@ namespace FallRush.Net
         }
 
         /// <summary>Survival constraint: one reference bot alone on route index r of every side; min goo margin (s) and the escape time.</summary>
+        private static readonly bool TraceArg = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-fallrushQaTrace") >= 0;
+
         public static (bool escaped, float minMarginS, float climbS, int gooed) RouteProbe(MapInfo map, CapsuleCollider probe, int variant, int route)
         {
             var minMargin = int.MaxValue;
+            var last = default(MotorState);
             var st = RunOne(map, probe, variant, 0, 9000 + route, BotTier.Reference, bots: 1, forcedRoute: route, perTick: (core, rules, hz) =>
             {
                 if (rules.Phase != RoundPhase.Rush || hz.Goo.Length == 0 || !(rules is TimedRoundRules tr) || !tr.InPlay(0))
                     return;
+                if (!core.Slots[0].State.Has(MotorState.Respawning))
+                    last = core.Slots[0].State;
+                ref readonly var q = ref core.Slots[0].State;
+                if (TraceArg && q.PosY > 12000 && q.PosY < 18000 && q.PosX > -4500 && q.PosX < 4500 && q.PosZ < -11000)
+                    UnityEngine.Debug.Log($"[qa-trace] r={route} tick={core.Tick} {q}");
                 var t = hz.Time(core.Tick);
                 var reach = HazardMath.GooTicksToReach(in hz.Goo[0], core.Slots[0].State.PosY);
                 if (reach - t < minMargin)
                     minMargin = reach - t;
             });
+            if (st.Escaped != 1)
+                UnityEngine.Debug.Log($"[qa] route probe variant={variant} route={route} last alive state {last}");
             return (st.Escaped == 1, minMargin == int.MaxValue ? float.NaN : minMargin / 30f, st.Duration, st.Goo);
         }
 

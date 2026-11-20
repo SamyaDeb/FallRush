@@ -260,7 +260,52 @@ namespace FallRush.Client
             }
         }
 
-        // ------------------------------------------------------------------ per frame
+        // ------------------------------------------------------------------ per frame (G1 animation set)
+
+        /// <summary>Celebration / end poses driven by the match screens (client only).</summary>
+        public enum Pose : byte { None, Qualified, Eliminated, Champion }
+
+        /// <summary>Emotes 1–4 (GDD §6): wave, dance, cheer, flop.</summary>
+        public const int EmoteCount = 4;
+        private const float EmoteSeconds = 2.2f;
+        private const float TurnRateDeg = 720f;     // visual facing turn rate (doc 04 §6, G1)
+
+        private Pose _pose;
+        private int _emote;                           // 1..4 while playing
+        private float _emoteT;
+        private float _gait;                          // radians; π per step
+        private float _cadence;
+        private float _idleT, _look, _lookTarget, _lookNext, _fidgetNext;
+        private float _stumbleT = -1f, _scrambleT = -1f, _getUpT = -1f;
+        private float _tumbleT = -1f, _tumbleDur, _tumbleRoll;
+        private Vector3 _tumbleAxis = Vector3.right;
+        private float _hop;                           // visual hop height (celebrations, emotes)
+        private float _yawRate;
+        private bool _wasStumbling, _wasSliding;
+        private float _flail;
+
+        /// <summary>Sets a celebration / end pose (None = gameplay).</summary>
+        public void SetPose(Pose p) => _pose = p;
+
+        /// <summary>Plays emote 1–4 (it ends by itself; moving cancels it).</summary>
+        public void PlayEmote(int id)
+        {
+            if (id < 1 || id > EmoteCount)
+                return;
+            _emote = id;
+            _emoteT = 0f;
+        }
+
+        public int Emote => _emote;
+
+        /// <summary>Crowd bump (pushes stay server-only; this is the wobble you see). <paramref name="worldDir"/> points away from the other player.</summary>
+        public void Bump(Vector3 worldDir, float strength)
+        {
+            if (!_hasPose)
+                return;
+            var l = transform.InverseTransformDirection(worldDir);
+            _wobV += new Vector2(l.z, -l.x) * (90f * strength);
+        }
 
         /// <summary>Poses the Rushling for this frame.</summary>
         /// <param name="feet">Capsule bottom (world).</param>
@@ -272,10 +317,14 @@ namespace FallRush.Client
                 return;
             dt = Mathf.Min(dt, 1f / 20f);
             _time += dt;
+            var reduced = GameSettings.ReducedMotion;
 
             var grounded = (flags & MotorState.Grounded) != 0;
             var diving = (flags & MotorState.Diving) != 0;
-            var diveLanding = (flags & MotorState.DiveLanding) != 0;
+            var sliding = (flags & MotorState.DiveLanding) != 0;
+            var stumbling = (flags & MotorState.Stumbling) != 0;
+            var hspeed = new Vector2(vel.x, vel.z).magnitude;
+            var speedN = Mathf.Clamp01(hspeed / 5f);
             var targetYaw = yaw256 * (360f / 256f);
             if (!_hasPose)
             {
@@ -283,41 +332,116 @@ namespace FallRush.Client
                 _lastVel = vel;
                 _wasGrounded = grounded;
                 _hasPose = true;
+                _tumbleT = _stumbleT = _scrambleT = _getUpT = -1f;
+                _lookNext = _time + 2f;
+                _fidgetNext = _time + 6f;
             }
 
-            // Yaw arrives in 30 Hz steps (1.4° each); ease it so the body turns smoothly.
-            _yaw = Mathf.LerpAngle(_yaw, targetYaw, 1f - Mathf.Exp(-dt * 20f));
-            transform.SetPositionAndRotation(feet, Quaternion.Euler(0f, _yaw, 0f));
+            // Moving (or any action) cancels an emote.
+            if (_emote != 0 && (hspeed > 0.6f || !grounded || stun > 0 || diving))
+                _emote = 0;
+
+            // ---- facing: rate-limited turn (weight), eased ----
+            var prevYaw = _yaw;
+            var rate = diving ? TurnRateDeg * 2.5f : TurnRateDeg;
+            var stepYaw = Mathf.MoveTowardsAngle(_yaw, targetYaw, rate * dt);
+            _yaw = Mathf.LerpAngle(_yaw, stepYaw, 1f - Mathf.Exp(-dt * 30f));
+            _yawRate = Mathf.Lerp(_yawRate, Mathf.DeltaAngle(prevYaw, _yaw) / dt, 1f - Mathf.Exp(-dt * 10f));
+
+            // Idle look-around (small yaw offsets while standing still).
+            var idle = grounded && hspeed < 0.3f && stun == 0 && !sliding && _emote == 0 && _pose == Pose.None;
+            _idleT = idle ? _idleT + dt : 0f;
+            if (_idleT > 1.5f && _time >= _lookNext)
+            {
+                _lookTarget = Mathf.Repeat(_time * 37.1f, 50f) - 25f;
+                _lookNext = _time + 2.2f + Mathf.Repeat(_time * 1.3f, 2.5f);
+            }
+
+            if (_idleT <= 1.5f)
+                _lookTarget = 0f;
+            _look = Mathf.Lerp(_look, _lookTarget, 1f - Mathf.Exp(-dt * 4f));
+            var spin = _emote == 2 ? Mathf.SmoothStep(0f, 360f, Mathf.Clamp01((_emoteT - 0.3f) / 1.4f)) : 0f;
+            transform.SetPositionAndRotation(feet, Quaternion.Euler(0f, _yaw + _look + spin, 0f));
 
             // ---- events ----
             if (grounded && !_wasGrounded)
             {
                 var impact = Mathf.Clamp01(-_lastVel.y / 12f);
-                _sq = -0.2f * Mathf.Lerp(0.5f, 1f, impact);
+                _sq = -0.22f * Mathf.Lerp(0.45f, 1f, impact);
                 _sqV = 0f;
                 _wobV += new Vector2(18f + 40f * impact, 0f);
+                if (sliding)
+                    _diveV -= 2.5f; // belly-flop slap: a little bounce on the belly
             }
 
-            if (!grounded && _wasGrounded && vel.y > 4f && !diving)
+            if (!grounded && _wasGrounded && vel.y > 3f && !diving)
             {
-                _sq = 0.12f;
-                _sqV = 0f;
+                // Take-off: a quick anticipation squash that springs into a stretch.
+                _sq = -0.1f;
+                _sqV = 7f;
             }
 
             if (diving && _dive < 0.05f && _diveV <= 0.01f)
                 DiveStartedThisFrame = true;
+
+            if (stumbling && !_wasStumbling)
+            {
+                _stumbleT = 0f;
+                _wobV += new Vector2(-60f, (Mathf.Repeat(_time * 7.3f, 1f) > 0.5f ? 1f : -1f) * 50f);
+            }
+
+            if (_wasSliding && !sliding && grounded && stun == 0)
+                _scrambleT = 0f; // scramble back up after the belly slide
 
             if (stun > 0 && _lastStun == 0)
             {
                 StunStartedThisFrame = true;
                 _lidV += 600f;
                 _starsLeft = 0.6f;
-                var away = transform.InverseTransformDirection(vel);
-                _wobV += new Vector2(Mathf.Clamp(away.z, -1f, 1f) * -120f, Mathf.Clamp(away.x, -1f, 1f) * 120f);
+                // Tumble: flop over in the knock direction (horizontal velocity right after the hit), roll, then get up.
+                var away = transform.InverseTransformDirection(new Vector3(vel.x, 0f, vel.z));
+                if (away.sqrMagnitude < 0.01f)
+                    away = Vector3.back;
+                away.Normalize();
+                _tumbleAxis = Vector3.Cross(Vector3.up, away).normalized;
+                _tumbleDur = Mathf.Max(0.25f, stun / 30f);
+                _tumbleRoll = reduced || _tumbleDur < 0.45f ? 0f : 360f;
+                _tumbleT = 0f;
+                _getUpT = -1f;
+            }
+
+            if (stun == 0 && _lastStun > 0 && _tumbleT >= 0f)
+            {
+                _tumbleT = -1f;
+                _getUpT = 0f; // "get up" pop
+                _sq = -0.12f;
+                _sqV = 8f;
+                _starsLeft = Mathf.Max(_starsLeft, 0.5f);
             }
 
             _lastStun = stun;
             _wasGrounded = grounded;
+            _wasStumbling = stumbling;
+            _wasSliding = sliding;
+
+            // ---- timers ----
+            if (_stumbleT >= 0f && (_stumbleT += dt) > 0.6f)
+                _stumbleT = -1f;
+            if (_scrambleT >= 0f && (_scrambleT += dt) > 0.3f)
+                _scrambleT = -1f;
+            if (_getUpT >= 0f && (_getUpT += dt) > 0.45f)
+                _getUpT = -1f;
+            if (_tumbleT >= 0f)
+                _tumbleT += dt;
+            if (_emote != 0 && (_emoteT += dt) > EmoteSeconds)
+                _emote = 0;
+
+            // ---- gait (steps in time with ground speed) ----
+            var walking = grounded && !sliding && hspeed > 0.25f && _tumbleT < 0f;
+            _cadence = 3.2f + 0.95f * hspeed; // steps per second: 8 at 5 m/s (≈ 0.6 m per step)
+            if (walking)
+                _gait += Mathf.PI * _cadence * dt;
+            var gaitK = walking ? Mathf.Clamp01(hspeed / 2.5f) : 0f;
 
             // ---- acceleration (smoothed) for lean ----
             var rawA = (vel - _lastVel) / dt;
@@ -325,31 +449,127 @@ namespace FallRush.Client
             rawA.y = 0f;
             _accel = Vector3.Lerp(_accel, rawA, 1f - Mathf.Exp(-dt * 8f));
             var aLocal = transform.InverseTransformDirection(_accel);
-            var leanTarget = grounded && !diving ? new Vector2(aLocal.z, -aLocal.x) * 0.6f : Vector2.zero;
-            if (leanTarget.sqrMagnitude > 18f * 18f)
-                leanTarget = leanTarget.normalized * 18f;
+            var leanTarget = grounded && !diving && !sliding ? new Vector2(aLocal.z * 0.9f + speedN * 6f, -aLocal.x * 0.9f) : Vector2.zero;
+            if (grounded && !sliding)
+                leanTarget.y -= Mathf.Clamp(_yawRate * speedN * 0.03f, -12f, 12f); // lean into turns
+            if (leanTarget.sqrMagnitude > 20f * 20f)
+                leanTarget = leanTarget.normalized * 20f;
             Spring2(ref _lean, ref _leanV, leanTarget, 14f, 1f, dt);
 
             // ---- squash / wobble / dive / lid springs ----
-            Spring(ref _sq, ref _sqV, 0f, 26f, 0.55f, dt);
+            var sqTarget = 0f;
+            if (idle)
+                sqTarget = Mathf.Sin(_time * 2.3f) * 0.014f; // breathing
+            if (idle && _idleT > 3f && _time >= _fidgetNext)
+            {
+                _fidgetNext = _time + 5f + Mathf.Repeat(_time * 2.9f, 4f);
+                _sq = -0.07f; // fidget: a little bounce on the spot
+                _sqV = 4f;
+                _keyBoost = 1.2f;
+            }
+
+            Spring(ref _sq, ref _sqV, sqTarget, 26f, 0.55f, dt);
             Spring2(ref _wob, ref _wobV, Vector2.zero, 16f, 0.22f, dt);
-            Spring(ref _dive, ref _diveV, diving ? 1f : diveLanding ? 0.75f : 0f, 16f, 1f, dt);
+            var diveTarget = diving ? 1f : sliding ? 1.08f : 0f;
+            Spring(ref _dive, ref _diveV, diveTarget, sliding || diving ? 16f : 13f, diving || sliding ? 1f : 0.42f, dt); // underdamped getting up: pops past upright
             if (_starsLeft > 0f)
                 _starsLeft -= dt;
             var lidTarget = _starsLeft > 0f ? 25f : 0f;
             Spring(ref _lidA, ref _lidV, lidTarget, 22f, 0.6f, dt);
 
-            var pitch = _lean.x + _wob.x + _dive * 80f;
-            var roll = _lean.y + _wob.y;
-            _tilt.localRotation = Quaternion.Euler(pitch, 0f, roll);
+            // ---- body pose ----
+            var bob = walking ? -Mathf.Abs(Mathf.Cos(_gait)) * 0.04f * gaitK + 0.02f * gaitK : 0f;
+            var waddleRoll = Mathf.Sin(_gait) * 7f * gaitK;
+            var waddleYaw = Mathf.Sin(_gait) * 5f * gaitK;
+            var pitch = _lean.x + _wob.x + _dive * 82f;
+            var roll = _lean.y + _wob.y + waddleRoll;
+            _hop = 0f;
+
+            if (_stumbleT >= 0f && !reduced)
+            {
+                var k = 1f - _stumbleT / 0.6f;
+                pitch += 24f * Mathf.Sin(Mathf.Min(1f, _stumbleT / 0.12f) * Mathf.PI * 0.5f) * k;
+                roll += Mathf.Sin(_stumbleT * 22f) * 13f * k;
+            }
+
+            if (!grounded && !diving && stun == 0)
+                pitch -= Mathf.Clamp(vel.y, -8f, 8f) * 0.8f; // lean back rising, forward falling
+
+            if (_scrambleT >= 0f)
+                roll += Mathf.Sin(_scrambleT * 40f) * 6f * (1f - _scrambleT / 0.3f);
+
+            // Celebrations and emotes.
+            switch (_pose)
+            {
+                case Pose.Qualified:
+                    _hop = Mathf.Abs(Mathf.Sin(_time * 6.5f)) * 0.28f;
+                    roll += Mathf.Sin(_time * 6.5f) * 6f;
+                    break;
+                case Pose.Eliminated:
+                    pitch += 22f;
+                    sqTarget = -0.08f;
+                    _sq = Mathf.Lerp(_sq, -0.08f, 1f - Mathf.Exp(-dt * 6f));
+                    break;
+                case Pose.Champion:
+                    _hop = Mathf.Max(0f, Mathf.Sin(_time * 3.2f)) * 0.12f;
+                    roll += Mathf.Sin(_time * 1.6f) * 5f;
+                    pitch -= 8f;
+                    break;
+            }
+
+            switch (_emote)
+            {
+                case 2: // dance: side-to-side waddle
+                    roll += Mathf.Sin(_emoteT * 12f) * 14f;
+                    _hop = Mathf.Abs(Mathf.Sin(_emoteT * 6f)) * 0.08f;
+                    break;
+                case 3: // cheer: jumping for joy
+                    _hop = Mathf.Abs(Mathf.Sin(_emoteT * 7f)) * 0.3f;
+                    break;
+                case 4: // flop: belly-flop on the spot, then pop up
+                {
+                    var f = _emoteT < 0.25f ? _emoteT / 0.25f : _emoteT < 1.5f ? 1f : Mathf.Max(0f, 1f - (_emoteT - 1.5f) / 0.25f);
+                    pitch += 88f * Mathf.SmoothStep(0f, 1f, f);
+                    break;
+                }
+            }
+
+            if (reduced)
+                _hop *= 0.3f;
+
+            var rot = Quaternion.Euler(pitch, waddleYaw, roll);
+            var lie = Mathf.Abs(Mathf.Sin(Mathf.Clamp(pitch, -90f, 90f) * Mathf.Deg2Rad));
+            var tumbleAngle = 0f;
+            if (_tumbleT >= 0f)
+            {
+                // Flop over (0 → 90° in 0.12 s), roll once on a long knock, rest on the side, bounce on the first contact.
+                var u = Mathf.Clamp01(_tumbleT / _tumbleDur);
+                tumbleAngle = Mathf.Min(1f, _tumbleT / 0.12f) * 90f + _tumbleRoll * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((u - 0.15f) / 0.6f));
+                rot = Quaternion.AngleAxis(tumbleAngle, _tumbleAxis) * rot;
+                lie = Mathf.Max(lie, Mathf.Abs(Mathf.Sin(tumbleAngle * Mathf.Deg2Rad)));
+                _hop += Mathf.Abs(Mathf.Sin(u * Mathf.PI * 2f)) * 0.12f * (1f - u);
+            }
+            else if (_getUpT >= 0f)
+            {
+                // Get-up pop: from lying on the side back to upright with an overshoot.
+                var u = Mathf.Clamp01(_getUpT / 0.45f);
+                var a = 90f * (1f - u) * (1f - u) - Mathf.Sin(u * Mathf.PI) * 12f;
+                rot = Quaternion.AngleAxis(a, _tumbleAxis) * rot;
+                lie = Mathf.Max(lie, Mathf.Abs(Mathf.Sin(a * Mathf.Deg2Rad)));
+                _hop += Mathf.Sin(u * Mathf.PI) * 0.18f;
+            }
+
+            _tilt.localRotation = rot;
+            // Lying down lowers the body centre (0.5 m standing → ~0.32 m on its side) so it rests on the floor.
+            _tilt.localPosition = new Vector3(0f, 0.5f - 0.18f * lie + bob + _hop, 0f);
             var sy = 1f + _sq;
             var sxz = 1f - 0.75f * _sq;
             _squash.localScale = new Vector3(sxz, sy, sxz);
             _lid.localRotation = Quaternion.Euler(-Mathf.Max(0f, _lidA), 0f, 0f);
 
             // ---- key ----
-            var speed = new Vector2(vel.x, vel.z).magnitude;
-            _keyAngle += (60f + speed * 110f) * (diving ? 3f : 1f) * dt;
+            _keyBoost = Mathf.Max(0f, _keyBoost - dt);
+            _keyAngle += (60f + hspeed * 110f + _keyBoost * 900f) * (diving || sliding ? 3f : 1f) * dt;
             _key.localRotation = Quaternion.Euler(0f, 0f, _keyAngle);
 
             // ---- stars ----
@@ -368,15 +588,19 @@ namespace FallRush.Client
 
             // ---- face ----
             ProcMesh.Glyph g;
-            if (stun > 0 || _starsLeft > 0f)
+            if (stun > 0 || _starsLeft > 0f || _tumbleT >= 0f)
                 g = ProcMesh.Glyph.Stunned;
-            else if (diving || diveLanding)
+            else if (_pose == Pose.Qualified || _pose == Pose.Champion || _emote == 1 || _emote == 2 || _emote == 3)
+                g = ProcMesh.Glyph.Happy;
+            else if (_pose == Pose.Eliminated)
+                g = ProcMesh.Glyph.Sad;
+            else if (diving || sliding || _emote == 4)
                 g = ProcMesh.Glyph.Diving;
-            else if (!grounded && vel.y < -7f)
+            else if (stumbling || _stumbleT >= 0f || (!grounded && vel.y < -7f))
                 g = ProcMesh.Glyph.Falling;
             else if (!grounded)
                 g = ProcMesh.Glyph.Jumping;
-            else if (speed > 1f)
+            else if (hspeed > 1f)
                 g = ProcMesh.Glyph.Running;
             else
                 g = ProcMesh.Glyph.Idle;
@@ -390,17 +614,27 @@ namespace FallRush.Client
                 g = ProcMesh.Glyph.Blink;
             SetGlyph(g);
 
-            UpdateFeet(feet, vel, grounded, diving, dt);
-            UpdateArms(vel, grounded, diving, dt);
+            _flail = !grounded && !diving && stun == 0 ? Mathf.MoveTowards(_flail, 1f, dt * 4f) : Mathf.MoveTowards(_flail, 0f, dt * 6f);
+            var bodyPose = !grounded || diving || sliding || _tumbleT >= 0f || _getUpT >= 0f || _hop > 0.01f || _emote == 4;
+            UpdateFeet(feet, vel, grounded && !bodyPose, walking, hspeed, dt);
+            UpdateArms(vel, grounded, diving || sliding, stumbling || _stumbleT >= 0f, dt);
         }
+
+        private float _keyBoost;
 
         // ------------------------------------------------------------------ feet
 
-        private void UpdateFeet(Vector3 feet, Vector3 vel, bool grounded, bool diving, float dt)
+        /// <summary>
+        /// Peg feet. Walking: alternate steps timed by the gait phase (one step per π), the stance foot stays planted in the
+        /// world (no sliding), the swing foot travels to half a step ahead. Not walking: settle under the body. Airborne,
+        /// diving, tumbling, hopping: tucked under the body (they follow its pose).
+        /// </summary>
+        private void UpdateFeet(Vector3 feet, Vector3 vel, bool planted, bool walking, float hspeed, float dt)
         {
-            const float stride = 0.2f;
-            const float stepTime = 0.09f;
             var rot = transform.rotation;
+            var stepLen = hspeed / Mathf.Max(1f, _cadence);
+            var swingIdx = ((int)Mathf.Floor(_gait / Mathf.PI)) & 1;
+            var u = Mathf.Repeat(_gait / Mathf.PI, 1f);
             for (var f = 0; f < 2; f++)
             {
                 var side = f == 0 ? -0.12f : 0.12f;
@@ -411,45 +645,60 @@ namespace FallRush.Client
                     _footT[f] = 1f;
                 }
 
-                if (!grounded || diving)
+                if (!planted)
                 {
-                    // Tucked under the body in the air.
-                    _footPlant[f] = _footFrom[f] = rest;
+                    // Tucked under the body; a little kick while falling or scrambling.
+                    var kick = (_flail > 0f ? Mathf.Sin(_time * 16f + f * Mathf.PI) * 0.05f * _flail : 0f) +
+                               (_scrambleT >= 0f ? Mathf.Sin(_scrambleT * 50f + f * Mathf.PI) * 0.06f : 0f);
+                    var p = _squash.TransformPoint(new Vector3(side, 0.02f, kick));
+                    _footPlant[f] = _footFrom[f] = p;
                     _footT[f] = 1f;
-                    _feet[f].SetPositionAndRotation(rest + Vector3.up * 0.02f, rot);
+                    _feet[f].SetPositionAndRotation(p, _squash.rotation);
                     continue;
                 }
 
-                var desired = rest + new Vector3(vel.x, 0f, vel.z) * 0.045f;
-                var other = 1 - f;
-                if (_footT[f] >= 1f && _footT[other] >= 1f && (desired - _footPlant[f]).sqrMagnitude > stride * stride)
+                Vector3 pos;
+                var hv = new Vector3(vel.x, 0f, vel.z);
+                if (walking && f == swingIdx)
                 {
-                    _footFrom[f] = _footPlant[f];
-                    _footPlant[f] = desired;
-                    _footT[f] = 0f;
-                }
+                    if (_footT[f] >= 1f)
+                    {
+                        _footFrom[f] = _footPlant[f]; // lift off from where it stood
+                        _footT[f] = 0f;
+                    }
 
-                // Planted feet never drift far from the capsule (e.g. on a moving platform).
-                if ((_footPlant[f] - rest).sqrMagnitude > 0.3f * 0.3f)
-                {
-                    _footPlant[f] = _footFrom[f] = desired;
-                    _footT[f] = 1f;
-                }
-
-                Vector3 p;
-                if (_footT[f] < 1f)
-                {
-                    _footT[f] = Mathf.Min(1f, _footT[f] + dt / stepTime);
-                    var t = _footT[f];
-                    p = Vector3.Lerp(_footFrom[f], _footPlant[f], t) + Vector3.up * (Mathf.Sin(t * Mathf.PI) * 0.06f);
+                    _footT[f] = Mathf.Max(_footT[f], Mathf.Min(0.999f, u));
+                    var target = rest + (hspeed > 0.01f ? hv / hspeed : Vector3.zero) * (stepLen * 0.5f);
+                    var t = Mathf.SmoothStep(0f, 1f, _footT[f]);
+                    pos = Vector3.Lerp(_footFrom[f], target, t) + Vector3.up * (Mathf.Sin(_footT[f] * Mathf.PI) * (0.05f + 0.03f * Mathf.Clamp01(hspeed / 5f)));
+                    _footPlant[f] = target;
                 }
                 else
                 {
-                    p = _footPlant[f];
+                    if (_footT[f] < 1f)
+                    {
+                        _footT[f] = 1f; // planted where the swing ended
+                    }
+
+                    if (!walking)
+                    {
+                        // Settle: a quick shuffle step back under the body if far from rest.
+                        if ((_footPlant[f] - rest).sqrMagnitude > 0.07f * 0.07f)
+                            _footPlant[f] = Vector3.MoveTowards(_footPlant[f], rest, dt * 2.5f);
+                    }
+
+                    pos = _footPlant[f];
                 }
 
-                p.y = Mathf.Max(p.y, feet.y);
-                _feet[f].SetPositionAndRotation(p, rot);
+                // Planted feet never drift far from the capsule (moving platforms, teleports).
+                if ((pos - rest).sqrMagnitude > 0.5f * 0.5f)
+                {
+                    pos = _footPlant[f] = _footFrom[f] = rest;
+                    _footT[f] = 1f;
+                }
+
+                pos.y = Mathf.Max(pos.y, feet.y);
+                _feet[f].SetPositionAndRotation(pos, rot);
             }
 
             _feetInit = true;
@@ -457,27 +706,50 @@ namespace FallRush.Client
 
         // ------------------------------------------------------------------ arms
 
-        private void UpdateArms(Vector3 vel, bool grounded, bool diving, float dt)
+        private void UpdateArms(Vector3 vel, bool grounded, bool flat, bool stumbling, float dt)
         {
             var body = _squash;
-            var fwd = transform.forward;
-            var up = Vector3.up;
+            var fwd = body.forward;
+            var up = body.up;
+            var right = body.right;
+            var walking = grounded && !flat && new Vector2(vel.x, vel.z).sqrMagnitude > 0.25f * 0.25f;
+            var swingK = walking ? Mathf.Clamp01(new Vector2(vel.x, vel.z).magnitude / 4f) : 0f;
             for (var a = 0; a < 2; a++)
             {
                 var side = a == 0 ? -1f : 1f;
                 var shoulder = body.TransformPoint(new Vector3(side * (ProcMesh.R - 0.01f), 0.5f, 0.02f));
 
-                // Pose the chain wants: hanging out and down; flail in the air; straight ahead on a dive.
+                // Pose the chain wants (loose; the verlet springs lag behind it).
                 Vector3 dir;
-                if (diving)
-                    dir = (fwd * 1f + up * 0.05f + transform.right * side * 0.12f).normalized;
+                if (flat)
+                    dir = (fwd * 1f + up * 0.05f + right * side * 0.12f).normalized; // superhero reach
+                else if (_tumbleT >= 0f)
+                    dir = (right * side * 0.9f + up * Mathf.Sin(_time * 18f + a * 2f) * 0.6f).normalized; // ragdoll flop
+                else if (_pose == Pose.Qualified || _pose == Pose.Champion || _emote == 3)
+                    dir = (right * side * 0.35f + up * 1f + fwd * 0.1f * Mathf.Sin(_time * 9f + a * 3f)).normalized; // arms up
+                else if (_emote == 1 && a == 1)
+                    dir = (right * 0.5f + up * 1f + fwd * Mathf.Sin(_emoteT * 14f) * 0.45f).normalized; // wave
+                else if (_emote == 2)
+                    dir = (right * side * 0.6f + up * (a == 0 ? Mathf.Sin(_emoteT * 6f) : -Mathf.Sin(_emoteT * 6f)) * 0.8f).normalized;
+                else if (_pose == Pose.Eliminated)
+                    dir = (right * side * 0.12f - up * 1f + fwd * 0.15f).normalized; // slump
+                else if (stumbling)
+                {
+                    var w = _time * 15f + a * Mathf.PI; // windmill
+                    dir = (right * side * 0.6f + up * Mathf.Sin(w) + fwd * Mathf.Cos(w)).normalized;
+                }
                 else if (!grounded)
                 {
-                    var f = Mathf.Sin(_time * 13f + a * 2.1f);
-                    dir = (transform.right * side * 0.7f + up * (0.35f + 0.6f * f) + fwd * 0.25f * Mathf.Cos(_time * 9f + a)).normalized;
+                    var f = Mathf.Sin(_time * (vel.y < -5f ? 19f : 13f) + a * 2.1f);
+                    var upAmt = vel.y < -5f ? 1.0f : 0.45f; // falling: arms up, flailing
+                    dir = (right * side * 0.7f + up * (upAmt + 0.55f * f) + fwd * 0.25f * Mathf.Cos(_time * 9f + a)).normalized;
                 }
                 else
-                    dir = (transform.right * side * 0.42f - up * 0.9f + fwd * 0.08f).normalized;
+                {
+                    // Hanging out and down, swinging opposite the legs.
+                    var swing = Mathf.Cos(_gait) * side * swingK;
+                    dir = (right * side * 0.42f - up * 0.9f + fwd * (0.08f + swing * 0.7f)).normalized;
+                }
 
                 if (!_armsInit)
                 {
@@ -486,7 +758,7 @@ namespace FallRush.Client
                 }
 
                 // Verlet integration with damping, gravity and a spring toward the pose.
-                var k = diving ? 900f : grounded ? 140f : 260f;
+                var k = flat ? 900f : grounded && !stumbling ? 160f : 260f;
                 var dt2 = dt * dt;
                 for (var i = 1; i < ArmPoints; i++)
                 {

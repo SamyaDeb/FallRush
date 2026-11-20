@@ -363,7 +363,7 @@ public static class GooTowerBuilder
             }
 
             Route(k, "belt", StartCorner(k), W(k, -HalfLen + 0.5f, -1.5f, y0), W(k, HalfLen - 0.5f, -1.5f, y1), EndCorner(k));
-            Route(k, "gap", StartCorner(k), W(k, -HalfLen + 0.5f, 1.5f, y0), W(k, -1.9f, 1.5f, y0 + Rise * (HalfLen - 1.9f) / len, WaypointAction.Jump, 0, 0.8f),
+            Route(k, "gap", StartCorner(k), W(k, -HalfLen + 0.5f, 1.5f, y0), W(k, -1.15f, 1.5f, y0 + Rise * (HalfLen - 1.15f) / len, WaypointAction.Jump, 0, 0.35f), // G1: jump close to the edge (v2 hop ≈ 3 m reach uphill)
                 W(k, 2.6f, 1.5f, y0 + Rise * (HalfLen + 2.6f) / len, WaypointAction.Land, 0, 1.0f), W(k, HalfLen - 0.5f, 1.5f, y1), EndCorner(k));
         }
         else
@@ -377,7 +377,9 @@ public static class GooTowerBuilder
                 Conveyors.Add(KitBuilder.Conveyor(_hz, $"gt_tread_{k}_{j}", P(k, a + tl * 0.5f, -1.5f, top - 0.25f), SideSize(k, HalfLen * 0.5f, 3f, 0.5f), -U(k) * 1.5f)); // G1: 2.5 → 1.5 m/s against (v2 runs 5 m/s)
             }
 
-            Steps(k, "Step", -HalfLen, HalfLen, 0f, 3f, y0, y1, 16, _step, 0f, 1.4f);
+            // G1: the gap removes every step it overlaps; centred on one 1.5 m step it removes just that one (it was centred on a
+            // step boundary: two steps gone = a 3 m gap + 0.62 m rise, beyond the v2 hop).
+            Steps(k, "Step", -HalfLen, HalfLen, 0f, 3f, y0, y1, 16, _step, 0.75f, 1.4f);
             var tr = new List<Waypoint> { StartCorner(k), W(k, -HalfLen - 0.9f, -1.5f, y0, WaypointAction.Jump) };
             for (var j = 0; j < 4; j++)
             {
@@ -388,8 +390,8 @@ public static class GooTowerBuilder
 
             tr.Add(EndCorner(k));
             Route(k, "treads", tr.ToArray());
-            Route(k, "steps", StartCorner(k), W(k, -HalfLen + 0.5f, 1.5f, y0), W(k, -1.2f, 1.5f, (y0 + y1) * 0.5f, WaypointAction.Jump, 0, 0.6f),
-                W(k, 1.6f, 1.5f, (y0 + y1) * 0.5f + 0.3f, WaypointAction.Land, 0, 1.0f), W(k, HalfLen - 0.5f, 1.5f, y1), EndCorner(k));
+            Route(k, "steps", StartCorner(k), W(k, -HalfLen + 0.5f, 1.5f, y0), W(k, -0.35f, 1.5f, (y0 + y1) * 0.5f, WaypointAction.Jump, 0, 0.4f),
+                W(k, 2.2f, 1.5f, (y0 + y1) * 0.5f + 0.42f, WaypointAction.Land, 0, 0.9f), W(k, HalfLen - 0.5f, 1.5f, y1), EndCorner(k));
         }
 
         Rail(k, -HalfLen, HalfLen, y0, y1, 8);
