@@ -91,6 +91,7 @@ namespace FallRush.Net
             _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Match, OnMatch);
             _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.MatchEvent, OnMatchEvent);
             _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Reactive, OnReactive);
+            _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Emote, OnEmote);
         }
 
         // ---------------------------------------------------------------- match (v4)
@@ -130,6 +131,20 @@ namespace FallRush.Net
             Match = m;
             SessionToken.Save(m.Token);
             MatchChanged?.Invoke();
+        }
+
+        /// <summary>G1: a player's emote (slot, id 1–4), relayed by the server. Visual only.</summary>
+        public event Action<int, int> EmoteReceived;
+
+        private void OnEmote(ulong sender, FastBufferReader reader)
+        {
+            var len = reader.Length - reader.Position;
+            if (len != EmoteCodec.Size)
+                return;
+            var buf = new byte[EmoteCodec.Size];
+            reader.ReadBytesSafe(ref buf, len);
+            if (EmoteCodec.TryDecode(buf, out var slot, out var id))
+                EmoteReceived?.Invoke(slot, id);
         }
 
         private void OnMatchEvent(ulong sender, FastBufferReader reader)

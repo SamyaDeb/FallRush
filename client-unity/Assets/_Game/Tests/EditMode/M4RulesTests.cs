@@ -660,6 +660,56 @@ namespace FallRush.Tests
         }
 
         [Test]
+        public void G1_Prediction_BitForBit_WithBellySlides_Stumbles_AndRespawningTiles([Values(1, 6)] int lead, [Values(2, 5)] int delay)
+        {
+            HazardSet Make()
+            {
+                var g = Grid();
+                g.WobbleTicks = 30;
+                g.RespawnTicks = 240;
+                g.RespawnShelves = 1;
+                var h = new HazardSet(null, null) { Grids = new[] { g }, KillYMm = -6000 };
+                h.InitReactive();
+                return h;
+            }
+
+            AnalyticWorld World(HazardSet h) => new AnalyticWorld().AddHazards(h).AddBox(new Vec3(20f, -10f, 20f), new Vec3(24f, 20f, 24f));
+            var spawns = Spawns();
+            spawns[0] = new Vec3(0.8f, 12.05f, 0.8f);
+            spawns[1] = new Vec3(21f, 20.05f, 21f);
+            spawns[2] = new Vec3(23f, 20.05f, 23f);
+            var rules = new FinalRules(9000) { Target = 1 };
+            var twin = new Twin(Make, World, rules, lead, delay, spawns, 2);
+            twin.Input = (t, s) =>
+            {
+                var a = t * 0.05;
+                var c = Steer(s, (float)(4.0 * Math.Cos(a)), (float)(4.0 * Math.Sin(a)), t % 37 == 0);
+                if (t % 53 == 0)
+                    c.Buttons |= InputCmd.DivePressed | InputCmd.DiveHeld; // belly slides
+                return c;
+            };
+            int slides = 0, stumbles = 0;
+            var was = default(MotorState);
+            for (uint k = 1; k <= 2400; k++)
+            {
+                twin.Tick(k);
+                var st = twin.Server.Slots[0].State;
+                if (st.Has(MotorState.DiveLanding) && !was.Has(MotorState.DiveLanding))
+                    slides++;
+                if (st.Has(MotorState.Stumbling) && !was.Has(MotorState.Stumbling))
+                    stumbles++;
+                was = st;
+            }
+
+            var p = twin.Client;
+            TestContext.WriteLine($"lead={lead} delay={delay} slides={slides} stumbles={stumbles} corrections={p.Corrections} silent={p.SilentResyncs} hazardMismatch={p.HazardMismatches} rxLate={twin.RxLate}");
+            Assert.That(slides, Is.GreaterThan(3), "belly slides exercised");
+            Assert.That(stumbles, Is.GreaterThan(0), "a 6 m shelf drop stumbles");
+            Assert.That(p.Corrections, Is.EqualTo(0));
+            Assert.That(p.HazardMismatches, Is.EqualTo(0));
+        }
+
+        [Test]
         public void Prediction_MatchesTheServer_BitForBit_ThroughTileDropsAndGoo([Values(1, 3, 6)] int lead, [Values(2, 5)] int delay)
         {
             HazardSet Make()

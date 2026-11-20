@@ -44,6 +44,51 @@ namespace FallRush.Tests
         }
 
         [Test]
+        public void Emote_Codec_StrictAndPhaseRule()
+        {
+            var b = new byte[EmoteCodec.Size];
+            Assert.That(EmoteCodec.Encode(b, 7, 3), Is.EqualTo(2));
+            Assert.That(EmoteCodec.TryDecode(b, out var slot, out var id), Is.True);
+            Assert.That((slot, id), Is.EqualTo((7, 3)));
+            Assert.That(EmoteCodec.TryDecode(new byte[] { 12, 1 }, out _, out _), Is.False, "slot out of range");
+            Assert.That(EmoteCodec.TryDecode(new byte[] { 1, 0 }, out _, out _), Is.False, "id 0");
+            Assert.That(EmoteCodec.TryDecode(new byte[] { 1, 5 }, out _, out _), Is.False, "id 5");
+            Assert.That(EmoteCodec.TryDecode(new byte[] { 1, 1, 0 }, out _, out _), Is.False, "length");
+            var c = new byte[ControlCodec.Size];
+            ControlCodec.Encode(c, ControlCmd.Emote, 2);
+            Assert.That(ControlCodec.TryDecode(c, out var cmd, out var arg) && cmd == ControlCmd.Emote && arg == 2, Is.True);
+            c[0] = 5;
+            Assert.That(ControlCodec.TryDecode(c, out _, out _), Is.False);
+            Assert.That(EmoteCodec.PhaseAllows(MatchPhase.LobbyOpen) && EmoteCodec.PhaseAllows(MatchPhase.Intermission) && EmoteCodec.PhaseAllows(MatchPhase.RoundResult), Is.True);
+            Assert.That(EmoteCodec.PhaseAllows(MatchPhase.RoundActive) || EmoteCodec.PhaseAllows(MatchPhase.RoundIntro), Is.False);
+        }
+
+        [Test]
+        public void Snapshot_StillCarriesTheMotorFlags_SizeUnchanged()
+        {
+            // G1: stumble / belly slide ride on existing fields (Flags bit 4 + LandTicks): snap stays 18 + 23 × n bytes.
+            var m = new MotorState { PosX = 1, Flags = (byte)(MotorState.Grounded | MotorState.Stumbling), LandTicks = 9 };
+            var ps = new[] { PlayerState.From(3, in m) };
+            var buf = new byte[NetMessages.SnapMaxBytes];
+            var n = NetMessages.EncodeSnap(buf, new SnapHeader { OwnSlot = 3, OwnLand = 9 }, ps);
+            Assert.That(n, Is.EqualTo(SnapHeader.Size + PlayerState.Size));
+            Assert.That(NetMessages.SnapMaxBytes, Is.EqualTo(294));
+            var outP = new PlayerState[12];
+            Assert.That(NetMessages.TryDecodeSnap(new System.ReadOnlySpan<byte>(buf, 0, n), out var h, outP, out _), Is.True);
+            Assert.That(outP[0].Flags & MotorState.Stumbling, Is.Not.Zero);
+            Assert.That(h.OwnLand, Is.EqualTo(9));
+        }
+
+        [Test]
+        public void UiNames_Friendly()
+        {
+            Assert.That(FallRush.Client.UiNames.Spaced("BlockPartyDash"), Is.EqualTo("Block Party Dash"));
+            Assert.That(FallRush.Client.UiNames.Modifier(0), Is.EqualTo("No modifier"));
+            Assert.That(FallRush.Client.UiNames.Modifier(1), Is.EqualTo("Moon Bounce"));
+            Assert.That(FallRush.Client.GameSettings.CleanName("  <b>Bolt\n</b>  "), Is.EqualTo("bBolt/b"));
+        }
+
+        [Test]
         public void RespawningTiles_FullStateEqualsDeltas()
         {
             var server = new ReactiveSet(Grid(240), null, null, 7);

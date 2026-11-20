@@ -47,6 +47,7 @@ namespace FallRush.Client
             var root = new GameObject("Champion").transform;
             root.SetParent(transform, false);
             _rushling = root.gameObject.AddComponent<RushlingVisuals>();
+            _rushling.SetPose(RushlingVisuals.Pose.Champion); // G1: crown pose (arms up, happy face)
             _rushling.Build(slot, lit, unlit);
             _rushling.SetVisible(true);
             _crown = new GameObject("Crown").transform;

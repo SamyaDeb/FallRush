@@ -6,8 +6,10 @@ using UnityEngine.InputSystem;
 namespace FallRush.Client
 {
     /// <summary>
-    /// Third-person orbit camera on Cinemachine 3.1.7 (doc 17 §4): about 7 m behind and 3 m above the player, mouse orbit
-    /// (pointer locked), soft collision (<see cref="CinemachineDeoccluder"/> against the Gameplay layer), look-ahead along
+    /// Third-person orbit camera on Cinemachine 3.1.7 (doc 17 §4): G1: about 6.1 m behind and 2.5 m above the player (closer for
+    /// the slower v2 run; × the Settings camera distance), mouse orbit (pointer locked), soft collision
+    /// (<see cref="CinemachineDecollider"/> pushes the camera out of geometry, <see cref="CinemachineDeoccluder"/> pulls it in
+    /// front of anything between it and the player; Gameplay layer), look-ahead along
     /// velocity (<see cref="CinemachineRotationComposer.Lookahead"/>), +6° FOV kick on dive and a small shake on hazard hits —
     /// both off with <see cref="GameSettings.ReducedMotion"/>.
     /// <para>Built at runtime: a <see cref="CinemachineBrain"/> on the main camera and one <see cref="CinemachineCamera"/>
@@ -16,8 +18,8 @@ namespace FallRush.Client
     /// </summary>
     public sealed class FollowCamera : MonoBehaviour
     {
-        public const float Distance = 7.6f;         // √(7² + 3²)
-        public const float Elevation = 23.2f;       // atan(3 / 7)
+        public const float Distance = 6.6f;         // G1 (v2 run 5 m/s): √(6.1² + 2.5²); M2–M4: 7.6 m
+        public const float Elevation = 22.5f;       // atan(2.5 / 6.1)
         public const float BaseFov = 55f;
         public const float DiveFovKick = 6f;
 
@@ -66,6 +68,18 @@ namespace FallRush.Client
             composer.Damping = new Vector2(0.15f, 0.25f);
             composer.Lookahead = new LookaheadSettings { Enabled = true, Time = 0.2f, Smoothing = 8f, IgnoreY = true };
 
+            // G1 §3.5.4: Goo Tower's laps above and the core behind put the camera inside geometry. The decollider
+            // pushes it out of anything it overlaps first; the deoccluder then clears the line to the player.
+            var decol = go.AddComponent<CinemachineDecollider>();
+            decol.CameraRadius = 0.35f;
+            decol.Decollision = new CinemachineDecollider.DecollisionSettings
+            {
+                Enabled = true,
+                ObstacleLayers = gameplayMask,
+                Damping = 0.4f,
+                SmoothingTime = 0.1f,
+            };
+
             var deocc = go.AddComponent<CinemachineDeoccluder>();
             deocc.CollideAgainst = gameplayMask;
             deocc.MinimumDistanceFromTarget = 0.8f;
@@ -74,7 +88,7 @@ namespace FallRush.Client
                 Enabled = true,
                 DistanceLimit = 0f,
                 MinimumOcclusionTime = 0f,
-                CameraRadius = 0.3f,
+                CameraRadius = 0.35f,
                 Strategy = CinemachineDeoccluder.ObstacleAvoidance.ResolutionStrategy.PullCameraForward,
                 MaximumEffort = 4,
                 SmoothingTime = 0.15f,
@@ -133,8 +147,9 @@ namespace FallRush.Client
             }
 
             var lens = _vcam.Lens;
-            lens.FieldOfView = BaseFov + FovOffset + DiveFovKick * Mathf.SmoothStep(0f, 1f, _kick);
+            lens.FieldOfView = BaseFov + FovOffset + GameSettings.FovOffset + DiveFovKick * Mathf.SmoothStep(0f, 1f, _kick);
             _vcam.Lens = lens;
+            _orbit.Radius = Distance * GameSettings.CameraDistance;
 
             if (_shake > 0f)
             {

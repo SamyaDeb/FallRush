@@ -29,7 +29,7 @@ namespace FallRush.Client
             _details = UiKit.Label(panel, string.Empty, 22, UiKit.Ink, FontStyle.Normal, 96);
             _rtt = UiKit.Label(panel, string.Empty, 30, UiKit.Magenta, FontStyle.Bold, 44);
             _enter = UiKit.Button(panel, "Enter Sandbox (M2)", UiKit.Mint, OnEnter);
-            _reconnect = UiKit.Button(panel, "Reconnect", UiKit.SunYellow, OnReconnect);
+            _reconnect = UiKit.Button(panel, "Retry", UiKit.SunYellow, OnReconnect);
             _autoplay = NetTargets.GetQueryParam(Application.absoluteURL, "autoplay") == "1";
             UiKit.Button(panel, "Back to Menu", UiKit.SkyLight, OnBack);
 
@@ -66,12 +66,16 @@ namespace FallRush.Client
             switch (boot.State)
             {
                 case ClientState.Connecting:
-                    _state.text = "Connecting…";
+                    _state.text = boot.ConnectAttempt > 1 ? $"Connecting… (attempt {boot.ConnectAttempt} of {NetBootstrap.MaxInitialConnects})" : "Connecting…";
                     _state.color = UiKit.Sky;
                     break;
                 case ClientState.Connected:
                     _state.text = "Connected";
                     _state.color = UiKit.Mint;
+                    break;
+                case ClientState.Disconnected when boot.RetryPending:
+                    _state.text = $"Connecting… (attempt {boot.ConnectAttempt + 1} of {NetBootstrap.MaxInitialConnects} soon)";
+                    _state.color = UiKit.Sky;
                     break;
                 case ClientState.Disconnected:
                     _state.text = "Disconnected";

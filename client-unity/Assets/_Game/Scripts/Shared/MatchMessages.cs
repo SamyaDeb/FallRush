@@ -224,6 +224,34 @@ namespace FallRush.Shared
         Start = 1,     // host: start the match now
         Back = 2,      // receipt dismissed ("Back to lobby")
         RxResend = 3,  // reactive state gap: send the full state (arg = last seq seen)
+        Emote = 4,     // G1: play emote arg (1–4) — lobby, results, intermission, champion, receipt; relayed as `emo`
+    }
+
+    /// <summary><c>emo</c> (S→C, reliable, 2 B, G1): slot <c>u8</c> | emote id <c>u8</c> (1–4). Visual only.</summary>
+    public static class EmoteCodec
+    {
+        public const int Size = 2;
+        public const int MaxId = 4;
+
+        public static int Encode(Span<byte> d, int slot, int id)
+        {
+            d[0] = (byte)slot;
+            d[1] = (byte)id;
+            return Size;
+        }
+
+        public static bool TryDecode(ReadOnlySpan<byte> s, out int slot, out int id)
+        {
+            slot = id = 0;
+            if (s.Length != Size || s[0] >= Protocol.MaxPlayers || s[1] < 1 || s[1] > MaxId)
+                return false;
+            slot = s[0];
+            id = s[1];
+            return true;
+        }
+
+        /// <summary>Emotes are allowed outside round play (GDD §6: lobby, intermission, spectating).</summary>
+        public static bool PhaseAllows(MatchPhase p) => p != MatchPhase.RoundIntro && p != MatchPhase.RoundActive;
     }
 
     public static class ControlCodec
@@ -242,7 +270,7 @@ namespace FallRush.Shared
         {
             c = 0;
             arg = 0;
-            if (s.Length != Size || s[0] < 1 || s[0] > 3)
+            if (s.Length != Size || s[0] < 1 || s[0] > 4)
                 return false;
             c = (ControlCmd)s[0];
             var o = 1;

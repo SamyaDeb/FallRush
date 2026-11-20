@@ -510,8 +510,7 @@ namespace FallRush.Client
                     sqTarget = -0.08f;
                     _sq = Mathf.Lerp(_sq, -0.08f, 1f - Mathf.Exp(-dt * 6f));
                     break;
-                case Pose.Champion:
-                    _hop = Mathf.Max(0f, Mathf.Sin(_time * 3.2f)) * 0.12f;
+                case Pose.Champion: // arms up; the podium drives the hop (the crown follows it)
                     roll += Mathf.Sin(_time * 1.6f) * 5f;
                     pitch -= 8f;
                     break;

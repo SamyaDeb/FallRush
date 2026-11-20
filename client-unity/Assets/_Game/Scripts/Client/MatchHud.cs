@@ -48,7 +48,7 @@ namespace FallRush.Client
             canvas.SetParent(transform, false);
             _chip = Corner(canvas, new Vector2(0f, 1f), new Vector2(16f, -14f), 22, TextAnchor.UpperLeft, UiKit.Grape, 620f);
             _timer = Corner(canvas, new Vector2(1f, 1f), new Vector2(-16f, -12f), 46, TextAnchor.UpperRight, UiKit.Ink, 300f);
-            _counter = Corner(canvas, new Vector2(0.5f, 1f), new Vector2(0f, -14f), 32, TextAnchor.UpperCenter, UiKit.Magenta, 700f);
+            _counter = Corner(canvas, new Vector2(0.5f, 1f), new Vector2(0f, -10f), 28, TextAnchor.UpperCenter, UiKit.Magenta, 700f);
             _conn = Corner(canvas, new Vector2(0f, 0f), new Vector2(16f, 40f), 18, TextAnchor.LowerLeft, UiKit.Ink, 520f);
             _chain = Corner(canvas, new Vector2(1f, 0f), new Vector2(-16f, 40f), 20, TextAnchor.LowerRight, new Color(0.45f, 0.45f, 0.5f), 360f);
             _center = Corner(canvas, new Vector2(0.5f, 0.5f), new Vector2(0f, 70f), 110, TextAnchor.MiddleCenter, UiKit.Magenta, 1100f);
@@ -115,6 +115,10 @@ namespace FallRush.Client
             rt.sizeDelta = new Vector2(width, size * 2.6f);
             t.alignment = align;
             t.supportRichText = true;
+            // G1: a white outline keeps HUD text readable over busy world (signs, sky, other players).
+            var o = t.gameObject.AddComponent<Outline>();
+            o.effectColor = new Color(1f, 1f, 1f, 0.9f);
+            o.effectDistance = new Vector2(2f, -2f);
             return t;
         }
 
@@ -303,6 +307,16 @@ namespace FallRush.Client
             _ => string.Empty,
         };
 
+        /// <summary>G1 §3.6: one-line hint per mode on the round intro.</summary>
+        private static string ModeTip(string mode) => mode switch
+        {
+            "Race" => "Tip: dive (Shift) to reach further; jump right after a belly-flop to skip the slide",
+            "Survival" => "Tip: the inner lanes are safe and slow, the outer lanes fast and risky",
+            "Skill" => "Tip: spring pads launch you to the golden-star islands",
+            "Final" => "Tip: tiles drop 1 s after you touch them; top-shelf tiles come back",
+            _ => string.Empty,
+        };
+
         private void Refresh(ClientSim cs)
         {
             var m = cs.Match;
@@ -322,19 +336,19 @@ namespace FallRush.Client
             _center.text = string.Empty;
             _sub.text = string.Empty;
             _counter.text = string.Empty;
+            _counter.color = UiKit.Magenta;
             _timer.text = string.Empty;
             _spectate.text = string.Empty;
             if (m == null)
             {
-                _chip.text = cs.Round.HasValue ? $"{MapPoolV1.KeyOf(cs.Round.Value.MapId)}" : string.Empty;
+                _chip.text = cs.Round.HasValue ? UiNames.Map(cs.Round.Value.MapId) : string.Empty;
                 return;
             }
 
             var mode = Mode();
             var round = cs.Round;
-            var modName = round.HasValue ? ModifierEffects.Get(round.Value.Modifier).Key : "None";
             _chip.text = m.Phase >= MatchPhase.RoundIntro && m.Phase <= MatchPhase.Intermission && round.HasValue
-                ? $"ROUND {m.Round}/{m.RoundCount} · {MapPoolV1.KeyOf(round.Value.MapId)} · {mode}\n<color=#FF3EA5>[{(modName == "None" ? "No Chaos Capsule" : modName)}]</color>  variant {(round.Value.Variant == 0 ? "A" : "B")}"
+                ? $"ROUND {m.Round}/{m.RoundCount} · {UiNames.Map(round.Value.MapId)} · {mode}\n<color=#FF3EA5>[{UiNames.Modifier(round.Value.Modifier)}]</color>"
                 : m.Phase <= MatchPhase.Countdown ? "PRACTICE LOBBY" : "PRACTICE MATCH";
 
             switch (m.Phase)
@@ -360,8 +374,9 @@ namespace FallRush.Client
                     break;
                 case MatchPhase.Champion:
                 case MatchPhase.Finalizing:
-                    _center.text = $"<size=64>CHAMPION</size>\n{Name(cs, m.Champion)}";
-                    _center.color = UiKit.SunYellow;
+                    // G1: the name sits at the top (it covered the podium Rushling in the centre).
+                    _counter.text = $"<size=30>CHAMPION</size>\n<size=52>{Name(cs, m.Champion)}</size>";
+                    _counter.color = UiKit.SunYellow;
                     if (m.Champion == cs.MatchSlot)
                         _sub.text = "You won the crown!";
                     break;
@@ -406,6 +421,8 @@ namespace FallRush.Client
             else
                 _sb.Append("\nWaiting for a player…");
             _lobbyText.text = _sb.ToString();
+            _sb.Append("\n\n<size=17><b>Controls</b>  WASD move · Space jump · Shift / left click dive (jump right after landing to skip the slide) · mouse look · <b>1–4 emotes</b> · Esc settings</size>");
+            _lobbyText.text = _sb.ToString();
             _start.gameObject.SetActive(cs.MatchSlot != 255 && m.HostSlot == cs.MatchSlot);
             _counter.text = "Run, jump and bump while you wait";
         }
@@ -425,8 +442,7 @@ namespace FallRush.Client
                 for (var r = 0; r < m.RoundCount; r++)
                 {
                     var map = m.Maps[r];
-                    var mod = ModifierEffects.Get(m.Modifiers[r]).Key;
-                    _sb.Append($"<b>R{r + 1}</b>  {MapPoolV1.KeyOf(map)} · {MapPoolV1.ModeOf(map)} · variant {(m.Variants[r] % 2 == 0 ? "A" : "B")} · <color=#FF3EA5>{(mod == "None" ? "no capsule" : mod)}</color>  → {m.Targets[r]} advance\n");
+                    _sb.Append($"<b>R{r + 1}</b>  {UiNames.Map(map)} · {MapPoolV1.ModeOf(map)} · <color=#FF3EA5>{UiNames.Modifier(m.Modifiers[r])}</color>  → {m.Targets[r]} advance\n");
                 }
 
                 _sb.Append($"\n{m.PlayerCount} players · targets {string.Join(" → ", m.Targets)}");
@@ -442,7 +458,7 @@ namespace FallRush.Client
             var n = round.HasValue ? round.Value.QualifyCount : 0;
             if (m.Phase == MatchPhase.RoundIntro && (m.Flags & MatchStateMessage.FlagLoading) != 0)
             {
-                _center.text = $"<size=48>Loading {(round.HasValue ? MapPoolV1.KeyOf(round.Value.MapId) : "…")}</size>";
+                _center.text = $"<size=48>Loading {(round.HasValue ? UiNames.Map(round.Value.MapId) : "…")}</size>";
                 _center.color = UiKit.Grape;
                 return;
             }
@@ -453,9 +469,10 @@ namespace FallRush.Client
                 var toRush = (long)round.Value.RoundStartTick - now;
                 _center.color = UiKit.Magenta;
                 _center.text = rs.Phase == RoundPhase.Intro
-                    ? $"<size=58>{MapPoolV1.KeyOf(round.Value.MapId)}</size>\n<size=34>{mode}</size>"
+                    ? $"<size=58>{UiNames.Map(round.Value.MapId)}</size>\n<size=34>{mode}</size>"
                     : toRush > 60 ? "3" : toRush > 30 ? "2" : toRush > 0 ? "1" : "RUSH!";
-                _sub.text = ModeGoal(mode, n);
+                var modHint = UiNames.ModifierHint(round.Value.Modifier);
+                _sub.text = ModeGoal(mode, n) + $"\n<size=20>{ModeTip(mode)}{(modHint.Length > 0 ? $"  ·  <color=#FF3EA5>{UiNames.Modifier(round.Value.Modifier)}: {modHint}</color>" : "")}</size>";
                 return;
             }
 
@@ -587,8 +604,7 @@ namespace FallRush.Client
             if (next < m.RoundCount)
             {
                 var map = m.Maps[next];
-                var mod = ModifierEffects.Get(m.Modifiers[next]).Key;
-                _sb.Append($"\n<b>Next:</b> round {next + 1} — {MapPoolV1.KeyOf(map)} ({MapPoolV1.ModeOf(map)}) · {(mod == "None" ? "no capsule" : mod)} · {m.Targets[next]} advance  ·  in {Secs((long)m.PhaseEndTick - now)} s");
+                _sb.Append($"\n<b>Next:</b> round {next + 1} — {UiNames.Map(map)} ({MapPoolV1.ModeOf(map)}) · {UiNames.Modifier(m.Modifiers[next])} · {m.Targets[next]} advance  ·  in {Secs((long)m.PhaseEndTick - now)} s");
             }
 
             _interText.text = _sb.ToString();

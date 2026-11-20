@@ -455,7 +455,27 @@ namespace FallRush.Net
                 case ControlCmd.RxResend:
                     _sim.SendReactiveFull(sender);
                     break;
+                case ControlCmd.Emote:
+                    RelayEmote(slot, (int)arg);
+                    break;
             }
+        }
+
+        private readonly uint[] _emoteNext = new uint[Protocol.MaxPlayers];
+
+        /// <summary>G1: relays an emote to every recipient (rate-limited to one per second per slot; outside round play only).</summary>
+        private void RelayEmote(int slot, int id)
+        {
+            if (slot < 0 || slot >= Protocol.MaxPlayers || id < 1 || id > EmoteCodec.MaxId || !EmoteCodec.PhaseAllows(Director.Phase))
+                return;
+            var now = _sim.Core.Tick;
+            if (now < _emoteNext[slot])
+                return;
+            _emoteNext[slot] = now + 30;
+            var n = EmoteCodec.Encode(_buf, slot, id);
+            long b = 0, c = 0;
+            foreach (var to in Recipients())
+                Send(Protocol.Msg.Emote, to, n, ref b, ref c);
         }
 
         // =====================================================================

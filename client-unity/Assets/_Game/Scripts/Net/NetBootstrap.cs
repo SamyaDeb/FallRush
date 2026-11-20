@@ -110,10 +110,15 @@ namespace FallRush.Net
             return default;
         }
 
-        /// <summary>Client: the display name sent in hello (desktop: <c>-fallrushName</c>; WebGL: <c>?name=</c>).</summary>
+        /// <summary>G1: the name typed on the menu (Client sets it; the URL / command line still win).</summary>
+        public static string PreferredName;
+
+        /// <summary>Client: the display name sent in hello (desktop: <c>-fallrushName</c>; WebGL: <c>?name=</c>; else the menu's name entry).</summary>
         public static string ClientName()
         {
             var n = GetArgValue("-fallrushName") ?? NetTargets.GetQueryParam(Application.absoluteURL, "name");
+            if (string.IsNullOrEmpty(n))
+                n = PreferredName;
             return string.IsNullOrEmpty(n) ? null : n;
         }
         public const int ServerDisconnectTimeoutMs = 90000;
@@ -253,10 +258,41 @@ namespace FallRush.Net
             }
         }
 
+        /// <summary>
+        /// G1 §3.7: the map of the DEV practice / tuning mode (<c>-fallrushPractice Key</c> or <c>?practice=Key</c>), or null.
+        /// Release builds compile this to null: the practice mode cannot be entered there.
+        /// </summary>
+        public static string PracticeMapArg()
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            var v = GetArgValue("-fallrushPractice") ?? NetTargets.GetQueryParam(Application.absoluteURL, "practice");
+            return string.IsNullOrEmpty(v) ? null : v;
+#else
+            return null;
+#endif
+        }
+
+        /// <summary>True while the DEV practice mode runs (no networking).</summary>
+        public static bool IsPractice { get; private set; }
+
+        /// <summary>DEV: enter the practice mode on map <paramref name="key"/> (e.g. "BlockPartyDash"). No-op in release builds.</summary>
+        public static void StartPractice(string key)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            IsPractice = true;
+            SceneManager.LoadScene("Map_" + key);
+#endif
+        }
+
         private void Start()
         {
             if (_quitting)
                 return;
+            if (!IsServerRole && !IsProbe && PracticeMapArg() != null)
+            {
+                StartPractice(PracticeMapArg());
+                return;
+            }
             _qaRuns = MapQa.Runs();
             if (_qaRuns > 0)
             {
@@ -397,6 +433,9 @@ namespace FallRush.Net
                 return;
             }
 
+            _everConnected = true;
+            ConnectAttempt = 0;
+
             if (clientId == Manager.LocalClientId)
                 SetState(ClientState.Connected);
         }
@@ -442,9 +481,20 @@ namespace FallRush.Net
 #endif
         }
 
+        // ---- G1: initial-connect retries with backoff (M4 §F: 10 × 1 s through a lossy link gave up) ----
+        /// <summary>Initial connects try this many times (each = UTP's own attempts), waiting 1, 2, 4, 4… s between them.</summary>
+        public const int MaxInitialConnects = 6;
+        /// <summary>1-based number of the initial connect in progress (0 = none / connected).</summary>
+        public int ConnectAttempt { get; private set; }
+        public bool RetryPending => _retry != null;
+        private Coroutine _retry;
+        private bool _everConnected;
+
         public void Connect()
         {
             _userLeft = false;
+            if (!_everConnected && ConnectAttempt == 0)
+                ConnectAttempt = 1;
             if (IsServerRole)
                 return;
             if (State == ClientState.Connecting || State == ClientState.Connected)
@@ -460,6 +510,11 @@ namespace FallRush.Net
         {
             if (IsServerRole)
                 return;
+            if (_retry != null)
+            {
+                StopCoroutine(_retry);
+                _retry = null;
+            }
             if (_reconnect != null)
                 StopCoroutine(_reconnect);
             _reconnect = StartCoroutine(ConnectRoutine());
@@ -575,15 +630,34 @@ namespace FallRush.Net
                 return;
 
             var reason = _pendingDisconnectReason;
+            var wasConnecting = State == ClientState.Connecting;
             if (string.IsNullOrEmpty(reason))
-                reason = State == ClientState.Connecting
+                reason = wasConnecting
                     ? $"Could not reach {Target.Url}."
                     : "Connection to the server was lost.";
+            // G1: an initial connect that never got through retries with backoff (not a refusal with a reason).
+            if (wasConnecting && !_everConnected && !_userLeft && string.IsNullOrEmpty(_pendingDisconnectReason) && ConnectAttempt > 0 && ConnectAttempt < MaxInitialConnects)
+            {
+                var wait = ConnectAttempt switch { 1 => 1f, 2 => 2f, _ => 4f };
+                Debug.Log($"[net] connect attempt {ConnectAttempt} failed; retrying in {wait:F0} s");
+                LastDisconnectReason = $"{reason} Retrying (attempt {ConnectAttempt + 1} of {MaxInitialConnects})…";
+                SetState(ClientState.Disconnected);
+                _retry = StartCoroutine(RetryConnect(wait));
+                return;
+            }
             LastDisconnectReason = reason;
             Debug.Log($"[net] disconnected: {reason}");
             SetState(ClientState.Disconnected);
             if (_auto == null && !Reconnecting && ShouldAutoReconnect())
                 _auto = StartCoroutine(AutoReconnect());
+        }
+
+        private IEnumerator RetryConnect(float wait)
+        {
+            yield return new WaitForSecondsRealtime(wait);
+            _retry = null;
+            ConnectAttempt++;
+            Reconnect();
         }
 
         /// <summary>Client-side refusal (e.g. map hash mismatch): disconnect and show <paramref name="reason"/>.</summary>

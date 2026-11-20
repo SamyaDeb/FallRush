@@ -19,7 +19,17 @@ namespace FallRush.Client
     public sealed class SandboxView : MonoBehaviour
     {
         private RushlingVisuals[] _rushlings;
-        private TextMesh[] _labels;
+        private Nameplates _plates;
+        private readonly string[] _plateText = new string[Protocol.MaxPlayers];
+        private readonly string[] _plateName = new string[Protocol.MaxPlayers];
+        private readonly byte[] _plateKind = new byte[Protocol.MaxPlayers];
+        private readonly Vector3[] _feetNow = new Vector3[Protocol.MaxPlayers];
+        private readonly bool[] _visibleNow = new bool[Protocol.MaxPlayers];
+        private GameObject _hint;
+        private int _followedSlot = -2;
+        private Vector3 _blendFrom;
+        private float _blendT = 1f;
+        private float _hintUntil;
         private bool[] _wasRespawning;
         private Transform _cameraTarget;
         private FollowCamera _cam;
@@ -30,7 +40,6 @@ namespace FallRush.Client
         private Text _overlayText;
         private GameObject _lagIcon;
         private GameObject _options;
-        private Text _optionsText;
         private readonly StringBuilder _sb = new StringBuilder(1024);
         private float _hudNext;
         private float _fpsAcc;
@@ -56,7 +65,6 @@ namespace FallRush.Client
             var lit = _map != null ? _map.playerMaterial : null;
             var unlit = _map != null ? _map.unlitMaterial : null;
             _rushlings = new RushlingVisuals[Protocol.MaxPlayers];
-            _labels = new TextMesh[Protocol.MaxPlayers];
             _wasRespawning = new bool[Protocol.MaxPlayers];
             for (var i = 0; i < Protocol.MaxPlayers; i++)
             {
@@ -65,20 +73,7 @@ namespace FallRush.Client
                 var vis = root.gameObject.AddComponent<RushlingVisuals>();
                 vis.Build(i, lit, unlit);
 
-                var label = new GameObject("Label").AddComponent<TextMesh>();
-                label.transform.SetParent(transform, false);
-                label.font = UiKit.Font;
-                label.GetComponent<MeshRenderer>().sharedMaterial = UiKit.Font.material;
-                label.fontSize = 64;
-                label.characterSize = 0.035f;
-                label.fontStyle = FontStyle.Bold;
-                label.color = UiKit.Ink;
-                label.anchor = TextAnchor.MiddleCenter;
-                label.alignment = TextAlignment.Center;
-                _labels[i] = label;
-
                 vis.SetVisible(false);
-                label.gameObject.SetActive(false);
                 _wasRespawning[i] = true;
                 _rushlings[i] = vis;
             }
@@ -131,6 +126,8 @@ namespace FallRush.Client
 
             if (NetBootstrap.Instance != null)
                 NetBootstrap.Instance.StateChanged += OnNetState;
+            if (cs != null)
+                cs.EmoteReceived += OnEmote;
             OnNetState();
 
             _photo = PhotoArg();
@@ -143,6 +140,8 @@ namespace FallRush.Client
             if (NetBootstrap.Instance != null)
                 NetBootstrap.Instance.StateChanged -= OnNetState;
             var cs = ClientSim.Instance;
+            if (cs != null)
+                cs.EmoteReceived -= OnEmote;
             if (cs != null)
             {
                 cs.Active = false;
@@ -171,6 +170,12 @@ namespace FallRush.Client
             var mouse = Mouse.current;
             if (kb != null && kb.f3Key.wasPressedThisFrame)
                 _hud.SetActive(!_hud.activeSelf);
+            // G1: the controls bar shows for a few seconds after a map loads, then on F1.
+            if (kb != null && kb.f1Key.wasPressedThisFrame)
+                _hintUntil = _hint.activeSelf ? 0f : float.MaxValue;
+            var hintOn = Time.unscaledTime < _hintUntil && _photo == null;
+            if (_hint.activeSelf != hintOn)
+                _hint.SetActive(hintOn);
             if (kb != null && kb.escapeKey.wasPressedThisFrame)
                 Cursor.lockState = CursorLockMode.None;
             var es = UnityEngine.EventSystems.EventSystem.current;
@@ -187,7 +192,18 @@ namespace FallRush.Client
                 return;
             var dt = Time.deltaTime;
             var own = cs.OwnSlot;
-            var camT = Camera.main != null ? Camera.main.transform : null;
+            var match = cs.Match;
+            if (kb != null && match != null && EmoteCodec.PhaseAllows(match.Phase) && Cursor.lockState == CursorLockMode.Locked)
+            {
+                var e = kb.digit1Key.wasPressedThisFrame ? 1 : kb.digit2Key.wasPressedThisFrame ? 2 : kb.digit3Key.wasPressedThisFrame ? 3 : kb.digit4Key.wasPressedThisFrame ? 4 : 0;
+                if (e != 0 && Time.unscaledTime >= _emoteNext)
+                {
+                    _emoteNext = Time.unscaledTime + 1.05f;
+                    if (own >= 0 && own < _rushlings.Length)
+                        _rushlings[own].PlayEmote(e); // at once; the server's echo for our slot is ignored
+                    cs.SendControl(ControlCmd.Emote, (uint)e);
+                }
+            }
             for (var i = 0; i < Protocol.MaxPlayers; i++)
             {
                 var vis = _rushlings[i];
@@ -197,37 +213,49 @@ namespace FallRush.Client
                     if (!_wasRespawning[i])
                     {
                         vis.SetVisible(false);
-                        _labels[i].gameObject.SetActive(false);
                         _wasRespawning[i] = true;
                     }
 
+                    _visibleNow[i] = false;
+                    _plates.Set(i, false, default, null);
                     continue;
                 }
 
                 if (_wasRespawning[i])
                 {
                     vis.SetVisible(true);
-                    _labels[i].gameObject.SetActive(_photo == null);
                     if (_photo == "silhouette")
                         vis.SetSilhouette(true);
                     _wasRespawning[i] = false;
                 }
 
+                vis.SetPose(PoseFor(cs, match, i));
                 vis.Drive(feet, vel, flags, yaw, stun, dt);
+                _feetNow[i] = feet;
+                _visibleNow[i] = true;
                 var bot = (flags & MotorState.Bot) != 0;
-                var text = i == own ? "YOU" : bot ? "BOT" : $"P{i + 1}";
-                var label = _labels[i];
-                if (label.text != text)
-                    label.text = text;
-                label.transform.position = feet + Vector3.up * 1.45f;
-                if (camT != null)
-                    label.transform.rotation = camT.rotation;
+                _plates.Set(i, _photo == null, feet + Vector3.up * 1.3f, PlateText(cs, i, bot, i == own));
 
                 if (i == (FollowSlot >= 0 ? FollowSlot : own))
                 {
                     var target = feet + Vector3.up * 0.8f;
-                    if (_hasOwn && (feet - _lastOwnFeet).sqrMagnitude > 16f)
+                    var followed = FollowSlot >= 0 ? FollowSlot : own;
+                    if (followed != _followedSlot)
+                    {
+                        // G1: spectate switch → glide to the new player over 0.45 s (a cut if it is very far away).
+                        _followedSlot = followed;
+                        _blendFrom = _cameraTarget.position;
+                        _blendT = _hasOwn && (target - _blendFrom).sqrMagnitude < 60f * 60f ? 0f : 1f;
+                    }
+                    else if (_hasOwn && (feet - _lastOwnFeet).sqrMagnitude > 16f)
                         _cam.Warp(target - _cameraTarget.position); // respawn teleport
+
+                    if (_blendT < 1f)
+                    {
+                        _blendT = Mathf.Min(1f, _blendT + dt / 0.45f);
+                        target = Vector3.Lerp(_blendFrom, target, Mathf.SmoothStep(0f, 1f, _blendT));
+                    }
+
                     _cameraTarget.position = target;
                     _lastOwnFeet = feet;
                     _hasOwn = true;
@@ -237,6 +265,31 @@ namespace FallRush.Client
                         _cam.Shake(0.12f);
                 }
             }
+
+            // Crowd bumps (pushes are server-only; this is only the wobble you see).
+            for (var i = 0; i < Protocol.MaxPlayers; i++)
+            {
+                if (!_visibleNow[i])
+                    continue;
+                for (var j = i + 1; j < Protocol.MaxPlayers; j++)
+                {
+                    if (!_visibleNow[j])
+                        continue;
+                    var d = _feetNow[i] - _feetNow[j];
+                    if (Mathf.Abs(d.y) > 0.8f)
+                        continue;
+                    d.y = 0f;
+                    var m2 = d.sqrMagnitude;
+                    if (m2 > 0.7f * 0.7f || m2 < 1e-6f)
+                        continue;
+                    var k = (0.7f - Mathf.Sqrt(m2)) / 0.7f * dt * 6f;
+                    var n = d.normalized;
+                    _rushlings[i].Bump(n, k);
+                    _rushlings[j].Bump(-n, k);
+                }
+            }
+
+            _plates.Layout(Camera.main, own);
 
             if (FocusPoint.HasValue)
             {
@@ -396,7 +449,10 @@ namespace FallRush.Client
             ltr.offsetMin = ltr.offsetMax = Vector2.zero;
             _lagIcon.SetActive(false);
 
-            var hint = UiKit.Label(canvas, "Click to capture mouse · WASD move · Space jump · Shift/LMB dive · Esc options · F3 net HUD · Tab spectate (after finishing)", 16, UiKit.Ink);
+            _plates = new Nameplates(canvas, PhysxMotorWorld.GameplayMask());
+            var hint = UiKit.Label(canvas, "Click to capture the mouse · WASD move · Space jump · Shift / left click dive · 1–4 emote (lobby) · Esc settings · F1 hide this · Tab spectate", 16, UiKit.Ink);
+            _hint = hint.gameObject;
+            _hintUntil = Time.unscaledTime + 8f;
             var hrt = (RectTransform)hint.transform;
             hrt.anchorMin = hrt.anchorMax = hrt.pivot = new Vector2(0.5f, 0f);
             hrt.anchoredPosition = new Vector2(0f, 10f);
@@ -418,44 +474,48 @@ namespace FallRush.Client
 
         private void BuildOptions(Transform canvas)
         {
-            var panel = UiKit.Panel(canvas, new Vector2(460f, 400f), UiKit.CloudWhite);
+            var panel = SettingsPanel.Build(canvas, new Vector2(640f, 520f));
             panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(1f, 0f);
             panel.anchoredPosition = new Vector2(-16f, 48f);
+            UiKit.Label(panel, "Click the game to play · F1 controls · F3 net HUD", 16, UiKit.Grape);
             _options = panel.gameObject;
-            UiKit.Label(panel, "OPTIONS", 24, UiKit.Grape, FontStyle.Bold);
-            _optionsText = UiKit.Label(panel, string.Empty, 18, UiKit.Ink, FontStyle.Normal, 60);
-            UiKit.Button(panel, "Sensitivity −", UiKit.SkyLight, () => Bump(-0.02f));
-            UiKit.Button(panel, "Sensitivity +", UiKit.SkyLight, () => Bump(0.02f));
-            UiKit.Button(panel, "Toggle invert Y", UiKit.SunYellow, () =>
-            {
-                GameSettings.InvertY = !GameSettings.InvertY;
-                GameSettings.Save();
-                RefreshOptions();
-            });
-            UiKit.Button(panel, "Toggle reduced motion", UiKit.Mint, () =>
-            {
-                GameSettings.ReducedMotion = !GameSettings.ReducedMotion;
-                GameSettings.Save();
-                RefreshOptions();
-            });
-            foreach (var le in panel.GetComponentsInChildren<LayoutElement>())
-                if (le.minHeight >= 64)
-                    le.minHeight = 44;
-            RefreshOptions();
             _options.SetActive(false);
         }
 
-        private void Bump(float d)
+        private float _emoteNext;
+
+        private void OnEmote(int slot, int id)
         {
-            GameSettings.Sensitivity += d;
-            GameSettings.Save();
-            RefreshOptions();
+            var cs = ClientSim.Instance;
+            if (slot < 0 || slot >= _rushlings.Length || (cs != null && slot == cs.OwnSlot))
+                return;
+            _rushlings[slot].PlayEmote(id);
         }
 
-        private void RefreshOptions()
+        /// <summary>Celebration poses: qualified / eliminated during the round result, the champion afterwards.</summary>
+        private static RushlingVisuals.Pose PoseFor(ClientSim cs, MatchStateMessage m, int slot)
         {
-            _optionsText.text = $"Sensitivity {GameSettings.Sensitivity:F2} °/count · Invert Y {(GameSettings.InvertY ? "ON" : "off")}\n" +
-                                $"Reduced motion {(GameSettings.ReducedMotion ? "ON (no shake, no FOV kick)" : "off")}\nClick the game to play";
+            if (m == null || !cs.TryGetSlotInfo(slot, out var info))
+                return RushlingVisuals.Pose.None;
+            if (m.Phase == MatchPhase.RoundResult)
+                return info.Has(MatchSlotInfo.Alive) ? RushlingVisuals.Pose.Qualified : info.EliminatedRound == m.Round ? RushlingVisuals.Pose.Eliminated : RushlingVisuals.Pose.None;
+            if (m.Phase >= MatchPhase.Champion && m.Phase <= MatchPhase.Done && slot == m.Champion)
+                return RushlingVisuals.Pose.Champion;
+            return RushlingVisuals.Pose.None;
+        }
+
+        private string PlateText(ClientSim cs, int slot, bool bot, bool own)
+        {
+            var name = cs.TryGetSlotInfo(slot, out var info) && !string.IsNullOrEmpty(info.Name) ? info.Name : $"P{slot + 1}";
+            var kind = (byte)((bot ? 1 : 0) | (own ? 2 : 0));
+            if (_plateText[slot] == null || _plateKind[slot] != kind || !ReferenceEquals(_plateName[slot], name) && _plateName[slot] != name)
+            {
+                _plateName[slot] = name;
+                _plateKind[slot] = kind;
+                _plateText[slot] = Nameplates.LabelFor(name, bot, own);
+            }
+
+            return _plateText[slot];
         }
 
         // ------------------------------------------------------------------ photo mode (proof screenshots)
@@ -518,6 +578,12 @@ namespace FallRush.Client
             if (!NetBootstrap.IsMapScene(scene.name))
                 return;
             var boot = NetBootstrap.Instance;
+            if (NetBootstrap.IsPractice)
+            {
+                new GameObject("PracticeMode").AddComponent<PracticeMode>(); // DEV only (G1 §3.7)
+                return;
+            }
+
             if (boot == null || boot.IsServerRole || (boot.IsProbe && !SimProbe.ViewEnabled))
                 return;
             var view = new GameObject("SandboxView").AddComponent<SandboxView>();
