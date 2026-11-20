@@ -51,6 +51,38 @@ public static class ProjectSetup
         Debug.Log("[setup] M1 project setup complete");
     }
 
+    /// <summary>
+    /// TMP Essential Resources (fonts + TMP Settings). Needed by Solana.Unity-SDK's WalletAdapterUI prefab,
+    /// which references TMP's LiberationSans SDF. Our own UI uses legacy uGUI Text.
+    /// Batch: <c>-executeMethod ProjectSetup.ImportTmpEssentials</c>.
+    /// </summary>
+    [MenuItem("Fall Rush/Setup/Import TMP Essential Resources")]
+    public static void ImportTmpEssentials()
+    {
+        if (AssetDatabase.IsValidFolder("Assets/TextMesh Pro"))
+        {
+            Debug.Log("[setup] TMP Essential Resources already present");
+            return;
+        }
+
+        // ImportPackage completes on a later editor tick, so in batch mode (run WITHOUT -quit) exit from the callbacks.
+        AssetDatabase.importPackageCompleted += name =>
+        {
+            AssetDatabase.Refresh();
+            var ok = AssetDatabase.IsValidFolder("Assets/TextMesh Pro");
+            Debug.Log($"[setup] TMP Essential Resources imported ({name}): {ok}");
+            if (Application.isBatchMode)
+                EditorApplication.Exit(ok ? 0 : 1);
+        };
+        AssetDatabase.importPackageFailed += (name, error) =>
+        {
+            Debug.LogError($"[setup] TMP import failed ({name}): {error}");
+            if (Application.isBatchMode)
+                EditorApplication.Exit(1);
+        };
+        TMPro.TMP_PackageResourceImporter.ImportResources(importEssentials: true, importExamples: false, interactive: false);
+    }
+
     public static void ApplyPlayerSettings()
     {
         PlayerSettings.companyName = "Fall Rush";

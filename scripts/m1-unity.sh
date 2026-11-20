@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 UNITY="${UNITY_EDITOR:-/Applications/Unity/Hub/Editor/6000.3.28f1/Unity.app/Contents/MacOS/Unity}"
 LABEL="$1"; shift
 MODE=build
-if [[ "${1:-}" == "--tests" ]]; then MODE=tests; shift; fi
+if [[ "${1:-}" == "--tests" || "${1:-}" == "--no-quit" ]]; then MODE=noquit; shift; fi
 
 [[ -x "$UNITY" ]] || { echo "Unity not found at $UNITY (set UNITY_EDITOR)"; exit 1; }
 if pgrep -f "Unity.app/Contents/MacOS/Unity" >/dev/null; then
@@ -20,7 +20,7 @@ TIMEF="$ROOT/.m1-logs/$LABEL-$STAMP.time"
 SWAP_BEFORE="$(sysctl -n vm.swapusage)"
 
 ARGS=(-batchmode -nographics -projectPath "$ROOT/client-unity" -logFile "$LOG")
-# -quit must not be combined with -runTests (Unity docs: it quits before tests finish).
+# -quit must not be combined with -runTests (Unity docs: it quits before tests finish) or with methods that exit from a callback.
 [[ "$MODE" == build ]] && ARGS+=(-quit)
 
 echo "[m1] $LABEL → $LOG"

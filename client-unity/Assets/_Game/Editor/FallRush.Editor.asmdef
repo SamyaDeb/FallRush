@@ -4,7 +4,8 @@
     "references": [
         "FallRush.Shared",
         "FallRush.Net",
-        "Unity.Netcode.Runtime"
+        "Unity.Netcode.Runtime",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"

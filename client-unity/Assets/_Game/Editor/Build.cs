@@ -106,12 +106,14 @@ public static class Build
         var outBytes = DirSize(outDir);
         Debug.Log($"[build] result {label} {s.result} time={s.totalTime.TotalSeconds:F1}s reportedSize={s.totalSize} outDirBytes={outBytes} errors={s.totalErrors} warnings={s.totalWarnings}");
 
+        // Always surface report errors/warnings (a "Succeeded" build can still carry errors).
+        foreach (var step in report.steps)
+            foreach (var m in step.messages.Where(m => m.type != LogType.Log))
+                Debug.Log($"[build] report {m.type} in '{step.name}': {m.content.Split('\n')[0]}");
+
         if (s.result == BuildResult.Succeeded)
             return true;
 
-        foreach (var step in report.steps)
-            foreach (var m in step.messages.Where(m => m.type == LogType.Error || m.type == LogType.Exception))
-                Debug.LogError($"[build] {step.name}: {m.content}");
         Debug.LogError($"[build] FAILED {label}: {s.result}");
         return false;
     }

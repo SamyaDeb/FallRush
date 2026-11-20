@@ -9,7 +9,7 @@ namespace FallRush.Client
     /// <summary>Lobby: connection state, my client id, connected players, live RTT p50/p95, Reconnect.</summary>
     public sealed class LobbyScreen : MonoBehaviour
     {
-        private const float RefreshSeconds = 0.25f;
+        private const float RefreshSeconds = 0.2f;
 
         private Text _state;
         private Text _details;
