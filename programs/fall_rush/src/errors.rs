@@ -1,0 +1,46 @@
+use anchor_lang::prelude::*;
+
+/// doc 06 §5, plus `InvalidRuleset`, `InvalidMapPool`, `Overflow` (added in M0).
+#[error_code]
+pub enum FallRushError {
+    #[msg("Signer is not authorized for this instruction")]
+    Unauthorized,
+    #[msg("Game config is paused")]
+    Paused,
+    #[msg("Instruction not allowed in the current match status")]
+    InvalidStatus,
+    #[msg("Round number does not match the match state")]
+    InvalidRound,
+    #[msg("seq must equal match.event_seq")]
+    InvalidSequence,
+    #[msg("Slot index is outside the roster")]
+    InvalidSlot,
+    #[msg("Slot is not alive")]
+    SlotNotAlive,
+    #[msg("Qualified count would exceed the round target")]
+    TargetExceeded,
+    #[msg("Placement must equal qualified_count + 1")]
+    InvalidPlacement,
+    #[msg("Round cannot be resolved: slots still alive or nobody qualified")]
+    RoundNotResolved,
+    #[msg("player_count must be within 4..=20")]
+    InvalidPlayerCount,
+    #[msg("Exactly one remaining slot is required to crown a champion")]
+    InvalidChampion,
+    #[msg("Pick window is closed")]
+    PickWindowClosed,
+    #[msg("Duplicate pick")]
+    DuplicatePick,
+    #[msg("Pick list is full")]
+    PicksFull,
+    #[msg("VRF callback not expected in the current match status")]
+    InvalidVrfCallback,
+    #[msg("Match is already final")]
+    AlreadyFinal,
+    #[msg("Ruleset version/hash does not match the ruleset compiled into this program")]
+    InvalidRuleset,
+    #[msg("Map pool version/hash does not match the pool compiled into this program")]
+    InvalidMapPool,
+    #[msg("Arithmetic overflow")]
+    Overflow,
+}

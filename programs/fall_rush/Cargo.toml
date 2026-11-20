@@ -1,0 +1,36 @@
+[package]
+name = "fall_rush"
+version = "0.1.0"
+description = "Fall Rush match lifecycle on MagicBlock Ephemeral Rollups"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "fall_rush"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+# Pins the VRF queue to DEFAULT_EPHEMERAL_TEST_QUEUE (local MagicBlock stack) instead of
+# DEFAULT_EPHEMERAL_QUEUE (devnet/mainnet ER). Build with: anchor build -- --features localnet
+localnet = []
+
+[dependencies]
+anchor-lang = { version = "=1.0.2" }
+ephemeral-rollups-sdk = { version = "=0.16.2", features = ["anchor", "vrf"] }
+# sha256 for caller seed / transcript / deal (anchor-lang 1.0.2 no longer re-exports `hash`);
+# same version the SDK already pulls in (magicblock-delegation-program-api 3.1.0).
+solana-sha256-hasher = { version = "=3.1.0" }
+
+[dev-dependencies]
+serde_json = "1"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }
