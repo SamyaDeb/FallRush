@@ -72,7 +72,7 @@
   - `infra/gameserver.Dockerfile`
   - Solana.Unity-SDK import smoke test
 - **Verify:**
-  - the WebGL build opened in Chrome connects to the server running in local Docker, both through plain `ws` and through a local TLS proxy (Caddy) with `wss`;
+  - the WebGL build opened in Chrome connects to the server running in local Docker, both through plain `ws` and through a local TLS proxy (nginx 1.24 in Docker, the same server-block shape as the VPS) with `wss`;
   - Solana.Unity-SDK compiles under Unity 6.3 WebGL;
   - measured WebGL build time and memory recorded.
 

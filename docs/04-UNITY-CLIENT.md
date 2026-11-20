@@ -10,31 +10,42 @@ Both share the movement, hazard and deal code, which is what makes client predic
 
 ---
 
-## 1. Versions (VERIFIED 2026-11-18; pin in `Packages/manifest.json` + commit `packages-lock.json`)
+## 1. Versions (resolved and pinned in M1, 2026-11-18; `Packages/manifest.json` + `packages-lock.json` committed)
 
 | Package | Version | Note |
 |---|---|---|
-| Unity Editor | **6000.3.28f1 LTS** (macOS ARM64) | Modules: **Web Build Support**, **Linux Dedicated Server Build Support**, Linux Build Support (Mono) |
+| Unity Editor | **6000.3.28f1 LTS** (`8f082d2fe476`, macOS ARM64) | Modules: **Web Build Support**, **Linux Dedicated Server Build Support**, Linux Build Support (Mono). Installed with the standalone `unity` CLI (`~/.unity/bin/unity install-modules`) |
 | com.unity.netcode.gameobjects | **2.14.0** | Not 3.x (that needs 6000.7 beta) |
-| com.unity.transport | 2.6.0+ (NGO dependency; latest 2.7.5, pin after the M1 spike) | WebSockets for WebGL |
-| com.unity.dedicated-server | **2.0.2** | Multiplayer Roles, content stripping |
+| com.unity.transport | **2.7.5** (pinned explicitly; NGO's floor is 2.6.0) | WebSockets for WebGL. 2.7.5 worked for every M1 test, so it stays pinned |
+| com.unity.dedicated-server | **2.0.2** | Multiplayer Roles strip **GameObjects/components** only; assemblies are excluded with asmdef `defineConstraints` (`UNITY_SERVER`) — correction to the v2 text |
 | com.unity.multiplayer.playmode | **2.0.2** | Max 4 players; on 8 GB use **at most 1 virtual player** |
-| com.unity.cinemachine | **3.1.7** | |
-| com.unity.inputsystem | the version bundled with 6000.3 (pin at install) | |
-| com.unity.render-pipelines.universal | the version bundled with 6000.3 | |
-| com.solana.unity_sdk | git URL `https://github.com/magicblock-labs/Solana.Unity-SDK.git#v1.2.9` | Unity 6 support UNVERIFIED (issue #233 Unity 6 WebGL freeze is closed). M1 smoke test. |
-| com.unity.toolchain.macos-arm64-linux-x86_64 | 2.0.5 | Only if building the server with IL2CPP. **The MVP server uses Mono**, so it is not needed. |
+| com.unity.cinemachine | **3.1.7** | pulls com.unity.splines 2.9.1 |
+| com.unity.inputsystem | **1.20.1** | bundled with 6000.3 |
+| com.unity.render-pipelines.universal | **17.3.0** | bundled with 6000.3 |
+| com.unity.burst / collections / mathematics | 1.8.31 / 2.7.1 / 1.3.3 | resolved via UTP |
+| com.unity.nuget.newtonsoft-json | 3.2.2 | resolved (MPPM + SDK) |
+| com.unity.textmeshpro | 5.0.0 (Unity 6 shim to ugui 2.0.0) | pulled by the SDK; TMP Essential Resources imported for the SDK's wallet prefab |
+| com.unity.toolchain.macos-arm64-linux + sdk.linux-x86_64/arm64 + sysroot.base | **1.1.1** | **Added automatically by Unity** on every Linux build (`UnityEditor.LinuxStandalone.Extensions` → `InstallToolchainIfNeeded`); removing them is undone on the next Linux build, so they are pinned and committed. This is *not* the optional IL2CPP package `com.unity.toolchain.macos-arm64-linux-x86_64` 2.0.5 named in v2 — that one is still not installed |
+| com.solana.unity_sdk | git `https://github.com/magicblock-labs/Solana.Unity-SDK.git#1da8fd7fe9e035ad0f6fb627997f3f2a6f134475` | **🟡 pending approval.** Tag v1.2.9 (`3d139411`) **breaks the WebGL build** (§8). `1da8fd7f` = v1.2.9 + upstream fix (DLL renamed to `BouncyCastle.Cryptography.dll`, three broken asmdefs removed); no newer tag exists |
 
-**Disk:** about 10.5 GB for the editor and modules. Budget 15 GB with Library.
+**Removed from the template:** collab-proxy, visualscripting, timeline, multiplayer.center, ai.navigation.
+
+**Disk (measured 2026-11-18):** editor + 3 modules = 15 GB; `client-unity/Library/` = 4.7 GB after WebGL + Linux + macOS targets.
 
 ## 2. Transport: WebSockets everywhere (decision D-4 revised to WebGL)
 
 - **Why:** WebGL clients cannot use UDP. Every client in a match must share one transport.
-- **The server** listens with UTP WebSockets enabled (`UnityTransport.UseWebSockets = true`).
-- **TLS** terminates at the VPS's nginx (doc 13 §2). The browser connects with `wss://`, and the server sees plain `ws`.
-  - **UNVERIFIED:** UTP WebSocket behind a TLS-terminating proxy. **This is the M1 spike's first test.**
-  - Fallback: UTP's built-in secure WebSocket with certificates.
+- **The server** listens with UTP WebSockets, plain `ws` (`UseWebSockets = true`, `UseEncryption = false`), `SetConnectionData(true, "0.0.0.0", port, "0.0.0.0")`. The first argument `true` stops UTP's own `-port`/`-ip` parsing; our order is `-port` → `GAMESERVER_PORT` → 7777.
+- **TLS** terminates at the VPS's nginx (doc 13 §2). The browser connects with `wss://`, and the server sees plain `ws`. **VERIFIED locally in M1** (nginx 1.24.0 in Docker, self-signed cert, Chrome; `docs/proof/M1-transport.md`). The VPS run is §4.7 of the M1 brief.
+- **Exact WebGL client API for `wss` (from the UTP 2.7.5 / NGO 2.14.0 source):**
+  - `UseWebSockets = true; UseEncryption = true; SetConnectionData(true, host, port); ConnectionData.WebSocketPath = path; SetClientSecrets(host)`.
+  - UTP's WebGL `WebSocketNetworkInterface` builds `"wss://"` when a secure hostname is set (`SecureNetworkProtocolParameter.Hostname`, filled by `SetClientSecrets`) and `"ws://"` otherwise, then `new WebSocket(url)` in JS — **the browser does TLS**. Hostnames are allowed on 6000.1+ (`HOSTNAME_RESOLUTION_AVAILABLE`).
+  - `SetConnectionData` **replaces `ConnectionData` and drops `WebSocketPath`** — set the path afterwards.
+- **URL path:** supported (`ConnectionData.WebSocketPath`, default `/`). The UTP server compares the request path **exactly** (404 otherwise), so no query strings; it also requires an `HTTP/1.1` request line and `Connection: upgrade` (case-insensitive) → nginx needs `proxy_http_version 1.1` + `Upgrade`/`Connection` headers.
+- **Same-origin routing works:** `GET /` with `Upgrade: websocket` → game server, everything else → static WebGL (`infra/nginx/fallrush-m1.conf`, documented-safe `if` + `return 418` + named location). A WS-only server block (production `gs1.<domain>` shape) also works.
+- The fallback (UTP built-in secure WebSocket with certificates) was **not needed**.
 - **Consequence:** WebSocket is TCP, so everything is reliable and ordered. Snapshots go out at 15 Hz (tunable to 30 Hz). Loss shows up as jitter, so the interpolation buffer is 100 ms, adaptive up to 150 ms.
+- **Measured (M1, localhost):** RTT p50 ≈ 33 ms for both `ws` and `wss` on loopback ≈ one 30 Hz frame. Inference (not measured separately): sends are flushed on frame/tick boundaries and the server is capped at 30 fps, so the ping RTT includes up to ~1–2 frames of quantisation. Budget for this in M2's input/snapshot timing.
 
 ## 3. Folder layout
 
@@ -53,7 +64,9 @@ client-unity/Assets/_Game/
   Tests/{EditMode,PlayMode}
 ```
 
-`#if UNITY_SERVER` and Multiplayer Roles strip the client-only code and components (rendering, audio, UI, VFX) from the server build.
+**Assemblies (M1):** `FallRush.Shared` (no engine refs) · `FallRush.Net` · `FallRush.Client` (`!UNITY_SERVER`) · `FallRush.Server` (`UNITY_SERVER || UNITY_EDITOR || FALLRUSH_DEV_SERVER`) · `FallRush.Client.Wallet` (Editor + WebGL only, `!UNITY_SERVER`; the only one that references Solana.Unity-SDK) · `FallRush.Editor` · `FallRush.Tests.EditMode`.
+
+The `UNITY_SERVER` asmdef constraints strip client-only **code**; Multiplayer Roles strip client-only **components** (rendering, audio, UI, VFX) from the server build. Note: anything under `Resources/` ships in every build — the SDK copies its wallet prefabs to `Assets/Resources/SolanaUnitySDK/`, so they are in the server build too (strip in M5).
 
 ## 4. Netcode architecture (decision D-1: NGO + custom prediction)
 
@@ -156,7 +169,12 @@ See doc 17 §2.3. Per-player cosmetics come from `CosmeticPreset` (index into th
 
 ## 8. Wallet (decision D-8: Solana.Unity-SDK)
 
-- Optional "Connect Wallet" in the menu. WebGL uses the SDK's web wallet adapter (Phantom / Solflare); verify in M1.
+- Optional "Connect Wallet" in the menu. WebGL uses the SDK's web wallet adapter (Phantom / Solflare): `Web3.Instance.LoginWalletAdapter()` on a `Web3` component with `rpcCluster = DevNet` (the SDK sample's own path). Code: `Scripts/Client/Wallet/WalletSmokeTest.cs`, the only assembly referencing the SDK (Editor + WebGL only).
+- **M1 result (2026-11-18):**
+  - **Tag v1.2.9 breaks the WebGL build** on 6000.3: UnityLinker cannot resolve `BouncyCastle.Cryptography` 2.0.0.0 because the SDK ships it as `BouncyCastle.Crypto.dll` (upstream issue #257). **Pinned to upstream `main` `1da8fd7f`** (the fix, v1.2.9 + 2 commits) — 🟡 awaiting approval.
+  - With `1da8fd7f`: WebGL release ✅, Linux server build ✅ (SDK compiles into the server project but not into our server game code), EditMode ✅. Release size **+4.0 MB** compressed (11.83 → 15.83 MB).
+  - In Chrome the wallet picker (Phantom/Solflare) opens without errors or freezes. A real Phantom connect is **UNVERIFIED**.
+  - The adapter loads `@magicblock-labs/unity-wallet-adapter@1.2.1` from cdn.jsdelivr.net at runtime; self-host it in M5. The SDK copies prefabs into `Assets/Resources/SolanaUnitySDK/` (shipped in every build) and needs TMP Essential Resources.
 - **Purpose in Unity:** link a wallet for the Crown Capsule mint (signed nonce → Relay `/v1/wallet/verify`).
 - **Fan Picks** are done on the **web live page** with gum-sdk session keys (doc 07 §4.6).
   - Why there: the TS session-key path is proven in the official examples.
@@ -178,11 +196,14 @@ See doc 17 §2.3. Per-player cosmetics come from `CosmeticPreset` (index into th
   Unity -batchmode -nographics -quit -projectPath client-unity -buildTarget Linux64 -standaloneBuildSubtarget Server -executeMethod Build.Server
   ```
 
-  Mono backend, then a Docker image `fallrush-gameserver` (ubuntu base).
-- **WebGL:** `Build.WebGL` (Brotli compression, no exceptions in release, code stripping Medium).
+  Mono backend, then a Docker image `fallrush-gameserver` (ubuntu base). `-standaloneBuildSubtarget Server` is verified in the 6000.3 command-line docs.
+- **WebGL:** `Build.WebGL` (Brotli compression, no exceptions in release / "Explicitly Thrown" in dev, code stripping Medium, memory settings default).
   - Build on the M2 with the Editor closed (memory).
-  - Expect 10–20 min; UNVERIFIED, measure in M1.
   - Host the build behind the Next.js site at `/play`.
+- **Real commands (M1):** `pnpm m1:build:webgl` (dev), `pnpm m1:build:webgl:release`, `pnpm m1:build:server`, `pnpm m1:test:unity`, plus `pnpm m1:build:macserver` (Apple Silicon local test server). All go through `scripts/m1-unity.sh`: refuses to run while a Unity Editor is open, logs to `.m1-logs/`, wraps Unity in `/usr/bin/time -l`.
+- **Measured on the M2 Air (details: `docs/proof/M1-transport.md`):** WebGL release 523 s first / 294 s incremental; dev 714 s first / 238 s warm; Linux server 158 s first / 47–62 s incremental; peak RSS 1.1–1.5 GB; swap is used while other apps are open.
+- **Brotli serving decision:** Decompression Fallback **off**; nginx adds `Content-Encoding: br` + the right `Content-Type` per file (verified). Unity 6000.3 **never compresses development builds** (manual: "Development builds aren't compressed"), so dev builds serve raw `.wasm`/`.data`/`.js`. `chmod -R a+rX` the build output (Unity writes `.br` files as 0600).
+- **Flakiness seen:** twice the Unity licensing client timed out (`Timed-out after 30.00s, waiting for EntitlementDetailsResponse`) while the Mac was swapping heavily; Package Manager then loaded no packages and compilation failed. A plain re-run passed.
 
 ## 11. Tests
 

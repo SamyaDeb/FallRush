@@ -20,6 +20,8 @@ public static class Build
     public const string ServerOut = "Builds/Server";
     public const string ServerExe = "FallRushServer.x86_64";
     public const string ReleaseArg = "-fallrushRelease";
+    public const string MacDevServerOut = "Builds/MacDevServer";
+    public const string MacDevServerApp = "FallRushDevServer.app";
 
     /// <summary>Fixed scene lists. The server never loads client screens.</summary>
     public static readonly string[] ClientScenes = { ProjectSetup.BootScene, ProjectSetup.MenuScene, ProjectSetup.LobbyScene };
@@ -39,6 +41,30 @@ public static class Build
 
     /// <summary>Batch entry: Linux64, Dedicated Server subtarget, Mono.</summary>
     public static void Server() => BuildServer(exitWhenDone: true);
+
+    /// <summary>
+    /// Batch entry: LOCAL TEST ONLY. Native macOS (arm64, Mono) player that runs the same NetBootstrap server
+    /// path with <c>-batchmode -nographics -fallrushServer</c>. Exists because the Mono Linux x86_64 server
+    /// crashes under both Rosetta and QEMU emulation on Apple Silicon (Mono JIT x86-codegen.h:410 assertion).
+    /// The shipped server stays Linux x86_64 (Build.Server).
+    /// </summary>
+    public static void MacDevServer()
+    {
+        ProjectSetup.ApplyPlayerSettings();
+        var options = new BuildPlayerOptions
+        {
+            scenes = ServerScenes,
+            locationPathName = Path.Combine(MacDevServerOut, MacDevServerApp),
+            target = BuildTarget.StandaloneOSX,
+            targetGroup = BuildTargetGroup.Standalone,
+            subtarget = (int)StandaloneBuildSubtarget.Player,
+            extraScriptingDefines = new[] { "FALLRUSH_DEV_SERVER" },
+            options = BuildOptions.None,
+        };
+        var ok = Run("macdevserver", options, MacDevServerOut);
+        SavePlayerSettings();
+        Finish(ok, exitWhenDone: true);
+    }
 
     private static void BuildWebGL(bool release, bool exitWhenDone)
     {

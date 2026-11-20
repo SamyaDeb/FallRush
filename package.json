@@ -19,6 +19,8 @@
     "m1:build:server": "bash scripts/m1-unity.sh server -buildTarget Linux64 -standaloneBuildSubtarget Server -executeMethod Build.Server",
     "m1:test:unity": "bash scripts/m1-unity.sh editmode-tests --tests -runTests -testPlatform EditMode -testResults \"$PWD/.m1-logs/editmode-results.xml\"",
     "m1:up": "bash scripts/m1-certs.sh && chmod -R a+rX client-unity/Builds/WebGL && docker compose -f infra/docker-compose.m1.yml up -d --build",
-    "m1:down": "docker compose -f infra/docker-compose.m1.yml down"
+    "m1:down": "docker compose -f infra/docker-compose.m1.yml down; bash scripts/m1-macserver.sh stop",
+    "m1:build:macserver": "bash scripts/m1-unity.sh macserver -buildTarget OSXUniversal -executeMethod Build.MacDevServer",
+    "m1:up:mac": "bash scripts/m1-certs.sh && chmod -R a+rX client-unity/Builds/WebGL && bash scripts/m1-macserver.sh start && GAMESERVER_UPSTREAM=host.docker.internal:7777 docker compose -f infra/docker-compose.m1.yml up -d --no-deps nginx"
   }
 }

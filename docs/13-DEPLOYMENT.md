@@ -38,8 +38,11 @@ docker compose (infra/docker-compose.prod.yml), every port bound to 127.0.0.1 on
 - **Resource caps:** Docker `cpus` / `mem_limit` per service so Fall Rush cannot starve the existing site. Starting budget: each game server 0.75 CPU / 1 GB, relay 0.25 / 512 MB, postgres 0.25 / 512 MB, web 0.25 / 512 MB. Tune with measurements.
 - **Deploys:** build images locally (server image is linux/amd64, which matches the VPS), `docker save | ssh … docker load` or a private registry, then `docker compose up -d`. No CI in the hackathon.
 
-**UNVERIFIED (checked in M1 and M6):**
-- UTP WebSocket behind nginx TLS termination (M1 tests the same nginx config locally, then on the VPS).
+**M1 result (2026-11-18):**
+- **Verified locally:** UTP WebSocket behind **nginx 1.24.0** TLS termination. Two Chrome clients reached the Lobby over `wss://localhost:8443` (same origin: static + upgrade on `/`) and the nginx access log shows `GET / HTTP/1.1" 101`. Config: `infra/nginx/fallrush-m1.conf` (the `server` block shape for `gs1.<domain>` is the `:8444` block, upstream `127.0.0.1:7777`).
+- **Brotli:** nginx serves Unity's pre-compressed `.br` files with `Content-Encoding: br` and the right `Content-Type` (`application/wasm`, `application/javascript`, `application/octet-stream`) — no brotli module needed, **Decompression Fallback off**. Unity writes the `.br` files with mode 0600: `chmod -R a+rX` the build before nginx serves it.
+- **UNVERIFIED:** the Linux x86_64 server **image** has not run yet. On the Apple Silicon dev machine the Mono player crashes at start-up under both Rosetta and QEMU emulation (`mono/arch/amd64/../x86/x86-codegen.h:410 offset == (gint32)offset`), an emulator address-layout issue, not a code bug. Local transport tests therefore used a native macOS dev server build (same code). The first real run of `fallrush-gameserver` is on the VPS (M1 §4.7, needs approval).
+- **UNVERIFIED:** UTP WebSocket behind the VPS's nginx + Let's Encrypt on an sslip.io name (M1 §4.7).
 - CPU headroom for two 30 Hz Unity servers on 2 shared vCPUs (measure tick p95 in M6; drop to one game server if needed).
 
 **Fallback:** a second VPS (Hostinger KVM 4, or any 4 vCPU / 8 GB box) with the same compose file.
@@ -66,8 +69,11 @@ PUBLIC_WEB_ORIGIN=
 # game server
 RELAY_INTERNAL_URL=
 GAMESERVER_ID=gs-1
+GAMESERVER_PORT=7777               # UTP WebSocket listen port in the container (server: -port arg > GAMESERVER_PORT > 7777); host-bound to 127.0.0.1
 GAMESERVER_PUBLIC_WS_URL=
 ```
+
+**Game server image (M1):** `infra/gameserver.Dockerfile` — `linux/amd64` `ubuntu:22.04` + `ca-certificates`, non-root user, `ENTRYPOINT ["./FallRushServer.x86_64","-batchmode","-nographics","-logFile","-"]` (the Dedicated Server player prints "Unknown arg" for `-batchmode`/`-nographics`; harmless), TCP `HEALTHCHECK`. Image 262 MB (68 MB content) with the SDK in the project. Whether more apt packages are needed is UNVERIFIED until it runs on real x86_64.
 
 ## 4. Devnet release steps
 

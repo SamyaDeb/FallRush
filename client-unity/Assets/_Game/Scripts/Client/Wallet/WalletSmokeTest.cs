@@ -14,7 +14,7 @@ namespace FallRush.Client.Wallet
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Register()
         {
-            WalletBridge.ProviderLabel = "Solana.Unity-SDK v1.2.9 · devnet · connect only";
+            WalletBridge.ProviderLabel = "Solana.Unity-SDK 1.2.9 @1da8fd7f · devnet · connect only";
             WalletBridge.ConnectAsync = ConnectAsync;
         }
 

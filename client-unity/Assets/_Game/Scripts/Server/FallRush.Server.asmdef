@@ -13,7 +13,7 @@
     "precompiledReferences": [],
     "autoReferenced": false,
     "defineConstraints": [
-        "UNITY_SERVER || UNITY_EDITOR"
+        "UNITY_SERVER || UNITY_EDITOR || FALLRUSH_DEV_SERVER"
     ],
     "versionDefines": [],
     "noEngineReferences": false

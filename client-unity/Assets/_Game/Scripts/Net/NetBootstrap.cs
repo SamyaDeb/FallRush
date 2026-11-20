@@ -29,6 +29,7 @@ namespace FallRush.Net
         public const string MenuScene = "Menu";
         public const string LobbyScene = "Lobby";
         private const string ServerArg = "-fallrushServer";
+        private const string ListenArg = "-fallrushListen"; // dev only: e.g. 127.0.0.1 for the local Mac dev server
         private const string ProtoOverrideQueryKey = "proto";
 
         [SerializeField] private NetClientConfig clientConfig;
@@ -130,8 +131,10 @@ namespace FallRush.Net
             if (warning != null)
                 Debug.LogWarning($"[gs] {warning}");
 
+            var listen = GetArgValue(ListenArg) ?? "0.0.0.0";
+
             // forceOverrideCommandLineArgs: true — we already resolved -port ourselves (arg → env → default).
-            Transport.SetConnectionData(true, "0.0.0.0", ListenPort, "0.0.0.0");
+            Transport.SetConnectionData(true, listen, ListenPort, listen);
             Transport.UseWebSockets = true;
             Transport.UseEncryption = false; // TLS terminates at nginx (doc 04 §2).
 
@@ -145,7 +148,7 @@ namespace FallRush.Net
 
             if (Manager.StartServer())
             {
-                Debug.Log($"[gs] listening id={id} ws://0.0.0.0:{ListenPort}{Transport.ConnectionData.WebSocketPath ?? "/"} (port from {portSource}) protocol={Protocol.Version} build={Application.version} tickRate={Manager.NetworkConfig.TickRate} targetFps={Application.targetFrameRate}");
+                Debug.Log($"[gs] listening id={id} ws://{listen}:{ListenPort}{Transport.ConnectionData.WebSocketPath ?? "/"} (port from {portSource}) protocol={Protocol.Version} build={Application.version} tickRate={Manager.NetworkConfig.TickRate} targetFps={Application.targetFrameRate}");
             }
             else
             {
@@ -351,6 +354,15 @@ namespace FallRush.Net
                 return;
             State = s;
             StateChanged?.Invoke();
+        }
+
+        private static string GetArgValue(string arg)
+        {
+            var args = Environment.GetCommandLineArgs();
+            for (var i = 0; i < args.Length - 1; i++)
+                if (string.Equals(args[i], arg, StringComparison.OrdinalIgnoreCase))
+                    return args[i + 1];
+            return null;
         }
 
         private static bool HasArg(string arg)
