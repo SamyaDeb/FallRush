@@ -188,7 +188,7 @@ Proof: [`docs/proof/M3-race.md`](docs/proof/M3-race.md) · QA table [`docs/proof
 - **M6:** per-obstacle phase is `FNV-1a(seed_le8 ‖ obstacleId)` → replace with `H(vrf_seed ‖ round ‖ obstacleId)`; `HazardSeed` is u64 in `round` (widen to 32 B). Put `modifiers_v1` and the map content hashes into a ruleset/map-pool v2 committed on-chain.
 
 ## Next milestones
-- **M4:** match director + Goo Tower / Star Scramble / Crumble Shelf + BotBrain (`docs/14`).
+- **M4:** match director + Goo Tower / Star Scramble / Crumble Shelf + BotBrain (`docs/14`), prompt `docs/prompts/M4-PROMPT.md` (one run, no checkpoint pause; no VPS; decisions M4-1…M4-11 made by Claude). Ready to run.
 
 ## M2 kickoff notes (done; kept for history)
 - Agreed 2026-11-18: VPS check first (✅ done in M1 §4.7), SDK pin (D-15 ✅), **one M2 prompt with an M2a → M2b checkpoint**, and **Bolt v1 built in Unity from shapes** (no Blender).
