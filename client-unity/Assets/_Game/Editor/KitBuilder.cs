@@ -629,19 +629,32 @@ public static class KitBuilder
     /// motor world from the pure lid state) and N × N lid visuals (dynamic, under the hazard root; flipped / lit / dropped
     /// by the client). The grid's top is <paramref name="center"/>.y.
     /// </summary>
-    public static HazardLidGrid LidGrid(Transform hz, string id, Vector3 center, int n, int loopTicks = 0)
+    /// <param name="def">G4.5: the grid def to use (its origin / top are overwritten from <paramref name="center"/>); null = <see cref="LidGridDef.Default"/>.</param>
+    /// <param name="variantB">G4.5: variant B's def (same geometry; schedule only), or null = the same as A.</param>
+    /// <param name="perLidVisuals">G4.5: false = no per-lid GameObjects (the client draws the grid instanced, <c>LidGridView</c>).</param>
+    public static HazardLidGrid LidGrid(Transform hz, string id, Vector3 center, int n, int loopTicks = 0, LidGridDef? def = null, LidGridDef? variantB = null, bool perLidVisuals = true)
     {
         var root = new GameObject($"LidGrid_{id}").transform;
         root.SetParent(hz, false);
         root.position = center;
         var g = root.gameObject.AddComponent<HazardLidGrid>();
         g.obstacleId = id;
-        g.def = LidGridDef.Default(Mm(center.x), Mm(center.y), Mm(center.z), n);
+        g.def = def ?? LidGridDef.Default(Mm(center.x), Mm(center.y), Mm(center.z), n);
+        g.def.OriginXMm = Mm(center.x);
+        g.def.TopMm = Mm(center.y);
+        g.def.OriginZMm = Mm(center.z);
+        g.def.N = n;
         g.def.LoopTicks = loopTicks;
-        g.variantB = g.def;
+        g.variantB = variantB ?? g.def;
+        g.variantB.OriginXMm = g.def.OriginXMm;
+        g.variantB.TopMm = g.def.TopMm;
+        g.variantB.OriginZMm = g.def.OriginZMm;
+        g.variantB.N = n;
+        g.variantB.LoopTicks = loopTicks;
+        g.hasVariantB = variantB.HasValue;
         var d = g.def;
         g.lids = new Collider[d.Count];
-        g.visuals = new Transform[d.Count];
+        g.visuals = new Transform[perLidVisuals ? d.Count : 0];
         var lid = d.LidMm * 0.001f;
         var th = d.ThicknessMm * 0.001f;
         var colRoot = new GameObject("LidColliders").transform;
@@ -654,6 +667,8 @@ public static class KitBuilder
             Object.DestroyImmediate(col.GetComponent<MeshRenderer>());
             Object.DestroyImmediate(col.GetComponent<MeshFilter>());
             g.lids[i] = col.GetComponent<Collider>();
+            if (!perLidVisuals)
+                continue;
             var v = new GameObject($"Lid_{i}").transform;
             v.SetParent(root, false);
             v.position = c;

@@ -18,7 +18,7 @@ MonoBehaviour:
   mode: Final
   minPlayers: 2
   maxPlayers: 12
-  targetDuration: {x: 60, y: 120}
+  targetDuration: {x: 60, y: 100}
   timerCapSeconds: 120
   checkpointCount: 0
   variants: 2

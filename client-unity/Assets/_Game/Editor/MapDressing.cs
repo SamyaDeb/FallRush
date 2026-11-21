@@ -426,21 +426,24 @@ public static class MapDressing
         }
     }
 
-    /// <summary>Crumble Shelf: the shelves stand inside a giant claw machine. Glass panes only above the top shelf's reach
-    /// (y ≥ 14.5), the cabinet below the kill plane, a bigger claw.</summary>
+    /// <summary>Lid Flip (G4.5, map key CrumbleShelf): the two lid shelves stand inside a giant claw machine (posts at
+    /// ±10.6 m, outside the 16.7 m top shelf). Glass panes only above hop and knock reach (y ≥ 10), the cabinet below the
+    /// kill plane (y −6), a header ring (no ceiling slab over the shelves: the camera looks down through it).</summary>
     private static void CrumbleShelf(MeshBuilder mb, MeshBuilder glass, System.Random rng)
     {
-        const float f = 9.6f;
+        const float f = CrumbleShelfBuilder.Frame;
         foreach (var (n, t) in new[] { (Vector3.forward, Vector3.right), (Vector3.back, Vector3.right), (Vector3.right, Vector3.forward), (Vector3.left, Vector3.forward) })
-            glass.Add(MapArt.BevelBoxRaw(new Vector3(2f * f, 5.2f, 0.05f), Color.white, Color.white, Color.white, 0f, 0f), Matrix4x4.TRS(n * f + Vector3.up * 17.2f, Quaternion.LookRotation(n), new Vector3(2f * f, 5.2f, 0.05f)));
+            glass.Add(MapArt.BevelBoxRaw(new Vector3(2f * f, 9.6f, 0.05f), Color.white, Color.white, Color.white, 0f, 0f), Matrix4x4.TRS(n * f + Vector3.up * 14.9f, Quaternion.LookRotation(n), new Vector3(2f * f, 9.6f, 0.05f)));
         // Cabinet under the kill plane (y −6): magenta body, a prize door, a coin slot and buttons.
-        Block(mb, new Vector3(0f, -11f, 0f), new Vector3(2f * f + 1f, 9f, 2f * f + 1f), Color.Lerp(P.magenta, Color.white, 0.25f), P.magenta);
-        Block(mb, new Vector3(0f, -6.6f, 0f), new Vector3(2f * f + 1.6f, 0.6f, 2f * f + 1.6f), P.sunYellow, P.sunYellow);
-        Block(mb, new Vector3(5f, -11f, -f - 0.55f), new Vector3(4f, 3.2f, 0.2f), P.ink, P.ink);
+        Block(mb, new Vector3(0f, -11.2f, 0f), new Vector3(2f * f + 1f, 9f, 2f * f + 1f), Color.Lerp(P.magenta, Color.white, 0.25f), P.magenta);
+        Block(mb, new Vector3(0f, -6.8f, 0f), new Vector3(2f * f + 1.6f, 0.6f, 2f * f + 1.6f), P.sunYellow, P.sunYellow);
+        Block(mb, new Vector3(5f, -11.2f, -f - 0.55f), new Vector3(4f, 3.2f, 0.2f), P.ink, P.ink);
         for (var i = 0; i < 3; i++)
-            mb.Cylinder(new Vector3(-5f + i * 1.6f, -9f, -f - 0.5f), new Vector3(-5f + i * 1.6f, -9f, -f - 0.9f), 0.5f, Party[i], 12);
-        // Top: a header with lights.
-        Block(mb, new Vector3(0f, 21.4f, 0f), new Vector3(2f * f + 1.2f, 2.6f, 2f * f + 1.2f), P.walkTop, P.grape);
+            mb.Cylinder(new Vector3(-5f + i * 1.6f, -9.2f, -f - 0.5f), new Vector3(-5f + i * 1.6f, -9.2f, -f - 0.9f), 0.5f, Party[i], 12);
+        // Header ring with lights (four beams, open in the middle).
+        foreach (var (c, sz) in new[] { (new Vector3(0f, 21.4f, f), new Vector3(2f * f + 1.2f, 2.6f, 1.2f)), (new Vector3(0f, 21.4f, -f), new Vector3(2f * f + 1.2f, 2.6f, 1.2f)),
+                     (new Vector3(f, 21.4f, 0f), new Vector3(1.2f, 2.6f, 2f * f + 1.2f)), (new Vector3(-f, 21.4f, 0f), new Vector3(1.2f, 2.6f, 2f * f + 1.2f)) })
+            Block(mb, c, sz, P.walkTop, P.grape);
         for (var i = 0; i < 16; i++)
         {
             var x = -f + i * (2f * f / 15f);
@@ -450,7 +453,7 @@ public static class MapDressing
         for (var i = 0; i < 8; i++)
         {
             var a = i * Mathf.PI / 4f;
-            Island(mb, new Vector3(Mathf.Cos(a) * 34f, -4f - i % 3 * 6f, Mathf.Sin(a) * 34f), 6f, rng);
+            Island(mb, new Vector3(Mathf.Cos(a) * 36f, -4f - i % 3 * 6f, Mathf.Sin(a) * 36f), 6f, rng);
         }
     }
 

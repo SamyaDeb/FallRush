@@ -38,6 +38,9 @@ namespace FallRush.Net
         // G4 kit
         public HazardRollingBall[] rollingBalls = new HazardRollingBall[0];
         public HazardLidGrid[] lidGrids = new HazardLidGrid[0];
+        [Tooltip("G4.5: hazard tick the spinner bars start sweeping (variant A / B) on a map without a crumble grid; int.MinValue = from the start.")]
+        public int sweeperStartA = int.MinValue;
+        public int sweeperStartB = int.MinValue;
 
         [Tooltip("Ordered checkpoints (race maps); the last is the finish.")]
         public RaceCheckpoint[] checkpoints = new RaceCheckpoint[0];
@@ -149,6 +152,8 @@ namespace FallRush.Net
                 h.SweeperStartT = grids[0].SpinnerStart(in q);
                 cols.Tiles = grids[0].tiles;
             }
+            else if (sweeperStartA != int.MinValue)
+                h.SweeperStartT = q.Variant == 1 && sweeperStartB != int.MinValue ? sweeperStartB : sweeperStartA; // G4.5 Lid Flip
 
             var fb = new FallingBlockDef[Len(fallingBlocks)];
             cols.Blocks = new Collider[fb.Length];

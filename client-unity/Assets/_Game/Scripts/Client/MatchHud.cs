@@ -553,7 +553,7 @@ namespace FallRush.Client
             "Race" => "Tip: dive (Shift) to reach further; jump right after a belly-flop to skip the slide",
             "Survival" => "Tip: the inner lanes are safe and slow, the outer lanes fast and risky",
             "Skill" => "Tip: spring pads launch you to the golden-star islands",
-            "Final" => "Tip: tiles drop 1 s after you touch them; top-shelf tiles come back",
+            "Final" => "Tip: yellow lids flip open 1 s later: step off! A fall lands on the lower shelf once",
             _ => string.Empty,
         };
 

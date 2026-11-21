@@ -13,7 +13,9 @@ namespace FallRush.Shared
     /// <item><b>Skill:</b> chases the best reachable star (value over distance; dropped stars too), uses a spring pad for an
     /// island's golden star, steers clear of bumpers and the rim.</item>
     /// <item><b>Final:</b> keeps moving onto untouched tiles away from other players, drops to the shelf below when its
-    /// shelf is nearly gone, jumps / dives the spinner bars.</item>
+    /// shelf is nearly gone, jumps / dives the spinner bars. G4.5 Lid Flip: stands on the lid that looks safest (not
+    /// yellow, not open, not pulsing magenta; inner rings, no crowd, no open or yellow lid on the way), moves when its lid
+    /// lights up (seen with a per-tier perception lag), hops open lids, jumps the sweeper bar; the same on the lower shelf.</item>
     /// </list>
     /// <b>Tiers</b> (from the match seed): reaction delay on steering, a slow steering wobble, late jump presses (imperfect
     /// timing at gaps), a run-speed scale, and a chance to hesitate after waiting at doors / bars / lifts. Reference = none
@@ -767,6 +769,8 @@ namespace FallRush.Shared
 
         private InputCmd FinalPlan(uint tick, in MotorState s)
         {
+            if (_hz.LidGrids.Length > 0)
+                return LidPlan(tick, in s); // G4.5 Lid Flip
             if (_hz.Grids.Length == 0 || _hz.Reactive == null)
                 return new InputCmd { Tick = tick };
             var g = _hz.Grids[0];
@@ -861,6 +865,250 @@ namespace FallRush.Shared
             var cmd = SteerTo(tick, in s, tx, tz);
             ReactToBars(tick, in s, ref cmd);
             return cmd;
+        }
+    
+        // ------------------------------------------------------------------ final: lids (G4.5 Lid Flip)
+
+        private LidState[] _lidSeen = Array.Empty<LidState>();
+        private int[] _lidScr = Array.Empty<int>();
+        private int _lidGrid = -1;
+        private uint _lidRescoreAt;
+        private int _lidNoticedLid = -1;
+        private uint _lidIgnoreUntil;
+        private readonly int[] _lidBest = new int[5];
+        private readonly double[] _lidBestScore = new double[5];
+
+        /// <summary>LID_FLIP debug counters (QA).</summary>
+        public int LidHops, LidMoves, LidMisjudges;
+
+        /// <summary>How often (%) a lid lighting under the bot is noticed late (G4.5 tuning: what ends rounds on a shelf without a sweeper).</summary>
+        public static int LidMisjudgePctNormal = 30;
+
+        /// <summary>Extra misjudge chance (%, non-reference tiers) once only the inner 3 × 3s are left (G4.5 tuning: the end-game pressure).</summary>
+        public static int LidLateMisjudgePct = 20;
+
+        private int LidMisjudgePct => Tier switch { BotTier.Reference => 0, BotTier.Good => LidMisjudgePctNormal / 3, BotTier.Normal => LidMisjudgePctNormal, _ => LidMisjudgePctNormal * 3 / 2 };
+
+        /// <summary>What a player of this tier misses: the lid state is read this many ticks late (reaction), more on a bad moment.</summary>
+        private int LidLagBase => Tier switch { BotTier.Reference => 0, BotTier.Good => 3, BotTier.Normal => 9, _ => 12 };
+
+        /// <summary>The highest lid grid whose top is at or below the feet (+0.3 m), or −1 (below every shelf).</summary>
+        private int LidGridUnder(in MotorState s)
+        {
+            var best = -1;
+            for (var g = 0; g < _hz.LidGrids.Length; g++)
+                if (s.PosY >= _hz.LidGrids[g].TopMm - 300 && (best < 0 || _hz.LidGrids[g].TopMm > _hz.LidGrids[best].TopMm))
+                    best = g;
+            return best;
+        }
+
+        private static bool LidSafe(LidState st) => st == LidState.Idle;
+
+        private InputCmd LidPlan(uint tick, in MotorState s)
+        {
+            var gi = LidGridUnder(in s);
+            if (gi < 0)
+                return new InputCmd { Tick = tick };
+            ref readonly var d = ref _hz.LidGrids[gi];
+            var t = _hz.Time(tick);
+            if (_lidSeen.Length < d.Count)
+            {
+                _lidSeen = new LidState[d.Count];
+                _lidScr = new int[d.Count];
+            }
+
+            // What this bot sees: the pure lid state (yellow, open, magenta) a reaction lag ago.
+            HazardMath.LidStates(in d, Math.Max(0, t - LidLagBase), _lidSeen, _lidScr);
+            var grounded = s.Has(MotorState.Grounded);
+            var under = grounded ? d.LidUnder(s.PosX, s.PosY, s.PosZ) : -1;
+            var underLit = under >= 0 && !LidSafe(_lidSeen[under]);
+            if (underLit && under != _lidNoticedLid)
+            {
+                _lidNoticedLid = under;
+                _lidIgnoreUntil = 0;
+                // A bad moment (the tiers' misjudgement, what ends rounds): the bot does not notice its lid lighting up
+                // for 14–26 more ticks (0.5–0.9 s of the 1 s telegraph) and keeps standing.
+                // After the top shelf's last ring retires (only the 3 × 3s are left, the waves at full pace) players crack more.
+                var late = _hz.LidGrids[0].RingRetireTicks != null && _hz.LidGrids[0].RingRetireTicks.Length > 0 && t >= _hz.LidGrids[0].RingRetireTicks[_hz.LidGrids[0].RingRetireTicks.Length - 1];
+                if (Next() % 100 < (uint)(LidMisjudgePct + (late && Tier != BotTier.Reference ? LidLateMisjudgePct : 0)))
+                {
+                    _lidIgnoreUntil = tick + 14 + Next() % 13;
+                    LidMisjudges++;
+                }
+            }
+            else if (!underLit)
+                _lidNoticedLid = -1;
+
+            if (underLit && tick < _lidIgnoreUntil)
+            {
+                var stay = new InputCmd { Tick = tick };
+                ReactToBars(tick, in s, ref stay);
+                return stay;
+            }
+
+            // Noticed late: a panic hop toward the new target (a player jumps when the lid starts to go).
+            var panic = underLit && _lidIgnoreUntil != 0 && tick >= _lidIgnoreUntil;
+            if (panic)
+                _lidIgnoreUntil = 0;
+
+            var sweeping = _hz.Sweepers.Length > 0 && t + 30 >= _hz.SweeperStartT;
+            var targetBad = _target < 0 || _lidGrid != gi || _target >= d.Count || !LidSafe(_lidSeen[_target]);
+            if (targetBad || underLit || tick >= _lidRescoreAt)
+            {
+                var prev = _lidGrid == gi ? _target : -1;
+                _target = PickLid(in d, in s, prev, sweeping, under);
+                _lidGrid = gi;
+                _lidRescoreAt = tick + 9;
+                if (_target != prev)
+                {
+                    _targetSince = tick;
+                    LidMoves++;
+                }
+            }
+
+            if (_target < 0)
+            {
+                // Nothing safe in view: hold still (or keep falling toward the middle).
+                var hold = SteerTo(tick, in s, d.OriginXMm, d.OriginZMm);
+                if (grounded && under >= 0 && LidSafe(_lidSeen[under]))
+                    hold.MoveX = hold.MoveY = 0;
+                ReactToBars(tick, in s, ref hold);
+                return hold;
+            }
+
+            d.LidCenterMm(_target, out var tx, out _, out var tz);
+            var cmd = SteerTo(tick, in s, tx, tz);
+            long dx = tx - s.PosX, dz = tz - s.PosZ;
+            var dist = Math.Sqrt((double)dx * dx + dz * dz);
+            if (panic && grounded)
+            {
+                // Half the time the startled hop goes straight up (it still leaves the lid later than the flip).
+                if (Next() % 2 == 0)
+                    cmd.MoveX = cmd.MoveY = 0;
+                cmd.Buttons |= InputCmd.JumpPressed | InputCmd.JumpHeld;
+                LidHops++;
+            }
+            else if (dist < 220 && grounded)
+                cmd.MoveX = cmd.MoveY = 0;
+            else if (grounded && dist > 900)
+            {
+                // Hop an open (or no-longer-safe) lid between us and the target: look 0.8 m ahead.
+                var ax = s.PosX + (int)(dx / dist * 800);
+                var az = s.PosZ + (int)(dz / dist * 800);
+                var ahead = d.LidUnder(ax, d.TopMm, az);
+                if (ahead >= 0 && ahead != under && !HazardMath.LidSolid(_lidSeen[ahead]))
+                {
+                    cmd.Buttons |= InputCmd.JumpPressed | InputCmd.JumpHeld;
+                    LidHops++;
+                }
+            }
+
+            ReactToBars(tick, in s, ref cmd);
+            return cmd;
+        }
+
+        /// <summary>
+        /// The lid to stand on: the lowest score over the safe-looking lids (distance, outer ring, crowding, the sweeper hub,
+        /// a small preference for staying), then the five best re-scored with the way there (open or yellow lids crossed).
+        /// </summary>
+        private int PickLid(in LidGridDef d, in MotorState s, int current, bool sweeping, int under)
+        {
+            var k = _lidBest.Length;
+            for (var i = 0; i < k; i++)
+            {
+                _lidBest[i] = -1;
+                _lidBestScore[i] = double.MaxValue;
+            }
+
+            for (var i = 0; i < d.Count; i++)
+            {
+                if (!LidSafe(_lidSeen[i]))
+                    continue;
+                d.LidCenterMm(i, out var x, out _, out var z);
+                long dx = x - s.PosX, dz = z - s.PosZ;
+                var dist = Math.Sqrt((double)dx * dx + dz * dz);
+                var ring = d.Ring(i);
+                var score = dist + ring * 650.0;
+                if (ring >= 2 && ring == d.Mid)
+                    score += 900; // the outer ring of a shelf goes first (and the top's misses the shelf below)
+                if (sweeping && ring == 0)
+                    score += 2600; // the sweeper's hub: always in the bar
+                else if (sweeping && ring == 1 && (i % d.N == d.Mid || i / d.N == d.Mid))
+                    score += 700;  // next to the hub the bar passes too slowly to hop
+                if (i == current)
+                    score -= 700;
+                if (i == under)
+                    score -= 400;
+                for (var o = 0; o < SimCore.MaxSlots; o++)
+                {
+                    if (o == Slot || _others == null || !_others(o, out var os))
+                        continue;
+                    long ox = x - os.PosX, oz = z - os.PosZ;
+                    if (Math.Abs(os.PosY - d.TopMm) > 1500)
+                        continue;
+                    var od = Math.Sqrt((double)ox * ox + oz * oz);
+                    if (od < 2200)
+                        score += (2200 - od) * 1.1;
+                }
+
+                if (Tier != BotTier.Reference)
+                    score += Next() % 500;
+                for (var j = 0; j < k; j++)
+                {
+                    if (score >= _lidBestScore[j])
+                        continue;
+                    for (var m = k - 1; m > j; m--)
+                    {
+                        _lidBest[m] = _lidBest[m - 1];
+                        _lidBestScore[m] = _lidBestScore[m - 1];
+                    }
+
+                    _lidBest[j] = i;
+                    _lidBestScore[j] = score;
+                    break;
+                }
+            }
+
+            var best = -1;
+            var bestScore = double.MaxValue;
+            for (var j = 0; j < k; j++)
+            {
+                var i = _lidBest[j];
+                if (i < 0)
+                    continue;
+                d.LidCenterMm(i, out var x, out _, out var z);
+                long dx = x - s.PosX, dz = z - s.PosZ;
+                var dist = Math.Sqrt((double)dx * dx + dz * dz);
+                var score = _lidBestScore[j];
+                // The way there: every 0.6 m, an open lid costs a hop, a yellow one may open under us.
+                var steps = (int)(dist / 600);
+                var last = under;
+                for (var q = 1; q < steps; q++)
+                {
+                    var px = s.PosX + (int)(dx * q / (double)steps);
+                    var pz = s.PosZ + (int)(dz * q / (double)steps);
+                    var l = d.LidUnder(px, d.TopMm, pz);
+                    if (l == last || l == i)
+                        continue;
+                    last = l;
+                    if (l < 0)
+                        score += 6000;
+                    else if (_lidSeen[l] == LidState.Lit)
+                        score += 1800;
+                    else if (!HazardMath.LidSolid(_lidSeen[l]))
+                        score += 1200;
+                    else if (_lidSeen[l] == LidState.RetireWarn)
+                        score += 600;
+                }
+
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    best = i;
+                }
+            }
+
+            return best;
         }
     }
 }

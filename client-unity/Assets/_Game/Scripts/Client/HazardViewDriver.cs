@@ -15,7 +15,8 @@ namespace FallRush.Client
     /// <item>Mallet heads glow during their wind-up (<see cref="HazardMath.MalletWindup"/>), before each pass through the bottom.</item>
     /// <item>Conveyor chevrons light up in a travelling wave in the belt direction (speed-true).</item>
     /// <item>G4.1a rolling balls are placed and spun from the pure lane pose; the chute light flashes before each release.</item>
-    /// <item>G4.1b lids: lit = yellow pulse, flipped = a 180° flip over 6 ticks (and back), retire warn = blinking, retired = drop away.</item>
+    /// <item>G4.1b lids: lit = yellow pulse, flipped = a 180° flip over 6 ticks (and back), retire warn = blinking, retired = drop away.
+        /// G4.5: grids built without per-lid visuals are drawn instanced by <see cref="LidGridView"/> (hinge swing, yellow, magenta pulse).</item>
     /// </list>
     /// No colliders are touched here: only visual transforms and material property blocks.
     /// </summary>
@@ -233,6 +234,14 @@ namespace FallRush.Client
             }
         }
 
+        private LidGridView _lidView;
+
+        /// <summary>G4.5: the instanced lid view (null until a map with instanced lid grids is posed). Editor shots snapshot it.</summary>
+        public LidGridView LidView => _lidView;
+
+        /// <summary>False in Editor shots (they snapshot the posed lids into temporary renderers instead).</summary>
+        public bool DrawInstanced = true;
+
         private LidState[] _lidStates = Array.Empty<LidState>();
         private int[] _lidScratch = Array.Empty<int>();
         private Renderer[][] _lidRenderers;
@@ -258,10 +267,19 @@ namespace FallRush.Client
 
             var t0 = (int)Math.Floor(t);
             var f = (float)(t - t0);
+            // G4.5: grids without per-lid visuals (Lid Flip) are drawn instanced, one batch per state colour.
+            if (Array.Exists(grids, LidGridView.Instanced))
+            {
+                _lidView ??= new LidGridView(_map);
+                _lidView.Pose(hz, t, reduced);
+                if (DrawInstanced)
+                    _lidView.Draw();
+            }
+
             for (var g = 0; g < grids.Length && g < hz.LidGrids.Length; g++)
             {
                 var grid = grids[g];
-                if (grid == null)
+                if (grid == null || LidGridView.Instanced(grid))
                     continue;
                 ref readonly var d = ref hz.LidGrids[g];
                 if (_lidStates.Length < d.Count)

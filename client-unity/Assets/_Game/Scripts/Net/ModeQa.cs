@@ -35,6 +35,9 @@ namespace FallRush.Net
             public int[] Scores; // final scores, best first
             public int[] Values; // the round result's ranking values, in ranking order
             public bool[] QualifiedFlags;
+            // G4.5 Final on a lid map (Lid Flip)
+            public LidQaTrack Lid;
+            public int Alive;
         }
 
         /// <summary>G4.4 camper probe spots on Star Fountain (world mm; island ≥ 0 = ride that island). Mirrors StarScrambleBuilder.</summary>
@@ -136,6 +139,7 @@ namespace FallRush.Net
             }
 
             var skillTrack = mode == "Skill";
+            var lidTrack = mode == "Final" && hz.LidGrids.Length > 0 && rules is TimedRoundRules tr0 ? new LidQaTrack(hz, tr0) : null;
             var springAt = new uint[SimCore.MaxSlots];
             core.BotInput = set.Input;
             var rush = rules.Begin(core, core.Tick);
@@ -147,6 +151,7 @@ namespace FallRush.Net
             {
                 core.Step();
                 perTick?.Invoke(core, rules, hz);
+                lidTrack?.Step(core, rush);
                 if (skillTrack)
                     TrackSprings(core, hz, springAt, ref springTries, ref springOk);
                 if (GooTrace && mode == "Survival")
@@ -283,6 +288,26 @@ namespace FallRush.Net
 
             // Final: exactly one champion once the director's minimum-advance is applied (0 qualified → the top-ranked).
             st.ChampionOk = mode != "Final" || (st.Qualified <= 1 && res.Order.Length > 0);
+            if (lidTrack != null && rules is TimedRoundRules tr1)
+            {
+                lidTrack.Step(core, rush); // the last eliminations (the round ends on the tick they happen)
+                lidTrack.Finish(res.EndTick);
+                st.Lid = lidTrack;
+                if (res.TimerExpired)
+                {
+                    var sb = new StringBuilder();
+                    for (var i = 0; i < SimCore.MaxSlots; i++)
+                        if (tr1.Players[i].In && !tr1.Players[i].Out)
+                        {
+                            ref readonly var q0 = ref core.Slots[i].State;
+                            sb.Append($" slot{i} at ({q0.PosX},{q0.PosY},{q0.PosZ}) hits={core.HitsBySlot[i]} misjudges={set[i]?.LidMisjudges} hops={set[i]?.LidHops};");
+                        }
+
+                    Debug.Log($"[qa-timer] Final tier={tier} v={variant} mod={modifier} run={run}:{sb}");
+                }
+                for (var i = 0; i < SimCore.MaxSlots; i++)
+                    st.Alive += tr1.Players[i].In && !tr1.Players[i].Out ? 1 : 0;
+            }
             return st;
         }
 
@@ -399,6 +424,9 @@ namespace FallRush.Net
             var medians = new Dictionary<BotTier, List<float>>();
             var skillRows = new StringBuilder();
             var skillOk = true;
+            var lidRows = new StringBuilder();
+            var lidOk = true;
+            var lidSafe = true;
             foreach (var tier in tiers)
             {
                 medians[tier] = new List<float>();
@@ -409,6 +437,7 @@ namespace FallRush.Net
                         int valid = 0, soft = 0, timers = 0, q = 0, esc = 0, goo = 0, fell = 0, pick = 0, drop = 0, scoreBad = 0, champOk = 0, falls = 0, hits = 0, stuck = 0;
                         int tablePicks = 0, gold = 0, goldSpawned = 0, springTries = 0, springOk = 0, close = 0, fallsMax = 0, exact3 = 0, third = 0;
                         var thirds = new List<int>();
+                        var lidRuns = new List<Stats>();
                         for (var r = 0; r < runs; r++)
                         {
                             var st = RunOne(map, probe, v, m, r, tier, nBots);
@@ -434,6 +463,8 @@ namespace FallRush.Net
                             falls += st.Falls;
                             hits += st.Hits;
                             stuck += st.Stuck;
+                            if (st.Lid != null)
+                                lidRuns.Add(st);
                             if (mode == "Skill")
                             {
                                 tablePicks += st.TablePicks;
@@ -481,6 +512,15 @@ namespace FallRush.Net
                             skillRows.Append($"| {tier} | {(v == 0 ? "A" : "B")} | {ModifierEffects.Get(m).Key} | {exact3}/{n} | {dropsPerBot:F2} | {share:F0} % | {gold}/{goldSpawned} ({goldPct:F0} %) | {springOk}/{springTries} ({springPct:F0} %) | {closePct:F0} % | {fallsPerBot:F2} (max {fallsMax}) | {(thirds.Count > 0 ? thirds[thirds.Count / 2] : 0)} | {(cellOk ? "met" : "**not met**")} |\n");
                             Debug.Log($"[qa-skill] tier={tier} v={(v == 0 ? "A" : "B")} mod={ModifierEffects.Get(m).Key} exact3={exact3}/{n} drops/bot={dropsPerBot:F2} table={share:F0}% gold={gold}/{goldSpawned} spring={springOk}/{springTries} close={closePct:F0}% falls/bot={fallsPerBot:F2} max={fallsMax} 3rd median={(thirds.Count > 0 ? thirds[thirds.Count / 2] : 0)} {(cellOk ? "met" : "NOT MET")}");
                         }
+                        if (lidRuns.Count > 0)
+                        {
+                            var (row, ok) = LidRow(tier, v, m, lidRuns, med, p90, timers, n);
+                            lidRows.Append(row);
+                            if (tier != BotTier.Reference)
+                                lidOk &= ok;
+                            lidSafe &= LidSafeOk(lidRuns);
+                        }
+
                         Debug.Log($"[qa] {mode} tier={tier} variant={(v == 0 ? "A" : "B")} modifier={ModifierEffects.Get(m).Key} valid={valid}/{runs} soft={soft} median={med:F1}s p90={p90:F1}s timers={timers} q={(float)q / n:F2} {extra} elapsed={sw.Elapsed.TotalSeconds:F0}s");
                     }
             }
@@ -502,6 +542,16 @@ namespace FallRush.Net
                 md.Append($"\n**Star Fountain targets {(skillOk ? "MET" : "NOT MET")}** (every cell)\n");
                 if (CampArg())
                     md.Append(CamperTable(map, probe, Math.Max(10, runs / 2)));
+            }
+
+            if (lidRows.Length > 0)
+            {
+                md.Append("\n#### Lid Flip targets (G4.5 §3c)\n\n| Tier | Variant | Modifier | Median / p90 (s) | Timer | Outs / run: top-miss · lower · knock-involved | 1st / 2nd out median (s) | Same-tick: any · last pair | Lid falls fair (yellow ≥ 1 s) | Knock / own-move falls | Second chance | Lower-shelf stay mean (s) | Inner floor (min solid) | Targets |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
+                md.Append(lidRows);
+                md.Append("\nTargets (normal tier; the reference tier is reported): median 60–100 s, p90 < 115 s; timer ≤ 5 %; the last two never out in the same tick in ≥ 98 %; every lid fall preceded by ≥ 1 s of yellow (or magenta) on that lid; ≥ 70 % of top falls from over the lower shelf land on it; lower-shelf stay ≥ 8 s on average; inner floor ≥ 5 solid at every tick (both grids, every tier).\n");
+                md.Append($"\n**Lid Flip targets {(lidOk ? "MET" : "NOT MET")}** (normal tier, every cell); fairness + inner floor (every tier): **{(lidSafe ? "PASS" : "FAIL")}**\n");
+                if (!lidSafe)
+                    allOk = false;
             }
 
             if (mode == "Survival")
@@ -546,6 +596,72 @@ namespace FallRush.Net
             var path = OutPath();
             File.WriteAllText(path, md.ToString());
             Debug.Log($"[qa] {(allOk ? "PASS" : "FAIL")} wall={sw.Elapsed.TotalSeconds:F0}s → {path}\n{md}");
+        }
+
+        private static bool LidSafeOk(List<Stats> runs)
+        {
+            foreach (var r in runs)
+                if (r.Lid.FallsOpenedUnfair > 0 || r.Lid.InnerFloorViolations > 0)
+                    return false;
+            return true;
+        }
+
+        private static float Median(List<float> x)
+        {
+            if (x.Count == 0)
+                return float.NaN;
+            x.Sort();
+            return x[x.Count / 2];
+        }
+
+        /// <summary>G4.5: one Lid Flip row (a tier × variant × modifier cell) and whether it meets the §3c targets.</summary>
+        private static (string row, bool ok) LidRow(BotTier tier, int v, int m, List<Stats> runs, float med, float p90, int timers, int n)
+        {
+            int top = 0, low = 0, knock = 0, sameAny = 0, sameLast = 0, fair = 0, unfair = 0, kf = 0, self = 0, inFoot = 0, caught = 0, viol = 0, minInner = 9;
+            var first = new List<float>();
+            var second = new List<float>();
+            var stay = new List<float>();
+            var notes = new List<string>();
+            foreach (var r in runs)
+            {
+                var l = r.Lid;
+                top += l.OutFromTop;
+                low += l.OutFromLow;
+                knock += l.OutKnockInvolved;
+                sameAny += l.SameTickAny ? 1 : 0;
+                sameLast += l.LastTwoSameTick(r.Alive) ? 1 : 0;
+                fair += l.FallsOpenedFair;
+                unfair += l.FallsOpenedUnfair;
+                kf += l.FallsKnock;
+                self += l.FallsSelf;
+                inFoot += l.TopFallsInFoot;
+                caught += l.TopFallsInFootCaught;
+                viol += l.InnerFloorViolations;
+                minInner = Math.Min(minInner, l.MinInnerSolidSeen);
+                var outs = new List<float>(l.OutTimes);
+                outs.Sort();
+                if (outs.Count > 0)
+                    first.Add(outs[0]);
+                if (outs.Count > 1)
+                    second.Add(outs[1]);
+                stay.AddRange(l.LowerStay);
+                foreach (var u in l.UnfairNotes)
+                    if (notes.Count < 3)
+                        notes.Add(u);
+            }
+
+            var cnt = Math.Max(1, runs.Count);
+            var timerPct = 100f * timers / Math.Max(1, n);
+            var lastPct = 100f * sameLast / cnt;
+            var catchPct = inFoot > 0 ? 100f * caught / inFoot : float.NaN;
+            var stayMean = 0f;
+            foreach (var x in stay)
+                stayMean += x;
+            stayMean = stay.Count > 0 ? stayMean / stay.Count : float.NaN;
+            var ok = med >= 60f && med <= 100f && p90 < 115f && timerPct <= 5f && lastPct <= 2f && unfair == 0 && (inFoot == 0 || catchPct >= 70f) && (stay.Count == 0 || stayMean >= 8f) && viol == 0;
+            var row = $"| {tier} | {(v == 0 ? "A" : "B")} | {ModifierEffects.Get(m).Key} | {med:F1} / {p90:F1} | {timerPct:F0} % | {(float)top / cnt:F2} · {(float)low / cnt:F2} · {(float)knock / cnt:F2} | {Median(first):F1} / {Median(second):F1} | {100f * sameAny / cnt:F0} % · {lastPct:F0} % | {fair}/{fair + unfair}{(notes.Count > 0 ? " (" + string.Join("; ", notes) + ")" : "")} | {kf} / {self} | {caught}/{inFoot} ({catchPct:F0} %) | {stayMean:F1} | {viol} ({minInner}) | {(ok ? "met" : "**not met**")} |\n";
+            Debug.Log($"[qa-lid] tier={tier} v={(v == 0 ? "A" : "B")} mod={ModifierEffects.Get(m).Key} median={med:F1} p90={p90:F1} timer={timerPct:F0}% outs top={top} low={low} knock={knock} 1st={Median(first):F1} 2nd={Median(second):F1} sameAny={sameAny} sameLast={sameLast} fair={fair}/{fair + unfair} knockFalls={kf} self={self} catch={caught}/{inFoot} stay={stayMean:F1} viol={viol} minInner={minInner} {(ok ? "met" : "NOT MET")}");
+            return (row, ok);
         }
 
         private static bool CampArg() => Array.IndexOf(Environment.GetCommandLineArgs(), "-fallrushQaCamp") >= 0;
