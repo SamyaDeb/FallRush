@@ -14,6 +14,11 @@
 //    when the material is set up as transparent (_SrcBlend/_DstBlend/_ZWrite, queue 3000)
 //  * Outline pass (LightMode SRPDefaultUnlit): only enabled on Rushling materials (Material.SetShaderPassEnabled)
 //  * SRP Batcher compatible (one UnityPerMaterial CBUFFER) and GPU-instancing compatible.
+//  * G4.8 looks (global _FR_Look: 0 soft, 1 candy). Map meshes carry two colours: COLOR = soft albedo, uv3 = (candy albedo,
+//    2 + pattern + 8 x role); meshes without uv3 (w < 1.5) use COLOR in both looks. Soft only: a tone-on-tone world-space
+//    pattern on walkable tops (role 1; stripes / dots / checks / chevrons, +-6 % value, fwidth anti-aliased), a wider foam ramp
+//    (half the cel bands, half a smooth half-Lambert), a broad soft gloss on rims / hazards / props (roles 3 / 4 / 5), a
+//    Fresnel sky tint on edges (never on tops) and the URP main-light shadows (one cascade, soft; ShadowCaster pass below).
 Shader "FallRush/Toon"
 {
     Properties
@@ -99,6 +104,8 @@ Shader "FallRush/Toon"
         TEXTURE2D(_FaceMap); SAMPLER(sampler_FaceMap);
         half4 _FR_AmbSky;     // global, set by the client (a > 0 = valid)
         half4 _FR_AmbGround;
+        half _FR_Look;        // G4.8 global: 0 soft (default), 1 candy
+        half4 _FR_SkyHorizon; // G4.8 global: the sky horizon (Fresnel tint)
 
         // Wind-up key: rotate flagged vertices about the shaft (object −Z axis through _KeyPivot).
         float3 SpinKey(float3 p, float flag)
@@ -161,6 +168,9 @@ Shader "FallRush/Toon"
             #pragma fragment frag
             #pragma multi_compile_instancing
             #pragma multi_compile_fog
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
 
             struct Attributes
             {
@@ -169,6 +179,7 @@ Shader "FallRush/Toon"
                 half4 color : COLOR;
                 float2 uv : TEXCOORD0;
                 float2 uv2 : TEXCOORD1;
+                float4 uv3 : TEXCOORD3;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -182,9 +193,42 @@ Shader "FallRush/Toon"
                 float2 uv2 : TEXCOORD3;
                 half fog : TEXCOORD4;
                 float3 positionOS : TEXCOORD5;
+                float4 dual : TEXCOORD6;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
+
+            // G4.8 tone-on-tone patterns (world xz, metres): 1 soft diagonal stripes, 2 polka dots, 3 checks, 4 chevrons.
+            half Pattern(float2 p, half id)
+            {
+                if (id < 0.5h)
+                    return 0.5h;
+                float v;
+                if (id < 1.5h)
+                {
+                    v = frac((p.x + p.y) / 2.2) * 2.0 - 1.0;   // wide soft stripes
+                    float w = fwidth(v) * 1.5 + 0.02;
+                    return smoothstep(0.5 - w, 0.5 + w, abs(v));
+                }
+                if (id < 2.5h)
+                {
+                    float2 c = p / 1.7;
+                    c.x += floor(c.y) * 0.5;                    // staggered rows
+                    float d = length(frac(c) - 0.5) * 1.7;
+                    float w = fwidth(d) * 1.5 + 0.01;
+                    return 1.0 - smoothstep(0.36 - w, 0.36 + w, d);
+                }
+                if (id < 3.5h)
+                {
+                    float2 c = frac(p / 3.0) - 0.5;              // 1.5 m checks
+                    float q = c.x * c.y;
+                    float w = fwidth(q) * 1.5 + 0.001;
+                    return smoothstep(-w, w, q);
+                }
+                v = frac((abs(frac(p.x / 2.4) - 0.5) * 2.4 + p.y) / 1.8) * 2.0 - 1.0; // chevrons
+                float w4 = fwidth(v) * 1.5 + 0.02;
+                return smoothstep(0.5 - w4, 0.5 + w4, abs(v));
+            }
 
             Varyings vert(Attributes v)
             {
@@ -202,6 +246,7 @@ Shader "FallRush/Toon"
                 o.uv2 = v.uv2;
                 o.positionOS = p;
                 o.color = v.color;
+                o.dual = v.uv3;
                 o.fog = ComputeFogFactor(pos.positionCS.z);
                 return o;
             }
@@ -210,7 +255,18 @@ Shader "FallRush/Toon"
             {
                 UNITY_SETUP_INSTANCE_ID(i);
                 half4 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv);
-                half3 albedo = tex.rgb * _BaseColor.rgb * i.color.rgb;
+                // G4.8: the look's vertex colour (soft COLOR / candy uv3) and the soft roles.
+                half soft = 1.0h - saturate(_FR_Look);
+                half3 vcol = i.color.rgb;
+                half role = 0.0h, pat = 0.0h;
+                if (i.dual.w > 1.5)
+                {
+                    vcol = lerp(i.color.rgb, (half3)i.dual.rgb, saturate(_FR_Look));
+                    float k = i.dual.w - 2.0;
+                    role = floor(k / 8.0 + 0.01);
+                    pat = k - role * 8.0;
+                }
+                half3 albedo = tex.rgb * _BaseColor.rgb * vcol;
                 albedo = lerp(albedo, dot(albedo, half3(0.3h, 0.59h, 0.11h)).xxx, _Desat);
 
                 // Travelling chevron light (conveyors): the chevron whose index matches the wave is lit.
@@ -233,12 +289,25 @@ Shader "FallRush/Toon"
                 albedo = lerp(albedo, _FlashColor.rgb, saturate(_FlashColor.a * i.color.a));
 
                 float3 n = normalize(i.normalWS);
+                // G4.8 soft: tone-on-tone pattern on walkable tops (role 1), +-5 % value.
+                if (soft > 0.5h && abs(role - 1.0h) < 0.5h && n.y > 0.7)
+                    albedo *= 1.0h + (Pattern(i.positionWS.xz, pat) - 0.5h) * 0.1h;
+            #if defined(_MAIN_LIGHT_SHADOWS) || defined(_MAIN_LIGHT_SHADOWS_CASCADE)
+                Light sun = GetMainLight(TransformWorldToShadowCoord(i.positionWS));
+            #else
                 Light sun = GetMainLight();
+            #endif
                 half ndl = dot(n, sun.direction) * 0.5h + 0.5h;               // half-Lambert
-                half bandA = smoothstep(_BandA - _BandSoft, _BandA + _BandSoft, ndl);
-                half bandB = smoothstep(_BandB - _BandSoft, _BandB + _BandSoft, ndl);
+                half bs = lerp(_BandSoft, 0.1h, soft);                         // soft: wider, softer bands
+                half bandA = smoothstep(_BandA - bs, _BandA + bs, ndl);
+                half bandB = smoothstep(_BandB - bs, _BandB + bs, ndl);
                 half ramp = lerp(0.0h, _MidLevel, bandA) + (1.0h - _MidLevel) * bandB; // 0 / mid / 1
+                // G4.8 soft foam ramp: half the cel bands, half a smooth half-Lambert (a lit top, ndl 0.87, stays at 1).
+                ramp = lerp(ramp, 0.5h * ramp + 0.5h * saturate((ndl - 0.25h) / 0.55h), soft);
                 half3 shade = lerp(_ShadeColor.rgb, half3(1, 1, 1), ramp);
+                // Real shadows (soft look only: the candy light casts none): the sun term drops to a quarter in full shadow,
+                // so a cast shadow reads as a soft lavender patch (shadow strength 0.6 on the light keeps it from going dark).
+                shade *= lerp(1.0h, lerp(0.25h, 1.0h, sun.shadowAttenuation), soft);
 
                 half3 amb;
                 if (_FR_AmbSky.a > 0.0h)
@@ -263,6 +332,19 @@ Shader "FallRush/Toon"
                     float3 h = normalize(sun.direction + viewDir);
                     half spec = smoothstep(0.92h, 0.96h, dot(n, h));
                     lit += spec * _Gloss * sun.color;
+                }
+
+                // G4.8 soft: broad foam / vinyl gloss on rims (3), hazards (4), props (5); a sky Fresnel tint on edges.
+                if (soft > 0.5h)
+                {
+                    half g = role > 2.5h ? (role > 4.5h ? 0.22h : (role > 3.5h ? 0.4h : 0.32h)) : 0.0h;
+                    if (g > 0.0h)
+                    {
+                        float3 hh = normalize(sun.direction + viewDir);
+                        half sp = pow(saturate(dot(n, hh)), 28.0h);
+                        lit += sp * g * sun.color * (0.35h + 0.65h * sun.shadowAttenuation) * 1.6h;
+                    }
+                    lit += _FR_SkyHorizon.rgb * (fres * fres * 0.22h * notTop) * step(0.5h, i.dual.w);
                 }
 
                 half3 col = lerp(lit, albedo, _Unlit) + _Emission.rgb;
@@ -338,6 +420,59 @@ Shader "FallRush/Toon"
             {
                 return half4(MixFog(_OutlineColor.rgb, i.fog), 1);
             }
+            ENDHLSL
+        }
+
+        // G4.8: shadow caster (the soft look's sun shadows; the candy look's light casts none).
+        Pass
+        {
+            Name "ShadowCaster"
+            Tags { "LightMode" = "ShadowCaster" }
+            ZWrite On
+            ZTest LEqual
+            ColorMask 0
+            Cull [_Cull]
+
+            HLSLPROGRAM
+            #pragma target 2.0
+            #pragma vertex vertShadow
+            #pragma fragment fragShadow
+            #pragma multi_compile_instancing
+
+            float3 _LightDirection;
+
+            struct A
+            {
+                float4 positionOS : POSITION;
+                float3 normalOS : NORMAL;
+                float2 uv2 : TEXCOORD1;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct V
+            {
+                float4 positionCS : SV_POSITION;
+            };
+
+            V vertShadow(A v)
+            {
+                V o = (V)0;
+                UNITY_SETUP_INSTANCE_ID(v);
+                float3 p = Lid(SpinKey(v.positionOS.xyz, v.uv2.y), v.uv2.x * _RushlingMesh);
+                float3 n = LidN(SpinKeyN(v.normalOS, v.uv2.y), v.uv2.x * _RushlingMesh);
+                float3 ws = TransformObjectToWorld(p);
+                float3 nws = TransformObjectToWorldNormal(n);
+                float4 cs = TransformWorldToHClip(ApplyShadowBias(ws, nws, _LightDirection));
+            #if UNITY_REVERSED_Z
+                cs.z = min(cs.z, UNITY_NEAR_CLIP_VALUE);
+            #else
+                cs.z = max(cs.z, UNITY_NEAR_CLIP_VALUE);
+            #endif
+                o.positionCS = cs;
+                return o;
+            }
+
+            half4 fragShadow(V i) : SV_Target { return 0; }
             ENDHLSL
         }
 

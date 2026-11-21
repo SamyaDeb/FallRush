@@ -158,8 +158,8 @@ namespace FallRush.Client
             mf = go.AddComponent<MeshFilter>();
             var r = go.AddComponent<MeshRenderer>();
             r.sharedMaterial = _lit != null ? _lit : MatFor(Color.white, false);
-            r.shadowCastingMode = ShadowCastingMode.Off;
-            r.receiveShadows = false;
+            r.shadowCastingMode = ShadowCastingMode.On; // G4.8: Rushlings cast the soft look's sun shadow (the blob stays: it reads the landing spot)
+            r.receiveShadows = true;
             r.lightProbeUsage = LightProbeUsage.Off;
             r.reflectionProbeUsage = ReflectionProbeUsage.Off;
             return r;
@@ -252,8 +252,8 @@ namespace FallRush.Client
             go.AddComponent<MeshFilter>().sharedMesh = _limbMesh;
             var mr = go.AddComponent<MeshRenderer>();
             mr.sharedMaterial = NoHull();
-            mr.shadowCastingMode = ShadowCastingMode.Off;
-            mr.receiveShadows = false;
+            mr.shadowCastingMode = ShadowCastingMode.On;
+            mr.receiveShadows = true;
             mr.lightProbeUsage = LightProbeUsage.Off;
             mr.reflectionProbeUsage = ReflectionProbeUsage.Off;
             _limbsR = mr;
