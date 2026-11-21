@@ -33,6 +33,11 @@ namespace FallRush.Client
         private readonly bool[] _seen = new bool[Protocol.MaxPlayers];
         private Vector3[] _barRest;
         private int _sweeperStart = int.MinValue;
+        // G4.4 Star Fountain: the crown glow (runtime object) and the burst origin (view only, StarBurst).
+        private Transform _crownGlow;
+        private Material _crownMat;
+        private Vector3 _crown;
+        private bool _hasBurst;
 
         /// <summary>Set when the goo starts rising / the first tile drops / the spinners are about to start (subtitles).</summary>
         public bool GooRising { get; private set; }
@@ -104,6 +109,23 @@ namespace FallRush.Client
                     _blockRest[i] = _map.fallingBlocks[i].visual != null ? _map.fallingBlocks[i].visual.position : Vector3.zero;
             }
 
+            if (_map.starFields.Length > 0 && _map.starFields[0].burstOrigin != null)
+            {
+                _hasBurst = true;
+                _crown = _map.starFields[0].burstOrigin.position;
+                var g = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                Destroy(g.GetComponent<Collider>());
+                g.name = "FountainCrownGlow";
+                g.transform.SetParent(transform, false);
+                g.transform.position = _crown;
+                _crownMat = Tinted(lit, UiKit.Hex(0xFFE36B));
+                _crownMat.SetFloat("_Unlit", 1f);
+                g.GetComponent<MeshRenderer>().sharedMaterial = _crownMat;
+                g.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                _crownGlow = g.transform;
+                _crownGlow.localScale = Vector3.zero;
+            }
+
             if (_map.sweepers.Length > 0)
             {
                 _barRest = new Vector3[_map.sweepers.Length];
@@ -171,15 +193,30 @@ namespace FallRush.Client
             return m;
         }
 
+        /// <summary>G4.4: the DEV practice mode has no <see cref="ClientSim"/>; it hands its local hazards and render tick here.</summary>
+        public System.Func<(HazardSet hz, double tick)> PracticeSource;
+
         private void LateUpdate()
         {
             var cs = ClientSim.Instance;
-            if (cs == null || _map == null)
+            if (_map == null)
                 return;
-            var hz = cs.Hazards;
+            HazardSet hz;
+            double tick;
+            if (cs != null)
+            {
+                hz = cs.Hazards;
+                tick = cs.HazardRenderTick;
+            }
+            else if (PracticeSource != null)
+            {
+                (hz, tick) = PracticeSource();
+            }
+            else
+                return;
+
             if (hz == null)
                 return;
-            var tick = cs.HazardRenderTick;
             if (tick < 1)
                 return;
             var t = tick - hz.RoundStartTick;
@@ -335,10 +372,35 @@ namespace FallRush.Client
                     n++;
                 }
 
+                // G4.4 burst (view only): the next wave's stars fly from the crown to their spawn-tick pose in the last 0.5 s;
+                // the crown glows from 1 s before.
+                if (_hasBurst)
+                {
+                    var w = StarBurst.NextWave(in f, t, out _);
+                    int cx = Mathf.RoundToInt(_crown.x * 1000f), cy = Mathf.RoundToInt(_crown.y * 1000f), cz = Mathf.RoundToInt(_crown.z * 1000f);
+                    for (var k = 0; w >= 0 && k < f.WaveSize; k++)
+                    {
+                        var id = w * f.WaveSize + k;
+                        if (!StarBurst.ArcPosMm(in f, hz, hz.Seed, id, t, cx, cy, cz, out var bx, out var by, out var bz, out var u))
+                            continue;
+                        var bp = new Vector3((float)bx * 0.001f, (float)by * 0.001f, (float)bz * 0.001f);
+                        AddStar(bp, Quaternion.Euler(0f, reduced ? 0f : (float)(t * 12.0 + id * 40), 0f), false, (float)t, reduced, 0.35f + 0.3f * (float)u);
+                        if (!reduced)
+                            for (var tr = 1; tr <= 2; tr++)
+                                if (StarBurst.ArcPosMm(in f, hz, hz.Seed, id, t - tr * 1.2, cx, cy, cz, out var qx, out var qy, out var qz, out _))
+                                    AddStar(new Vector3((float)qx * 0.001f, (float)qy * 0.001f, (float)qz * 0.001f), Quaternion.identity, false, 0f, true, 0.22f / tr);
+                    }
+
+                    var glow = StarBurst.CrownGlow(in f, t);
+                    _crownGlow.localScale = Vector3.one * (glow <= 0f ? 0f : 1.3f + glow * 0.9f);
+                    _crownMat.SetColor("_Emission", new Color(0.9f, 0.7f, 0.15f) * glow);
+                }
+
                 DrawStars();
             }
 
-            LobbyCapsules(cs);
+            if (cs != null)
+                LobbyCapsules(cs);
         }
 
         // G2.3 stars: a chunky extruded star, drawn instanced: normal = sun yellow 0.65 m, golden = bigger, deeper gold,
@@ -348,7 +410,7 @@ namespace FallRush.Client
         private Matrix4x4[] _starM = new Matrix4x4[64], _goldM = new Matrix4x4[16], _haloM = new Matrix4x4[16];
         private int _nStar, _nGold;
 
-        private void AddStar(Vector3 p, Quaternion rot, bool gold, float phase, bool reduced)
+        private void AddStar(Vector3 p, Quaternion rot, bool gold, float phase, bool reduced, float scale = 0.65f)
         {
             if (_starMesh == null)
             {
@@ -381,7 +443,7 @@ namespace FallRush.Client
             {
                 if (_nStar >= _starM.Length)
                     return;
-                _starM[_nStar++] = Matrix4x4.TRS(p, face, Vector3.one * 0.65f);
+                _starM[_nStar++] = Matrix4x4.TRS(p, face, Vector3.one * scale);
             }
         }
 

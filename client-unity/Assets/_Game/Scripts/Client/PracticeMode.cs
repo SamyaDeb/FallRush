@@ -39,6 +39,7 @@ namespace FallRush.Client
         private float _airStartY, _apex, _airTime, _airDist;
         private Vector3 _airStartPos;
         private bool _wasGrounded = true;
+        private float _renderAlpha;
         private string _lastJump = "–";
 
         private static readonly string[] Fields =
@@ -91,6 +92,9 @@ namespace FallRush.Client
             _sampler = gameObject.AddComponent<PlayerInputSampler>();
             _sampler.cameraRig = _cam;
             _views = new HazardViewDriver(_map);
+            // G4.4: stars, the fountain burst and the other reactive views on the local hazard clock (stars are not collectable here).
+            if (_map.starFields.Length > 0)
+                gameObject.AddComponent<ReactiveViews>().PracticeSource = () => (_hz, _tick + _renderAlpha);
             Debug.Log($"[practice] DEV practice mode on {_map.gameObject.scene.name} (F6 panel, F7 print JSON, R respawn)");
         }
 
@@ -147,6 +151,7 @@ namespace FallRush.Client
             }
 
             var a = (float)(_acc / dt);
+            _renderAlpha = a;
             var feet = Vector3.Lerp(V(_prev.Position), V(_s.Position), a);
             if (!_s.Has(MotorState.Respawning))
                 _vis.Drive(feet, V(_s.Velocity), _s.Flags, _s.Yaw, _s.StunTicks, Time.deltaTime);

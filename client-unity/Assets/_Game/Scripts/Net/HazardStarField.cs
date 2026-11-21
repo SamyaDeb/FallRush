@@ -8,6 +8,8 @@ namespace FallRush.Net
     {
         public StarFieldDef def;
         public StarFieldDef variantB;
+        /// <summary>G4.4 Star Fountain: the fountain crown, where the view-only burst arcs start (null: no burst view). Not hashed, not simulated.</summary>
+        public Transform burstOrigin;
 
         public override HazardType Type => HazardType.StarPickup;
 

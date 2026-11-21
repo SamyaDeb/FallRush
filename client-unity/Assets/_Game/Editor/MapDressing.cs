@@ -62,35 +62,12 @@ public static class MapDressing
     {
         if (info == null)
             return;
-        if (mapKey == "StarScramble")
-            foreach (var tt in info.turnTables)
-                if (tt != null && tt.visual != null)
-                    RecordTop(tt.visual, tt.def.RadiusMm * 0.001f);
+        // G4.4 Star Fountain: the 9 m turntable carries the builder's radial stripes (readable as moving); the M4 record
+        // grooves (RecordTop) are no longer used on it.
         if (mapKey == "StarScramble")
             foreach (var pl in info.platforms)
                 if (pl != null && pl.visual != null)
                     IslandUnderside(pl.visual);
-    }
-
-    /// <summary>Star Scramble's centre turn table as a toy record: groove rings and a sun-yellow label (light, it is walkable).</summary>
-    private static void RecordTop(Transform vis, float r)
-    {
-        var groove = AssetDatabase.LoadAssetAtPath<Material>(SandboxBuilder.MaterialsDir + "/Beam.mat");
-        var label = AssetDatabase.LoadAssetAtPath<Material>(SandboxBuilder.MaterialsDir + "/StarRim.mat");
-        for (var i = 0; i < 3; i++)
-        {
-            var rr = r * (0.45f + i * 0.17f);
-            for (var k = 0; k < 24; k++)
-            {
-                var a = k * Mathf.PI * 2f / 24f;
-                var p = vis.position + new Vector3(Mathf.Cos(a) * rr, 0.012f, Mathf.Sin(a) * rr);
-                var seg = KitBuilder.Visual(vis, $"Groove_{i}_{k}", p, new Vector3(0.08f, 0.012f, rr * Mathf.PI * 2f / 24f * 1.02f), groove, Quaternion.Euler(0f, -a * Mathf.Rad2Deg, 0f));
-                seg.isStatic = false;
-            }
-        }
-
-        var lab = KitBuilder.Visual(vis, "Label", vis.position + new Vector3(0f, 0.016f, 0f), new Vector3(r * 0.5f, 0.012f, r * 0.5f), label);
-        lab.isStatic = false;
     }
 
     /// <summary>A floating-island underside (a rounded toy rock) below a moving island platform; moves with it.</summary>
