@@ -78,6 +78,14 @@ namespace FallRush.Net
         public Func<uint, Vec3[], int> RemoteFeet;
         private readonly Vec3[] _remotes = new Vec3[Protocol.MaxPlayers];
 
+        /// <summary>
+        /// G4.1c: like <see cref="RemoteFeet"/> plus each remote's velocity (cm/s, from the newest snapshot), for the bump
+        /// stagger. Used only when the config's bump flag is on, so with the flag off prediction is exactly as before.
+        /// </summary>
+        public Func<uint, Vec3[], Vec3[], int> RemoteMotion;
+        private readonly Vec3[] _remoteVel = new Vec3[Protocol.MaxPlayers];
+        public long PredictedBumps;
+
         /// <summary>Set during a round's intro / countdown: a server teleport (everyone back on their spawn) is adopted, not counted.</summary>
         public bool TeleportsExpected;
 
@@ -393,10 +401,11 @@ namespace FallRush.Net
         /// <summary>The server's soft separation (SimCore.Separate) for the local player only, against estimated remotes.</summary>
         private void PredictSeparation(ref MotorState s, uint tick)
         {
-            var n = RemoteFeet(tick, _remotes);
+            var cfg = _motor.Cfg;
+            var bump = cfg.BumpEnabled && RemoteMotion != null;
+            var n = bump ? RemoteMotion(tick, _remotes, _remoteVel) : RemoteFeet(tick, _remotes);
             if (n <= 0)
                 return;
-            var cfg = _motor.Cfg;
             var minD = cfg.Radius * 2f;
             var maxStep = cfg.PushMaxSpeed * cfg.Dt;
             var me = s.Position;
@@ -413,6 +422,19 @@ namespace FallRush.Net
                 if (d2 >= minD * minD || d2 < 1e-8f)
                     continue;
                 var d = (float)Math.Sqrt(d2);
+                if (bump)
+                {
+                    // The server's rule (SimCore.Bump) for the local player only: closing ≥ min and we are the slower (or tied).
+                    var o2 = new MotorState { VelX = (short)_remoteVel[i].X, VelZ = (short)_remoteVel[i].Z };
+                    if (SimCore.BumpClosingMms(in s, in o2, dx / d, dz / d) >= cfg.BumpMinClosingMms)
+                    {
+                        var me2 = (long)s.VelX * s.VelX + (long)s.VelZ * s.VelZ;
+                        var ot2 = (long)o2.VelX * o2.VelX + (long)o2.VelZ * o2.VelZ;
+                        if (me2 <= ot2 && SimCore.Stagger(ref s, cfg))
+                            PredictedBumps++;
+                    }
+                }
+
                 var m = Math.Min((minD - d) * 0.5f, maxStep * 0.5f);
                 push += new Vec3(dx / d * m, 0f, dz / d * m);
             }

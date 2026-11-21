@@ -48,6 +48,8 @@ namespace FallRush.Shared
         public int HumanCount { get; private set; }
         public int BotCount { get; private set; }
         public long PushEvents { get; private set; }
+        /// <summary>G4.1c: bump staggers applied (flag on only).</summary>
+        public long BumpEvents { get; private set; }
         public long HazardHits { get; private set; }
 
         public HazardSet Hazards => _hazards;
@@ -345,6 +347,8 @@ namespace FallRush.Shared
                         Yaw256.Dir((byte)(i * 37 + j * 11), out nx, out nz);
                     }
 
+                    if (Cfg.BumpEnabled)
+                        Bump(ref a.State, ref b.State, nx, nz);
                     var m = Math.Min((minD - d) * 0.5f, maxStep * 0.5f);
                     _push[i] += new Vec3(nx * m, 0f, nz * m);
                     _push[j] -= new Vec3(nx * m, 0f, nz * m);
@@ -367,6 +371,42 @@ namespace FallRush.Shared
                 _pushedSinceSnap[i] = true;
                 PushEvents++;
             }
+        }
+
+        /// <summary>
+        /// G4.1c bump stagger (movement_v3 <c>bump</c>, server-authoritative, pairs in slot order): when the overlapping pair
+        /// closes at ≥ <see cref="MovementConfig.BumpMinClosingMms"/> along the contact normal (<paramref name="nx"/>,
+        /// <paramref name="nz"/> point from b to a), the player with the lower horizontal speed (a tie: both) stumbles for
+        /// <see cref="MovementConfig.BumpTicks"/> (the motor's stumble: input live, speed capped), unless already stunned,
+        /// stumbling, diving / dive-landing, respawning or immune.
+        /// </summary>
+        private void Bump(ref MotorState a, ref MotorState b, float nx, float nz)
+        {
+            if (BumpClosingMms(in a, in b, nx, nz) < Cfg.BumpMinClosingMms)
+                return;
+            var sa = (long)a.VelX * a.VelX + (long)a.VelZ * a.VelZ;
+            var sb = (long)b.VelX * b.VelX + (long)b.VelZ * b.VelZ;
+            if (sa <= sb && Stagger(ref a, Cfg))
+                BumpEvents++;
+            if (sb <= sa && Stagger(ref b, Cfg))
+                BumpEvents++;
+        }
+
+        /// <summary>Closing speed (mm/s) of a and b along n (b → a): −(v_a − v_b)·n. Velocities in cm/s.</summary>
+        public static float BumpClosingMms(in MotorState a, in MotorState b, float nx, float nz) =>
+            -((a.VelX - b.VelX) * nx + (a.VelZ - b.VelZ) * nz) * 10f;
+
+        public static bool CanStagger(in MotorState s) =>
+            s.StunTicks == 0 && s.ImmunityTicks == 0 && (s.Flags & (MotorState.Stumbling | MotorState.Diving | MotorState.DiveLanding | MotorState.Respawning)) == 0;
+
+        /// <summary>Starts the bump stagger: the G1 stumble flag + <see cref="MotorState.LandTicks"/> (no new state, same snapshot).</summary>
+        public static bool Stagger(ref MotorState s, MovementConfig cfg)
+        {
+            if (!CanStagger(in s))
+                return false;
+            s.Set(MotorState.Stumbling, true);
+            s.LandTicks = (byte)cfg.BumpTicks;
+            return true;
         }
 
         /// <summary>Writes all active players into <paramref name="dst"/>; returns the count.</summary>

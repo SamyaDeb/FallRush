@@ -75,6 +75,28 @@ namespace FallRush.Net
         /// <summary>M4: the server runs matches (the director) unless <c>-fallrushMap Sandbox</c> asks for M2 free play.</summary>
         public static bool MatchMode => MapIdFromArg(MapArgValue()) != MapPoolV1.Sandbox;
 
+        /// <summary>
+        /// G4.1c DEV / measurement: <c>-fallrushBump 1|0</c> (server, bots, QA) or <c>?bump=1|0</c> (client) forces the bump
+        /// stagger flag; null = movement_v3 as shipped (off). Server and client must agree, like the modifier.
+        /// </summary>
+        public static bool? BumpOverride
+        {
+            get
+            {
+                var q = NetTargets.GetQueryParam(Application.absoluteURL, "bump");
+                if (q == "1") return true;
+                if (q == "0") return false;
+                var a = Environment.GetCommandLineArgs();
+                for (var i = 0; i < a.Length - 1; i++)
+                    if (string.Equals(a[i], "-fallrushBump", StringComparison.OrdinalIgnoreCase))
+                        return a[i + 1] == "1";
+                return null;
+            }
+        }
+
+        /// <summary>The motor constants for a round: movement_v3 under the modifier, with the DEV bump override applied.</summary>
+        public static MovementConfig MovementFor(int modifier) => BumpOverride is bool b ? MovementConfig.WithBump(modifier, b) : MovementConfig.For(modifier);
+
         /// <summary>Dev plan: <c>-fallrushMap GooTower</c> = a one-round match on that map (it crowns the winner). Null = the deal.</summary>
         public static byte[] PlanFromArgs()
         {

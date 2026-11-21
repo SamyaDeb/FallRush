@@ -71,7 +71,7 @@ namespace FallRush.Net
         {
             var seed = (ulong)(0x4D4E0000 + variant * 1000003 + modifier * 10007 + run * 7919 + (int)tier * 104729);
             var p = new RoundParams { MapId = map.MapId, Variant = (byte)variant, Modifier = (byte)modifier, HazardSeed = seed, RoundIndex = 1 };
-            var cfg = MovementConfig.For(modifier);
+            var cfg = NetBootstrap.MovementFor(modifier);
             var world = map.CreateWorld(probe, cfg, in p, out var hz);
             var spawns = map.SpawnPoints();
             var yaws = map.SpawnYaws();

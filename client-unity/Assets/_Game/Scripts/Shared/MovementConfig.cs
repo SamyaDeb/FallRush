@@ -6,7 +6,7 @@ namespace FallRush.Shared
 {
     /// <summary>
     /// Runtime movement constants (GDD §7, doc 04 §5), built from <see cref="MovementConfigData"/>, which is generated
-    /// from <c>packages/shared/config/movement_v2.json</c> (G1; v1 is kept unchanged for history). Integers in the JSON (mm, mm/s, ms, permille) become floats
+    /// from <c>packages/shared/config/movement_v3.json</c> (G4.1c: v2 + the bump flag; v1 and v2 are kept unchanged for history). Integers in the JSON (mm, mm/s, ms, permille) become floats
     /// in metres/seconds here; times become ticks with round-half-up at the 30 Hz tick.
     /// </summary>
     public sealed class MovementConfig
@@ -50,16 +50,32 @@ namespace FallRush.Shared
         public readonly int SlideIterations;
         public readonly float PushMaxSpeed, KillY;
 
+        /// <summary>G4.1c bump stagger (movement_v3 <c>bump</c>, default off): two players meeting at a closing speed ≥
+        /// <see cref="BumpMinClosingMms"/> (mm/s, along the contact normal) → the slower one stumbles for <see cref="BumpTicks"/>.</summary>
+        public readonly bool BumpEnabled;
+        public readonly int BumpMinClosingMms;
+        public readonly int BumpTicks;
+
         public readonly int CoyoteTicks, JumpBufferTicks, DiveCooldownTicks, DiveLandStunTicks, DiveCancelWindowTicks, RespawnTicks, StumbleTicks;
 
         /// <summary>DEV ONLY (practice tuning mode, G1 §3.7): a config from edited values; never used by the server.</summary>
         public static MovementConfig FromTuning(in MovementTuning t, int modifierId) => new MovementConfig(ModifierEffects.Get(modifierId), t);
 
+        /// <summary>
+        /// G4.1c: the same constants with the bump flag forced on/off (tests and the measurement runs behind
+        /// <c>-fallrushBump 1</c> / <c>?bump=1</c>). The shipped config is movement_v3 as generated (bump off).
+        /// </summary>
+        public static MovementConfig WithBump(int modifierId, bool on)
+        {
+            var b = For(modifierId);
+            return b.BumpEnabled == on ? b : new MovementConfig(ModifierEffects.Get(modifierId), MovementTuning.Generated, on);
+        }
+
         private MovementConfig(in ModifierEffects m) : this(m, MovementTuning.Generated)
         {
         }
 
-        private MovementConfig(in ModifierEffects m, in MovementTuning t)
+        private MovementConfig(in ModifierEffects m, in MovementTuning t, bool? bump = null)
         {
             ModifierId = m.AffectsMotor ? m.Id : ModifierEffects.NoneId;
             Dt = 1f / TickRate;
@@ -88,6 +104,9 @@ namespace FallRush.Shared
             SlideIterations = D.Ground_SlideIterations;
             PushMaxSpeed = Mm(D.Push_MaxSpeed);
             KillY = Mm(D.Respawn_KillY);
+            BumpEnabled = bump ?? D.Bump_Enabled;
+            BumpMinClosingMms = D.Bump_MinClosingSpeed;
+            BumpTicks = (D.Bump_StaggerMs * TickRate + 999) / 1000; // ⌈250 · 30 / 1000⌉ = 8
 
             CoyoteTicks = MsToTicks(D.Jump_CoyoteMs, TickRate);
             JumpBufferTicks = MsToTicks(D.Jump_BufferMs, TickRate);
@@ -113,6 +132,9 @@ namespace FallRush.Shared
         {
             var sb = new StringBuilder(700);
             sb.Append('{');
+            sb.Append(Str("bump")).Append(":{").Append(Str("enabled")).Append(':').Append(D.Bump_Enabled ? "true" : "false").Append(',');
+            sb.Append(Str("minClosingSpeed")).Append(':').Append(D.Bump_MinClosingSpeed).Append(',');
+            sb.Append(Str("staggerMs")).Append(':').Append(D.Bump_StaggerMs).Append("},");
             Obj(sb, "capsule", ("height", D.Capsule_Height), ("radius", D.Capsule_Radius), ("skin", D.Capsule_Skin));
             sb.Append(',');
             Obj(sb, "dive", ("cooldownMs", D.Dive_CooldownMs), ("horizontalSpeed", D.Dive_HorizontalSpeed),

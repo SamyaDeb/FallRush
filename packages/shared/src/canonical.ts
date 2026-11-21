@@ -44,6 +44,8 @@ export const MAP_POOL_V1_FILE = "map_pool_v1.json";
 export const MOVEMENT_V1_FILE = "movement_v1.json";
 /** Movement v2 (G1): slower, heavier, belly slide + stumble. The game uses v2; v1 is kept unchanged for history. */
 export const MOVEMENT_V2_FILE = "movement_v2.json";
+/** Movement v3 (G4.1c) = v2 + the `bump` block (bump stagger flag, default off; a ruleset-v2 field for M6). The game uses v3; v1/v2 kept unchanged. */
+export const MOVEMENT_V3_FILE = "movement_v3.json";
 /** Chaos Capsule modifier effect values (M3). Ids equal map_pool_v1.json; not on-chain until the M6 v2 configs. */
 export const MODIFIERS_V1_FILE = "modifiers_v1.json";
 export const RULESET_V1_VERSION = 1;
@@ -60,6 +62,9 @@ export function movementV1Hash(): Buffer {
 }
 export function movementV2Hash(): Buffer {
   return canonicalHash(MOVEMENT_V2_FILE);
+}
+export function movementV3Hash(): Buffer {
+  return canonicalHash(MOVEMENT_V3_FILE);
 }
 export function modifiersV1Hash(): Buffer {
   return canonicalHash(MODIFIERS_V1_FILE);

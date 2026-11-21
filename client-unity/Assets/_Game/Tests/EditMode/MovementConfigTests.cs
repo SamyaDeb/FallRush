@@ -36,8 +36,26 @@ namespace FallRush.Tests
             Assert.That(File.Exists(path), Is.True, path);
             var canon = Canonicalize(new MiniJson(File.ReadAllText(path)).Parse());
             Assert.That(Sha256Hex(canon), Is.EqualTo(MovementConfigData.Sha256Hex),
-                "movement_v1.json changed: run `pnpm gen:movement` and commit the regenerated MovementConfigData.g.cs");
+                "the movement JSON changed: run `pnpm gen:movement` and commit the regenerated MovementConfigData.g.cs");
             Assert.That(Sha256Hex(canon), Is.EqualTo(Sha256Hex(MovementConfig.ToCanonicalJson())));
+        }
+
+        /// <summary>G4.1c: movement_v3 minus <c>bump</c> (and its version number) equals movement_v2 field for field.</summary>
+        [Test]
+        public void MovementV3_MinusBump_EqualsV2_FieldForField()
+        {
+            var dir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "packages", "shared", "config"));
+            var v2 = (Dictionary<string, object>)new MiniJson(File.ReadAllText(Path.Combine(dir, "movement_v2.json"))).Parse();
+            var v3 = (Dictionary<string, object>)new MiniJson(File.ReadAllText(Path.Combine(dir, "movement_v3.json"))).Parse();
+            Assert.That((long)v3["version"], Is.EqualTo(3));
+            var bump = (Dictionary<string, object>)v3["bump"];
+            Assert.That(bump["enabled"], Is.EqualTo(false));
+            Assert.That((long)bump["minClosingSpeed"], Is.EqualTo(4000));
+            Assert.That((long)bump["staggerMs"], Is.EqualTo(250));
+            v3.Remove("bump");
+            v3["version"] = v2["version"];
+            Assert.That(Canonicalize(v3), Is.EqualTo(Canonicalize(v2)));
+            Assert.That(new List<string>(v3.Keys).Count, Is.EqualTo(new List<string>(v2.Keys).Count));
         }
 
         [Test]
@@ -57,10 +75,13 @@ namespace FallRush.Tests
         }
 
         [Test]
-        public void MovementV2_IsTheGameConfig_V1KeptUnchanged()
+        public void MovementV3_IsTheGameConfig_V1V2KeptUnchanged()
         {
-            Assert.That(MovementConfigData.File, Is.EqualTo("movement_v2.json"));
-            Assert.That(MovementConfigData.Version, Is.EqualTo(2));
+            Assert.That(MovementConfigData.File, Is.EqualTo("movement_v3.json"));
+            Assert.That(MovementConfigData.Version, Is.EqualTo(3));
+            // movement_v2.json stays on disk, byte-for-byte the G1 file (sha256 of its canonical JSON).
+            var v2 = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "packages", "shared", "config", "movement_v2.json"));
+            Assert.That(Sha256Hex(Canonicalize(new MiniJson(File.ReadAllText(v2)).Parse())), Is.EqualTo("696ebf9f622b01b598834e63904d25bfbf062dc208f93868d57d9df2f9ffe3f3"));
             var c = MovementConfig.Default;
             Assert.That(c.MaxSpeed, Is.EqualTo(5.0f));
             Assert.That(c.JumpApex, Is.EqualTo(1.2f));

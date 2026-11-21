@@ -363,6 +363,29 @@ namespace FallRush.Net
             return c;
         }
 
+        /// <summary>G4.1c: <see cref="RemoteFeetAt"/> plus each remote's snapshot velocity (cm/s) for the bump stagger prediction.</summary>
+        private int RemoteMotionAt(uint tick, Vec3[] buf, Vec3[] vel)
+        {
+            if (!Remote.HasData)
+                return 0;
+            ref readonly var n = ref Remote.Newest;
+            var ahead = (int)(tick - n.Tick);
+            if (ahead < 0) ahead = 0;
+            if (ahead > 12) ahead = 12;
+            var t = ahead / 30f;
+            var c = 0;
+            for (var i = 0; i < n.Count; i++)
+            {
+                ref readonly var p = ref n.Players[i];
+                if (p.Slot == OwnSlot || (p.Flags & MotorState.Respawning) != 0 || (p.Race & PlayerState.RaceFinished) != 0)
+                    continue;
+                vel[c] = new Vec3(p.VelX, p.VelY, p.VelZ);
+                buf[c++] = new Vec3(p.PosX * 0.001f + p.VelX * 0.01f * t, p.PosY * 0.001f, p.PosZ * 0.001f + p.VelZ * 0.01f * t);
+            }
+
+            return c;
+        }
+
         /// <summary>Scene name for a map id (dev sandbox = 255, lobby = 254).</summary>
         public static string SceneFor(byte mapId) => NetBootstrap.SceneForMap(mapId);
 
@@ -558,9 +581,9 @@ namespace FallRush.Net
             if (Round.HasValue && Round.Value.MapId != map.MapId)
                 return; // wrong map loaded for this round; wait
             Physics.simulationMode = SimulationMode.Script; // queries only; nothing is simulated on clients either
-            var cfg = MovementConfig.For(round.Modifier);
+            var cfg = NetBootstrap.MovementFor(round.Modifier);
             _world = map.CreateWorld(transform, cfg, in round, out var hazards);
-            Prediction = new ClientPrediction(cfg, _world, hazards) { PredictPushes = PredictPushesEnabled, RemoteFeet = RemoteFeetAt };
+            Prediction = new ClientPrediction(cfg, _world, hazards) { PredictPushes = PredictPushesEnabled, RemoteFeet = RemoteFeetAt, RemoteMotion = RemoteMotionAt };
             _rxAppliedToPrediction = 0;
             ApplyRxToPrediction(measure: false);
             Debug.Log($"[net] prediction ready map={map.gameObject.scene.name} mapHash={MapContent.Short(map.ContentHash)} round: {round} hazards={hazards.Count}");

@@ -87,7 +87,7 @@ namespace FallRush.Net
             var p = matchMode ? new RoundParams { MapId = map.MapId } : ChooseRoundParams(map, out _, out _);
             // Free play and the lobby: hazard time = server tick. Round maps get their RUSH tick from the match director.
             p.RoundStartTick = 0;
-            var cfg = MovementConfig.For(p.Modifier);
+            var cfg = NetBootstrap.MovementFor(p.Modifier);
             _probe = PhysxMotorWorld.CreateProbe(transform, cfg.Radius, cfg.Height);
             _world = map.CreateWorld(_probe, cfg, in p, out var hazards);
             Core = new SimCore(cfg, _world, map.SpawnPoints(), hazards, map.SpawnYaws());
@@ -172,7 +172,7 @@ namespace FallRush.Net
         public System.Collections.Generic.List<string> ApplyRound(ref RoundParams p, uint roundStartTick)
         {
             p.RoundStartTick = roundStartTick;
-            var cfg = MovementConfig.For(p.Modifier);
+            var cfg = NetBootstrap.MovementFor(p.Modifier);
             _world = Map.CreateWorld(_probe, cfg, in p, out var hazards);
             var problems = HazardAllowlist.Validate(hazards, Map.SpawnsMm());
             if (problems.Count > 0)
@@ -198,7 +198,7 @@ namespace FallRush.Net
             Map = map;
             MapHash = map.ContentHash;
             Physics.SyncTransforms();
-            var cfg = MovementConfig.For(p.Modifier);
+            var cfg = NetBootstrap.MovementFor(p.Modifier);
             _world = map.CreateWorld(_probe, cfg, in p, out var hazards);
             Refused = null;
             var problems = HazardAllowlist.Validate(hazards, map.SpawnsMm());
