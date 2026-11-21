@@ -70,6 +70,8 @@ namespace FallRush.Shared
 
         // stats
         public int Jumps, Hesitations, Retargets;
+        /// <summary>Survival: the spiral side (route section) the bot steered by on its last tick (G4.3 route QA).</summary>
+        public int Section;
 
         /// <summary>Server bot: rules + the sim it runs in.</summary>
         public BotBrain(int slot, BotTier tier, uint seed, IRoundRules rules, SimCore sim, BotRoute[] routes)
@@ -102,6 +104,7 @@ namespace FallRush.Shared
                 _wp = new WaypointBot(slot, routes, _hz, _cfg, seed + (uint)slot * 7u)
                 {
                     TimingSlop = tier == BotTier.Easy ? 5 : tier == BotTier.Normal ? 4 : tier == BotTier.Good ? 2 : 0, // G4.2
+                    StartAtFirstOnEntry = _mode == "Survival", // G4.3
                 };
             if (_mode == "Survival")
                 _sectionY = SectionHeights(routes);
@@ -155,7 +158,8 @@ namespace FallRush.Shared
                     // Section by the height of the last ground contact (a jump must not switch to the next side's route).
                     if (s.Has(MotorState.Grounded) || _groundY == int.MinValue)
                         _groundY = s.PosY;
-                    plan = _wp.Next(tick, in s, SurvivalSection(_groundY));
+                    Section = SurvivalSection(_groundY);
+                    plan = _wp.Next(tick, in s, Section);
                     break;
                 case "Skill":
                     plan = SkillPlan(tick, in s);

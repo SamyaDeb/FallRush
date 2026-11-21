@@ -18,7 +18,7 @@ MonoBehaviour:
   mode: Survival
   minPlayers: 2
   maxPlayers: 12
-  targetDuration: {x: 90, y: 120}
+  targetDuration: {x: 90, y: 110}
   timerCapSeconds: 150
   checkpointCount: 1
   variants: 2

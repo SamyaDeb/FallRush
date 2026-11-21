@@ -67,6 +67,9 @@ namespace FallRush.Shared
 
         /// <summary>Route choice per section: −1 = random from the seed, else this route index (QA: force a route).</summary>
         public int ForcedRoute = -1;
+        /// <summary>G4.3 (Survival): on entering a section within 6 m of its first point, start there instead of at the
+        /// nearest point (the side switches on the ramp below a corner; the nearest point was the far edge's jump).</summary>
+        public bool StartAtFirstOnEntry;
 
         public WaypointBot(int slot, BotRoute[] routes, HazardSet hazards, MovementConfig cfg, uint seed)
         {
@@ -200,9 +203,23 @@ namespace FallRush.Shared
             long dx = tx - s.PosX, dz = tz - s.PosZ;
             var d2 = dx * dx + dz * dz;
             var grounded = s.Has(MotorState.Grounded);
+            // G4.3: standing right under a Run / Land point out of hop reach (knocked off the shelf it is on): go back along
+            // the route instead of hopping at the wall forever.
+            if (grounded && s.Surface == 0 && !runningUp && (p.Action == WaypointAction.Run || p.Action == WaypointAction.Land) && p.YMm - s.PosY > 1500 && d2 < 2200L * 2200L && _wp > 0)
+            {
+                Reacquire(in s, tick);
+                p = pts[_wp];
+                tx = p.XMm;
+                tz = p.ZMm;
+                dx = tx - s.PosX;
+                dz = tz - s.PosZ;
+                d2 = dx * dx + dz * dz;
+            }
             var arrived = !runningUp && d2 <= (long)p.RadiusMm * p.RadiusMm && Math.Abs(s.PosY - p.YMm) < 1500;
             // Run / Jump points also count once passed (overshooting a jump point must not turn us back toward the gap).
-            if (!arrived && !runningUp && (p.Action == WaypointAction.Run || p.Action == WaypointAction.Jump) && _wp > 0 && Math.Abs(s.PosY - p.YMm) < 1500)
+            // G4.3: not when the point after it is out of hop reach from here (we were knocked down below it: walk back).
+            var nextOutOfReach = grounded && _wp + 1 < pts.Length && pts[_wp + 1].YMm - s.PosY > 1500;
+            if (!arrived && !runningUp && !nextOutOfReach && (p.Action == WaypointAction.Run || p.Action == WaypointAction.Jump) && _wp > 0 && Math.Abs(s.PosY - p.YMm) < 1500)
             {
                 var q = pts[_wp - 1];
                 long ax = p.XMm - q.XMm, az = p.ZMm - q.ZMm;
@@ -402,7 +419,8 @@ namespace FallRush.Shared
             _route = -1;
             if (count == 0)
                 return;
-            var choice = ForcedRoute >= 0 ? ForcedRoute % count : (int)(Next() % (uint)count);
+            // G4.3: a forced index that this section does not have falls back to route 0 (sides differ in route count).
+            var choice = ForcedRoute >= 0 ? (ForcedRoute < count ? ForcedRoute : 0) : (int)(Next() % (uint)count);
             var pick = choice;
             for (var i = 0; i < _routes.Length; i++)
             {
@@ -418,6 +436,18 @@ namespace FallRush.Shared
             if (section < RouteTaken.Length)
                 RouteTaken[section] = choice;
             _wp = 0;
+            if (StartAtFirstOnEntry)
+            {
+                var p0 = _routes[_route].Points[0];
+                long dx = p0.XMm - s.PosX, dz = p0.ZMm - s.PosZ;
+                if (dx * dx + dz * dz < 6000L * 6000L && Math.Abs(p0.YMm - s.PosY) < 1500)
+                {
+                    _bestDist2 = long.MaxValue;
+                    _progressTick = tick;
+                    return;
+                }
+            }
+
             Reacquire(in s, tick);
         }
 
@@ -434,7 +464,9 @@ namespace FallRush.Shared
             for (var i = 0; i < pts.Length; i++)
             {
                 long dx = pts[i].XMm - s.PosX, dz = pts[i].ZMm - s.PosZ, dy = pts[i].YMm - s.PosY;
-                var d = dx * dx + dz * dz + 4 * dy * dy;
+                // G4.3: a point more than a hop above us is out of reach (knocked off a shelf below its landing): weigh it
+                // far more, so we walk back to where the climb starts.
+                var d = dx * dx + dz * dz + (dy > 1300 ? 25 : 4) * dy * dy;
                 if (d < best)
                 {
                     best = d;
@@ -447,7 +479,7 @@ namespace FallRush.Shared
             {
                 long ax = pts[bi + 1].XMm - pts[bi].XMm, az = pts[bi + 1].ZMm - pts[bi].ZMm;
                 long px = s.PosX - pts[bi].XMm, pz = s.PosZ - pts[bi].ZMm;
-                if (ax * px + az * pz > 0 && pts[bi].Action == WaypointAction.Run)
+                if (ax * px + az * pz > 0 && pts[bi].Action == WaypointAction.Run && pts[bi + 1].YMm - s.PosY <= 1300) // G4.3: not onto a point out of hop reach
                     bi++;
             }
 
@@ -542,8 +574,15 @@ namespace FallRush.Shared
                 long dx = p.XMm - x, dy = p.YMm - y, dz = p.ZMm - z;
                 var len = Math.Sqrt((double)dx * dx + (double)dz * dz);
                 var steps = Math.Max(1, (int)Math.Ceiling(len / v));
+                // G4.3: a segment that starts at a jump point is flown in an arc (apex ≈ the hop height): a head swinging
+                // above the walk line still hits a jumping capsule (Goo Tower k0 / k4 traces).
+                var from = i - 1 >= 0 ? pts[i - 1].Action : WaypointAction.Run;
+                var arc = from == WaypointAction.Jump ? (long)(_cfg.JumpApex * 1000f) : 0L;
                 for (var j = 1; j <= steps; j++)
-                    AddSample(x + dx * j / steps, y + dy * j / steps, z + dz * j / steps, k + j);
+                {
+                    var f = (double)j / steps;
+                    AddSample(x + dx * j / steps, y + dy * j / steps + (long)(arc * 4 * f * (1 - f)), z + dz * j / steps, k + j);
+                }
                 k += steps;
                 x = p.XMm;
                 y = p.YMm;

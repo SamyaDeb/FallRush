@@ -48,9 +48,15 @@ namespace FallRush.Net
             }
         }
 
-        /// <summary>One race; adds every completed section traversal to <paramref name="t"/>.</summary>
+        /// <summary>One round; adds every completed section traversal to <paramref name="t"/>.</summary>
         private static void RunOne(MapInfo map, CapsuleCollider probe, int variant, int run, BotTier tier, Tally t)
         {
+            if (map.definition != null && map.definition.mode == "Survival")
+            {
+                RunOneSurvival(map, probe, variant, run, tier, t);
+                return;
+            }
+
             BotBrainSet set = null;
             var cp = new int[SimCore.MaxSlots];
             var entry = new uint[SimCore.MaxSlots];
@@ -101,6 +107,83 @@ namespace FallRush.Net
             });
         }
 
+        /// <summary>
+        /// G4.3 Survival (Goo Tower): the section is the spiral side the bot's brain steers by (<see cref="BotBrain.Section"/>,
+        /// the index <see cref="BotBrainSet"/> picks a route with). A traversal completes when the bot moves on to the next
+        /// side (or escapes from the last one). A drop to a lower side (a lap down, or off a block onto the side below) ends
+        /// the attempt: its contacts and the drop (counted as a fall) go to the side it was on, with no traversal time.
+        /// </summary>
+        private static void RunOneSurvival(MapInfo map, CapsuleCollider probe, int variant, int run, BotTier tier, Tally t)
+        {
+            BotBrainSet set = null;
+            var sec = new int[SimCore.MaxSlots];
+            var entry = new uint[SimCore.MaxSlots];
+            var hits = new int[SimCore.MaxSlots];
+            var doors = new int[SimCore.MaxSlots];
+            var falls = new int[SimCore.MaxSlots];
+            var gone = new bool[SimCore.MaxSlots];
+            var started = false;
+            ModeQa.RunOne(map, probe, variant, 0, run, tier, ModeQa.PlayersFor("Survival"), onBots: s => set = s, perTick: (core, rules, hz) =>
+            {
+                if (!(rules is SurvivalRules sv) || set == null || rules.Phase != RoundPhase.Rush)
+                    return;
+                if (!started)
+                {
+                    started = true;
+                    for (var i = 0; i < SimCore.MaxSlots; i++)
+                        entry[i] = core.Tick - 1;
+                }
+
+                for (var i = 0; i < SimCore.MaxSlots; i++)
+                {
+                    if (gone[i] || !core.Slots[i].Active || set[i]?.Waypoints == null)
+                        continue;
+                    var cur = Math.Min(MaxSections - 1, sec[i]);
+                    var route = Math.Min(MaxRoutes - 1, set[i].Waypoints.RouteTaken[Math.Min(cur, set[i].Waypoints.RouteTaken.Length - 1)]);
+                    var step = core.Slots[i].LastStep;
+                    if ((step & PlayerStep.Result.HazardHit) != 0) hits[i]++;
+                    if ((step & PlayerStep.Result.DoorPushed) != 0) doors[i]++;
+                    if ((step & (PlayerStep.Result.FellOut | PlayerStep.Result.Gooed)) != 0) falls[i]++;
+                    var done = sv.Players[i].Done;
+                    var outNow = sv.Players[i].Out;
+                    var now = done ? sec[i] + 1 : set[i].Section;
+                    if (outNow && !done)
+                    {
+                        // Knocked out (goo / fell out of the map): the attempt's contacts and the fall stay with this side.
+                        t.Hits[cur, route] += hits[i];
+                        t.Doors[cur, route] += doors[i];
+                        t.Falls[cur, route] += Math.Max(1, falls[i]);
+                        gone[i] = true;
+                        continue;
+                    }
+
+                    if (now == sec[i])
+                        continue;
+                    if (now > sec[i])
+                    {
+                        t.Ticks[cur, route].Add((int)(core.Tick - entry[i]));
+                        t.Traversals[cur, route]++;
+                        t.Hits[cur, route] += hits[i];
+                        t.Doors[cur, route] += doors[i];
+                        t.Falls[cur, route] += falls[i];
+                    }
+                    else
+                    {
+                        // Dropped to a lower side: a fall on this side, no traversal.
+                        t.Hits[cur, route] += hits[i];
+                        t.Doors[cur, route] += doors[i];
+                        t.Falls[cur, route] += falls[i] + 1;
+                    }
+
+                    hits[i] = doors[i] = falls[i] = 0;
+                    sec[i] = now;
+                    entry[i] = core.Tick;
+                    if (done)
+                        gone[i] = true;
+                }
+            });
+        }
+
         private static float Median(List<int> v)
         {
             if (v.Count == 0)
@@ -115,7 +198,8 @@ namespace FallRush.Net
             var probe = PhysxMotorWorld.CreateProbe(map.transform, MovementConfig.Default.Radius, MovementConfig.Default.Height);
             var md = new StringBuilder();
             var key = map.definition != null ? map.definition.mapKey : map.gameObject.scene.name;
-            md.Append($"### Route cost: {MapDisplayNames.OfKey(key)} (key {key}, map hash {MapContent.Short(map.ContentHash)}), {runs} runs per variant, modifier None, 12 BotBrain bots\n\n");
+            var survival = map.definition != null && map.definition.mode == "Survival";
+            md.Append($"### Route cost: {MapDisplayNames.OfKey(key)} (key {key}, map hash {MapContent.Short(map.ContentHash)}), {runs} runs per variant, modifier None, {(survival ? ModeQa.PlayersFor("Survival") : 12)} BotBrain bots\n\n");
             md.Append("Timing = reference-tier bots (median section time per route, ratio to the section's fastest route; target 1.0–1.25×). ")
               .Append("Contacts = normal-tier bots, per 100 traversals of the route (hazard hits / door push-outs / falls). ")
               .Append("**FREE ROUTE** = no hazard contact (hits + door pushes = 0) in any traversal; falls alone do not count.\n\n");
@@ -181,7 +265,9 @@ namespace FallRush.Net
 
             md.Append($"\n- Free routes (no hazard contact): **{free.Count}**{(free.Count > 0 ? ": " + string.Join("; ", free) : "")}\n");
             md.Append($"- Routes slower than 1.25× the section's fastest: **{overRatio.Count}**{(overRatio.Count > 0 ? ": " + string.Join("; ", overRatio) : "")}\n");
-            md.Append("- Section = checkpoints reached (0 = start → first checkpoint); route index = the bot's choice among that section's usable routes (`BotBrainSet.UsableRoutes`).\n");
+            md.Append(survival
+                ? "- Section = the spiral side the bot's brain is on (`BotBrain.Section`, by the height of its last ground contact); a traversal ends on the next side or at the summit. A drop to a lower side counts as a fall on the side it left (no traversal time). Route index = the bot's choice among that side's usable routes. Single-route sides are exempt from the ratio.\n"
+                : "- Section = checkpoints reached (0 = start → first checkpoint); route index = the bot's choice among that section's usable routes (`BotBrainSet.UsableRoutes`).\n");
             md.Append($"- Wall time: {sw.Elapsed.TotalSeconds:F0} s\n\n");
             var ok = free.Count == 0 && overRatio.Count == 0;
             md.Append($"**ROUTE COST {(ok ? "PASS" : "FAIL")}** (no free route; slowest route ≤ 1.25× the fastest per section)\n");

@@ -382,55 +382,55 @@ public static class MapDressing
     /// proud of the wall), a chute and a glass globe on the dome, islands far out.</summary>
     private static void GooTower(Scene scene, MeshBuilder mb, MeshBuilder glass, System.Random rng)
     {
-        const float core = 12f;
+        // G4.3: the 14 m core (2 laps, 22 m). Flat panels on the core faces only (out of every walk volume).
+        const float core = GooTowerBuilder.Core;
         var faces = new[] { (Vector3.forward, Vector3.right), (Vector3.back, Vector3.left), (Vector3.right, Vector3.back), (Vector3.left, Vector3.forward) };
         foreach (var (n, t) in faces)
         {
-            for (var row = 0; row < 4; row++)
+            for (var row = 0; row < 3; row++)
             {
                 for (var col = -1; col <= 1; col++)
                 {
-                    var c = n * (core + 0.01f) + t * (col * 7.2f) + Vector3.up * (4.5f + row * 10f);
+                    var c = n * (core + 0.01f) + t * (col * 4.4f) + Vector3.up * (4.2f + row * 7.3f);
                     if ((row + col) % 2 == 0)
                     {
                         // Capsule window: a two-tone rounded panel (flat).
                         var rot = Quaternion.LookRotation(n);
                         var colr = P.blockSides[(row * 3 + col + 4) % P.blockSides.Length];
-                        mb.Add(MapArt.BevelBoxRaw(new Vector3(3.2f, 2.2f, 0.02f), Color.white, Color.white, Color.white, 0f, 0.01f), Matrix4x4.TRS(c + Vector3.up * 1.1f, rot, new Vector3(3.2f, 2.2f, 0.02f)));
-                        mb.Add(MapArt.BevelBoxRaw(new Vector3(3.2f, 2.2f, 0.02f), colr, colr, colr, 0f, 0.01f), Matrix4x4.TRS(c - Vector3.up * 1.1f, rot, new Vector3(3.2f, 2.2f, 0.02f)));
-                        mb.Add(MapArt.BevelBoxRaw(new Vector3(3.4f, 0.18f, 0.025f), P.ink, P.ink, P.ink, 0f, 0.005f), Matrix4x4.TRS(c, rot, new Vector3(3.4f, 0.18f, 0.025f)));
+                        mb.Add(MapArt.BevelBoxRaw(new Vector3(2.6f, 1.6f, 0.02f), Color.white, Color.white, Color.white, 0f, 0.01f), Matrix4x4.TRS(c + Vector3.up * 0.8f, rot, new Vector3(2.6f, 1.6f, 0.02f)));
+                        mb.Add(MapArt.BevelBoxRaw(new Vector3(2.6f, 1.6f, 0.02f), colr, colr, colr, 0f, 0.01f), Matrix4x4.TRS(c - Vector3.up * 0.8f, rot, new Vector3(2.6f, 1.6f, 0.02f)));
+                        mb.Add(MapArt.BevelBoxRaw(new Vector3(2.8f, 0.16f, 0.025f), P.ink, P.ink, P.ink, 0f, 0.005f), Matrix4x4.TRS(c, rot, new Vector3(2.8f, 0.16f, 0.025f)));
                     }
                     else
-                        Gear(mb, c, n, 1.4f, row % 2 == 0 ? P.sunYellow : P.mint);
+                        Gear(mb, c, n, 1.1f, row % 2 == 0 ? P.sunYellow : P.mint);
                 }
             }
         }
 
-        // Dome: a glass globe of capsules and a spiral chute (all above the summit, out of reach).
-        var domeTop = new Vector3(0f, 47f, 0f);
-        glass.Sphere(domeTop + Vector3.up * 4f, Vector3.one * 7f, Color.white, new Color(0.8f, 0.9f, 1f), 18, 12);
-        for (var i = 0; i < 24; i++)
+        // Dome: a glass globe of capsules on the core top (y 23) and a spiral chute above it, out of reach (summit y 22).
+        var domeTop = new Vector3(0f, GooTowerBuilder.Height + 2.2f, 0f);
+        glass.Sphere(domeTop + Vector3.up * 3.2f, Vector3.one * 6.4f, Color.white, new Color(0.8f, 0.9f, 1f), 18, 12);
+        for (var i = 0; i < 20; i++)
         {
-            var d = new Vector3((float)rng.NextDouble() - 0.5f, (float)rng.NextDouble() * 0.5f - 0.65f, (float)rng.NextDouble() - 0.5f).normalized * 4.6f;
+            var d = new Vector3((float)rng.NextDouble() - 0.5f, (float)rng.NextDouble() * 0.5f - 0.65f, (float)rng.NextDouble() - 0.5f).normalized * 2.2f;
             var c = P.blockSides[rng.Next(P.blockSides.Length)];
-            mb.Sphere(domeTop + Vector3.up * 4f + d + Vector3.up * 0.4f, Vector3.one * 1.3f, Color.white, Color.white, 8, 4);
-            mb.Sphere(domeTop + Vector3.up * 4f + d - Vector3.up * 0.4f, Vector3.one * 1.3f, c, c * 0.9f, 8, 4);
+            mb.Sphere(domeTop + Vector3.up * 3.2f + d + Vector3.up * 0.35f, Vector3.one * 1.1f, Color.white, Color.white, 8, 4);
+            mb.Sphere(domeTop + Vector3.up * 3.2f + d - Vector3.up * 0.35f, Vector3.one * 1.1f, c, c * 0.9f, 8, 4);
         }
 
-        for (var i = 0; i < 40; i++)
+        for (var i = 0; i < 20; i++)
         {
             var a0 = i * 0.32f;
             var a1 = (i + 1) * 0.32f;
-            var p0 = new Vector3(Mathf.Cos(a0) * 8f, 52f - i * 0.18f, Mathf.Sin(a0) * 8f);
-            var p1 = new Vector3(Mathf.Cos(a1) * 8f, 52f - (i + 1) * 0.18f, Mathf.Sin(a1) * 8f);
-            if (i < 20)
-                mb.Cylinder(p0 + Vector3.up * 2f, p1 + Vector3.up * 2f, 0.9f, i % 2 == 0 ? P.magenta : Color.Lerp(P.magenta, Color.white, 0.3f), 10);
+            var p0 = new Vector3(Mathf.Cos(a0) * 5f, domeTop.y + 9f - i * 0.18f, Mathf.Sin(a0) * 5f);
+            var p1 = new Vector3(Mathf.Cos(a1) * 5f, domeTop.y + 9f - (i + 1) * 0.18f, Mathf.Sin(a1) * 5f);
+            mb.Cylinder(p0, p1, 0.7f, i % 2 == 0 ? P.magenta : Color.Lerp(P.magenta, Color.white, 0.3f), 10);
         }
 
         for (var i = 0; i < 8; i++)
         {
             var a = i * Mathf.PI / 4f + 0.3f;
-            Island(mb, new Vector3(Mathf.Cos(a) * 46f, -8f - i % 3 * 6f, Mathf.Sin(a) * 46f), 7f, rng);
+            Island(mb, new Vector3(Mathf.Cos(a) * 40f, -8f - i % 3 * 6f, Mathf.Sin(a) * 40f), 7f, rng);
         }
     }
 

@@ -67,6 +67,8 @@ namespace FallRush.Net
             _ => 1,
         };
 
+        private static readonly bool GooTrace = Environment.GetEnvironmentVariable("FALLRUSH_QA_GOO") == "1";
+
         public static Stats RunOne(MapInfo map, CapsuleCollider probe, int variant, int modifier, int run, BotTier tier, int bots = 12, int forcedRoute = -1, Action<SimCore, IRoundRules, HazardSet> perTick = null, Action<BotBrainSet> onBots = null)
         {
             var seed = (ulong)(0x4D4E0000 + variant * 1000003 + modifier * 10007 + run * 7919 + (int)tier * 104729);
@@ -113,6 +115,14 @@ namespace FallRush.Net
             {
                 core.Step();
                 perTick?.Invoke(core, rules, hz);
+                if (GooTrace && mode == "Survival")
+                    for (var i = 0; i < SimCore.MaxSlots; i++)
+                        if (core.Slots[i].Active && (core.Slots[i].LastStep & PlayerStep.Result.Gooed) != 0)
+                        {
+                            ref readonly var g = ref core.Slots[i].State;
+                            var w = set[i]?.Waypoints;
+                            Debug.Log($"[qa-goo] tier={tier} v={variant} run={run} slot={i} t={(int)(core.Tick - rush) / 30f:F1}s at ({g.PosX / 1000f:F1},{g.PosY / 1000f:F1},{g.PosZ / 1000f:F1}) {w?.CurrentRouteName}#{w?.Waypoint} stuck={w?.Stuck} {w?.LastStuckReason}");
+                        }
                 if (trace && bots == 1 && (core.Tick - rush) % 15 == 0)
                 {
                     ref readonly var s0 = ref core.Slots[0].State;
@@ -306,9 +316,16 @@ namespace FallRush.Net
 
             if (mode == "Survival")
             {
-                md.Append("\n| Variant | Route index (every side) | Escaped alone | Min goo margin (s) | Climb (s) |\n|---|---|---|---|---|\n");
+                // G4.3: sides differ in route count; probe every index up to the largest (a side without index r takes route 0).
+                var perSide = new Dictionary<int, int>();
+                foreach (var br in map.botRoutes)
+                    perSide[br.Section] = perSide.TryGetValue(br.Section, out var c) ? c + 1 : 1;
+                var maxIdx = 1;
+                foreach (var kv in perSide)
+                    maxIdx = Math.Max(maxIdx, kv.Value);
+                md.Append("\n| Variant | Route index (every side; route 0 where a side has fewer) | Escaped alone | Min goo margin (s) | Climb (s) |\n|---|---|---|---|---|\n");
                 foreach (var v in new[] { 0, 1 })
-                    for (var r = 0; r < 2; r++)
+                    for (var r = 0; r < maxIdx; r++)
                     {
                         var (escaped, margin, climb, gooed) = RouteProbe(map, probe, v, r);
                         md.Append($"| {(v == 0 ? "A" : "B")} | {r} | {(escaped ? "yes" : "NO")} | {margin:F1} | {climb:F1} |\n");
