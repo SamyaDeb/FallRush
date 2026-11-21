@@ -201,6 +201,10 @@
 | G4.10-2 | Camera default **`close`** (6.5 m, 15°, look-at +0.75 m): classic already showed a Rushling at 13.1 %, so close is lower / flatter rather than closer (14.3 %); `?cam=classic` keeps the G1 camera | 🟡 your pick | `CameraRig` |
 | G4.10-3 | Goo Tower summit (≈ 40° look-up from the spawn) and Lid Flip's near corners are not fixable by camera tuning; left as is | 🟡 your call | proof G4.10 |
 | G4.11-1 | **Rigged Bolt cut** (scope / risk: CPU skinning × 12 in WebGL, the 12 presets re-routed before the last build) | 🟡 ask if wanted | proof G4.11 |
+| G4.12-1 | URP assets save **HDR** colour grading (player builds stripped the HDR grade variants: every build since G4.6 showed a broken grade) | ✅ | `Mobile_RPAsset`, `PC_RPAsset` |
+| G4.12-2 | **WebGL build #4** (one over the G4 budget) with only that fix, on the user's OK; it is the art-freeze build (24.09 MB) | ✅ user | proof G4.12 |
+| G4.12-3 | Soft budget misses measured under load (tris 440–455k Capsule Run, ≈ 395k Goo; draw peak 216 Capsule Run) not acted on (needs a build #5); levers listed in the proof | 🟡 your call | proof G4.12 |
+| G4.12-4 | **⚑ Art freeze declared 2026-11-20 23:56 UTC** | ✅ | PROJECT_STATUS |
 
 ## Top risks (live; update daily in PROJECT_STATUS)
 

@@ -345,3 +345,26 @@ All through `Editor/MapArt.cs` + `Editor/MapDressing.cs`, run by every builder b
 - **Audio** (`GameAudio` / `AudioDirector`): original toy-pop music synthesised by `tools/audio/synth.py` (marimba, Karplus-Strong ukulele, claps, shakers, a kazoo-like lead): lobby loop (112 bpm, C major), race loop (128 bpm, F major), tense final loop (142 bpm, A minor), victory sting; all measured at −14 LUFS (sting −13). 24 SFX + 6 UI sounds + 4 gibberish chirp moods (pitch-randomised, no words). Three buses in code (Music / SFX / UI) on pooled AudioSources wired to the saved sliders, ducking under the countdown and eliminations; nothing plays before the first click / key on WebGL.
 - **VFX** (`Fx` / `FxDirector`): landing dust scaled by impact, dive streaks, belly-slide dust, hit stars + lid pop, a **visual-only 60 ms hit-stop** (the Rushling's pose holds; the sim never pauses), camera shake (off with reduced motion), FOV kick on dives and spring pads, checkpoint mint ring burst, qualify confetti, goo splash / poof on a knock-out, star sparkle, spring-pad squash, door and mallet telegraph glow (flash mask). Pooled particle systems on one material; reduced motion cuts counts and turns streaks off.
 - **Signature moments:** (1) lobby capsules in the player's colours drop, bounce and pop open on their Rushling; (2) the Chaos Capsule machine (UI) cranks while the deal is pending, then pops one capsule per round; (3) the claw: eliminated Rushlings turn grey and a claw-machine claw (our design: grape hub, three magenta prongs with mint tips) plucks them out at the round result; (4) the crown ceremony: a golden Crown Capsule drops onto the champion, pops open, and our crown (a gold band with five rounded capsule prongs and a tiny wind-up key) settles on the dome, with confetti and the victory sting; (5) the countdown capsule machine cranks out 3-2-1-RUSH!.
+
+## 9. As built (G4-B art, 2026-11-21; proof `docs/proof/G4-B-art.md`)
+- **Look:** the G4.8 soft toy look is the default (§3.0); candy stays behind `?look=candy` / F7 until the look is picked.
+- **Hit feedback:** a hit shows **dizzy swirls** (three ink / lavender spirals round the head) and a white bonk puff with 3–5
+  white sparks; no stars and no gold on a hit (stars mean score: Star Fountain pickups / drops, the golden star, the podium).
+  The §8.4 "hit stars" line is replaced by this.
+- **Lid Flip (soft):** calm lids keep 85 % of the sun in a cast shadow, so a shaded calm lid never comes near the lit amber
+  for deutan / protan eyes (≥ 0.12 luma, measured on shots).
+- **Prop kit (G4.9):** 22 original capsule-toy props from one deterministic Blender script (`tools/blender/props.py`): foam
+  mallet head, quilted pillow bumper, gumball with a lemon band and a shine band, foam spinner caps + hub, inflatable finish
+  arch pieces, spring pad (mint + checker + coil), inflatable start arch and towers, confetti cannon, pennant, bunting,
+  ribbon banner, coin slot, capsule-machine cabinet, prize star (score map only), claw, wind-up key, goo blob, bleacher
+  block. ≤ 1.5k tris, vertex colours via palette slots in both looks, baked AO. A prop that replaces a hazard / platform look
+  stays within 0.15 m of its collider and keeps the lemon hit stripe. Bumpers squash 12 % and wobble on a nearby hit (4 %, no
+  wobble, with reduced motion).
+- **Backdrop (G4.10, soft):** a hopping, swaying crowd of capsule spectators on the stadium tiers and waving banners / flags
+  (one mesh, animated in its shader), inflatable towers, a cloud sea far below the course.
+- **Camera (§4, G4.10):** presets in `CameraRig`: `close` (default: 6.5 m, 15°, look-at 0.75 m over the 0.8 m target, FOV 55°;
+  a Rushling ≈ 14 % of the screen height) and `classic` (the G1 camera: 6.6 m, 22.5°, 0.4 m); `?cam=classic|close`.
+- **Bolt:** unchanged procedural Bolt (§2.3.1). The rigged Bolt (G4.11) was cut (scope / risk).
+- **Grade in builds (G4.12):** the URP assets must save HDR colour grading; with LDR on disk a player build strips the HDR
+  grade variants and every build since G4.6 showed blown, oversaturated colours that the Editor shots never showed. Judge looks
+  in a build (Mac player `scripts/g2-shots.sh` or WebGL), not only in Editor shots.

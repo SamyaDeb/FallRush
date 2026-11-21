@@ -215,3 +215,105 @@ today's Bolt is already one smooth body mesh whose lid hinge and key spin run in
 skinned copy would add CPU skinning for 12 Rushlings in WebGL and re-route the 12 cosmetic presets (toppers, emblems, keys),
 right before the last build — for the jiggle and the ragdoll-ish flop. If you want those, they can be added later on the
 procedural Bolt (client-only springs on the existing nodes) without a rig. `?bolt=` does not exist.
+
+## G4.12 — art QA + art freeze
+
+### 1. Guard (render-only proof), measured
+| check | result |
+|---|---|
+| Mac dev server rebuilt from the final art code (`Build.MacDevServer`, 0 errors) | ✅ |
+| `scripts/m4-qa.sh 20` on Goo Tower, Star Fountain, Lid Flip, Capsule Run vs the **same 20 runs on the G4.7-era server binary** (built 2026-11-20 18:16 UTC, before any G4-B change; run at the start of this session) | **identical cell for cell** on all four maps; the only differing line is "Wall time" (`.m1-logs/g4b/qa-baseline/` vs `qa-after/`); every cell QA PASS |
+| `scripts/m4-soak.sh 20` | **20/20 complete, 20/20 logs valid**; match 5.6–7.6 min (median 6.3); server RSS max 200 MB |
+| EditMode | **391/391** |
+| prediction twins | 0 corrections (EditMode prediction tests) |
+| map hashes | unchanged on every rebuild (`MapSceneTests`) |
+| Lid Flip localhost prediction probe (`m3-gate.sh`, the `g45-probe.sh` localhost leg, 3 clients, 140 s) | **0 corrections, 0 hazard mismatches, 0 hazard corrections** on all 3 clients; pushes 0.25–0.41 / 5 s; fps min 55–57 (probe clients) |
+
+Note: the prompt asked to compare with "G4.7's reports"; those are 100-run reports, so the like-for-like comparison is the
+20-run baseline on the pre-G4-B binary (same seeds). The 150 ms netem leg was not run (localhost only, as the prompt asks).
+
+### 2. WebGL release builds #3 and #4
+- Built 2026-11-20 22:04–22:16 UTC on `3d8ee41` (`pnpm m1:build:webgl:release`, no Editor, no other Unity): **24.09 MB**
+  (`reportedSize` 24 085 594 B; 0 errors, 15 warnings, 720 s). Budget ≤ 25 MB: **met, 0.91 MB headroom.**
+- vs build #2 (21.79 MB): **+2.30 MB**. My G4.9 estimate (+0.2 MB, props alone) was far too low: most of the growth is G4.10's
+  crowd mesh (46–55k tris per map) and the cloud sea, both baked into all six scenes. No rebuild for size was needed. If more
+  content comes after the freeze: drop the crowd to one row per tier (≈ −50 % of its mesh) or pack uv3 / colour as
+  Float16 / UNorm8.
+- Saved copy: `client-unity/Builds/WebGL-g412-build3/` (gitignored). Builds #1 and #2 untouched.
+- **Build #3 had a broken colour grade — and so did every player build since G4.6** (found by the first browser run of this
+  phase): blown highlights and colours pushed to primaries (pink gumballs red, the sky cyan). Cause: both URP assets were saved
+  with **LDR** grading while `GraphicsQuality` switches to **HDR** grading at runtime (Neutral tonemapping needs it); a player
+  build strips the post-processing variants an asset does not use, so the grade ran on the wrong path. The Editor never strips,
+  so every Editor proof shot (G4.6 → G4.10) looked right. Isolated on the Mac player (post on / off, High / Low, the runtime
+  volume logged: exactly the soft grade), fixed by saving HDR grading in both assets (`0d020c2`), verified on the Mac player in
+  soft and candy. Your G4.6 "too colourful and unnatural" verdict was very likely partly this bug.
+- **WebGL release build #4** (one over the budget, **on your OK**): `0d020c2`, 2026-11-20 22:5x UTC, **24.09 MB**
+  (`reportedSize` 24 094 898 B, 0 errors, 351 s), saved at `client-unity/Builds/WebGL-g412-build4/`. **This is the art-freeze
+  build.** `client-unity/Builds/WebGL/` holds it too (what `pnpm m1:up:mac` serves).
+
+### 3. Browser measurements
+Measured on build #4 with `scripts/g47-webgl-measure.mjs` (it now clicks PLAY: the G3 menu blocked autoplay, so the G4.7 /
+G4.8 steps would never have reached a match), one full 12-player bot match per run, Chrome, the page's 960 × 600 canvas (the
+xNFT template; not the 1440 × 900 canvas of the method). **The machine was not idle** (load average 7–35 during the runs:
+other projects), so every number here is **UNVERIFIED** against the budget; they are what this machine did under that load.
+
+| run | map | FPS median (worst window) | 1 % low (median / worst window) | draw calls (median of windows / max) | tris max |
+|---|---|---|---|---|---|
+| soft High | Capsule Run | 59 | 53 / 53 | 114 / **216** | **455k** |
+| | Goo Tower | 59 | 53 / 53 | 64 / 150 | **392k** |
+| | Star Fountain | 59 | 53 / 53 | 76 / 102 | 246k |
+| | Lid Flip | 59 | 53 / 53 | 60 / 73 | 201k |
+| | lobby | 59 | 53 / 53 | 55 / 62 | 207k |
+| soft Low | Capsule Run | 59 | 53 / 53 | 85 / **174** | **440k** |
+| | Goo Tower | 59 | 53 / 50 | 58 / 131 | **397k** |
+| | Star Fountain | 59 | 53 / 53 | 52 / 108 | 260k |
+| | Lid Flip | 59 | 53 / 53 | 46 / 61 | 207k |
+| candy High | Capsule Run | 59 | 53 / 53 | 92 / 153 | 214k |
+| | Goo Tower | 59 | 53 / 53 | 54 / 94 | 151k |
+| | Star Fountain | 59 | 53 / 53 | 49 / 74 | 78k |
+| | Lid Flip | 59 | 53 / 53 | 41 / 52 | 52k |
+
+Reading (with the load caveat): the frame rate holds 59 everywhere; the **1 % low sits at 53 in every look and level** (candy
+too), so it does not single out soft and the G4.8-8 rule (soft-Low shadows off only if soft misses where candy passes) is
+**not triggered**. **Budgets missed in soft:** tris on Capsule Run (440–455k) and Goo Tower (≈ 395k) vs ≤ 300k, and the draw
+call peak on Capsule Run (216 High / 174 Low vs ≤ 150; the median windows are inside). Candy is inside both, so the cost is the
+soft look's shadow pass (the counter includes it) plus the G4.10 crowd ring. **Not changed** (it would need a build #5):
+the cheap levers, in order, are a 40 m shadow distance (from 60), one crowd row per tier, and soft shadows off on Low (G4.8-8);
+your call, with a re-measure on an idle machine. The camera default (`close`) was used in every run. Raw: `.m1-logs/g4b/webgl4/`.
+
+To re-measure on an idle machine (load < 4, nothing else running):
+```bash
+cd /Users/samya/Downloads/FallRush
+rm -rf client-unity/Builds/WebGL && cp -R client-unity/Builds/WebGL-g412-build4 client-unity/Builds/WebGL
+pnpm m1:up:mac
+for r in "soft high" "soft low" "candy high"; do set -- $r
+  node scripts/g47-webgl-measure.mjs "http://localhost:8080/?autoplay=1&name=QA&bot=match&gfx=$2&look=$1" /tmp/g412/$1-$2 600 5
+done
+pnpm m1:down
+grep "budget map=" /tmp/g412/*/console.log
+```
+
+### 4. Screenshots
+From build #4 in Chrome (soft, High, `close` camera), cropped to the canvas: `docs/proof/g4/final-<map>-{spawn,action}.png`
+for capsule-run, goo-tower, star-fountain, lid-flip; side by side **G2/G3 → G4.6 candy → G4.8 soft (Editor) → G4.12 build #4
+(browser)**: `final-compare-<map>-spawn.png`; colourblind sheets (Machado 2009, severity 1: normal | deuteranopia |
+protanopia): `final-<map>-spawn-colourblind.png`. The browser frames now match the Editor proof shots' colours (they did not
+before the grading fix: the build #3 frames are in `.m1-logs/g4b/webgl/` for reference).
+
+### 5. Freeze
+**⚑ Art freeze declared 2026-11-20 23:56 UTC** on build #4 (`0d020c2` + this docs commit). After this: no art / look / camera change
+without your call; M5 / M6 continue.
+
+### 6. Open items (your call)
+- **Look pick** (soft default / candy) — now worth a fresh look, since every earlier build showed a broken grade.
+- **Camera pick** (`close` default / `classic`).
+- **Soft budget misses** (tris on Capsule Run / Goo Tower, Capsule Run draw-call peak): accept, or a build #5 with a shorter
+  shadow distance / a lighter crowd; re-measure on an idle machine either way.
+- G4.11 rigged Bolt was cut (scope / risk); say if you want jiggle / flop on the procedural Bolt.
+- Still open from G4-A: the G4.5-8 Lid Flip timer tiebreak, the D2 bump stagger (off), match length (soak median 6.3 min vs
+  the GDD's 7–9), the Goo Tower summit look-up (≈ 40° from the spawn).
+
+### 7. Commits
+`f547d8b` prompts · `580ec72` G4.8z · `8210ba6` G4.9a · `ea429f6` G4.9b · `a31d7fe` G4.9 tests · `3d8ee41` G4.10 · `0d020c2`
+grading fix · this docs commit (G4.12).
+

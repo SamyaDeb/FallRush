@@ -119,3 +119,15 @@ Your pick (G4.8-10):
 - Look: soft / candy / mixed (say what to keep from each):
 - Per map notes:
 -
+
+## G4-B art: what to try in build #4 (2026-11-21; build #3 had a broken colour grade, see the G4-B proof)
+Start: `pnpm m1:up:mac` → `http://localhost:8080/?name=You`; stop with `pnpm m1:down`.
+- **Look:** F7 switches soft ↔ candy (or `?look=candy`). Soft is the default until you pick.
+- **Camera:** `?cam=close` (default: lower, flatter, the course ahead in view) vs `?cam=classic` (the old camera). Which one?
+- **Getting hit:** walk into a mallet or sweeper — dizzy swirls round the head + a white "bonk", no gold stars any more.
+- **Props:** foam mallet heads, quilted pillow bumpers (they squash and wobble when someone is knocked next to them),
+  gumballs with a lemon band, foam caps on sweeper bars, inflatable start / finish arches on Capsule Run, the claw over Lid Flip.
+- **Backdrop (soft):** the crowd in the stadium hops, banners wave, a cloud sea far below.
+- **Lid Flip:** is a lit (amber) lid ever hard to spot, also in a shadow?
+- Notes:
+-
