@@ -20,7 +20,14 @@
    - Only *reactive* elements are replicated, with sequence numbers: crumbling tiles, collected stars and occupancy-triggered blocks.
 2. **Collision equals visuals.** Server collision geometry is the same prefab collider set the client renders. Visual-only meshes carry no colliders.
 3. **Telegraph everything.** Every hazard winds up visibly for at least its `telegraphMs` before it can hit.
-4. **Two routes minimum** in every race section: a safe-slow route and a risky-fast route.
+4. **Route design (G4, 2026-11-19; replaces "two routes minimum: safe-slow and risky-fast"; source: the approved G4 plan page).** Rules 4.1–4.7 hold on every map:
+   1. **No free route.** Every path has a hazard. A safer path costs time, checked per route with the QA bots (§8 route cost, §9 `-fallrushQaRoutes`).
+   2. **Share the space.** One main route per section. A shortcut is short, visible and genuinely risky. No parallel lanes that split the pack.
+   3. **Breathe, then squeeze.** Open area, chokepoint, open area. Chokepoints are 7–10 m wide, so the crowd piles up and bumps.
+   4. **Hazards push you into people.** Knockbacks send you sideways into the crowd or back down a slope, not straight off the map.
+   5. **Read it without words.** No in-world signs. Pink means it hits you, yellow means it moves soon, mint means safe or goal, blue means it moves you.
+   6. **See the goal.** The finish arch or summit is visible from the start, and the course rises toward it.
+   7. **Escalate.** Each section is harder than the last. The final third has the tightest timing.
 5. **Original.** Each map passes the originality check (§8). These maps do not trace any existing game's levels.
 
 ## 2. Obstacle kit (shared, data-driven)
@@ -230,6 +237,7 @@ A 28 × 28 m toy plaza with 1.2 m walls, a capsule-machine plinth, four bumpers,
 - [ ] Fall volumes, map bounds, spectator camera rails
 - [ ] Every hazard has a `HazardDefinition` and passes the parameter allowlist
 - [ ] Only gameplay colliders on the `Gameplay` layer; visual meshes on `VisualOnly` (no colliders)
+- [ ] **Route cost (G4):** per section, the slowest valid route takes **1.0–1.25×** the fastest (reference bots, median section time); every route has **at least one hazard contact** in QA (normal-tier bots; a route with none is a FREE ROUTE). Measured with `-fallrushQaRoutes` (§9).
 - [ ] Originality check: two people answer "does this look like a specific existing level?" No → pass
 - [ ] Readability check: hazard stripes, telegraphs, colorblind sim
 - [ ] Performance check: tris, draw calls and FPS within doc 17 §3.2 budgets

@@ -83,6 +83,16 @@
 | G3-5 | The claw plucks only Rushlings still visible at the round result (fell-out / gooed players already vanished: poof / goo splash instead) | ✅ | client-only presentation |
 | G3-6 | `IChainAdapter` + `PracticeChainAdapter`; chip states cycle with F9 (dev) or `?chain=cycle` | ✅ | contract in doc 04 §7.y |
 
+### G4 decisions (2026-11-19; from the approved G4 plan page and `docs/prompts/G4-PROMPT.md` §3 defaults — say if you want any changed)
+
+| ID | Decision | Status | Notes |
+|---|---|---|---|
+| G4-1 | **Shared routes, no free path.** Doc 08 §1 rule 4 replaced by the plan page's rules 1–7: every route has a hazard, the slowest valid route of a section costs 1.0–1.25× the fastest, one main route per section with short risky shortcuts | ✅ | measured per section with `-fallrushQaRoutes`; baseline `docs/proof/g4/route-cost-before.md` |
+| G4-2 | **Lid Flip replaces the reactive crumble grid in the Final** (`LID_FLIP`: pure-function lid states from the hazard seed + ring retire). The `CRUMBLE_TILE` grid and `ReactiveSet` stay in the code as the fallback (G4 prompt §2.4 cut order) | ✅ | no reactive replication; in M6 the flip pattern comes from the VRF seed |
+| G4-3 | **Display names separate from map keys** (D1): Capsule Run / Goo Tower / Star Fountain / Lid Flip. Keys, ids, modes and scene names unchanged (the map pool hash is on-chain) | ✅ | `Shared/MapDisplayNames.cs`; a rename is one line |
+| G4-4 | **Two-part freeze:** gameplay freeze Sun Nov 22 23:59 UTC (maps, hazards, rules, palette); art freeze Mon Nov 23 23:59 UTC (at the latest Tue Nov 24 12:00 UTC), render meshes/materials only. M5/M6 dates unchanged | ✅ | doc 14 §1 |
+| G4-5 | **Bump stagger behind a flag, default off** (D2): `movement_v3.json` `bump.enabled=false`; closing speed ≥ 4 m/s → the slower player stumbles 0.25 s (no stun, input live). Server-authoritative, predicted against remotes like the push | 🟡 | your call after playing; on/off numbers next to R14 |
+
 ## Top risks (live; update daily in PROJECT_STATUS)
 
 | # | Risk | Likelihood | Impact | Mitigation |

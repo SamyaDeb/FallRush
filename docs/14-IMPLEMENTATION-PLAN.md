@@ -21,7 +21,10 @@
 | D0–D1 | Wed 18 – Thu 19 | ✔ M0 chain spike (local + devnet) · ✔ M1 transport · ✔ M2 netcode · ✔ M3 kit + race · **M4** full match (in progress) | M4: 20 unattended matches, reconnect, WebGL full match |
 | D1–D2 | Thu 19 – Fri 20 (kickoff 14:00) | **G1 Gameplay polish** (§2 G1) · **U:** play full matches, give feel notes | Matches feel good to you; Final lasts 60–120 s |
 | D2–D4 | Fri 20 – Sun 22 | **G2 Look** (art) + **G3 Juice** (UI, audio, VFX, signature moments) (§2 G2, G3) · **U:** approve the look, pick music mood | 60 FPS WebGL on the M2 Air in the heaviest map; screenshots and a capture you're happy to show |
-| **D4 end** | **Sun 22, 23:59** | **⚑ Game freeze**: after this, only bug fixes and integration changes in game code | The game is complete and polished locally |
+| D2–D4 | Thu 19 – Sun 22 | **G4-A gameplay** (G4 prompt §4): hazard kit (ROLLING_BALL, LID_FLIP, bump flag), the four map rebuilds, candy palette + grading, QA | Route cost 1.0–1.25× per section, no free route; medians in target |
+| **D4 end** | **Sun 22, 23:59** | **⚑ Gameplay freeze** (G4-4): maps, hazards, rules, palette. After this only bug fixes and integration changes in game code | The game is complete and plays as shipped |
+| D5 | Mon 23 (alongside M5) | **G4-B art**: bevelled candy geometry, prop kit, backdrop, camera (render meshes / materials only; no collider, timing or rule change) | WebGL build 2 within budget |
+| **D5 end** | **Mon 23, 23:59** (latest Tue 24 12:00) | **⚑ Art freeze** (G4-4) | |
 
 ### Phase B: platform (backend, MagicBlock chain, VPS, web)
 
@@ -44,7 +47,7 @@
 6. Star Scramble → reuse the Block Party Dash route as a "time trial" skill round
 7. Desktop builds
 
-**If Phase A runs late:** the game freeze moves at most to **Mon 23 12:00**, and the cut comes from G3 first, never from M5/M6.
+**If Phase A runs late:** the gameplay freeze moves at most to **Mon 23 12:00**, and the cut comes from G3/G4-B first (G4 prompt §2.4 cut order for the maps), never from M5/M6. The art freeze (G4-B) never pushes M6 past Tue 24.
 
 **Never cut:**
 - the ER lifecycle
