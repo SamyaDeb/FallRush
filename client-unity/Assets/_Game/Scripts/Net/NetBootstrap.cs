@@ -251,7 +251,9 @@ namespace FallRush.Net
             {
                 var qaMap = MapInfo.Current;
                 // M4: every mode through ModeQa (BotBrain tiers); the M3 race QA (waypoint bots, route table) with -fallrushQATier m3.
-                if (qaMap.definition != null && qaMap.definition.IsRace && ModeQa.TierArg() == "m3")
+                if (qaMap.definition != null && qaMap.definition.IsRace && RouteQa.Requested())
+                    RouteQa.RunAll(qaMap, _qaRuns); // G4.0c: -fallrushQaRoutes (route cost + free routes)
+                else if (qaMap.definition != null && qaMap.definition.IsRace && ModeQa.TierArg() == "m3")
                     MapQa.RunAll(qaMap, _qaRuns);
                 else
                     ModeQa.RunAll(qaMap, _qaRuns);

@@ -67,7 +67,7 @@ namespace FallRush.Net
             _ => 1,
         };
 
-        public static Stats RunOne(MapInfo map, CapsuleCollider probe, int variant, int modifier, int run, BotTier tier, int bots = 12, int forcedRoute = -1, Action<SimCore, IRoundRules, HazardSet> perTick = null)
+        public static Stats RunOne(MapInfo map, CapsuleCollider probe, int variant, int modifier, int run, BotTier tier, int bots = 12, int forcedRoute = -1, Action<SimCore, IRoundRules, HazardSet> perTick = null, Action<BotBrainSet> onBots = null)
         {
             var seed = (ulong)(0x4D4E0000 + variant * 1000003 + modifier * 10007 + run * 7919 + (int)tier * 104729);
             var p = new RoundParams { MapId = map.MapId, Variant = (byte)variant, Modifier = (byte)modifier, HazardSeed = seed, RoundIndex = 1 };
@@ -103,6 +103,7 @@ namespace FallRush.Net
                 for (var i = 0; i < SimCore.MaxSlots; i++)
                     if (set[i]?.Waypoints != null)
                         set[i].Waypoints.ForcedRoute = forcedRoute;
+            onBots?.Invoke(set); // G4.0c route QA reads each bot's route choice
             core.BotInput = set.Input;
             var rush = rules.Begin(core, core.Tick);
             hz.RoundStartTick = rush;
