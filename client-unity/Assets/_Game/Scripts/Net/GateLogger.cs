@@ -18,7 +18,7 @@ namespace FallRush.Net
 
         private long _lastHazCorr;
         private ClientPrediction _pred;
-        private long _lastCorr, _lastPushCorr, _lastSnapsRec, _lastMatches, _lastSilent, _lastHazMis, _lastRespawns, _lastReplayTicks, _lastReplayCount;
+        private long _lastCorr, _lastPushCorr, _lastSnapsRec, _lastMatches, _lastSilent, _lastHazMis, _lastHazExp, _lastRespawns, _lastReplayTicks, _lastReplayCount;
         private double _lastSumCorr;
         private long _lastFrames, _lastExtrap, _lastFrozen;
         // remote stutter: |rendered speed − interpolated server speed| for one moving remote player, per frame
@@ -117,7 +117,7 @@ namespace FallRush.Net
             {
                 // A new round rebuilt the prediction: its counters start from zero.
                 _pred = p;
-                _lastCorr = _lastPushCorr = _lastSnapsRec = _lastMatches = _lastSilent = _lastHazMis = _lastRespawns = _lastReplayTicks = _lastReplayCount = _lastHazCorr = 0;
+                _lastCorr = _lastPushCorr = _lastSnapsRec = _lastMatches = _lastSilent = _lastHazMis = _lastHazExp = _lastRespawns = _lastReplayTicks = _lastReplayCount = _lastHazCorr = 0;
                 _lastSumCorr = 0;
             }
             var corr = p.Corrections - _lastCorr;
@@ -132,7 +132,7 @@ namespace FallRush.Net
                 _stutter.Percentiles(0.5f, 0.95f, out stP50, out stP95);
             var st = p.State;
             Debug.Log($"[{Tag}] pred corrections={corr} per5s={corr * 5f / span:F2} pushCorrections={pushCorr} meanCorr={(corr > 0 ? sumCorr / corr * 100 : 0):F1}cm maxCorr={p.MaxCorrection * 100:F1}cm " +
-                      $"snaps={snaps} match={p.Matches - _lastMatches} silent={p.SilentResyncs - _lastSilent} hazMismatch={p.HazardMismatches - _lastHazMis} respawns={p.Respawns - _lastRespawns} " +
+                      $"snaps={snaps} match={p.Matches - _lastMatches} silent={p.SilentResyncs - _lastSilent} hazMismatch={p.HazardMismatches - _lastHazMis} hazExplained={p.ExplainedHazardMismatches - _lastHazExp} respawns={p.Respawns - _lastRespawns} " +
                       $"replay mean={(replayCount > 0 ? (double)replayTicks / replayCount : 0):F1} last={p.LastReplay} max={p.MaxReplay} " +
                       $"drift meanMm={(p.DriftSamples > 0 ? p.SumDriftMm / p.DriftSamples : 0):F2} maxMm={p.MaxDriftMm:F1} subMm={p.SubMmMismatches} predHits={p.PredictedHits} " +
                       $"interp delay={r.Delay * 1000:F0}ms target={r.TargetDelay * 1000:F0}ms lateP95={r.LatenessP95Ms:F0}ms extrap={(frames > 0 ? 100.0 * (r.ExtrapolatedFrames - _lastExtrap) / frames : 0):F1}% frozen={(frames > 0 ? 100.0 * (r.FrozenFrames - _lastFrozen) / frames : 0):F1}% lagEvents={r.LagEvents} " +
@@ -147,6 +147,7 @@ namespace FallRush.Net
             _lastMatches = p.Matches;
             _lastSilent = p.SilentResyncs;
             _lastHazMis = p.HazardMismatches;
+            _lastHazExp = p.ExplainedHazardMismatches;
             _lastHazCorr = p.HazardCorrections;
             _lastRespawns = p.Respawns;
             _lastReplayTicks = p.ReplayTicksTotal;

@@ -98,7 +98,8 @@ namespace FallRush.Net
         public long SilentResyncs;      // differed by ≤ threshold, same flags: replayed without counting
         public long Corrections;        // > threshold or flags/stun differ, with no server-only cause (respawns and pushes excluded)
         public long PushCorrections;    // same, but the server reported a player–player push since the last snapshot (not predicted by design)
-        public long HazardMismatches;   // stun start/state differed at S (predicted hit ≠ server hit)
+        public long HazardMismatches;   // stun start/state differed at S (predicted hit ≠ server hit) with no server-only cause
+        public long ExplainedHazardMismatches; // the same, explained by a server push or a respawn / teleport in that snapshot (G4.7 C2)
         public long HazardCorrections;  // counted corrections whose stun/immunity state differed (subset of Corrections)
         public long Respawns;           // server respawn teleports adopted (not corrections)
         public long Adopted;            // state taken wholesale (start, history miss)
@@ -248,8 +249,13 @@ namespace FallRush.Net
 
             var flagsDiffer = ((a.Flags ^ p.Flags) & ~MotorState.Bot) != 0 || a.StunTicks != p.StunTicks;
             var hazardish = (a.StunTicks > 0) != (p.StunTicks > 0) || (a.ImmunityTicks > 0) != (p.ImmunityTicks > 0);
-            if (hazardish)
+            // G4.7 (C2): a hazard mismatch counts only when nothing server-only explains it. A respawn / teleport resets the
+            // stun, and a player–player push (server-only, R14) can move us into or out of a hazard's path: those are
+            // counted apart, so HazardMismatches measures hazard-timeline disagreement only.
+            if (hazardish && !respawn && !pushed)
                 HazardMismatches++;
+            else if (hazardish)
+                ExplainedHazardMismatches++;
 
             var beforePos = State.Position;
             Rewind(in a, serverTick, out var replayed);

@@ -316,6 +316,33 @@ namespace FallRush.Tests
         }
 
         [Test]
+        public void HazardMismatch_CountsOnlyWithoutAServerOnlyCause()
+        {
+            // G4.7 C2: a stun difference at S that comes with a server push (or a respawn) is explained, not a hazard desync.
+            var p = new ClientPrediction(Cfg, new AnalyticWorld().Ground(), HazardSet.Empty);
+            var start = new MotorState { Flags = MotorState.Grounded };
+            p.Reconcile(0, PlayerState.From(0, in start), new SnapHeader { ServerTick = 0 }, 0);
+            for (uint t = 1; t <= 8; t++)
+                p.Predict(new InputCmd { Seq = t, Tick = t });
+
+            var stunned = p.State;
+            stunned.StunTicks = 10;
+            p.Reconcile(3, PlayerState.From(0, in stunned), new SnapHeader { ServerTick = 3, OwnEvents = SnapHeader.EventPushed }, 0.1);
+            Assert.That(p.HazardMismatches, Is.EqualTo(0), "pushed: explained");
+            Assert.That(p.ExplainedHazardMismatches, Is.EqualTo(1));
+            Assert.That(p.PushCorrections, Is.EqualTo(1));
+
+            for (uint t = 9; t <= 40; t++)
+                p.Predict(new InputCmd { Seq = t, Tick = t }); // the replayed stun has run out by now
+            Assert.That(p.State.StunTicks, Is.EqualTo(0));
+            stunned = p.State;
+            stunned.StunTicks = 10;
+            p.Reconcile(35, PlayerState.From(0, in stunned), new SnapHeader { ServerTick = 35 }, 0.2);
+            Assert.That(p.HazardMismatches, Is.EqualTo(1), "no server-only cause: a real hazard mismatch");
+            Assert.That(p.HazardCorrections, Is.EqualTo(1));
+        }
+
+        [Test]
         public void Smoothing_BlendsTheOffsetOut_In120ms()
         {
             var p = new ClientPrediction(Cfg, new AnalyticWorld().Ground(), HazardSet.Empty) { RenderOffset = new Vec3(0.5f, 0f, 0f) };
