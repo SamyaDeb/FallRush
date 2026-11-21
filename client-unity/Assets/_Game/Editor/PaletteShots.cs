@@ -473,7 +473,7 @@ public static class PaletteShots
             // saturated sample on a calm lid is a hazard in front of it (the sweeper's pink / lemon stripes), not the lid.
             var pick = Luma(pl) < Luma(pr) ? pl : pr;
             Color.RGBToHSV(pick, out _, out var sat, out _);
-            if (b != LidGridView.LitBatch && sat > 0.45f)
+            if (b != LidGridView.LitBatch && sat > 0.45f && LookState.Current == LookId.Soft) // candy calm lids are saturated themselves
             {
                 Color.RGBToHSV(Luma(pl) < Luma(pr) ? pr : pl, out _, out var sat2, out _);
                 if (sat2 > 0.45f)
@@ -493,6 +493,8 @@ public static class PaletteShots
         var worst = 9f;
         foreach (var kv in byBatch)
         {
+            if (kv.Value.Count == 0)
+                continue;
             var c = Median(kv.Value);
             // The 10th-percentile lid by luma (a lid in a cast shadow); the single darkest sample is listed too (it can sit
             // on a seam or a thin cable shadow line that crosses a lid, which no one reads as the lid's colour).

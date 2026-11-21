@@ -242,6 +242,8 @@ public static class MapDressing
         const int tiers = 4;
         var tierH = (topY - baseY) / tiers;
         var hues = P.rims;
+        var crowd = new BackdropCrowd(); // G4.10: spectators + waving banners / flags (one mesh, animated in its shader)
+        var phase = 0;
         for (var i = 0; i < segs; i++)
         {
             var a0 = i * Mathf.PI * 2f / segs;
@@ -262,6 +264,16 @@ public static class MapDressing
                 Block(mb, c, new Vector3(chord, h, 7f), rot, k % 2 == 0 ? paler : pale, pale);
                 // Seat stripe on each tier's front edge.
                 Block(mb, c + Vector3.up * (h * 0.5f - 0.6f) - dirM * 3.6f, new Vector3(chord * 0.98f, 1.2f, 0.4f), rot, Color.Lerp(hue, Color.white, 0.35f), Color.Lerp(hue, Color.white, 0.35f));
+                // G4.10: a row of capsule spectators on the tier top (front half), 4 m apart, pastel shells in the rim hues.
+                var tangent = Vector3.Cross(Vector3.up, dirM);
+                var n = Mathf.FloorToInt(chord * 0.92f / 4f);
+                for (var j = 0; j < n; j++)
+                {
+                    var x = (j - (n - 1) * 0.5f) * 4f + (float)(rng.NextDouble() - 0.5) * 1.2f;
+                    var foot = c + tangent * x - dirM * (1.6f + (float)rng.NextDouble() * 1.2f) + Vector3.up * (h * 0.5f);
+                    var shell = Color.Lerp(hues[(i + j + k) % hues.Length], Color.white, 0.25f);
+                    crowd.Spectator(foot, 2.4f + (float)rng.NextDouble() * 0.5f, shell, Mathf.Repeat(phase++ * 0.6180339f, 1f));
+                }
             }
 
             // Banners hanging on the front of the top tier.
@@ -271,7 +283,7 @@ public static class MapDressing
                 var d = new Vector3(Mathf.Cos(ab), 0f, Mathf.Sin(ab));
                 var p = new Vector3(b.center.x, topY - 2f, b.center.z) + d * (RectReach(b, d) + margin + 24f);
                 var col = hues[(i + k) % hues.Length];
-                mb.Triangle(p - Vector3.Cross(Vector3.up, d) * 2.2f, p + Vector3.Cross(Vector3.up, d) * 2.2f, p + Vector3.down * 6f, col);
+                crowd.Flag(p - Vector3.Cross(Vector3.up, d) * 2.2f, p + Vector3.Cross(Vector3.up, d) * 2.2f, p + Vector3.down * 6f, 0f, 0f, 1f, col, Mathf.Repeat(phase++ * 0.6180339f, 1f));
             }
 
             // An inflatable capsule tower in the gap after this arc, a flag on top.
@@ -286,8 +298,25 @@ public static class MapDressing
                 mb.Sphere(tp + Vector3.up * (th * k / 4f), new Vector3(5.6f, 1.4f, 5.6f), tc, tc, 12, 4); // inflatable rings
             var top = tp + Vector3.up * (th - 1f);
             mb.Cylinder(top, top + Vector3.up * 7f, 0.3f, Color.white, 6);
-            mb.Triangle(top + Vector3.up * 7f, top + Vector3.up * 4f, top + Vector3.up * 5.5f + Vector3.Cross(Vector3.up, dg) * 5f, hues[(i * 3 + 2) % hues.Length]);
+            crowd.Flag(top + Vector3.up * 7f, top + Vector3.up * 4f, top + Vector3.up * 5.5f + Vector3.Cross(Vector3.up, dg) * 5f, 0f, 0f, 1f, hues[(i * 3 + 2) % hues.Length], Mathf.Repeat(phase++ * 0.6180339f, 1f));
         }
+
+        // G4.10 cloud sea far below (≥ 55 m under the lowest deck, ≈ 45 m under any kill plane): a soft field of flat puffs
+        // the course floats over. Never near a kill volume, never at a height a player could read as ground.
+        var seaY = b.min.y - 55f;
+        var seaR = Mathf.Max(b.extents.x, b.extents.z) + 220f;
+        for (var i = 0; i < 70; i++)
+        {
+            var u = (i + 0.5f) / 70f;
+            var a = i * 2.39996323f;
+            var rr = Mathf.Sqrt(u) * seaR;
+            var pc = new Vector3(b.center.x + Mathf.Cos(a) * rr, seaY - (float)rng.NextDouble() * 6f, b.center.z + Mathf.Sin(a) * rr);
+            var w = 22f + (float)rng.NextDouble() * 16f;
+            mb.Sphere(pc, new Vector3(w, 5f + (float)rng.NextDouble() * 3f, w * (0.8f + (float)rng.NextDouble() * 0.4f)), Color.white, new Color(0.86f, 0.88f, 1f), 10, 5);
+        }
+
+        crowd.Emit(root);
+        Debug.Log($"[setup] backdrop: {crowd.Spectators} spectators, crowd {crowd.Triangles} tris");
 
         var go = mb.Emit(root, "Backdrop", MapArt.ToonAsset("Backdrop", Color.white, m =>
         {
@@ -352,8 +381,8 @@ public static class MapDressing
     /// <summary>A gacha capsule machine: magenta cabinet, glass globe full of two-tone capsules, a crank, a chute.</summary>
     private static void CapsuleMachine(MeshBuilder mb, MeshBuilder glass, Vector3 basePos, float s, System.Random rng)
     {
-        Block(mb, basePos + new Vector3(0f, 0.9f * s, 0f), new Vector3(1.8f, 1.8f, 1.8f) * s, Color.Lerp(P.magenta, Color.white, 0.3f), P.magenta);
-        Block(mb, basePos + new Vector3(0f, 1.85f * s, 0f), new Vector3(2.0f, 0.12f, 2.0f) * s, P.sunYellow, P.sunYellow);
+        // G4.9 kit cabinet: rounded magenta body, lemon ring, coin slot, crank and chute (the globe and capsules below).
+        Prop(mb, "capsule_machine", basePos, Quaternion.identity, s);
         var globe = basePos + new Vector3(0f, 2.9f * s, 0f);
         glass.Sphere(globe, Vector3.one * 1.0f * s, Color.white, new Color(0.8f, 0.9f, 1f), 14, 10);
         for (var i = 0; i < 14; i++)
@@ -368,12 +397,6 @@ public static class MapDressing
         }
 
         mb.Sphere(globe + Vector3.up * 1.0f * s, new Vector3(0.35f, 0.18f, 0.35f) * s, P.grape, P.grape, 10, 5);
-        // crank on the front, chute below it
-        var front = basePos + new Vector3(0f, 1.2f * s, -0.92f * s);
-        mb.Cylinder(front, front + new Vector3(0f, 0f, -0.25f * s), 0.22f * s, P.sunYellow, 12);
-        mb.Cylinder(front + new Vector3(0f, 0f, -0.25f * s), front + new Vector3(0.38f * s, 0.2f * s, -0.3f * s), 0.06f * s, P.grape, 6);
-        mb.Sphere(front + new Vector3(0.38f * s, 0.2f * s, -0.32f * s), Vector3.one * 0.18f * s, P.mint, P.mint, 8, 5);
-        Block(mb, basePos + new Vector3(0f, 0.45f * s, -0.92f * s), new Vector3(0.7f, 0.5f, 0.12f) * s, P.ink, P.ink);
     }
 
     private static void Gear(MeshBuilder mb, Vector3 c, Vector3 normal, float r, Color col)
@@ -584,6 +607,8 @@ public static class MapDressing
         Block(mb, new Vector3(5f, -11.2f, -f - 0.55f), new Vector3(4f, 3.2f, 0.2f), P.ink, P.ink);
         for (var i = 0; i < 3; i++)
             mb.Cylinder(new Vector3(-5f + i * 1.6f, -9.2f, -f - 0.5f), new Vector3(-5f + i * 1.6f, -9.2f, -f - 0.9f), 0.5f, Party[i], 12);
+        // G4.9 kit: a giant coin slot on the cabinet front (below the kill plane, a vertical panel: never read as ground).
+        Prop(mb, "coin_slot", new Vector3(-1.6f, -12.4f, -f - 0.62f), Quaternion.identity, 1.6f);
         // Header ring with lights (four beams, open in the middle).
         foreach (var (c, sz) in new[] { (new Vector3(0f, 21.4f, f), new Vector3(2f * f + 1.2f, 2.6f, 1.2f)), (new Vector3(0f, 21.4f, -f), new Vector3(2f * f + 1.2f, 2.6f, 1.2f)),
                      (new Vector3(f, 21.4f, 0f), new Vector3(1.2f, 2.6f, 2f * f + 1.2f)), (new Vector3(-f, 21.4f, 0f), new Vector3(1.2f, 2.6f, 2f * f + 1.2f)) })

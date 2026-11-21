@@ -151,3 +151,67 @@ meshes inside the scenes).
 our script from our own shapes (foam mallet, quilted pillow, gumball, foam caps, capsule-toy arch, coin slot, prize star,
 wind-up key, claw); no asset, mesh, texture or layout of another game was extracted, ripped or traced.
 
+
+## G4.10 — backdrop + camera
+
+### Backdrop (soft look only, on top of G4.8's stadium 260 m out)
+- **Crowd:** ≈ 1150–1360 little two-tone capsule spectators (white dome over a pastel shell in the rim hues, 40 tris each) in
+  rows on every bleacher tier, plus the hanging banners and tower flags, in **one merged mesh, one draw call** on the new
+  `FallRush/Crowd` shader: spectators hop and sway, banners / flags wave, all from a per-vertex phase in uv1 — **0 CPU per
+  frame** (`Editor/BackdropCrowd.cs`, `Shaders/Crowd.shader`). Deviation from the prompt's wording: one merged mesh instead of
+  GPU instancing — same draw count and no per-frame work, and no instancing path to verify in WebGL. Crowd mesh 46–55k tris for
+  the whole ring (only the arc in view is drawn on screen; visible-tris in WebGL: UNVERIFIED until G4.12).
+- **Inflatable towers** (G4.8 backdrop + G4.9 kit towers beside Capsule Run), **floating islands** (G4.6 dressing, unchanged).
+- **Cloud sea far below:** 70 flat cloud puffs on a disc 55 m under the lowest deck (≈ 45 m under any kill plane), in the
+  backdrop mesh (no extra draw): never next to a kill volume, never at a height a player could read as ground.
+- Also landed with this rebuild (G4.9 kit): the coin slot on Lid Flip's cabinet, the capsule-machine cabinets in the lobby.
+- **Saturation budget (≤ 30 % of pixels with S > 0.6):** every soft spawn / action shot and every `close` camera shot is
+  inside it (worst 19.3 %, Capsule Run spawn; `g410-satbudget.md`).
+
+### Camera (`Client/CameraRig.cs`: all tunables in one place; client-only feel)
+| preset | distance | elevation | look-at above the target | FOV |
+|---|---|---|---|---|
+| `classic` (G1 → G4.8) | 6.6 m | 22.5° | 0.4 m | 55° |
+| **`close` (default)** | 6.5 m | 15° | 0.75 m | 55° |
+
+Dev switch **`?cam=classic|close`** (WebGL) / `-fallrushCam` (desktop). Measured on Editor renders (`CameraShots`: a real
+Rushling, the preset's orbit pose without damping / look-ahead; `cam-report.md`, shots `cam-<map>-{spawn,action}-{classic,close}-{soft,candy}.png`):
+
+| check | classic | close |
+|---|---|---|
+| Rushling height (feet → dome top), every map, spawn + action | 13.1 % | **14.3 %** (rule 12–15 %) |
+| Capsule Run finish arch top, spawn view (viewport y) | 0.93 (top edge) | **0.73** |
+| Capsule Run first obstacle (start gate) | in view (y 0.70) | in view (y 0.59) |
+| Star Fountain first obstacle (spring pad) | in view | in view |
+| Goo Tower first obstacle | the spawn view faces the tower's stairs with the first mallet in view (shot); the automatic pick chose a bumper round the corner (out of view) in both | same |
+| Goo Tower summit beacon from the spawn | ≈ 52° look-up | ≈ 42° look-up |
+| Lid Flip top shelf from the spawn | far corners + the whole board ahead; the two near corners are beside / behind the spawn (2/4) | same |
+
+Reading: the classic camera already met the 12–15 % rule (the prompt assumed it was farther), so `close` keeps the distance
+and goes **lower and flatter**: the course ahead sits lower in the frame (finish arch in view) and the Rushling stays inside
+the band. **Not met:** the Goo Tower summit is not reachable "by a slight look-up" from the spawn with either preset (the
+summit is 22 m up, ≈ 25 m away: it needs ≈ 40°); the Lid Flip near corners are outside any 55° frame from a spawn on the edge
+ring. Both are geometry, not camera tuning; left as they are (your call).
+- **Nameplates:** already non-overlapping since G1 (`Nameplates`: fade with distance 10 → 32 m, a farther label overlapping a
+  nearer one is hidden, own marker always on top); unchanged.
+- **`docs/proof/g2g3/bolt-closeup.png`** re-shot (the old file showed a bumper): Bolt face on in the lobby (`CameraShots.BoltCloseup`).
+
+### Draw calls, spawn view (Editor frustum count; `g410-report-{soft,candy}.md`)
+| map | G4.8 soft | G4.9 soft | **G4.10 soft** | G4.10 candy |
+|---|---|---|---|---|
+| Capsule Run | 90 | 78 | **79** | 77 |
+| Goo Tower | 22 | 21 | **22** | 20 |
+| Star Fountain | 35 | 35 | **36** | 34 |
+| Lid Flip | 9 | 9 | **10** | 8 |
+| Lobby | 11 | 14 | **15** | 13 |
++1 per map in soft = the crowd mesh. Shadow-pass draws: not in the Editor count (WebGL, G4.12).
+
+Tests: EditMode **391/391** (+ `CameraRigTests` ×3: presets, switch, orbit pose and the 12–15 % share for both presets);
+map hashes unchanged on the rebuild; prediction twins at 0 corrections (the EditMode prediction tests, unchanged).
+
+## G4.11 — rigged Bolt: **cut** (scope / risk, not time)
+G4.8z–G4.10 were green well before the Mon 12:00 UTC gate, so time allowed it; it is cut on judgment (first in the cut order):
+today's Bolt is already one smooth body mesh whose lid hinge and key spin run in the shader, with procedural noodle limbs. A
+skinned copy would add CPU skinning for 12 Rushlings in WebGL and re-route the 12 cosmetic presets (toppers, emblems, keys),
+right before the last build — for the jiggle and the ragdoll-ish flop. If you want those, they can be added later on the
+procedural Bolt (client-only springs on the existing nodes) without a rig. `?bolt=` does not exist.

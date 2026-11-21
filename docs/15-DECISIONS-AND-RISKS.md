@@ -197,6 +197,10 @@
 | G4.9-4 | Spinner bars keep their striped segments; foam caps end ≤ 0.12 m past the arm, hub r 0.4 (0.1 m past the post) | ✅ | `PropSwap.Spinner` |
 | G4.9-5 | Squash on hit = bumpers only (their visuals are own renderers now); mallet heads are merged with the handle and do not squash | ✅ | `HazardViewDriver` |
 | G4.9-6 | Capsule Run start arch: posts at x ±11.2 beside the 20 m deck, inner top 7.3 m (dressing, out of every reach) | ✅ | `MapDressing` |
+| G4.10-1 | Crowd = one merged mesh animated in its vertex shader (per-vertex phase), not GPU instancing: 1 draw, 0 CPU per frame, no instancing path to verify in WebGL | ✅ | `BackdropCrowd`, `Crowd.shader` |
+| G4.10-2 | Camera default **`close`** (6.5 m, 15°, look-at +0.75 m): classic already showed a Rushling at 13.1 %, so close is lower / flatter rather than closer (14.3 %); `?cam=classic` keeps the G1 camera | 🟡 your pick | `CameraRig` |
+| G4.10-3 | Goo Tower summit (≈ 40° look-up from the spawn) and Lid Flip's near corners are not fixable by camera tuning; left as is | 🟡 your call | proof G4.10 |
+| G4.11-1 | **Rigged Bolt cut** (scope / risk: CPU skinning × 12 in WebGL, the 12 presets re-routed before the last build) | 🟡 ask if wanted | proof G4.11 |
 
 ## Top risks (live; update daily in PROJECT_STATUS)
 

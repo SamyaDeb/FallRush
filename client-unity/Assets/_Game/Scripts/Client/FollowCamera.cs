@@ -18,12 +18,14 @@ namespace FallRush.Client
     /// </summary>
     public sealed class FollowCamera : MonoBehaviour
     {
-        public const float Distance = 6.6f;         // G1 (v2 run 5 m/s): √(6.1² + 2.5²); M2–M4: 7.6 m
-        public const float Elevation = 22.5f;       // atan(2.5 / 6.1)
+        // G4.10: the rig's numbers live in CameraRig (classic = these G1 values; close = the default).
+        public const float Distance = 6.6f;         // classic. G1 (v2 run 5 m/s): √(6.1² + 2.5²); M2–M4: 7.6 m
+        public const float Elevation = 22.5f;       // classic: atan(2.5 / 6.1)
         public const float BaseFov = 55f;
         public const float DiveFovKick = 6f;
 
         private CinemachineCamera _vcam;
+        private CameraRig.Preset _rig = CameraRig.Classic;
         private CinemachineOrbitalFollow _orbit;
         private CinemachineCameraOffset _offset;
         private float _kick;
@@ -46,25 +48,27 @@ namespace FallRush.Client
 
             var vcam = go.AddComponent<CinemachineCamera>();
             vcam.Target = new CameraTarget { TrackingTarget = target, LookAtTarget = target, CustomLookAtTarget = false };
+            var rig = CameraRig.Active;
+            fc._rig = rig;
             var lens = LensSettings.Default;
-            lens.FieldOfView = BaseFov;
+            lens.FieldOfView = rig.Fov;
             lens.NearClipPlane = 0.1f;
             lens.FarClipPlane = 400f;
             vcam.Lens = lens;
 
             var orbit = go.AddComponent<CinemachineOrbitalFollow>();
             orbit.OrbitStyle = CinemachineOrbitalFollow.OrbitStyles.Sphere;
-            orbit.Radius = Distance;
+            orbit.Radius = rig.Distance;
             var ts = TrackerSettings.Default;
             ts.BindingMode = BindingMode.WorldSpace;
             ts.PositionDamping = new Vector3(0.12f, 0.3f, 0.12f);
             orbit.TrackerSettings = ts;
             orbit.HorizontalAxis = new InputAxis { Value = 0f, Range = new Vector2(-180f, 180f), Wrap = true, Center = 0f };
-            orbit.VerticalAxis = new InputAxis { Value = Elevation, Range = new Vector2(-10f, 65f), Wrap = false, Center = Elevation };
+            orbit.VerticalAxis = new InputAxis { Value = rig.Elevation, Range = new Vector2(-10f, 65f), Wrap = false, Center = rig.Elevation };
             orbit.RadialAxis = new InputAxis { Value = 1f, Range = new Vector2(1f, 1f), Wrap = false, Center = 1f };
 
             var composer = go.AddComponent<CinemachineRotationComposer>();
-            composer.TargetOffset = new Vector3(0f, 0.4f, 0f);
+            composer.TargetOffset = new Vector3(0f, rig.LookOffsetY, 0f);
             composer.Damping = new Vector2(0.15f, 0.25f);
             composer.Lookahead = new LookaheadSettings { Enabled = true, Time = 0.2f, Smoothing = 8f, IgnoreY = true };
 
@@ -147,9 +151,9 @@ namespace FallRush.Client
             }
 
             var lens = _vcam.Lens;
-            lens.FieldOfView = BaseFov + FovOffset + GameSettings.FovOffset + DiveFovKick * Mathf.SmoothStep(0f, 1f, _kick);
+            lens.FieldOfView = _rig.Fov + FovOffset + GameSettings.FovOffset + DiveFovKick * Mathf.SmoothStep(0f, 1f, _kick);
             _vcam.Lens = lens;
-            _orbit.Radius = Distance * GameSettings.CameraDistance;
+            _orbit.Radius = _rig.Distance * GameSettings.CameraDistance;
 
             if (_shake > 0f)
             {
