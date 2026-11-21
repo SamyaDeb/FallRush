@@ -25,6 +25,10 @@ public static class MapDressing
         var bounds = GeometryBounds(scene);
         var rng = new System.Random(StableSeed(mapKey));
         Clouds(root, bounds, rng, mapKey);
+        // G4.8 soft look: bigger, fluffier clouds and a far stadium silhouette (own seed: the G4.6 dressing keeps its rng).
+        var softRng = new System.Random(StableSeed(mapKey) ^ 0x2B1D);
+        SoftClouds(root, bounds, softRng, mapKey);
+        Backdrop(root, bounds, softRng, mapKey);
         var props = new MeshBuilder();
         var glass = new MeshBuilder();
         switch (mapKey)
@@ -149,7 +153,7 @@ public static class MapDressing
     /// <summary>Soft stylised clouds: clusters of flattened puffs, all in one static mesh (1 draw), far and few.</summary>
     private static void Clouds(Transform root, Bounds b, System.Random rng, string mapKey)
     {
-        var mb = new MeshBuilder();
+        var mb = new MeshBuilder { Role = ToyMesh.RoleNone };
         var count = mapKey == "BlockPartyDash" ? 22 : 16;
         var reach = Mathf.Max(b.extents.x, b.extents.z);
         for (var i = 0; i < count; i++)
@@ -169,13 +173,129 @@ public static class MapDressing
             }
         }
 
-        var m = MapArt.ToonAsset("Cloud", Color.white, mat =>
+        var m = CloudMaterial();
+        var go = mb.Emit(root, "Clouds", m);
+        go.AddComponent<FallRush.Client.LookOnly>().look = LookId.Candy; // G4.8: the G4.6 clouds belong to the candy look
+    }
+
+    private static Material CloudMaterial() => MapArt.ToonAsset("Cloud", Color.white, mat =>
+    {
+        mat.SetFloat("_Unlit", 0.55f);
+        mat.SetFloat("_RimStrength", 0.5f);
+        mat.SetColor("_ShadeColor", new Color(0.86f, 0.88f, 1f));
+    });
+
+    /// <summary>
+    /// G4.8 soft look: bigger, fluffier cloud banks (1.5× the puffs, more of them, flat-bottomed), mostly below the course
+    /// and around it, so the course floats over a soft cloud floor. 1 draw; out of every reach.
+    /// </summary>
+    private static void SoftClouds(Transform root, Bounds b, System.Random rng, string mapKey)
+    {
+        var mb = new MeshBuilder { Role = ToyMesh.RoleNone };
+        var count = mapKey == "BlockPartyDash" ? 30 : 22;
+        var reach = Mathf.Max(b.extents.x, b.extents.z);
+        for (var i = 0; i < count; i++)
         {
-            mat.SetFloat("_Unlit", 0.55f);
-            mat.SetFloat("_RimStrength", 0.5f);
-            mat.SetColor("_ShadeColor", new Color(0.86f, 0.88f, 1f));
-        });
-        mb.Emit(root, "Clouds", m);
+            var a = (float)(i / (double)count * Mathf.PI * 2.0 + rng.NextDouble() * 0.5);
+            var dir = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+            var below = rng.NextDouble() < 0.75;
+            var dist = RectReach(b, dir) + (below ? 35f : 80f) + (float)rng.NextDouble() * 110f;
+            var y = below ? b.min.y - 18f - (float)rng.NextDouble() * 26f : b.center.y + (float)rng.NextDouble() * 16f - 4f;
+            var c = new Vector3(b.center.x, y, b.center.z) + dir * dist;
+            var scale = 7f + (float)rng.NextDouble() * 9f;
+            var puffs = 6 + rng.Next(5);
+            for (var k = 0; k < puffs; k++)
+            {
+                var off = new Vector3(((float)rng.NextDouble() - 0.5f) * 2.8f, (float)rng.NextDouble() * 0.6f, ((float)rng.NextDouble() - 0.5f) * 1.6f) * scale;
+                var r = scale * (0.4f + (float)rng.NextDouble() * 0.45f);
+                mb.Sphere(c + off, new Vector3(r, r * 0.66f, r), Color.white, new Color(0.86f, 0.89f, 1f), 12, 7);
+            }
+
+            // A flat soft base under the bank (clouds sit on an even underside).
+            mb.Sphere(c + Vector3.down * scale * 0.15f, new Vector3(scale * 1.7f, scale * 0.28f, scale * 1.1f), new Color(0.95f, 0.96f, 1f), new Color(0.84f, 0.87f, 1f), 14, 6);
+        }
+
+        var go = mb.Emit(root, "CloudsSoft", CloudMaterial());
+        go.AddComponent<FallRush.Client.LookOnly>().look = LookId.Soft;
+    }
+
+    /// <summary>Distance from the bounds centre to the bounds rectangle's edge along the horizontal <paramref name="dir"/>.</summary>
+    private static float RectReach(Bounds b, Vector3 dir)
+    {
+        var ax = Mathf.Abs(dir.x) > 1e-4f ? b.extents.x / Mathf.Abs(dir.x) : float.MaxValue;
+        var az = Mathf.Abs(dir.z) > 1e-4f ? b.extents.z / Mathf.Abs(dir.z) : float.MaxValue;
+        return Mathf.Min(ax, az);
+    }
+
+    /// <summary>
+    /// G4.8 soft look: a far stadium silhouette around the course (our own shapes): stepped bleacher arcs rising out of the
+    /// clouds, inflatable capsule towers with flags between them and hanging banners in the rim hues. Low-poly, one mesh, one
+    /// material, no shadows, far beyond any reach; the horizon fog hazes it.
+    /// </summary>
+    private static void Backdrop(Transform root, Bounds b, System.Random rng, string mapKey)
+    {
+        var mb = new MeshBuilder { Role = ToyMesh.RoleNone };
+        const float margin = 260f; // ≥ 260 m beyond the course on every side: a hazy band on the horizon, never a wall next to it
+        var baseY = b.center.y - 34f; // the cloud floor hides the rest
+        var topY = b.center.y + 4f;
+        const int segs = 14;
+        const int tiers = 4;
+        var tierH = (topY - baseY) / tiers;
+        var hues = P.rims;
+        for (var i = 0; i < segs; i++)
+        {
+            var a0 = i * Mathf.PI * 2f / segs;
+            var a1 = a0 + Mathf.PI * 2f / segs * 0.72f;
+            var am = (a0 + a1) * 0.5f;
+            var dirM = new Vector3(Mathf.Cos(am), 0f, Mathf.Sin(am));
+            var radius = RectReach(b, dirM) + margin;
+            var rot = Quaternion.LookRotation(-dirM);
+            var hue = hues[(i * 2 + 1) % hues.Length];
+            var pale = Color.Lerp(hue, Color.white, 0.78f);
+            var paler = Color.Lerp(hue, Color.white, 0.9f);
+            for (var k = 0; k < tiers; k++)
+            {
+                var r = radius + k * 7f;
+                var chord = 2f * r * Mathf.Sin((a1 - a0) * 0.5f);
+                var h = tierH * (k + 1);
+                var c = new Vector3(b.center.x, baseY + h * 0.5f, b.center.z) + dirM * (r * Mathf.Cos((a1 - a0) * 0.5f));
+                Block(mb, c, new Vector3(chord, h, 7f), rot, k % 2 == 0 ? paler : pale, pale);
+                // Seat stripe on each tier's front edge.
+                Block(mb, c + Vector3.up * (h * 0.5f - 0.6f) - dirM * 3.6f, new Vector3(chord * 0.98f, 1.2f, 0.4f), rot, Color.Lerp(hue, Color.white, 0.35f), Color.Lerp(hue, Color.white, 0.35f));
+            }
+
+            // Banners hanging on the front of the top tier.
+            for (var k = 0; k < 3; k++)
+            {
+                var ab = Mathf.Lerp(a0, a1, (k + 1) / 4f);
+                var d = new Vector3(Mathf.Cos(ab), 0f, Mathf.Sin(ab));
+                var p = new Vector3(b.center.x, topY - 2f, b.center.z) + d * (RectReach(b, d) + margin + 24f);
+                var col = hues[(i + k) % hues.Length];
+                mb.Triangle(p - Vector3.Cross(Vector3.up, d) * 2.2f, p + Vector3.Cross(Vector3.up, d) * 2.2f, p + Vector3.down * 6f, col);
+            }
+
+            // An inflatable capsule tower in the gap after this arc, a flag on top.
+            var ag = a1 + (Mathf.PI * 2f / segs - (a1 - a0)) * 0.5f;
+            var dg = new Vector3(Mathf.Cos(ag), 0f, Mathf.Sin(ag));
+            var tp = new Vector3(b.center.x, baseY, b.center.z) + dg * (RectReach(b, dg) + margin + 10f);
+            var th = topY - baseY + 6f + (float)rng.NextDouble() * 6f;
+            var tc = hues[(i * 3) % hues.Length];
+            mb.Cylinder(tp, tp + Vector3.up * (th - 6f), 5f, Color.Lerp(tc, Color.white, 0.5f), 12);
+            mb.Sphere(tp + Vector3.up * (th - 6f), new Vector3(5f, 5f, 5f), Color.Lerp(tc, Color.white, 0.35f), Color.Lerp(tc, Color.white, 0.5f), 12, 6);
+            for (var k = 1; k <= 3; k++)
+                mb.Sphere(tp + Vector3.up * (th * k / 4f), new Vector3(5.6f, 1.4f, 5.6f), tc, tc, 12, 4); // inflatable rings
+            var top = tp + Vector3.up * (th - 1f);
+            mb.Cylinder(top, top + Vector3.up * 7f, 0.3f, Color.white, 6);
+            mb.Triangle(top + Vector3.up * 7f, top + Vector3.up * 4f, top + Vector3.up * 5.5f + Vector3.Cross(Vector3.up, dg) * 5f, hues[(i * 3 + 2) % hues.Length]);
+        }
+
+        var go = mb.Emit(root, "Backdrop", MapArt.ToonAsset("Backdrop", Color.white, m =>
+        {
+            m.SetFloat("_Unlit", 0.45f);
+            m.SetFloat("_RimStrength", 0.15f);
+            m.SetColor("_ShadeColor", new Color(0.86f, 0.86f, 0.98f));
+        }));
+        go.AddComponent<FallRush.Client.LookOnly>().look = LookId.Soft;
     }
 
     // ------------------------------------------------------------------ props (all visual, no colliders)
@@ -466,13 +586,22 @@ public static class MapDressing
         private readonly List<Vector3> _v = new List<Vector3>();
         private readonly List<Vector3> _n = new List<Vector3>();
         private readonly List<Color> _c = new List<Color>();
+        private readonly List<Vector4> _u3 = new List<Vector4>(); // G4.8: (candy albedo, 2 + pattern + 8 × role); COLOR = soft albedo
         private readonly List<Vector2> _u2 = new List<Vector2>(); // G4.6: uv2 of added meshes (hazard view-rim flag y = 4); padded with 0
+
+        /// <summary>G4.8: the soft-look role of the primitives added next (props gloss softly; clouds none).</summary>
+        public int Role = ToyMesh.RoleProp;
         private readonly List<int> _t = new List<int>();
 
         public int Count => _v.Count;
 
-        /// <summary>G4.6: primitive colours are sRGB palette colours: bake them like the blocks (<see cref="MapArt.Bake"/>).</summary>
-        private void AddC(Color c) => _c.Add(MapArt.Bake(c));
+        /// <summary>G4.6: primitive colours are sRGB palette colours: bake them like the blocks (<see cref="MapArt.Bake"/>), per look (G4.8).</summary>
+        private void AddC(Color c)
+        {
+            _c.Add(MapArt.Bake(c, LookId.Soft));
+            var k = MapArt.Bake(c, LookId.Candy);
+            _u3.Add(new Vector4(k.r, k.g, k.b, 2f + 8f * Role));
+        }
 
         /// <summary>A UV sphere (ellipsoid with radii <paramref name="r"/>), colour blended from <paramref name="top"/> to <paramref name="bottom"/>.</summary>
         public void Sphere(Vector3 c, Vector3 r, Color top, Color bottom, int seg = 12, int rings = 8)
@@ -572,6 +701,8 @@ public static class MapDressing
             var mc = mesh.colors;
             var mu = new List<Vector2>();
             mesh.GetUVs(1, mu);
+            var m3 = new List<Vector4>();
+            mesh.GetUVs(3, m3);
             var nm = m.inverse.transpose;
             while (_u2.Count < start)
                 _u2.Add(Vector2.zero);
@@ -582,6 +713,11 @@ public static class MapDressing
                 _n.Add(nm.MultiplyVector(mn.Length > i ? mn[i] : Vector3.up).normalized);
                 var col = mc.Length > i ? mc[i] : Color.white;
                 _c.Add(tint.HasValue ? col * tint.Value.linear : col); // mesh colours are linear already
+                // G4.8: the candy colour + code from the mesh (no uv3: the same colour, role as the builder's).
+                var d = m3.Count > i ? m3[i] : new Vector4(col.r, col.g, col.b, 2f + 8f * Role);
+                if (tint.HasValue)
+                    d = new Vector4(d.x * tint.Value.linear.r, d.y * tint.Value.linear.g, d.z * tint.Value.linear.b, d.w);
+                _u3.Add(d);
             }
 
             foreach (var t in mesh.triangles)
@@ -601,6 +737,7 @@ public static class MapDressing
             mesh.SetVertices(_v);
             mesh.SetNormals(_n);
             mesh.SetColors(_c);
+            mesh.SetUVs(3, _u3);
             if (_u2.Exists(u => u != Vector2.zero))
             {
                 while (_u2.Count < _v.Count)

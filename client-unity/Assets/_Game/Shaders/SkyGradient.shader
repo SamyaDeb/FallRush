@@ -28,6 +28,10 @@ Shader "FallRush/SkyGradient"
                 half4 _Top, _Horizon, _Bottom, _SunColor;
                 half _SunSize, _SunStrength, _Exponent;
             CBUFFER_END
+            // G4.8 globals (LookState): the look's sky; _FR_SkyHaze = a pale haze band on the horizon line (soft look only:
+            // the candy look sets it to its horizon, so the band vanishes).
+            half _FR_SkyOn;
+            half4 _FR_SkyTop, _FR_SkyHorizon, _FR_SkyHaze;
             struct A { float4 positionOS : POSITION; };
             struct V { float4 positionCS : SV_POSITION; float3 dir : TEXCOORD0; };
             V vert(A v)
@@ -42,8 +46,15 @@ Shader "FallRush/SkyGradient"
                 float3 d = normalize(i.dir);
                 half up = saturate(d.y);
                 half down = saturate(-d.y);
-                half3 c = lerp(_Horizon.rgb, _Top.rgb, pow(up, _Exponent));
-                c = lerp(c, _Bottom.rgb, saturate(down * 3.0h));
+                half on = step(0.5h, _FR_SkyOn);
+                half3 top = lerp(_Top.rgb, _FR_SkyTop.rgb, on);
+                half3 hor = lerp(_Horizon.rgb, _FR_SkyHorizon.rgb, on);
+                half3 bottom = lerp(_Bottom.rgb, hor * half3(0.86h, 0.92h, 0.98h), on);
+                half3 c = lerp(hor, top, pow(up, _Exponent));
+                c = lerp(c, bottom, saturate(down * 3.0h));
+                // Haze: strongest on the horizon line, fading over ~10 degrees up and down.
+                half haze = exp(-abs(d.y) * 9.0h) * on;
+                c = lerp(c, _FR_SkyHaze.rgb, haze * 0.85h);
                 half sun = pow(saturate(dot(d, GetMainLight().direction)), _SunSize);
                 c += _SunColor.rgb * sun * _SunStrength;
                 return half4(c, 1);
