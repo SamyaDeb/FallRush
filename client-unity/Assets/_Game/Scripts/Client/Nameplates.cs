@@ -1,5 +1,6 @@
 using FallRush.Shared;
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 namespace FallRush.Client
@@ -9,12 +10,12 @@ namespace FallRush.Client
     /// overlapped and stacked "BOT BOT"): a constant-size label above each Rushling's head, faded with distance (full to
     /// 10 m, gone at 32 m), hidden when the head is behind level geometry (one raycast per player every third frame),
     /// a farther label that overlaps a nearer one is dimmed, the name carries a small BOT tag, and your own marker is a
-    /// distinct magenta "▼ YOU". Off with Settings → Show nameplates (your marker stays). Allocation-free per frame.
+    /// distinct magenta "▼ YOU" (G3: TMP body face with a white outline; the symbol font renders ▼ in WebGL). Off with Settings → Show nameplates (your marker stays). Allocation-free per frame.
     /// </summary>
     public sealed class Nameplates
     {
         private const float FullAlphaDist = 10f, ZeroAlphaDist = 32f;
-        private readonly Text[] _labels = new Text[Protocol.MaxPlayers];
+        private readonly TMP_Text[] _labels = new TMP_Text[Protocol.MaxPlayers];
         private readonly RectTransform[] _rts = new RectTransform[Protocol.MaxPlayers];
         private readonly string[] _text = new string[Protocol.MaxPlayers];
         private readonly bool[] _occluded = new bool[Protocol.MaxPlayers];
@@ -34,23 +35,22 @@ namespace FallRush.Client
             _mask = occluderMask;
             for (var i = 0; i < _labels.Length; i++)
             {
-                var go = new GameObject($"Nameplate{i}", typeof(RectTransform), typeof(Text), typeof(Outline));
+                var go = new GameObject($"Nameplate{i}", typeof(RectTransform), typeof(TextMeshProUGUI));
                 var rt = (RectTransform)go.transform;
                 rt.SetParent(canvas, false);
                 rt.anchorMin = rt.anchorMax = Vector2.zero;
                 rt.pivot = new Vector2(0.5f, 0f);
                 rt.sizeDelta = new Vector2(220f, 26f);
-                var t = go.GetComponent<Text>();
-                t.font = UiKit.Font;
+                var t = go.GetComponent<TextMeshProUGUI>();
+                t.font = UiKit.Body;
+                if (UiKit.BodyOutlined != null)
+                    t.fontSharedMaterial = UiKit.BodyOutlined;
                 t.fontSize = 17;
-                t.fontStyle = FontStyle.Bold;
-                t.alignment = TextAnchor.LowerCenter;
-                t.supportRichText = true;
+                t.fontStyle = FontStyles.Bold;
+                t.alignment = TextAlignmentOptions.Bottom;
+                t.richText = true;
                 t.raycastTarget = false;
-                t.horizontalOverflow = HorizontalWrapMode.Overflow;
-                var o = go.GetComponent<Outline>();
-                o.effectColor = new Color(1f, 1f, 1f, 0.85f);
-                o.effectDistance = new Vector2(1.5f, -1.5f);
+                t.textWrappingMode = TextWrappingModes.NoWrap;
                 go.SetActive(false);
                 _labels[i] = t;
                 _rts[i] = rt;
@@ -58,7 +58,7 @@ namespace FallRush.Client
         }
 
         public static string LabelFor(string name, bool bot, bool own) =>
-            own ? "<size=20><color=#FF3EA5>YOU</color></size>" : bot ? $"<size=11><color=#7B2FF7>BOT</color></size> {name}" : name;
+            own ? "<size=21><color=#FF3EA5>▼ YOU</color></size>" : bot ? $"<size=12><color=#7B2FF7>BOT</color></size> {name}" : name;
 
         /// <summary>Call once per frame per slot, before <see cref="Layout"/>.</summary>
         public void Set(int slot, bool visible, Vector3 headWorld, string text)

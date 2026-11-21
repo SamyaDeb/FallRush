@@ -64,6 +64,25 @@
 | G1-10 | Bots approach precise jumps at 70 % stick when the hop apex > 1.3 m (MoonBounce) | ✅ | MoonBounce races hit the 150 s timer otherwise |
 | G1-11 | Initial connect: 6 tries (1, 2, 4, 4, 4 s backoff) on top of UTP's own 10 × 1 s | ✅ | |
 
+### G2 / G3 decisions (2026-11-19; made by Claude per the G2+G3 prompt, recorded in docs/proof/G2G3-look-juice.md — say if you want any changed)
+| ID | Decision | Status | Note |
+|---|---|---|---|
+| G2-1 | Toon shading is a hand-written URP HLSL shader (`FallRush/Toon`), not Shader Graph | 🟡 (doc 17 §3.2 said "a single Shader Graph") | headless batch builds; reviewable text; outline pass in the same shader; only instancing × fog variants |
+| G2-2 | Lighting is flat (one sun, trilight ambient, cel ramp, vertex AO), **not baked** | 🟡 (doc 17 §3.2 said "baked indirect, light probes") | 8 GB machine, code-rebuilt maps, no lightmap size; toon look |
+| G2-3 | One art pass (`MapArt` + `MapDressing`) run by every builder: toy-block meshes, merged hazard groups, toon materials by role, sky, dressing; colliders / hazard defs / transforms untouched | ✅ | map hashes unchanged (tested) |
+| G2-4 | A Rushling is one body renderer (lid hinged and key spun in the shader) + one limbs mesh; ≤ 2,330 tris | ✅ | draw calls: ~20 → 2 renderers per Rushling |
+| G2-5 | "My Rushling": humans **pick** one of 12 presets on the menu (saved locally, sent in hello); bots get a preset from their slot | 🟡 (doc 17 §2.4 said "assigned at random by the server") | the prompt's G2.2 wording; no stats |
+| G2-6 | `match` slot rows carry the preset (format v2) → **protocol v6** (`hello` unchanged: the byte existed) | ✅ | old clients are refused with the readable mismatch message |
+| G2-7 | Lobby capsule machine gets a box collider matching the visual (the greybox glass box had none: collision = visuals) | 🟡 | lobby only; no QA impact (no eliminations, not hashed); soak re-run |
+| G2-8 | Bolt's noodle-arm tube winding fixed (faced inward since M2; the outline exposed it) | ✅ | visual only |
+| G2-9 | Checkpoint banners hang at 5 m (above the follow camera), signs hide within 8 m of the camera | ✅ | the camera passed through 3 m banners (step 0 class of bug) |
+| G3-1 | Fonts: Lilita One (display), Varela Round (body, tabular digits), Noto Sans Symbols 2 (fallback), all OFL, as **static** TMP SDF atlases | ✅ | every glyph renders in WebGL; TTFs not in builds |
+| G3-2 | All music / SFX are **synthesised by us** (`tools/audio/synth.py`), no CC0 packs | ✅ | no licence risk; the user judges the sound |
+| G3-3 | No AudioMixer asset: Music / SFX / UI buses, ducking and pooling in code (`AudioDirector`) | 🟡 (prompt said "Mixer with … groups") | a mixer asset cannot be created from code; works the same on every platform |
+| G3-4 | Hit-stop = the stunned Rushling's visual pose holds 60 ms (Drive skipped); nothing else pauses | ✅ | rule 4: sim / tick / input / prediction untouched |
+| G3-5 | The claw plucks only Rushlings still visible at the round result (fell-out / gooed players already vanished: poof / goo splash instead) | ✅ | client-only presentation |
+| G3-6 | `IChainAdapter` + `PracticeChainAdapter`; chip states cycle with F9 (dev) or `?chain=cycle` | ✅ | contract in doc 04 §7.y |
+
 ## Top risks (live; update daily in PROJECT_STATUS)
 
 | # | Risk | Likelihood | Impact | Mitigation |

@@ -2,6 +2,7 @@ using FallRush.Net;
 using FallRush.Shared;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using TMPro;
 using UnityEngine.UI;
 
 namespace FallRush.Client
@@ -11,9 +12,9 @@ namespace FallRush.Client
     {
         private const float RefreshSeconds = 0.2f;
 
-        private Text _state;
-        private Text _details;
-        private Text _rtt;
+        private TMP_Text _state;
+        private TMP_Text _details;
+        private TMP_Text _rtt;
         private Button _reconnect;
         private Button _enter;
         private bool _autoplay;
@@ -21,13 +22,15 @@ namespace FallRush.Client
 
         private void Start()
         {
+            // G3.5 connecting / reconnecting screen (UI kit over the sky).
+            UiStage.Ensure(Camera.main);
             var canvas = UiKit.CreateCanvas("LobbyCanvas");
-            var panel = UiKit.Panel(canvas, new Vector2(760, 680), UiKit.CloudWhite);
+            var panel = UiKit.Panel(canvas, new Vector2(680, 560), UiKit.CloudWhite);
 
-            UiKit.Label(panel, "LOBBY", 56, UiKit.Grape, FontStyle.Bold, 72);
-            _state = UiKit.Label(panel, string.Empty, 34, UiKit.Ink, FontStyle.Bold, 48);
-            _details = UiKit.Label(panel, string.Empty, 22, UiKit.Ink, FontStyle.Normal, 96);
-            _rtt = UiKit.Label(panel, string.Empty, 30, UiKit.Magenta, FontStyle.Bold, 44);
+            UiKit.Shout(panel, "FALL RUSH", 56, UiKit.Magenta).GetComponent<LayoutElement>().minHeight = 70;
+            _state = UiKit.Label(panel, string.Empty, 32, UiKit.Ink, FontStyle.Bold, 48);
+            _details = UiKit.Label(panel, string.Empty, 17, UiKit.Ink, FontStyle.Normal, 80);
+            _rtt = UiKit.Label(panel, string.Empty, 20, UiKit.Grape, FontStyle.Bold, 30);
             _enter = UiKit.Button(panel, "Enter Sandbox (M2)", UiKit.Mint, OnEnter);
             _reconnect = UiKit.Button(panel, "Retry", UiKit.SunYellow, OnReconnect);
             _autoplay = NetTargets.GetQueryParam(Application.absoluteURL, "autoplay") == "1";
@@ -67,6 +70,7 @@ namespace FallRush.Client
             {
                 case ClientState.Connecting:
                     _state.text = boot.ConnectAttempt > 1 ? $"Connecting… (attempt {boot.ConnectAttempt} of {NetBootstrap.MaxInitialConnects})" : "Connecting…";
+                    _state.fontSize = boot.ConnectAttempt > 1 ? 26 : 32;
                     _state.color = UiKit.Sky;
                     break;
                 case ClientState.Connected:
@@ -91,7 +95,7 @@ namespace FallRush.Client
             if (boot.State == ClientState.Connected && nm != null)
             {
                 var players = ping != null ? ping.ServerPlayerCount : 0;
-                _details.text = $"Server: {boot.Target.Url}\nMy client id: {nm.LocalClientId}\nPlayers connected: {(players > 0 ? players.ToString() : "…")} / {Protocol.MaxPlayers}";
+                _details.text = $"Players connected: {(players > 0 ? players.ToString() : "…")} / {Protocol.MaxPlayers}\n<size=13><color=#8C88A6>{boot.Target.Url} · client {nm.LocalClientId}</color></size>";
             }
             else if (boot.State == ClientState.Disconnected)
             {
@@ -103,7 +107,7 @@ namespace FallRush.Client
             }
 
             if (boot.State == ClientState.Connected && ping != null && ping.SampleCount > 0)
-                _rtt.text = $"RTT p50 {ping.P50Ms:F0} ms · p95 {ping.P95Ms:F0} ms  (n={ping.SampleCount})";
+                _rtt.text = $"<color=#5BE3B5>●</color> {ping.P50Ms:F0} ms  <size=13>(p95 {ping.P95Ms:F0})</size>";
             else
                 _rtt.text = boot.State == ClientState.Connected ? "RTT: measuring…" : string.Empty;
 

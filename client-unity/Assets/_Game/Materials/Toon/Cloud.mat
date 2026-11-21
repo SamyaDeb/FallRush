@@ -43,10 +43,12 @@ Material:
     - _FaceOn: 0
     - _Gloss: 0
     - _KeyAngle: 0
+    - _LidAngle: 0
     - _MidLevel: 0.6
     - _OutlineWidth: 0.016
     - _RimPower: 3
     - _RimStrength: 0.5
+    - _RushlingMesh: 0
     - _Scroll: -1000
     - _SrcBlend: 1
     - _StripeWidth: 0.35
@@ -61,6 +63,7 @@ Material:
     - _FaceTint: {r: 0.35999998, g: 0.89, b: 0.71, a: 1}
     - _FlashColor: {r: 1, g: 1, b: 1, a: 0}
     - _KeyPivot: {r: 0, g: 0.5, b: -0.32, a: 0}
+    - _LidPivot: {r: 0, g: 0.54, b: -0.31, a: 0}
     - _OutlineColor: {r: 0.16499996, g: 0.06999998, b: 0.30999997, a: 1}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
     - _ShadeColor: {r: 0.86, g: 0.88, b: 1, a: 1}

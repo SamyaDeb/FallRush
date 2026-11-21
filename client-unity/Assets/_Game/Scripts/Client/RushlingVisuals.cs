@@ -46,7 +46,7 @@ namespace FallRush.Client
 
         public bool Silhouette { get; private set; }
 
-        private Transform _tilt, _squash, _lid, _faceT, _starsRoot;
+        private Transform _tilt, _squash, _starsRoot;
         private readonly Transform[] _feet = new Transform[2];
         private MaterialPropertyBlock _mpb;
         private Material _lit, _unlit;
@@ -85,6 +85,17 @@ namespace FallRush.Client
         public bool StunStartedThisFrame { get; private set; }
         public bool DiveStartedThisFrame { get; private set; }
 
+        // G3 juice hooks (client only): set for one frame by Drive.
+        public bool LandedThisFrame { get; private set; }
+        public float LandImpact { get; private set; }          // 0..1
+        public bool StumbleStartedThisFrame { get; private set; }
+        public bool GetUpThisFrame { get; private set; }
+        public bool EmoteStartedThisFrame { get; private set; }
+        public bool StepThisFrame { get; private set; }
+        public bool JumpedThisFrame { get; private set; }
+        public bool Sliding { get; private set; }
+        private bool _emoteStarted;
+
         // G2.2: three renderers (body, lid + LED screen, limbs) sharing one toon material with the outline pass; the key
         // spin and the face glyph are per-renderer property-block values the shader applies (RushlingParts).
         private static readonly int KeyAngleId = Shader.PropertyToID("_KeyAngle");
@@ -96,9 +107,11 @@ namespace FallRush.Client
         private static readonly int UnlitId = Shader.PropertyToID("_Unlit");
         private static readonly int OutlineWidthId = Shader.PropertyToID("_OutlineWidth");
         private const float LimbOutline = 0.006f; // the noodles are 4.5 cm thick: a thin hull keeps them white
-        private MeshRenderer _bodyR, _lidR, _limbsR, _starsR;
-        private MeshFilter _bodyF, _lidF;
-        private MaterialPropertyBlock _bodyMpb, _lidMpb, _plainMpb;
+        private MeshRenderer _bodyR, _limbsR, _starsR;
+        private MeshFilter _bodyF;
+        private MaterialPropertyBlock _bodyMpb, _plainMpb;
+        private static readonly int LidAngleId = Shader.PropertyToID("_LidAngle");
+        private static readonly int LidPivotId = Shader.PropertyToID("_LidPivot");
         private int _preset = -1;
         private Color _faceTint = Color.white;
 
@@ -113,7 +126,6 @@ namespace FallRush.Client
             _unlit = unlit;
             _mpb = new MaterialPropertyBlock();
             _bodyMpb = new MaterialPropertyBlock();
-            _lidMpb = new MaterialPropertyBlock();
             _plainMpb = new MaterialPropertyBlock();
             var phase = slot * 0.37f;
             _blinkAt = 1.5f + phase;
@@ -121,10 +133,7 @@ namespace FallRush.Client
             _tilt = Node("Tilt", transform, new Vector3(0f, 0.5f, 0f));
             _squash = Node("Squash", _tilt, new Vector3(0f, -0.5f, 0f));
             _bodyR = Renderer("Body", _squash, out _bodyF);
-            // Lid: everything above the seam, hinged at the back so the stun pop opens it.
-            _lid = Node("Lid", _squash, new Vector3(0f, ProcMesh.SeamY, -ProcMesh.R));
-            _lidR = Renderer("LidAndScreen", _lid, out _lidF);
-            _faceT = _lid;
+            // The lid (dome, screen, topper) is part of the body mesh; the shader hinges it at the back of the seam.
 
             // Peg feet: empty nodes under the root (world-planted while stepping); their pegs live in the limbs mesh.
             for (var f = 0; f < 2; f++)
@@ -164,9 +173,8 @@ namespace FallRush.Client
                 return;
             _preset = preset;
             _bodyF.sharedMesh = RushlingParts.Body(preset);
-            _lidF.sharedMesh = RushlingParts.Lid(preset);
             _faceTint = RushlingParts.FaceTint(CosmeticPresets.Get(preset).Face);
-            ApplyFace();
+            ApplyBody();
         }
 
         // ---- limbs mesh layout: [arm0][arm1][mitt0][mitt1][foot0][foot1]
@@ -289,6 +297,7 @@ namespace FallRush.Client
             m.SetColor(BaseColorId, c);
             if (unlit)
                 m.SetFloat(UnlitId, 1f);
+            m.SetFloat("_RushlingMesh", 1f);
             MatCache[key] = m;
             return m;
         }
@@ -315,6 +324,22 @@ namespace FallRush.Client
                 Destroy(_limbMesh);
         }
 
+        private bool _grey;
+
+        /// <summary>G3.4 the claw moment: an eliminated Rushling turns into a grey capsule.</summary>
+        public void SetGrey(bool on)
+        {
+            if (_grey == on)
+                return;
+            _grey = on;
+            _plainMpb.Clear();
+            _plainMpb.SetFloat(OutlineWidthId, LimbOutline);
+            if (on)
+                _plainMpb.SetColor(BaseColorId, new Color(0.62f, 0.6f, 0.68f));
+            _limbsR.SetPropertyBlock(_plainMpb);
+            ApplyBody();
+        }
+
         /// <summary>Unlit black override for the silhouette test (doc 17 §2.1).</summary>
         public void SetSilhouette(bool on)
         {
@@ -329,8 +354,7 @@ namespace FallRush.Client
 
             _limbsR.SetPropertyBlock(_plainMpb);
             _starsR.SetPropertyBlock(_plainMpb);
-            ApplyFace();
-            ApplyKey();
+            ApplyBody();
         }
 
         // ------------------------------------------------------------------ per frame (G1 animation set)
@@ -367,6 +391,7 @@ namespace FallRush.Client
                 return;
             _emote = id;
             _emoteT = 0f;
+            _emoteStarted = true;
         }
 
         public int Emote => _emote;
@@ -385,7 +410,9 @@ namespace FallRush.Client
         /// <param name="vel">Velocity (m/s).</param>
         public void Drive(Vector3 feet, Vector3 vel, byte flags, byte yaw256, byte stun, float dt)
         {
-            StunStartedThisFrame = DiveStartedThisFrame = false;
+            StunStartedThisFrame = DiveStartedThisFrame = LandedThisFrame = StumbleStartedThisFrame = GetUpThisFrame = StepThisFrame = JumpedThisFrame = false;
+            EmoteStartedThisFrame = _emoteStarted;
+            _emoteStarted = false;
             if (dt <= 0f)
                 return;
             dt = Mathf.Min(dt, 1f / 20f);
@@ -440,6 +467,8 @@ namespace FallRush.Client
             if (grounded && !_wasGrounded)
             {
                 var impact = Mathf.Clamp01(-_lastVel.y / 12f);
+                LandedThisFrame = true;
+                LandImpact = impact;
                 _sq = -0.22f * Mathf.Lerp(0.45f, 1f, impact);
                 _sqV = 0f;
                 _wobV += new Vector2(18f + 40f * impact, 0f);
@@ -450,6 +479,7 @@ namespace FallRush.Client
             if (!grounded && _wasGrounded && vel.y > 3f && !diving)
             {
                 // Take-off: a quick anticipation squash that springs into a stretch.
+                JumpedThisFrame = true;
                 _sq = -0.1f;
                 _sqV = 7f;
             }
@@ -459,6 +489,7 @@ namespace FallRush.Client
 
             if (stumbling && !_wasStumbling)
             {
+                StumbleStartedThisFrame = true;
                 _stumbleT = 0f;
                 _wobV += new Vector2(-60f, (Mathf.Repeat(_time * 7.3f, 1f) > 0.5f ? 1f : -1f) * 50f);
             }
@@ -487,6 +518,7 @@ namespace FallRush.Client
             {
                 _tumbleT = -1f;
                 _getUpT = 0f; // "get up" pop
+                GetUpThisFrame = true;
                 _angryUntil = _time + 0.9f;
                 _sq = -0.12f;
                 _sqV = 8f;
@@ -514,7 +546,15 @@ namespace FallRush.Client
             var walking = grounded && !sliding && hspeed > 0.25f && _tumbleT < 0f;
             _cadence = 3.2f + 0.95f * hspeed; // steps per second: 8 at 5 m/s (≈ 0.6 m per step)
             if (walking)
+            {
+                var before = Mathf.Floor(_gait / Mathf.PI);
                 _gait += Mathf.PI * _cadence * dt;
+                StepThisFrame = Mathf.Floor(_gait / Mathf.PI) != before; // a foot plants
+                if (_gait > Mathf.PI * 600f)
+                    _gait -= Mathf.PI * 600f; // keep the phase small (an even number of steps: the swing foot is kept)
+            }
+
+            Sliding = sliding;
             var gaitK = walking ? Mathf.Clamp01(hspeed / 2.5f) : 0f;
 
             // ---- acceleration (smoothed) for lean ----
@@ -639,12 +679,12 @@ namespace FallRush.Client
             var sy = 1f + _sq;
             var sxz = 1f - 0.75f * _sq;
             _squash.localScale = new Vector3(sxz, sy, sxz);
-            _lid.localRotation = Quaternion.Euler(-Mathf.Max(0f, _lidA), 0f, 0f);
+            _lidRad = Mathf.Max(0f, _lidA) * Mathf.Deg2Rad;
 
             // ---- key ----
             _keyBoost = Mathf.Max(0f, _keyBoost - dt);
             _keyAngle = Mathf.Repeat(_keyAngle + (60f + hspeed * 110f + _keyBoost * 900f) * (diving || sliding ? 3f : 1f) * dt, 360f);
-            ApplyKey();
+            ApplyBody();
 
             // ---- stars ----
             var starsOn = _starsLeft > 0f || stun > 0;
@@ -972,38 +1012,34 @@ namespace FallRush.Client
             if (g == _glyph)
                 return;
             _glyph = g;
-            ApplyFace();
+            ApplyBody();
         }
 
-        private void ApplyFace()
-        {
-            if (_lidR == null || _lidMpb == null)
-                return;
-            _lidMpb.Clear();
-            _lidMpb.SetTexture(FaceMapId, ProcMesh.FaceAtlas);
-            _lidMpb.SetVector(FaceStId, ProcMesh.GlyphST(_glyph == (ProcMesh.Glyph)255 ? ProcMesh.Glyph.Idle : _glyph));
-            _lidMpb.SetFloat(FaceOnId, Silhouette ? 0f : 1f);
-            _lidMpb.SetColor(FaceTintId, _faceTint);
-            if (Silhouette)
-            {
-                _lidMpb.SetColor(BaseColorId, Color.black);
-                _lidMpb.SetFloat(UnlitId, 1f);
-            }
+        private float _lidRad;
 
-            _lidR.SetPropertyBlock(_lidMpb);
-        }
-
-        private void ApplyKey()
+        /// <summary>Per-Rushling shader values on the one body renderer: face glyph + tint, key spin, lid hinge.</summary>
+        private void ApplyBody()
         {
-            if (_bodyR == null)
+            if (_bodyR == null || _bodyMpb == null)
                 return;
             _bodyMpb.Clear();
+            _bodyMpb.SetTexture(FaceMapId, ProcMesh.FaceAtlas);
+            _bodyMpb.SetVector(FaceStId, ProcMesh.GlyphST(_glyph == (ProcMesh.Glyph)255 ? ProcMesh.Glyph.Idle : _glyph));
+            _bodyMpb.SetFloat(FaceOnId, Silhouette ? 0f : 1f);
+            _bodyMpb.SetColor(FaceTintId, _faceTint);
             _bodyMpb.SetFloat(KeyAngleId, _keyAngle * Mathf.Deg2Rad);
             _bodyMpb.SetVector(KeyPivotId, RushlingParts.KeyPivot);
+            _bodyMpb.SetFloat(LidAngleId, _lidRad);
+            _bodyMpb.SetVector(LidPivotId, RushlingParts.LidPivot);
             if (Silhouette)
             {
                 _bodyMpb.SetColor(BaseColorId, Color.black);
                 _bodyMpb.SetFloat(UnlitId, 1f);
+            }
+            else if (_grey)
+            {
+                _bodyMpb.SetColor(BaseColorId, new Color(0.62f, 0.6f, 0.68f));
+                _bodyMpb.SetColor(FaceTintId, new Color(0.7f, 0.7f, 0.75f));
             }
 
             _bodyR.SetPropertyBlock(_bodyMpb);

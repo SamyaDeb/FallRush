@@ -373,6 +373,26 @@ See doc 17 §2.3.1 for the full table. `RushlingVisuals` API added: `SetPose(Pos
 - **Emotes:** keys 1–4 outside round play → `ctl` Emote → server relays `emo` (2 B) to everyone (1 per second per player; not during RoundIntro / RoundActive).
 - **DEV practice / tuning mode** (`Client/PracticeMode.cs`): `-fallrushPractice <MapKey>` / `?practice=<MapKey>` / the menu button, Editor and development builds only (`NetBootstrap.PracticeMapArg` returns null in release). Runs `PlayerStep.Run` + the map's hazards locally; F6 panel edits the v2 values live (readouts: speed, last arc apex / airtime / distance, stumble / slide), F7 prints them as JSON (log + clipboard). Reactive elements stay idle.
 
+### 7.y G2 / G3 screens and the MagicBlock-ready UI (as built 2026-11-19)
+- **UI kit** (`Client/UiKit.cs`, doc 17 §8.4): TextMeshPro everywhere (static SDF atlases: `FR_Display` Lilita One, `FR_Body` Varela Round with tabular figures, `FR_Symbols` Noto Sans Symbols 2 fallback), chunky panels, squash buttons (`UiPress`), pills, our own sliders / switches, the capsule-pop transition (`ScreenFx`).
+- **Screens:** menu (title, name, "My Rushling" picker + live preview `RushlingPreview`, Play, Settings, wallet smoke test, dev practice), connecting / reconnecting (`LobbyScreen`), lobby roster (preset swatch, BOT, ♛ host), Deal (Chaos Capsule machine `CapsuleMachineWidget`, round cards revealed one by one, the VRF slot), round intro (title, goal, tip, modifier hint, the countdown capsule machine 3-2-1-RUSH!), HUD (corner pills, timer badge with tabular figures, the counter pill), result banner (`ResultBanner`, our two-tone capsule), round result list, intermission leaderboard (fixed columns), champion (podium + Crown Capsule, `ChampionPodium`), receipt (table, ids, chain section with three explorer slots), spectate bar, settings. Nameplates use the body face with a white outline; "▼ YOU" now renders in WebGL.
+- **Signature moments:** lobby capsules (`ReactiveViews`), the claw (`ClawPresenter`), crown ceremony (`ChampionPodium`), countdown and deal machines (`CapsuleMachineWidget`).
+- **Audio / VFX:** `GameAudio` + `AudioDirector` (pooled sources, Music / SFX / UI buses, ducking, WebGL unlock on the first gesture), `Fx` + `FxDirector` (pooled particle systems), the juice hooks in `RushlingVisuals` (`LandedThisFrame` + `LandImpact`, `StepThisFrame`, `JumpedThisFrame`, `DiveStartedThisFrame`, `StunStartedThisFrame`, `StumbleStartedThisFrame`, `GetUpThisFrame`, `EmoteStartedThisFrame`, `Sliding`) consumed by `SandboxView.Juice`. Hit-stop: the stunned Rushling's pose holds 60 ms (`Drive` skipped); the simulation, tick, input sampling and prediction never see it.
+
+#### `IChainAdapter` contract (G3.6; M6 implements it)
+`Client/ChainAdapter.cs`. The game screens read chain state **only** through this interface; `PracticeChainAdapter` is used today. M6 adds a `RankedChainAdapter` and selects it when the match is ranked; no screen code changes.
+
+| Member | Practice (today) | M6 (ranked) |
+|---|---|---|
+| `ChainState State` | `Server` (● grey). DEV: F9 (Editor / dev builds) or `?chain=cycle` / `-fallrushChain cycle` cycles the four states for screenshots | From the server's `evt.chainStatus` (Relay-forwarded): `Pending` (! amber) while an ER tx is in flight, `RollupConfirmed` (◆ mint) once the round's events are on the ER, `SolanaConfirmed` (⬢ yellow) after the per-round commit / final undelegate |
+| `string Detail` | "Practice match: not recorded on chain" | e.g. "Round 2 committed to Solana" |
+| `bool IsPractice` | true | false |
+| `DealProof Deal` | `SeedHex` = the local seed, `Headline` "Practice deal (local seed)", `Verified` false, `VrfSignature` / `ExplorerUrl` null | the VRF seed from the callback, `Verified` true, `Headline` "MagicBlock VRF", the callback tx signature + explorer link (Deal screen shows "VRF ✓ …") |
+| `ReceiptLinks Receipt` | all null (placeholders "— (practice: not recorded)") | `RollupTx`/`RollupUrl` (last ER tx), `SolanaTx`/`SolanaUrl` (commit / undelegate), `MatchAccount`/`AccountUrl` (the Match PDA) |
+| `void OnMatchState(MatchStateMessage)` | keeps the seed | the same, plus whatever M6 needs from `match` |
+
+Rules: no RPC, no wallet calls and no chain SDK in the adapter or the screens (the client never reads the chain directly; the web receipt page does). Every slot is marked `TODO(M6)` in `PracticeChainAdapter.cs` and `MatchHud.cs` (`ShowDeal`, `ShowReceipt`). Tests: `JuiceTests.ChainChip_FourStates_MapToDoc17Styles`, `PracticeAdapter_ServerState_LocalSeed_NoLinks`.
+
 ## 8. Wallet (decision D-8: Solana.Unity-SDK)
 
 - Optional "Connect Wallet" in the menu. WebGL uses the SDK's web wallet adapter (Phantom / Solflare): `Web3.Instance.LoginWalletAdapter()` on a `Web3` component with `rpcCluster = DevNet` (the SDK sample's own path). Code: `Scripts/Client/Wallet/WalletSmokeTest.cs`, the only assembly referencing the SDK (Editor + WebGL only).

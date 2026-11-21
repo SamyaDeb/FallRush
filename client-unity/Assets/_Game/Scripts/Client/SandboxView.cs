@@ -5,6 +5,7 @@ using FallRush.Shared;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using TMPro;
 using UnityEngine.UI;
 
 namespace FallRush.Client
@@ -35,9 +36,9 @@ namespace FallRush.Client
         private FollowCamera _cam;
         private PlayerInputSampler _sampler;
         private GameObject _hud;
-        private Text _hudText;
+        private TMP_Text _hudText;
         private GameObject _overlay;
-        private Text _overlayText;
+        private TMP_Text _overlayText;
         private GameObject _lagIcon;
         private GameObject _options;
         private readonly StringBuilder _sb = new StringBuilder(1024);
@@ -51,6 +52,36 @@ namespace FallRush.Client
         private bool _hasOwn;
         private HazardViewDriver _hazardViews;
         private BlobShadows _blobs;
+        private Renderer[] _signs;
+        private float _signsAt;
+
+        /// <summary>In-world signs (TMP) hide when the camera is closer than 8 m: never a wall of giant letters.</summary>
+        private void FadeSigns()
+        {
+            if (Time.unscaledTime < _signsAt)
+                return;
+            _signsAt = Time.unscaledTime + 0.15f;
+            if (_signs == null)
+            {
+                var t = FindObjectsByType<TMPro.TextMeshPro>(FindObjectsSortMode.None);
+                _signs = new Renderer[t.Length];
+                for (var i = 0; i < t.Length; i++)
+                    _signs[i] = t[i].GetComponent<Renderer>();
+            }
+
+            var cam = Camera.main;
+            if (cam == null)
+                return;
+            var cp = cam.transform.position;
+            foreach (var r in _signs)
+                if (r != null)
+                {
+                    var on = (r.bounds.ClosestPoint(cp) - cp).sqrMagnitude > 8f * 8f;
+                    if (r.enabled != on)
+                        r.enabled = on;
+                }
+        }
+        private ClawPresenter _claw;
 
         private static MatchProbeBot s_MatchBot; // WebGL ?bot=match: one bot for the whole match (survives scene loads)
 
@@ -92,6 +123,8 @@ namespace FallRush.Client
             _cam = FollowCamera.Create(cam, _cameraTarget, PhysxMotorWorld.GameplayMask());
             GraphicsQuality.Apply(cam); // G2.1 High / Low
             _blobs = new BlobShadows(PhysxMotorWorld.GameplayMask());
+            _claw = gameObject.AddComponent<ClawPresenter>();
+            FxDirector.Get();
             _cam.transform.SetParent(transform, false);
             _sampler = gameObject.AddComponent<PlayerInputSampler>();
             _sampler.cameraRig = _cam;
@@ -222,13 +255,25 @@ namespace FallRush.Client
             {
                 var vis = _rushlings[i];
                 if (!cs.TrySample(i, out var feet, out var vel, out var flags, out var yaw, out var stun) ||
-                    (flags & MotorState.Respawning) != 0)
+                    (flags & MotorState.Respawning) != 0 || ReactiveViews.Current != null && ReactiveViews.Current.CapsuleHides(i))
                 {
                     if (!_wasRespawning[i])
                     {
                         vis.SetVisible(false);
                         _wasRespawning[i] = true;
+                        // G3.3: a knock-out leaves a poof (or a goo splash) where the Rushling vanished.
+                        if (_wasVisible[i] && cs.Phase == RoundPhase.Rush)
+                        {
+                            var gooed = _map != null && _map.goo.Length > 0;
+                            if (gooed)
+                                Fx.Splash(_lastFeet[i]);
+                            else
+                                Fx.Poof(_lastFeet[i]);
+                            GameAudio.Play(gooed ? GameAudio.Sfx.Goo : GameAudio.Sfx.CapsulePop, _lastFeet[i], i == own ? 1f : 0.6f);
+                        }
                     }
+
+                    _wasVisible[i] = false;
 
                     _visibleNow[i] = false;
                     _plates.Set(i, false, default, null);
@@ -245,7 +290,14 @@ namespace FallRush.Client
 
                 vis.SetPreset(cs.TryGetSlotInfo(i, out var slotInfo) ? slotInfo.Preset : CosmeticPresets.ForBot(i)); // G2.2 (cheap when unchanged)
                 vis.SetPose(PoseFor(cs, match, i));
-                vis.Drive(feet, vel, flags, yaw, stun, dt);
+                vis.SetGrey(_claw != null && _claw.IsGrey(i));
+                if (_claw != null && _claw.Holding(i, out var held))
+                    feet = held; // the claw carries it (visual only)
+                if (Time.unscaledTime >= _hitStopUntil[i])
+                    vis.Drive(feet, vel, flags, yaw, stun, dt);
+                Juice(i, vis, feet, vel, i == own, cs);
+                _wasVisible[i] = true;
+                _lastFeet[i] = feet;
                 _feetNow[i] = feet;
                 _visibleNow[i] = true;
                 if (_photo == null)
@@ -319,6 +371,7 @@ namespace FallRush.Client
             }
 
             UpdateHazardVisuals(cs);
+            FadeSigns();
 
             var lagging = cs.Remote.Lagging;
             if (_lagIcon.activeSelf != lagging)
@@ -341,6 +394,86 @@ namespace FallRush.Client
         {
             if (_photo != null)
                 PhotoCamera();
+        }
+
+        /// <summary>The followed Rushling's feet (effects anchor for HUD events).</summary>
+        public Vector3 OwnFeet => _lastOwnFeet;
+
+        // G3.3 juice state (client only).
+        private readonly float[] _hitStopUntil = new float[Protocol.MaxPlayers];
+        private readonly float[] _prevVy = new float[Protocol.MaxPlayers];
+        private readonly float[] _slideFxAt = new float[Protocol.MaxPlayers];
+        private readonly bool[] _wasVisible = new bool[Protocol.MaxPlayers];
+        private readonly Vector3[] _lastFeet = new Vector3[Protocol.MaxPlayers];
+        private int _stepParity;
+
+        /// <summary>Per-Rushling effects and sounds from the G1 juice hooks (visual / audio only).</summary>
+        private void Juice(int i, RushlingVisuals vis, Vector3 feet, Vector3 vel, bool own, ClientSim cs)
+        {
+            var cam = Camera.main;
+            var near = own || cam != null && (cam.transform.position - feet).sqrMagnitude < 14f * 14f;
+            var vol = own ? 1f : 0.55f;
+            if (vis.LandedThisFrame && vis.LandImpact > 0.06f)
+            {
+                Fx.Dust(feet, vis.LandImpact);
+                if (near)
+                    GameAudio.Play(GameAudio.Sfx.Land, feet, vol * Mathf.Lerp(0.4f, 1f, vis.LandImpact), 0.9f + UnityEngine.Random.value * 0.2f);
+                if (vis.Sliding)
+                    GameAudio.Play(GameAudio.Sfx.Slide, feet, vol);
+            }
+
+            if (vis.StepThisFrame && near && (own || (++_stepParity & 1) == 0))
+                GameAudio.Play(GameAudio.Sfx.Step, feet, vol * 0.35f, 0.85f + UnityEngine.Random.value * 0.3f);
+            if (vis.JumpedThisFrame && near)
+                GameAudio.Play(GameAudio.Sfx.Jump, feet, vol * 0.7f, 0.95f + UnityEngine.Random.value * 0.12f);
+            if (vis.DiveStartedThisFrame)
+            {
+                Fx.Streaks(feet, vel.sqrMagnitude > 0.01f ? new Vector3(vel.x, 0f, vel.z).normalized : vis.transform.forward);
+                if (near)
+                    GameAudio.Play(GameAudio.Sfx.Dive, feet, vol);
+            }
+
+            if (vis.Sliding && Time.unscaledTime >= _slideFxAt[i])
+            {
+                _slideFxAt[i] = Time.unscaledTime + 0.08f;
+                Fx.SlideDust(feet);
+            }
+
+            if (vis.StunStartedThisFrame)
+            {
+                Fx.HitStars(feet);
+                GameAudio.Play(GameAudio.Sfx.Bonk, feet, vol, 0.9f + UnityEngine.Random.value * 0.2f);
+                _hitStopUntil[i] = Time.unscaledTime + 0.06f; // hit-stop: the visuals freeze ~60 ms (the sim never does)
+                if (own)
+                    GameAudio.Chirp(1, feet);
+            }
+
+            if (vis.StumbleStartedThisFrame)
+            {
+                Fx.Dust(feet, 0.7f);
+                if (near)
+                    GameAudio.Play(GameAudio.Sfx.Stumble, feet, vol);
+            }
+
+            if (vis.GetUpThisFrame && near)
+                GameAudio.Chirp(3, feet);
+            if (vis.EmoteStartedThisFrame && near)
+            {
+                GameAudio.Play(GameAudio.Sfx.Emote, feet, vol);
+                GameAudio.Chirp(vis.Emote == 4 ? 2 : 0, feet);
+            }
+
+            // Spring pads: a sudden upward launch (visual check only).
+            if (vel.y - _prevVy[i] > 6f && vel.y > 7f)
+            {
+                if (near)
+                    GameAudio.Play(GameAudio.Sfx.Spring, feet, vol);
+                _hazardViews?.SquashPadNear(feet);
+                if (own)
+                    _cam.DiveKick();
+            }
+
+            _prevVy[i] = vel.y;
         }
 
         /// <summary>Client FPS over the last 0.25 s (HUD; logged by the gate script).</summary>
@@ -431,18 +564,19 @@ namespace FallRush.Client
             rt.anchoredPosition = new Vector2(12f, -12f);
             rt.sizeDelta = new Vector2(640f, 286f);
             _hud.GetComponent<Image>().color = new Color(0.08f, 0.03f, 0.18f, 0.72f);
-            var t = new GameObject("Text", typeof(RectTransform), typeof(Text)).GetComponent<Text>();
+            var t = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI)).GetComponent<TextMeshProUGUI>();
             var trt = (RectTransform)t.transform;
             trt.SetParent(rt, false);
             trt.anchorMin = Vector2.zero;
             trt.anchorMax = Vector2.one;
             trt.offsetMin = new Vector2(10f, 8f);
             trt.offsetMax = new Vector2(-10f, -8f);
-            t.font = UiKit.Font;
-            t.fontSize = 17;
+            t.font = UiKit.Body;
+            t.fontSize = 14;
             t.color = Color.white;
-            t.supportRichText = true;
-            t.alignment = TextAnchor.UpperLeft;
+            t.richText = true;
+            t.alignment = TextAlignmentOptions.TopLeft;
+            t.raycastTarget = false;
             _hudText = t;
 
             // "Lagging" icon (doc 04 §4.4): no snapshot for > 150 ms past the interpolation buffer.
@@ -452,7 +586,9 @@ namespace FallRush.Client
             lrt.anchorMin = lrt.anchorMax = lrt.pivot = new Vector2(1f, 1f);
             lrt.anchoredPosition = new Vector2(-16f, -16f);
             lrt.sizeDelta = new Vector2(150f, 44f);
-            _lagIcon.GetComponent<Image>().color = UiKit.SunYellow;
+            _lagIcon.GetComponent<Image>().color = UiKit.Amber;
+            _lagIcon.GetComponent<Image>().sprite = UiKit.Round;
+            _lagIcon.GetComponent<Image>().type = Image.Type.Sliced;
             var lt = UiKit.Label(lrt, "! LAGGING", 22, UiKit.Ink, FontStyle.Bold);
             var ltr = (RectTransform)lt.transform;
             ltr.anchorMin = Vector2.zero;
@@ -465,19 +601,26 @@ namespace FallRush.Client
             plateCanvas.SetParent(transform, false);
             plateCanvas.GetComponent<Canvas>().sortingOrder = -10;
             _plates = new Nameplates(plateCanvas, PhysxMotorWorld.GameplayMask());
-            var hint = UiKit.Label(canvas, "Click to capture the mouse · WASD move · Space jump · Shift / left click dive · 1-4 emote (lobby) · Esc settings · F1 hide this · Tab spectate", 16, UiKit.Ink);
-            _hint = hint.gameObject;
-            _hintUntil = Time.unscaledTime + 8f;
-            var hrt = (RectTransform)hint.transform;
+            // G3.5: the controls bar as a pill at the bottom centre.
+            var hintGo = new GameObject("ControlsHint", typeof(RectTransform));
+            var hrt = (RectTransform)hintGo.transform;
+            hrt.SetParent(canvas, false);
             hrt.anchorMin = hrt.anchorMax = hrt.pivot = new Vector2(0.5f, 0f);
-            hrt.anchoredPosition = new Vector2(0f, 10f);
-            hrt.sizeDelta = new Vector2(1000f, 28f);
+            hrt.anchoredPosition = new Vector2(0f, 8f);
+            hrt.sizeDelta = new Vector2(1010f, 30f);
+            UiKit.Pill(hrt, new Color(1f, 1f, 1f, 0.92f));
+            var hint = UiKit.Label(hrt, "Click to capture the mouse · WASD move · Space jump · Shift / click dive · 1-4 emote · Esc settings · F1 hide · Tab spectate", 14, UiKit.Ink, FontStyle.Bold);
+            UiKit.Stretch((RectTransform)hint.transform);
+            hint.GetComponent<LayoutElement>().ignoreLayout = true;
+            _hint = hintGo;
+            _hintUntil = Time.unscaledTime + 8f;
 
             BuildOptions(canvas);
 
-            var panel = UiKit.Panel(canvas, new Vector2(620f, 320f), UiKit.CloudWhite);
+            var panel = UiKit.Panel(canvas, new Vector2(620f, 340f), UiKit.CloudWhite);
             _overlay = panel.gameObject;
             _overlayText = UiKit.Label(panel, string.Empty, 26, UiKit.Magenta, FontStyle.Bold, 120);
+            _overlayText.font = UiKit.Display;
             UiKit.Button(panel, "Reconnect", UiKit.SunYellow, () => NetBootstrap.Instance?.Reconnect());
             UiKit.Button(panel, "Back to Menu", UiKit.SkyLight, () =>
             {
@@ -489,10 +632,10 @@ namespace FallRush.Client
 
         private void BuildOptions(Transform canvas)
         {
-            var panel = SettingsPanel.Build(canvas, new Vector2(640f, 520f));
-            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(1f, 0f);
-            panel.anchoredPosition = new Vector2(-16f, 48f);
-            UiKit.Label(panel, "Click the game to play · F1 controls · F3 net HUD", 16, UiKit.Grape);
+            var panel = SettingsPanel.Build(canvas, new Vector2(600f, 600f));
+            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(1f, 0.5f);
+            panel.anchoredPosition = new Vector2(-16f, 0f);
+            UiKit.Label(panel, "Click the game to play · F1 controls · F3 net HUD", 14, UiKit.Grape);
             _options = panel.gameObject;
             _options.SetActive(false);
         }

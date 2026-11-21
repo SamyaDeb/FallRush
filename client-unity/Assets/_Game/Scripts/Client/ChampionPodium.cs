@@ -52,25 +52,57 @@ namespace FallRush.Client
             var preset = ClientSim.Instance != null && ClientSim.Instance.TryGetSlotInfo(slot, out var info) ? info.Preset : CosmeticPresets.ForBot(slot);
             _rushling.Build(slot, preset, lit, unlit);
             _rushling.SetVisible(true);
-            _crown = new GameObject("Crown").transform;
-            _crown.SetParent(transform, false);
-            var gold = Mat(UiKit.SunYellow);
-            var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            Destroy(ring.GetComponent<Collider>());
-            ring.transform.SetParent(_crown, false);
-            ring.transform.localScale = new Vector3(0.55f, 0.08f, 0.55f);
-            ring.GetComponent<MeshRenderer>().sharedMaterial = gold;
+            BuildCrownCapsule(lit);
+            Fx.Confetti(_top + Vector3.up * 1.5f, 10);
+        }
+
+        private Transform _capTop, _capBottom;
+        private bool _popped;
+
+        /// <summary>
+        /// G3.4 #4: the golden Crown Capsule (our own design): a gold and white capsule toy drops onto the champion and pops
+        /// open; inside is our crown, a gold band with five rounded capsule-shaped prongs tipped with magenta and mint balls
+        /// and a little wind-up key on top, which settles on the champion's dome. Confetti and the victory sting.
+        /// </summary>
+        private void BuildCrownCapsule(Material lit)
+        {
+            var gold = UiKit.Hex(0xFFC21F);
+            var c = new RushlingParts.Combiner();
+            c.Add(RushlingParts.Shapes.Cylinder12, Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(0.5f, 0.06f, 0.5f)), gold, RushlingParts.FlagNone);
+            c.Add(RushlingParts.Shapes.ThinTorus, Matrix4x4.TRS(new Vector3(0f, -0.04f, 0f), Quaternion.identity, new Vector3(0.26f, 0.6f, 0.26f)), UiKit.Magenta, RushlingParts.FlagNoHull);
             for (var i = 0; i < 5; i++)
             {
                 var a = i * 72f * Mathf.Deg2Rad;
-                var spike = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Destroy(spike.GetComponent<Collider>());
-                spike.transform.SetParent(_crown, false);
-                spike.transform.localPosition = new Vector3(Mathf.Sin(a) * 0.22f, 0.14f, Mathf.Cos(a) * 0.22f);
-                spike.transform.localRotation = Quaternion.Euler(0f, i * 72f, 45f);
-                spike.transform.localScale = new Vector3(0.12f, 0.12f, 0.05f);
-                spike.GetComponent<MeshRenderer>().sharedMaterial = Mat(i % 2 == 0 ? UiKit.Magenta : UiKit.SunYellow);
+                var d = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a));
+                c.Add(RushlingParts.Shapes.Puff, Matrix4x4.TRS(d * 0.21f + Vector3.up * 0.13f, Quaternion.identity, new Vector3(0.11f, 0.26f, 0.11f)), gold, RushlingParts.FlagNone);
+                c.Add(RushlingParts.Shapes.Puff, Matrix4x4.TRS(d * 0.21f + Vector3.up * 0.28f, Quaternion.identity, Vector3.one * 0.09f), i % 2 == 0 ? UiKit.Magenta : UiKit.Mint, RushlingParts.FlagNoHull);
             }
+
+            c.Add(RushlingParts.Shapes.Cylinder8, Matrix4x4.TRS(Vector3.up * 0.1f, Quaternion.identity, new Vector3(0.04f, 0.08f, 0.04f)), gold, RushlingParts.FlagNoHull);
+            c.Add(RushlingParts.Shapes.LoopTorus, Matrix4x4.TRS(Vector3.up * 0.22f + Vector3.left * 0.05f, Quaternion.Euler(0f, 0f, 90f), new Vector3(0.06f, 0.2f, 0.05f)), UiKit.Grape, RushlingParts.FlagNoHull);
+            c.Add(RushlingParts.Shapes.LoopTorus, Matrix4x4.TRS(Vector3.up * 0.22f + Vector3.right * 0.05f, Quaternion.Euler(0f, 0f, 90f), new Vector3(0.06f, 0.2f, 0.05f)), UiKit.Grape, RushlingParts.FlagNoHull);
+            _crown = Piece("Crown", c.Build("CrownMesh"), lit);
+            _crown.localScale = Vector3.zero;
+
+            var t = new RushlingParts.Combiner();
+            t.Add(RushlingParts.Shapes.Dome, Matrix4x4.identity, Color.white, RushlingParts.FlagNone);
+            t.Add(RushlingParts.Shapes.ThinTorus, Matrix4x4.TRS(new Vector3(0f, ProcMesh.SeamY, 0f), Quaternion.identity, new Vector3(ProcMesh.R + 0.004f, 0.4f, ProcMesh.R + 0.004f)), gold, RushlingParts.FlagNone);
+            t.Add(RushlingParts.Shapes.Star5, Matrix4x4.TRS(new Vector3(0f, 0.78f, ProcMesh.RadiusAt(0.78f) + 0.01f), Quaternion.identity, Vector3.one * 1.6f), gold, RushlingParts.FlagNoHull);
+            _capTop = Piece("CrownCapsuleTop", t.Build("CrownCapsuleTop"), lit);
+            var b = new RushlingParts.Combiner();
+            b.Add(RushlingParts.Shapes.Shell, Matrix4x4.identity, gold, RushlingParts.FlagNone);
+            _capBottom = Piece("CrownCapsuleBottom", b.Build("CrownCapsuleBottom"), lit);
+        }
+
+        private Transform Piece(string name, Mesh mesh, Material lit)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var r = go.AddComponent<MeshRenderer>();
+            r.sharedMaterial = lit != null ? lit : new Material(Shader.Find("FallRush/Toon"));
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return go.transform;
         }
 
         private void Block(Vector3 c, Vector3 size, Material m)
@@ -88,12 +120,33 @@ namespace FallRush.Client
             var age = Time.unscaledTime - _born;
             var hop = GameSettings.ReducedMotion ? 0f : Mathf.Abs(Mathf.Sin(age * 3.2f)) * 0.35f;
             _rushling.Drive(_top + new Vector3(0f, hop, 0f), Vector3.zero, MotorState.Grounded, (byte)128, 0, Time.unscaledDeltaTime);
-            // Crown pops in after 0.6 s: drops onto the dome with an overshoot.
-            var k = Mathf.Clamp01((age - 0.6f) / 0.5f);
-            var s = k <= 0f ? 0f : 1f + Mathf.Sin(k * Mathf.PI) * 0.35f;
+            // Crown Capsule: drops in (0.3–0.9 s), pops open at 1.1 s, the crown settles on the dome by 1.8 s.
+            var reduced = GameSettings.ReducedMotion;
+            var head = _top + new Vector3(0f, 1.15f + hop, 0f);
+            var drop = Mathf.Clamp01((age - 0.3f) / 0.6f);
+            var capAt = head + Vector3.up * (0.6f + (1f - drop * drop) * 6f);
+            var open = Mathf.Clamp01((age - 1.1f) / 0.5f);
+            if (age >= 1.1f && !_popped)
+            {
+                _popped = true;
+                Fx.Confetti(head + Vector3.up * 0.6f, 90);
+                Fx.Sparkle(head + Vector3.up * 0.6f, true);
+                GameAudio.Play2D(GameAudio.Sfx.CapsulePop);
+                GameAudio.Play2D(GameAudio.Sfx.Confetti);
+            }
+
+            var capScale = Vector3.one * 1.3f * (age < 0.3f ? 0f : 1f);
+            _capBottom.SetPositionAndRotation(capAt - Vector3.up * open * 0.6f, Quaternion.Euler(0f, reduced ? 0f : age * 90f, 0f));
+            _capBottom.localScale = capScale * Mathf.Max(0.01f, 1f - open);
+            _capTop.SetPositionAndRotation(capAt + new Vector3(open * 0.8f, open * 2.2f - open * open * 0.8f, 0f), Quaternion.Euler(0f, reduced ? 0f : age * 90f, -open * 120f));
+            _capTop.localScale = capScale * Mathf.Max(0.01f, 1f - open * 0.6f);
+            _capTop.gameObject.SetActive(open < 1f);
+            _capBottom.gameObject.SetActive(open < 1f);
+            var settle = Mathf.Clamp01((age - 1.25f) / 0.55f);
+            var s = settle <= 0f ? 0f : 1f + Mathf.Sin(settle * Mathf.PI) * (reduced ? 0f : 0.3f);
             _crown.localScale = Vector3.one * s;
-            _crown.position = _top + new Vector3(0f, 1.15f + hop + (1f - k) * 1.5f, 0f);
-            _crown.rotation = Quaternion.Euler(0f, GameSettings.ReducedMotion ? 0f : age * 60f, 0f);
+            _crown.position = Vector3.Lerp(capAt, head, settle * settle);
+            _crown.rotation = Quaternion.Euler(0f, reduced ? 0f : age * 60f, 0f);
         }
     }
 }

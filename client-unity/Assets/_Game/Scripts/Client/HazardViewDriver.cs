@@ -31,6 +31,7 @@ namespace FallRush.Client
         private readonly Renderer[] _malletHeads;
         private readonly Renderer[] _chevrons;
         private readonly int[] _chevronCount;
+        private readonly float[] _padSquash;
         private static readonly Color Flash = UiKit.Magenta;
         private static readonly Color Glow = new Color(1f, 0.95f, 0.6f);
 
@@ -46,6 +47,9 @@ namespace FallRush.Client
                 _malletHeads[i] = map.mallets[i] != null && map.mallets[i].visual != null ? map.mallets[i].visual.GetComponent<Renderer>() : null;
             }
 
+            _padSquash = new float[map.pads.Length];
+            for (var i = 0; i < _padSquash.Length; i++)
+                _padSquash[i] = -1f;
             _chevrons = new Renderer[map.conveyors.Length];
             _chevronCount = new int[map.conveyors.Length];
             for (var i = 0; i < map.conveyors.Length; i++)
@@ -66,6 +70,37 @@ namespace FallRush.Client
             }
         }
 
+        /// <summary>G3.3 spring-pad squash: the pad nearest a launch (within 2.5 m) bounces its arrows (visual only).</summary>
+        public void SquashPadNear(Vector3 feet)
+        {
+            for (var i = 0; i < _map.pads.Length; i++)
+            {
+                var pd = _map.pads[i];
+                if (pd != null && pd.visual != null && (pd.visual.position - feet).sqrMagnitude < 2.5f * 2.5f)
+                    _padSquash[i] = Time.unscaledTime;
+            }
+        }
+
+        private void PadSquash(bool reduced)
+        {
+            for (var i = 0; i < _padSquash.Length; i++)
+            {
+                if (_padSquash[i] < 0f || _map.pads[i] == null || _map.pads[i].visual == null)
+                    continue;
+                var u = (Time.unscaledTime - _padSquash[i]) / 0.45f;
+                var v = _map.pads[i].visual;
+                if (u >= 1f || reduced)
+                {
+                    v.localScale = Vector3.one;
+                    _padSquash[i] = -1f;
+                    continue;
+                }
+
+                var k = Mathf.Sin(u * Mathf.PI * 2.5f) * (1f - u);
+                v.localScale = new Vector3(1f + 0.35f * k, 1f - 0.5f * k, 1f + 0.35f * k);
+            }
+        }
+
         /// <summary>Poses every hazard visual at hazard time <paramref name="t"/> (ticks since the round start, fractional).</summary>
         public void Update(HazardSet hz, double t, bool reducedMotion)
         {
@@ -73,6 +108,7 @@ namespace FallRush.Client
                 return;
             var t0 = (int)Math.Floor(t);
             var f = (float)(t - t0);
+            PadSquash(reducedMotion);
 
             for (var i = 0; i < _map.sweepers.Length && i < hz.Sweepers.Length; i++)
             {

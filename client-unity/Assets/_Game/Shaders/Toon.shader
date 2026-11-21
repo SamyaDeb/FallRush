@@ -43,6 +43,9 @@ Shader "FallRush/Toon"
         _FaceTint("Face glyph colour", Color) = (0.36, 0.89, 0.71, 1)
         _KeyAngle("Key angle (rad)", Float) = 0
         _KeyPivot("Key pivot (object)", Vector) = (0, 0.5, -0.32, 0)
+        _LidAngle("Lid hinge angle (rad)", Float) = 0
+        _RushlingMesh("Rushling mesh (uv2.x = lid)", Float) = 0
+        _LidPivot("Lid hinge (object)", Vector) = (0, 0.54, -0.31, 0)
         _OutlineColor("Outline colour", Color) = (0.165, 0.07, 0.31, 1)
         _OutlineWidth("Outline width (m)", Float) = 0.016
         [HideInInspector] _SrcBlend("_SrcBlend", Float) = 1
@@ -79,6 +82,9 @@ Shader "FallRush/Toon"
             half4 _FaceTint;
             float _KeyAngle;
             float4 _KeyPivot;
+            float _LidAngle;
+            half _RushlingMesh;
+            float4 _LidPivot;
             half4 _OutlineColor;
             float _OutlineWidth;
         CBUFFER_END
@@ -99,6 +105,29 @@ Shader "FallRush/Toon"
                 p = q + _KeyPivot.xyz;
             }
             return p;
+        }
+
+        // Lid: vertices with uv2.x = 1 hinge about the X axis through _LidPivot (the stun pop opens the lid).
+        float3 Lid(float3 p, float flag)
+        {
+            if (flag > 0.5 && flag < 1.5 && _LidAngle != 0.0)
+            {
+                float s = sin(-_LidAngle), c = cos(-_LidAngle);
+                float3 q = p - _LidPivot.xyz;
+                q.yz = float2(q.y * c - q.z * s, q.y * s + q.z * c);
+                p = q + _LidPivot.xyz;
+            }
+            return p;
+        }
+
+        float3 LidN(float3 n, float flag)
+        {
+            if (flag > 0.5 && flag < 1.5 && _LidAngle != 0.0)
+            {
+                float s = sin(-_LidAngle), c = cos(-_LidAngle);
+                n.yz = float2(n.y * c - n.z * s, n.y * s + n.z * c);
+            }
+            return n;
         }
 
         float3 SpinKeyN(float3 n, float flag)
@@ -157,8 +186,8 @@ Shader "FallRush/Toon"
                 UNITY_SETUP_INSTANCE_ID(v);
                 UNITY_TRANSFER_INSTANCE_ID(v, o);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-                float3 p = SpinKey(v.positionOS.xyz, v.uv2.y);
-                float3 n = SpinKeyN(v.normalOS, v.uv2.y);
+                float3 p = Lid(SpinKey(v.positionOS.xyz, v.uv2.y), v.uv2.x * _RushlingMesh);
+                float3 n = LidN(SpinKeyN(v.normalOS, v.uv2.y), v.uv2.x * _RushlingMesh);
                 VertexPositionInputs pos = GetVertexPositionInputs(p);
                 o.positionCS = pos.positionCS;
                 o.positionWS = pos.positionWS;
@@ -178,7 +207,7 @@ Shader "FallRush/Toon"
                 half3 albedo = tex.rgb * _BaseColor.rgb * i.color.rgb;
 
                 // Travelling chevron light (conveyors): the chevron whose index matches the wave is lit.
-                if (_Scroll > -999.0 && i.uv2.x > 0.5)
+                if (_Scroll > -999.0 && i.uv2.x > 0.5 && _RushlingMesh < 0.5)
                 {
                     float d = frac((_Scroll - (i.uv2.x - 1.0)) / max(1.0, _ChevronCount));
                     half on = step(d * max(1.0, _ChevronCount), 1.0);
@@ -210,7 +239,7 @@ Shader "FallRush/Toon"
                 else
                     amb = SampleSH(n);
 
-                half3 lit = albedo * (shade * sun.color * 0.64h + amb * 0.36h);
+                half3 lit = albedo * (shade * sun.color * 0.58h + amb * 0.34h);
 
                 float3 viewDir = normalize(GetWorldSpaceViewDir(i.positionWS));
                 half rim = pow(1.0h - saturate(dot(n, viewDir)), _RimPower) * _RimStrength;
@@ -275,8 +304,8 @@ Shader "FallRush/Toon"
                 V o = (V)0;
                 UNITY_SETUP_INSTANCE_ID(v);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-                float3 p = SpinKey(v.positionOS.xyz, v.uv2.y);
-                float3 n = SpinKeyN(v.normalOS, v.uv2.y);
+                float3 p = Lid(SpinKey(v.positionOS.xyz, v.uv2.y), v.uv2.x * _RushlingMesh);
+                float3 n = LidN(SpinKeyN(v.normalOS, v.uv2.y), v.uv2.x * _RushlingMesh);
                 // Small parts (face, goggles, seam, emblem: uv2.y = 1 or 3) get no hull of their own.
                 if (abs(v.uv2.y - 1.0) < 0.5 || abs(v.uv2.y - 3.0) < 0.5)
                 {
@@ -331,7 +360,7 @@ Shader "FallRush/Toon"
                 V o = (V)0;
                 UNITY_SETUP_INSTANCE_ID(v);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-                o.positionCS = TransformObjectToHClip(SpinKey(v.positionOS.xyz, v.uv2.y));
+                o.positionCS = TransformObjectToHClip(Lid(SpinKey(v.positionOS.xyz, v.uv2.y), v.uv2.x * _RushlingMesh));
                 return o;
             }
 

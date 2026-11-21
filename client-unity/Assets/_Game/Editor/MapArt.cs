@@ -40,6 +40,7 @@ public static class MapArt
         var vc = VertexColorMaterial();
 
         // 2. hazard groups first (they read the original materials' colours), then 3. blocks.
+        MapDressing.DecorateHazards(info, mapKey);
         if (info != null)
             MergeHazards(info, vc);
         if (geo != null)
@@ -94,6 +95,61 @@ public static class MapArt
         m.enableInstancing = true;
         m.SetColor("_Color", new Color(P.ink.r, P.ink.g, P.ink.b, 0.5f));
         EditorUtility.SetDirty(m);
+
+        // G3.3 effects: one material + a generated 2×2 sheet (soft dot, star, confetti square, ring).
+        const string sheetPath = ProjectSetup.Root + "/Resources/FallRush/FxSheet.png";
+        if (!System.IO.File.Exists(sheetPath))
+        {
+            System.IO.File.WriteAllBytes(sheetPath, FxSheet().EncodeToPNG());
+            AssetDatabase.ImportAsset(sheetPath);
+        }
+
+        var fxPath = ProjectSetup.Root + "/Resources/FallRush/Fx.mat";
+        var fxSh = Shader.Find("FallRush/Fx") ?? throw new System.InvalidOperationException("FallRush/Fx not found");
+        var fx = AssetDatabase.LoadAssetAtPath<Material>(fxPath);
+        if (fx == null)
+        {
+            fx = new Material(fxSh);
+            AssetDatabase.CreateAsset(fx, fxPath);
+        }
+
+        fx.shader = fxSh;
+        fx.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(sheetPath));
+        EditorUtility.SetDirty(fx);
+    }
+
+    private static Texture2D FxSheet()
+    {
+        const int n = 128, c = 64;
+        var t = new Texture2D(n, n, TextureFormat.RGBA32, false);
+        for (var y = 0; y < n; y++)
+            for (var x = 0; x < n; x++)
+            {
+                var cell = (x / c) + (1 - y / c) * 2; // 0 TL soft dot, 1 TR star, 2 BL square, 3 BR ring
+                var u = (x % c + 0.5f) / c * 2f - 1f;
+                var v = (y % c + 0.5f) / c * 2f - 1f;
+                var r = Mathf.Sqrt(u * u + v * v);
+                float a;
+                switch (cell)
+                {
+                    case 0: a = Mathf.Clamp01(1f - r) * Mathf.Clamp01(1f - r) * 1.4f; break;
+                    case 1:
+                    {
+                        var ang = Mathf.Atan2(v, u) + Mathf.PI * 0.5f;
+                        var k = Mathf.Abs(Mathf.Cos(ang * 2.5f));
+                        var edge = Mathf.Lerp(0.42f, 0.95f, Mathf.Pow(k, 3f));
+                        a = Mathf.Clamp01((edge - r) * 18f);
+                        break;
+                    }
+                    case 2: a = Mathf.Clamp01((0.8f - Mathf.Max(Mathf.Abs(u), Mathf.Abs(v) * 1.6f)) * 20f); break;
+                    default: a = Mathf.Clamp01((0.12f - Mathf.Abs(r - 0.78f)) * 14f); break;
+                }
+
+                t.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(a)));
+            }
+
+        t.Apply();
+        return t;
     }
 
     public static void EnsurePaletteAsset()
@@ -104,11 +160,15 @@ public static class MapArt
             AssetDatabase.CreateFolder(ProjectSetup.Root, "Resources");
         if (!AssetDatabase.IsValidFolder(dir))
             AssetDatabase.CreateFolder(ProjectSetup.Root + "/Resources", "FallRush");
+        var fresh = ScriptableObject.CreateInstance<PaletteTokens>(); // code defaults = doc 17 §3.1 (the source of truth)
         var a = AssetDatabase.LoadAssetAtPath<PaletteTokens>(path);
         if (a == null)
+            AssetDatabase.CreateAsset(fresh, path);
+        else
         {
-            a = ScriptableObject.CreateInstance<PaletteTokens>(); // code defaults = doc 17 §3.1
-            AssetDatabase.CreateAsset(a, path);
+            EditorUtility.CopySerialized(fresh, a); // regenerate: the asset always equals the code tokens
+            EditorUtility.SetDirty(a);
+            Object.DestroyImmediate(fresh);
         }
     }
 
@@ -118,7 +178,11 @@ public static class MapArt
     {
         if (!AssetDatabase.IsValidFolder(ToonDir))
             AssetDatabase.CreateFolder(ProjectSetup.Root + "/Materials", "Toon");
-        var path = $"{ToonDir}/{name}.mat";
+        return ToonAssetAt($"{ToonDir}/{name}.mat", color, setup);
+    }
+
+    public static Material ToonAssetAt(string path, Color color, System.Action<Material> setup = null)
+    {
         var m = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (m == null)
         {
@@ -145,6 +209,7 @@ public static class MapArt
         m.SetColor("_FlashColor", new Color(1, 1, 1, 0));
         m.SetFloat("_Scroll", -1000f);
         m.SetFloat("_FaceOn", 0f);
+        m.SetFloat("_RushlingMesh", 0f);
         m.SetFloat("_SrcBlend", 1f);
         m.SetFloat("_DstBlend", 0f);
         m.SetFloat("_ZWrite", 1f);
@@ -169,12 +234,13 @@ public static class MapArt
     public static Material VertexColorMaterial() => ToonAsset("VertexColor", Color.white, m => m.SetFloat("_RimStrength", 0.22f));
 
     /// <summary>Rushling body material (cloned per colour at runtime is no longer needed: the parts carry vertex colours).</summary>
-    public static Material CharacterMaterial() => ToonAsset("Character", Color.white, m =>
+    public static Material CharacterMaterial() => ToonAssetAt(ProjectSetup.Root + "/Resources/FallRush/Character.mat", Color.white, m =>
     {
         m.SetFloat("_Gloss", 0.55f);
         m.SetFloat("_RimStrength", 0.42f);
         m.SetColor("_OutlineColor", P.ink);
         m.SetFloat("_OutlineWidth", 0.016f);
+        m.SetFloat("_RushlingMesh", 1f); // uv2.x = lid on Rushling meshes
         m.SetShaderPassEnabled("SRPDefaultUnlit", true);
     });
 
@@ -484,7 +550,26 @@ public static class MapArt
                 Merge(ml.visual, vc, t => t.name == "HeadBody" ? 1f : 0f); // the head glows during the wind-up
         foreach (var bm in info.bumpers)
             if (bm != null && bm.visual != null)
+            {
+                // G2.4: the bumper body is drawn by its collider object; fold it into the bands' mesh (1 draw per bumper).
+                // The MeshCollider stays exactly as built.
+                var cr = bm.motorCollider != null ? bm.motorCollider.GetComponent<MeshRenderer>() : null;
+                var cf = cr != null ? cr.GetComponent<MeshFilter>() : null;
+                if (cr != null && cf != null)
+                {
+                    var body = new GameObject("Body");
+                    body.transform.SetParent(bm.visual, false);
+                    body.transform.SetPositionAndRotation(cr.transform.position, cr.transform.rotation);
+                    body.transform.localScale = Vector3.Scale(cr.transform.lossyScale, new Vector3(1f / bm.visual.lossyScale.x, 1f / bm.visual.lossyScale.y, 1f / bm.visual.lossyScale.z));
+                    body.AddComponent<MeshFilter>().sharedMesh = cf.sharedMesh;
+                    body.AddComponent<MeshRenderer>().sharedMaterial = cr.sharedMaterial;
+                    Object.DestroyImmediate(cr);
+                    Object.DestroyImmediate(cf);
+                }
+
                 Merge(bm.visual, vc, null);
+                bm.visual.gameObject.isStatic = true; // bumpers never move: static batching
+            }
         foreach (var pd in info.pads)
             if (pd != null && pd.visual != null)
                 Merge(pd.visual, vc, null);
@@ -603,7 +688,7 @@ public static class MapArt
 
     public static Material SkyMaterial()
     {
-        var path = $"{ToonDir}/Sky.mat";
+        var path = ProjectSetup.Root + "/Resources/FallRush/Sky.mat";
         var m = AssetDatabase.LoadAssetAtPath<Material>(path);
         var sh = Shader.Find("FallRush/SkyGradient") ?? throw new System.InvalidOperationException("FallRush/SkyGradient not found");
         if (m == null)

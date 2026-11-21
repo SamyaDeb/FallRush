@@ -22,7 +22,6 @@ namespace FallRush.Client
         public static readonly Vector3 KeyPivot = new Vector3(0f, 0.5f, -ProcMesh.R - 0.005f);
 
         private static readonly Dictionary<int, Mesh> BodyCache = new Dictionary<int, Mesh>();
-        private static readonly Dictionary<int, Mesh> LidCache = new Dictionary<int, Mesh>();
         private static Mesh _stars;
 
         private static readonly Color Ink = UiKit.Hex(0x2A1250);
@@ -51,6 +50,9 @@ namespace FallRush.Client
             public readonly List<Vector2> U2 = new List<Vector2>();
             public readonly List<int> T = new List<int>();
 
+            /// <summary>uv2.x for the next parts (1 = lid: hinged by the shader).</summary>
+            public float Part;
+
             public void Add(Mesh m, Matrix4x4 xf, Color col, float flag)
             {
                 var start = V.Count;
@@ -64,7 +66,7 @@ namespace FallRush.Client
                     N.Add(nm.MultiplyVector(i < mn.Length ? mn[i] : Vector3.up).normalized);
                     C.Add(col);
                     U.Add(i < mu.Length ? mu[i] : Vector2.zero);
-                    U2.Add(new Vector2(0f, flag));
+                    U2.Add(new Vector2(Part, flag));
                 }
 
                 var tris = m.triangles;
@@ -109,7 +111,9 @@ namespace FallRush.Client
             c.Add(Shapes.Box, Trs(new Vector3(0f, ProcMesh.SeamY, -ProcMesh.R - 0.008f), Quaternion.identity, new Vector3(0.1f, 0.035f, 0.03f)), Ink, FlagNoHull);
             c.Add(Shapes.Emblem(p.Emblem), Trs(new Vector3(0f, 0.43f, ProcMesh.R + 0.012f), Quaternion.identity, Vector3.one * 0.8f), UiKit.Hex(p.EmblemColor), FlagNoHull);
             Key(c, p.Key, UiKit.Hex(p.KeyColor));
-            var m = c.Build("RushlingBody_" + p.Name);
+            c.Part = 1f; // G2.4: the lid (dome, screen, topper) is in the same mesh; the toon shader hinges it (1 renderer per Rushling)
+            LidParts(c, p);
+            var m = c.Build("Rushling_" + p.Name);
             BodyCache[id] = m;
             return m;
         }
@@ -135,17 +139,9 @@ namespace FallRush.Client
 
         // ------------------------------------------------------------------ lid (dome + screen + topper)
 
-        /// <summary>Lid node offset: the lid hinges at the back of the seam; parts are built at body height then offset.</summary>
-        public static readonly Vector3 LidOffset = new Vector3(0f, -ProcMesh.SeamY, ProcMesh.R);
-
-        public static Mesh Lid(int presetId)
+        private static void LidParts(Combiner c, CosmeticPresets.Preset p)
         {
-            var id = CosmeticPresets.Clamp(presetId);
-            if (LidCache.TryGetValue(id, out var cached) && cached != null)
-                return cached;
-            var p = CosmeticPresets.Get(id);
-            var c = new Combiner();
-            var off = Matrix4x4.Translate(LidOffset);
+            var off = Matrix4x4.identity; // lid parts are modelled at body height (the hinge is in the shader)
             c.Add(Shapes.Dome, off, DomeWhite, FlagNone);
             c.Add(ProcMesh.Face, off, Color.white, FlagFace);
             switch (p.Topper)
@@ -192,9 +188,6 @@ namespace FallRush.Client
                 }
             }
 
-            var m = c.Build("RushlingLid_" + p.Name);
-            LidCache[id] = m;
-            return m;
         }
 
         /// <summary>Three stun stars in a ring (one renderer; the ring spins).</summary>
@@ -213,8 +206,10 @@ namespace FallRush.Client
         }
 
         /// <summary>Triangle count of one Rushling with this preset (body + lid + limbs), for the budget test.</summary>
-        public static int Triangles(int presetId) =>
-            (int)(Body(presetId).GetIndexCount(0) / 3 + Lid(presetId).GetIndexCount(0) / 3) + LimbTriangles;
+        public static int Triangles(int presetId) => (int)(Body(presetId).GetIndexCount(0) / 3) + LimbTriangles;
+
+        /// <summary>The lid hinge (object space of the body): the back of the seam.</summary>
+        public static readonly Vector3 LidPivot = new Vector3(0f, ProcMesh.SeamY, -ProcMesh.R);
 
         public const int ArmRings = 9, ArmSides = 6, MittSeg = 8, MittRings = 5, FootSides = 8;
         public static int LimbTriangles => 2 * ((ArmRings - 1) * ArmSides * 2) + 2 * (MittSeg * MittRings * 2) + 2 * (FootSides * 4);

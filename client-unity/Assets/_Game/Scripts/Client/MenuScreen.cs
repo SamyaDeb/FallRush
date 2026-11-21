@@ -1,103 +1,155 @@
 using System;
 using FallRush.Net;
 using FallRush.Shared;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace FallRush.Client
 {
-    /// <summary>Menu: name entry (G1), "Play (connect)", Settings (G1), "Connect Wallet (smoke test)". Placeholder UI.</summary>
+    /// <summary>
+    /// Menu (G3.5, doc 01 §12): the FALL RUSH title, your name, "My Rushling" (12 cosmetic presets with a live 3D preview,
+    /// saved locally, sent in hello; no stats), Play (Quick Play), Settings, Connect Wallet (smoke test) and, in dev builds,
+    /// the practice / tuning mode. UI kit look over the sky gradient.
+    /// </summary>
     public sealed class MenuScreen : MonoBehaviour
     {
-        private Text _target;
-        private Text _wallet;
+        private TMP_Text _target;
+        private TMP_Text _wallet;
+        private TMP_Text _presetName, _presetInfo;
+        private Image _presetSwatch;
         private Button _walletButton;
         private bool _walletBusy;
         private GameObject _settings;
 
         private void Start()
         {
-            var canvas = UiKit.CreateCanvas("MenuCanvas");
-            var panel = UiKit.Panel(canvas, new Vector2(760, 760), UiKit.CloudWhite);
+            var cam = Camera.main;
+            UiStage.Ensure(cam);
+            RushlingPreview.Create(cam, new Vector3(0.76f, 0.40f, 0f));
+            GameAudio.SetMusic(GameAudio.Music.Lobby);
 
-            UiKit.Label(panel, "FALL RUSH", 72, UiKit.Magenta, FontStyle.Bold, 90);
-            UiKit.Label(panel, "Practice match: you + bots, 4 rounds", 22, UiKit.Grape);
+            var canvas = UiKit.CreateCanvas("MenuCanvas");
+            var title = UiKit.Shout(canvas, "FALL RUSH", 104, UiKit.Magenta);
+            var trt = (RectTransform)title.transform;
+            trt.anchorMin = trt.anchorMax = trt.pivot = new Vector2(0.5f, 1f);
+            trt.anchoredPosition = new Vector2(-170f, -26f);
+            trt.sizeDelta = new Vector2(760f, 130f);
+            var tag = UiKit.Label(canvas, "12 wind-up capsule toys · 4 chaotic rounds · one crown", 20, UiKit.Ink, FontStyle.Bold);
+            var tgrt = (RectTransform)tag.transform;
+            tgrt.anchorMin = tgrt.anchorMax = tgrt.pivot = new Vector2(0.5f, 1f);
+            tgrt.anchoredPosition = new Vector2(-170f, -148f);
+            tgrt.sizeDelta = new Vector2(760f, 30f);
+
+            var panel = UiKit.Panel(canvas, new Vector2(560, 548), UiKit.CloudWhite);
+            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(0.5f, 0.5f);
+            panel.anchoredPosition = new Vector2(-170f, -64f);
+            panel.GetComponent<VerticalLayoutGroup>().spacing = 10;
+            UiKit.Label(panel, "Practice match: you + bots, 4 rounds", 17, UiKit.Grape, FontStyle.Bold);
             NameField(panel);
             MyRushling(panel);
-            _target = UiKit.Label(panel, string.Empty, 18, UiKit.Ink, FontStyle.Normal, 44);
-            UiKit.Button(panel, "Play (Quick Play)", UiKit.SunYellow, OnPlay);
-            UiKit.Button(panel, "Settings", UiKit.SkyLight, () => _settings.SetActive(!_settings.activeSelf));
+            var play = UiKit.Button(panel, "PLAY", UiKit.SunYellow, OnPlay);
+            play.GetComponent<LayoutElement>().minHeight = 70;
+            var row = UiKit.Row(panel, 56f, 12f, TextAnchor.MiddleCenter);
+            row.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = true;
+            var set = UiKit.Button(row, "Settings", UiKit.SkyLight, () => _settings.SetActive(!_settings.activeSelf));
+            set.GetComponent<LayoutElement>().preferredWidth = 200;
+            _walletButton = UiKit.Button(row, "Connect Wallet", UiKit.Mint, OnConnectWallet);
+            _walletButton.GetComponent<LayoutElement>().preferredWidth = 200;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            UiKit.Button(panel, "Practice / tuning (dev)", UiKit.Mint, () => NetBootstrap.StartPractice("BlockPartyDash"));
+            var dev = UiKit.Button(panel, "Practice / tuning (dev)", UiKit.Grey, () => NetBootstrap.StartPractice("BlockPartyDash"));
+            dev.GetComponent<LayoutElement>().minHeight = 44;
 #endif
-            _walletButton = UiKit.Button(panel, "Connect Wallet (smoke test)", UiKit.Mint, OnConnectWallet);
-            _wallet = UiKit.Label(panel, string.Empty, 18, UiKit.Ink, FontStyle.Normal, 48);
-            UiKit.Label(panel, "WASD move · Space jump · Shift / left click dive · mouse look · 1-4 emotes (lobby) · Esc settings", 16, UiKit.Ink);
-            UiKit.Label(panel, $"build {Application.version} · protocol v{Protocol.Version}", 16, UiKit.Grape);
-            var sp = SettingsPanel.Build(canvas, new Vector2(640, 520));
+            _wallet = UiKit.Label(panel, string.Empty, 14, UiKit.Ink, FontStyle.Normal, 20);
+            _target = UiKit.Label(panel, string.Empty, 13, UiKit.Grey, FontStyle.Normal, 18);
+
+            var foot = UiKit.Label(canvas, "WASD move · Space jump · Shift / left click dive · mouse look · 1-4 emotes · Esc settings", 15, UiKit.Ink, FontStyle.Bold);
+            var frt = (RectTransform)foot.transform;
+            frt.anchorMin = frt.anchorMax = frt.pivot = new Vector2(0.5f, 0f);
+            frt.anchoredPosition = new Vector2(0f, 14f);
+            frt.sizeDelta = new Vector2(1200f, 24f);
+            var ver = UiKit.Label(canvas, $"build {Application.version} · protocol v{Protocol.Version}", 12, UiKit.Grape);
+            var vrt = (RectTransform)ver.transform;
+            vrt.anchorMin = vrt.anchorMax = vrt.pivot = new Vector2(1f, 0f);
+            vrt.anchoredPosition = new Vector2(-14f, 12f);
+            vrt.sizeDelta = new Vector2(320f, 20f);
+            UiKit.Align(ver, TextAnchor.LowerRight);
+
+            var sp = SettingsPanel.Build(canvas, new Vector2(600, 600));
             sp.anchorMin = sp.anchorMax = sp.pivot = new Vector2(1f, 0.5f);
-            sp.anchoredPosition = new Vector2(-24f, 0f);
+            sp.anchoredPosition = new Vector2(-20f, 0f);
             _settings = sp.gameObject;
             _settings.SetActive(false);
             NetBootstrap.PreferredName = GameSettings.PlayerName;
             NetBootstrap.PreferredPreset = GameSettings.CosmeticPreset;
+            ScreenFx.Open();
+            var shot = Arg("-fallrushMenuShot"); // proof screenshot of the menu (dev tool): -fallrushMenuShot <png> [-fallrushMenuSettings]
+            if (shot != null)
+                StartCoroutine(Shot(shot, System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-fallrushMenuSettings") >= 0));
 
             var boot = NetBootstrap.Instance;
             if (boot == null)
             {
-                _target.text = "NetBootstrap missing — start from the Boot scene.";
+                _target.text = "NetBootstrap missing: start from the Boot scene.";
                 return;
             }
 
             boot.ResolveTarget();
-            _target.text = $"Server: {boot.Target.Url}\n(from {boot.TargetSource})";
+            _target.text = $"Server: {boot.Target.Url} (from {boot.TargetSource})";
 
             if (!WalletBridge.Available)
             {
                 _walletButton.interactable = false;
-                _wallet.text = "Wallet not available on this platform (WebGL only).";
+                _wallet.text = "Wallet: WebGL only (smoke test).";
             }
             else
-            {
                 _wallet.text = WalletBridge.ProviderLabel ?? string.Empty;
-            }
         }
 
-        /// <summary>G2.2 "My Rushling": cycle the cosmetic preset (saved locally, sent in hello; no stats).</summary>
-        private static void MyRushling(Transform panel)
+        private static string Arg(string name)
         {
-            Button b = null;
-            string Label() => $"My Rushling: {CosmeticPresets.Get(GameSettings.CosmeticPreset).Name}  >";
-            b = UiKit.Button(panel, Label(), UiKit.Magenta, () =>
-            {
-                GameSettings.CosmeticPreset = (GameSettings.CosmeticPreset + 1) % CosmeticPresets.Count;
-                GameSettings.Save();
-                NetBootstrap.PreferredPreset = GameSettings.CosmeticPreset;
-                UiKit.SetButtonText(b, Label());
-            });
+            var a = System.Environment.GetCommandLineArgs();
+            for (var i = 0; i < a.Length - 1; i++)
+                if (a[i] == name)
+                    return a[i + 1];
+            return null;
+        }
+
+        private System.Collections.IEnumerator Shot(string path, bool settings)
+        {
+            if (settings)
+                _settings.SetActive(true);
+            yield return new WaitForSecondsRealtime(2.5f);
+            ScreenCapture.CaptureScreenshot(path);
+            yield return new WaitForSecondsRealtime(1f);
+            Application.Quit(0);
         }
 
         /// <summary>G1 §3.6: the display name (saved locally; sent in hello unless the URL has ?name=).</summary>
         private static void NameField(Transform panel)
         {
-            var go = DefaultControls.CreateInputField(default);
+            var go = TMP_DefaultControls.CreateInputField(default);
             go.transform.SetParent(panel, false);
             var le = go.AddComponent<LayoutElement>();
-            le.minHeight = 48f;
+            le.minHeight = 50f;
             le.preferredWidth = 420f;
-            go.GetComponent<Image>().color = UiKit.SkyLight;
-            var input = go.GetComponent<InputField>();
+            var bg = go.GetComponent<Image>();
+            bg.sprite = UiKit.Round;
+            bg.type = Image.Type.Sliced;
+            bg.color = new Color(0.93f, 0.95f, 1f);
+            var input = go.GetComponent<TMP_InputField>();
             input.characterLimit = GameSettings.MaxNameChars;
-            foreach (var t in go.GetComponentsInChildren<Text>(true))
+            foreach (var t in go.GetComponentsInChildren<TextMeshProUGUI>(true))
             {
-                t.font = UiKit.Font;
-                t.fontSize = 24;
-                t.alignment = TextAnchor.MiddleCenter;
-                t.color = t.gameObject.name == "Placeholder" ? new Color(0.16f, 0.07f, 0.31f, 0.45f) : UiKit.Ink;
+                t.font = UiKit.Body;
+                t.fontSize = 22;
+                t.fontStyle = FontStyles.Bold;
+                t.alignment = TextAlignmentOptions.Center;
+                t.color = t.gameObject.name == "Placeholder" ? new Color(0.16f, 0.07f, 0.31f, 0.4f) : UiKit.Ink;
             }
 
-            input.placeholder.GetComponent<Text>().text = "Your name";
+            ((TMP_Text)input.placeholder).text = "Your name";
             input.text = GameSettings.PlayerName;
             input.onEndEdit.AddListener(v =>
             {
@@ -108,12 +160,61 @@ namespace FallRush.Client
             });
         }
 
+        /// <summary>G2.2 "My Rushling": ◀ preset ▶ with a shell swatch and what it wears (the 3D preview shows it).</summary>
+        private void MyRushling(Transform panel)
+        {
+            var row = UiKit.Row(panel, 58f, 10f, TextAnchor.MiddleCenter);
+            var prev = UiKit.Button(row, "◀", UiKit.Magenta, () => Step(-1));
+            prev.GetComponent<LayoutElement>().preferredWidth = 58;
+            var mid = new GameObject("Preset", typeof(RectTransform), typeof(LayoutElement), typeof(VerticalLayoutGroup));
+            mid.transform.SetParent(row, false);
+            mid.GetComponent<LayoutElement>().preferredWidth = 290;
+            var v = mid.GetComponent<VerticalLayoutGroup>();
+            v.childControlHeight = v.childControlWidth = true;
+            v.childForceExpandHeight = false;
+            v.spacing = 0;
+            var top = UiKit.Row(mid.transform, 30f, 8f, TextAnchor.MiddleCenter);
+            _presetSwatch = UiKit.Dot(top, Color.white, 20f);
+            _presetName = UiKit.Label(top, string.Empty, 26, UiKit.Ink, FontStyle.Bold);
+            _presetName.GetComponent<LayoutElement>().preferredWidth = 220;
+            _presetInfo = UiKit.Label(mid.transform, string.Empty, 13, UiKit.Grape, FontStyle.Normal, 18);
+            var next = UiKit.Button(row, "▶", UiKit.Magenta, () => Step(1));
+            next.GetComponent<LayoutElement>().preferredWidth = 58;
+            ShowPreset();
+        }
+
+        private void Step(int d)
+        {
+            GameSettings.CosmeticPreset = (GameSettings.CosmeticPreset + d + CosmeticPresets.Count) % CosmeticPresets.Count;
+            GameSettings.Save();
+            NetBootstrap.PreferredPreset = GameSettings.CosmeticPreset;
+            GameAudio.Ui(GameAudio.UiCue.Pop);
+            ShowPreset();
+        }
+
+        private void ShowPreset()
+        {
+            var p = CosmeticPresets.Get(GameSettings.CosmeticPreset);
+            _presetName.text = $"My Rushling: {p.Name}";
+            _presetSwatch.color = UiKit.Hex(p.Shell);
+            _presetInfo.text = $"{p.Emblem} emblem · {Topper(p.Topper)} · {p.Face.ToString().ToLowerInvariant()} face · {p.Key.ToString().ToLowerInvariant()} key";
+        }
+
+        private static string Topper(CosmeticPresets.Topper t) => t switch
+        {
+            CosmeticPresets.Topper.ChefHat => "chef hat",
+            CosmeticPresets.Topper.Propeller => "propeller cap",
+            CosmeticPresets.Topper.Headphones => "headphones",
+            _ => "aviator goggles",
+        };
+
         private void OnPlay()
         {
             var boot = NetBootstrap.Instance;
             if (boot == null)
                 return;
             boot.Connect();
+            ScreenFx.Close();
             SceneManager.LoadScene(NetBootstrap.LobbyScene);
         }
 

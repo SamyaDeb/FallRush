@@ -63,7 +63,7 @@ public static class Build
         ProjectSetup.ApplyPlayerSettings();
         var options = new BuildPlayerOptions
         {
-            scenes = ServerScenes,
+            scenes = ClientScenes, // G3: + Menu and Lobby (proof screenshots of every screen; the server never loads them)
             locationPathName = Path.Combine(MacDevServerOut, MacDevServerApp),
             target = BuildTarget.StandaloneOSX,
             targetGroup = BuildTargetGroup.Standalone,

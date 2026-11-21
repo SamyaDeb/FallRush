@@ -28,7 +28,7 @@ namespace FallRush.Net
         [Header("Derived (ours)")]
         public Color ink = Hex(0x2A1250);           // outlines, text
         public Color amber = Hex(0xFFA51F);          // "! Pending", golden star
-        public Color walkTop = Hex(0xF7F6FF);        // walkable tops: light, desaturated
+        public Color walkTop = Hex(0xF2F0FF);        // walkable tops: light, desaturated
         public Color walkBand = Hex(0xFFFFFF);
         public Color walkSide = Hex(0xD9DDF7);
         public Color wallSide = Hex(0xCBC0F5);

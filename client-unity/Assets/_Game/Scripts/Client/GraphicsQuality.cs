@@ -58,7 +58,7 @@ namespace FallRush.Client
             s_Volume.priority = 10f;
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
             var bloom = profile.Add<Bloom>(true);
-            bloom.threshold.value = 1.05f;
+            bloom.threshold.value = 1.15f;
             bloom.intensity.value = 0.35f;
             bloom.scatter.value = 0.6f;
             var ca = profile.Add<ColorAdjustments>(true);

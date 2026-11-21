@@ -199,16 +199,63 @@ public static class KitBuilder
         var go = new GameObject($"Label_{text}");
         go.transform.SetParent(parent, false);
         go.transform.position = pos;
-        var tm = go.AddComponent<TextMesh>();
-        tm.text = text;
-        tm.font = _font;
-        tm.fontSize = 96;
-        tm.characterSize = size;
-        tm.fontStyle = FontStyle.Bold;
-        tm.anchor = TextAnchor.MiddleCenter;
-        tm.color = new Color(0.16f, 0.07f, 0.31f);
-        go.GetComponent<MeshRenderer>().sharedMaterial = _font.material;
+        var font = SignFont();
+        if (font == null)
+        {
+            // Fonts not baked yet (FontBaker.Run): the M4 placeholder.
+            var tm = go.AddComponent<TextMesh>();
+            tm.text = text;
+            tm.font = _font;
+            tm.fontSize = 96;
+            tm.characterSize = size;
+            tm.fontStyle = FontStyle.Bold;
+            tm.anchor = TextAnchor.MiddleCenter;
+            tm.color = new Color(0.16f, 0.07f, 0.31f);
+            go.GetComponent<MeshRenderer>().sharedMaterial = _font.material;
+            return go;
+        }
+
+        // G2.3: TextMeshPro world text in the display face with a thick Grape outline (readable on any background).
+        var t = go.AddComponent<TMPro.TextMeshPro>();
+        t.font = font;
+        t.fontSharedMaterial = SignMaterial(font);
+        t.text = text;
+        t.fontSize = size * 150f; // ≈ the old TextMesh's on-screen size (TMP world units: fontSize 10 ≈ 1 m)
+        t.alignment = TMPro.TextAlignmentOptions.Center;
+        t.color = Color.white;
+        t.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+        t.rectTransform.sizeDelta = new Vector2(Mathf.Max(4f, text.Length * t.fontSize * 0.09f), t.fontSize * 0.16f);
+        go.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
         return go;
+    }
+
+    private static TMPro.TMP_FontAsset SignFont() => AssetDatabase.LoadAssetAtPath<TMPro.TMP_FontAsset>(FontBaker.OutDir + "/FR_Display.asset");
+
+    /// <summary>Shared sign material: white face, thick Grape outline, a soft underlay (one asset, no per-text instances).</summary>
+    private static Material SignMaterial(TMPro.TMP_FontAsset font)
+    {
+        const string path = ProjectSetup.Root + "/Resources/FallRush/Fonts/FR_Display Sign.mat";
+        var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m == null)
+        {
+            m = new Material(font.material);
+            AssetDatabase.CreateAsset(m, path);
+        }
+
+        m.shader = font.material.shader;
+        m.SetTexture("_MainTex", font.atlasTexture);
+        m.SetColor("_FaceColor", Color.white);
+        m.EnableKeyword("OUTLINE_ON");
+        m.SetFloat("_OutlineWidth", 0.28f);
+        m.SetColor("_OutlineColor", Hex(0x7B2FF7));
+        m.SetFloat("_FaceDilate", 0.15f);
+        m.EnableKeyword("UNDERLAY_ON");
+        m.SetColor("_UnderlayColor", new Color(0.16f, 0.07f, 0.31f, 0.6f));
+        m.SetFloat("_UnderlayOffsetX", 0.4f);
+        m.SetFloat("_UnderlayOffsetY", -0.5f);
+        m.SetFloat("_UnderlaySoftness", 0.2f);
+        EditorUtility.SetDirty(m);
+        return m;
     }
 
     /// <summary>Yellow/magenta striped visual bar along local +Z (hazard stripes, doc 17 §3.1).</summary>

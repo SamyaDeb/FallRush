@@ -6,7 +6,8 @@
         "FallRush.Net",
         "FallRush.Client",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"
