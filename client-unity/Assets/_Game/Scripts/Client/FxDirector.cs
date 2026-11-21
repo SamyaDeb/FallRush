@@ -3,7 +3,7 @@ using UnityEngine;
 namespace FallRush.Client
 {
     /// <summary>
-    /// G3.3 pooled particle systems for <see cref="Fx"/>: dust, dive streaks, hit stars, checkpoint ring, confetti, goo
+    /// G3.3 pooled particle systems for <see cref="Fx"/>: dust, dive streaks, the bonk (G4.8z: was hit stars), checkpoint ring, confetti, goo
     /// splash, tile debris, star sparkle, poof. Built in code on one material (FallRush/Fx + a 2×2 sheet); world space,
     /// manual bursts. Budget: ≤ 220 live particles per system, ≤ 700 in total; small, short-lived sprites (low overdraw).
     /// Lives with the map view (destroyed on scene change).
@@ -11,7 +11,7 @@ namespace FallRush.Client
     public sealed class FxDirector : MonoBehaviour
     {
         private static FxDirector s_Instance;
-        private ParticleSystem _dust, _streak, _star, _ring, _confetti, _splash, _debris, _sparkle;
+        private ParticleSystem _dust, _streak, _puff, _ring, _confetti, _splash, _debris, _sparkle;
         private Material _mat;
 
         public static FxDirector Get()
@@ -90,10 +90,11 @@ namespace FallRush.Client
             sz.enabled = true;
             sz.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.6f, 1f, 1.6f));
             _streak = Make("Streak", 0, 80, 0f, stretch: true);
-            _star = Make("Star", 1, 60, 0.6f);
-            var rot = _star.rotationOverLifetime;
-            rot.enabled = true;
-            rot.z = new ParticleSystem.MinMaxCurve(4f);
+            // G4.8z bonk puff (soft dot, grows and fades fast). The sparks reuse the streak system (stretched dots).
+            _puff = Make("Bonk", 0, 40, -0.05f);
+            var ps = _puff.sizeOverLifetime;
+            ps.enabled = true;
+            ps.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.5f, 1f, 1.5f));
             _ring = Make("Ring", 3, 12, 0f);
             var rs = _ring.sizeOverLifetime;
             rs.enabled = true;
@@ -158,7 +159,33 @@ namespace FallRush.Client
             }
         }
 
-        public void HitStars(Vector3 at) => Burst(_star, at + Vector3.up * 1.1f, Reduced ? 3 : 7, 2.2f, 2.5f, 0.32f, 0.6f, UiKit.SunYellow);
+        /// <summary>
+        /// G4.8z hit: a white "bonk" puff + 3–5 tiny white sparks at the impact (body height). No star shape and nothing gold:
+        /// stars mean score. Reduced motion: 2 puffs, 3 sparks (was 3 stars; 7 stars at full motion).
+        /// </summary>
+        public void Bonk(Vector3 at)
+        {
+            var c = at + Vector3.up * 1.0f;
+            Burst(_puff, c, Reduced ? 2 : 4, 1.1f, 0.6f, 0.5f, 0.32f, new Color(1f, 1f, 1f, 0.95f), 1.5f);
+            if (_streak == null)
+                return;
+            var p = new ParticleSystem.EmitParams { applyShapeToPosition = false };
+            var n = BonkSparks(Reduced);
+            for (var i = 0; i < n; i++)
+            {
+                var a = (i + Random.value * 0.6f) / n * Mathf.PI * 2f;
+                var d = new Vector3(Mathf.Cos(a), 0.5f + Random.value * 0.5f, Mathf.Sin(a)).normalized;
+                p.position = c + d * 0.2f;
+                p.velocity = d * (4.5f + Random.value * 2f);
+                p.startSize = 0.06f;
+                p.startLifetime = 0.22f;
+                p.startColor = Color.white;
+                _streak.Emit(p, 1);
+            }
+        }
+
+        /// <summary>Sparks per bonk: 5 at full motion, 3 with reduced motion (within the 3–5 rule).</summary>
+        public static int BonkSparks(bool reduced) => reduced ? 3 : 5;
 
         public void Ring(Vector3 at)
         {

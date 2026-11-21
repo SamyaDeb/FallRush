@@ -22,7 +22,7 @@ namespace FallRush.Client
         public static readonly Vector3 KeyPivot = new Vector3(0f, 0.5f, -ProcMesh.R - 0.005f);
 
         private static readonly Dictionary<int, Mesh> BodyCache = new Dictionary<int, Mesh>();
-        private static Mesh _stars;
+        private static Mesh _swirls;
 
         private static readonly Color Ink = UiKit.Hex(0x2A1250);
         private static readonly Color DomeWhite = new Color(0.98f, 0.98f, 1f);
@@ -190,20 +190,31 @@ namespace FallRush.Client
 
         }
 
-        /// <summary>Three stun stars in a ring (one renderer; the ring spins).</summary>
-        public static Mesh StunStars()
+        /// <summary>
+        /// G4.8z dizzy sign: three small swirl spirals in a ring around the head (one renderer; the ring spins). Ink and
+        /// lavender, never a star and never gold: on the race maps stars mean score (the Star Fountain pickups / drops, the
+        /// golden star, the podium sparkle), so a stun must not read as "turned into stars".
+        /// </summary>
+        public static Mesh StunSwirls()
         {
-            if (_stars != null)
-                return _stars;
+            if (_swirls != null)
+                return _swirls;
             var c = new Combiner();
-            for (var i = 0; i < 3; i++)
+            for (var i = 0; i < SwirlCount; i++)
             {
-                var a = i * Mathf.PI * 2f / 3f;
-                c.Add(Shapes.Star5, Trs(new Vector3(Mathf.Cos(a) * 0.26f, 0f, Mathf.Sin(a) * 0.26f), Quaternion.Euler(0f, -a * Mathf.Rad2Deg + 90f, 0f), Vector3.one * 1.3f), Gold, FlagNoHull);
+                var a = i * Mathf.PI * 2f / SwirlCount;
+                // The spiral lies in its local XY plane; turn it to face out of the ring so it shows from the side.
+                var rot = Quaternion.Euler(0f, 90f - a * Mathf.Rad2Deg, 0f);
+                c.Add(Shapes.Swirl, Trs(new Vector3(Mathf.Cos(a) * 0.27f, (i & 1) * 0.04f, Mathf.Sin(a) * 0.27f), rot, Vector3.one), SwirlColours[i % SwirlColours.Length], FlagNoHull);
             }
 
-            return _stars = c.Build("StunStars");
+            return _swirls = c.Build("StunSwirls");
         }
+
+        public const int SwirlCount = 3;
+
+        /// <summary>Swirl colours: ink, lavender, ink (doc 17 §3 ink + the goo lavender).</summary>
+        public static readonly Color[] SwirlColours = { UiKit.Hex(0x2A1250), UiKit.Hex(0xB98CFF), UiKit.Hex(0x2A1250) };
 
         /// <summary>Triangle count of one Rushling with this preset (body + lid + limbs), for the budget test.</summary>
         public static int Triangles(int presetId) => (int)(Body(presetId).GetIndexCount(0) / 3) + LimbTriangles;
@@ -219,7 +230,7 @@ namespace FallRush.Client
         /// <summary>Generated once; budgeted to keep a Rushling ≤ 2.5k triangles.</summary>
         public static class Shapes
         {
-            private static Mesh _shell, _dome, _thin, _loop, _half, _cyl8, _cyl12, _box, _star5, _gear, _puff;
+            private static Mesh _shell, _dome, _thin, _loop, _half, _cyl8, _cyl12, _box, _star5, _gear, _puff, _swirl;
             private static readonly Dictionary<CosmeticPresets.Emblem, Mesh> Emblems = new Dictionary<CosmeticPresets.Emblem, Mesh>();
 
             public static Mesh Shell => _shell != null ? _shell : _shell = HalfCapsule(false, 24, 8);
@@ -233,6 +244,7 @@ namespace FallRush.Client
             public static Mesh Star5 => _star5 != null ? _star5 : _star5 = Polygon(StarOutline(0.06f, 0.026f, 5), 0.02f);
             public static Mesh Gear => _gear != null ? _gear : _gear = Polygon(GearOutline(0.075f, 0.055f, 8), 0.025f);
             public static Mesh Puff => _puff != null ? _puff : _puff = Sphere(10, 6);
+            public static Mesh Swirl => _swirl != null ? _swirl : _swirl = SpiralTube(0.014f, 0.105f, 2f, 16, 3, 0.016f);
 
             public static Mesh Emblem(CosmeticPresets.Emblem e)
             {
@@ -337,6 +349,51 @@ namespace FallRush.Client
                     }
 
                 return Fix(Make("Torus", v, n, t));
+            }
+
+            /// <summary>
+            /// A flat Archimedean spiral swept as a thin tube in the XY plane (centre at the origin): radius r0 → r1 over
+            /// <paramref name="turns"/> turns, <paramref name="segs"/> segments per turn, a round end cap at the outer tip.
+            /// </summary>
+            public static Mesh SpiralTube(float r0, float r1, float turns, int segs, int sides, float thick)
+            {
+                var v = new List<Vector3>();
+                var n = new List<Vector3>();
+                var t = new List<int>();
+                var steps = Mathf.CeilToInt(segs * turns);
+                for (var i = 0; i <= steps; i++)
+                {
+                    var u = i / (float)steps;
+                    var ang = u * turns * Mathf.PI * 2f;
+                    var r = Mathf.Lerp(r0, r1, u);
+                    var c = new Vector3(Mathf.Cos(ang) * r, Mathf.Sin(ang) * r, 0f);
+                    var u2 = Mathf.Min(1f, u + 0.001f);
+                    var a2 = u2 * turns * Mathf.PI * 2f;
+                    var r2 = Mathf.Lerp(r0, r1, u2);
+                    var tan = (new Vector3(Mathf.Cos(a2) * r2, Mathf.Sin(a2) * r2, 0f) - c).normalized;
+                    if (i == steps)
+                        tan = new Vector3(-Mathf.Sin(ang), Mathf.Cos(ang), 0f);
+                    var side = Vector3.Cross(Vector3.forward, tan).normalized; // in-plane normal
+                    var w = thick * Mathf.Lerp(0.6f, 1f, u); // the tail thins toward the centre
+                    for (var j = 0; j <= sides; j++)
+                    {
+                        var a = j / (float)sides * Mathf.PI * 2f;
+                        var nn = side * Mathf.Cos(a) + Vector3.forward * Mathf.Sin(a);
+                        v.Add(c + nn * w);
+                        n.Add(nn);
+                    }
+                }
+
+                for (var i = 0; i < steps; i++)
+                    for (var j = 0; j < sides; j++)
+                    {
+                        var a = i * (sides + 1) + j;
+                        var b = a + sides + 1;
+                        t.Add(a); t.Add(a + 1); t.Add(b);
+                        t.Add(a + 1); t.Add(b + 1); t.Add(b);
+                    }
+
+                return Fix(Make("Swirl", v, n, t));
             }
 
             private static Mesh Cylinder(int sides)

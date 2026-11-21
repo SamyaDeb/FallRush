@@ -436,7 +436,13 @@ public static class PaletteShots
         return sb.ToString();
     }
 
-    /// <summary>Lid Flip: median pixel per lid state batch in the shot (lid centres projected), then Δluma lit vs each calm batch.</summary>
+    /// <summary>
+    /// Lid Flip: per lid state batch in the shot, the median top pixel and the darkest lid (a calm lid in a cast shadow), then
+    /// Δluma lit vs each calm batch (normal / deutan / protan; the 10th-percentile lid stands for a lid in a cast shadow). G4.8z: each lid is sampled at two points 0.4 m either side of
+    /// its centre (the 3 × 3 centre patch sat on the thin dark capsule seam that crosses every lid, which made calm and lit
+    /// read closer than the tops are); the old centre number stays as a column. Rule (G4.8z): every calm batch, median and
+    /// 10th-percentile lid, ≥ 0.12 deutan and protan from the lit median.
+    /// </summary>
     private static string LidPixels(Camera cam, LidGridView lv, string png)
     {
         var t = new Texture2D(2, 2, TextureFormat.RGB24, false);
@@ -444,6 +450,7 @@ public static class PaletteShots
         cam.transform.SetPositionAndRotation(cam.transform.position, cam.transform.rotation);
         cam.aspect = (float)t.width / t.height;
         var byBatch = new Dictionary<int, List<Color>>();
+        var onSeam = new Dictionary<int, List<Color>>();
         for (var i = 0; i < lv.LastBatch.Count; i++)
         {
             var b = lv.LastBatch[i];
@@ -453,27 +460,63 @@ public static class PaletteShots
             var sp = Vp(cam, c, t.width, t.height);
             if (sp.z <= 0f || sp.x < 3 || sp.y < 3 || sp.x > t.width - 4 || sp.y > t.height - 4)
                 continue;
+            if (!onSeam.TryGetValue(b, out var seam))
+                onSeam[b] = seam = new List<Color>();
+            seam.Add(Patch(t, sp, 1));
+            var l = Vp(cam, c + Vector3.left * 0.4f, t.width, t.height);
+            var r = Vp(cam, c + Vector3.right * 0.4f, t.width, t.height);
             if (!byBatch.TryGetValue(b, out var list))
                 byBatch[b] = list = new List<Color>();
-            list.Add(Patch(t, sp, 1));
+            var pl = Patch(t, l, 1);
+            var pr = Patch(t, r, 1);
+            // The darker side of the lid (a shadow edge counts against us). A calm lid is pale and low in saturation: a
+            // saturated sample on a calm lid is a hazard in front of it (the sweeper's pink / lemon stripes), not the lid.
+            var pick = Luma(pl) < Luma(pr) ? pl : pr;
+            Color.RGBToHSV(pick, out _, out var sat, out _);
+            if (b != LidGridView.LitBatch && sat > 0.45f)
+            {
+                Color.RGBToHSV(Luma(pl) < Luma(pr) ? pr : pl, out _, out var sat2, out _);
+                if (sat2 > 0.45f)
+                    continue;
+                pick = Luma(pl) < Luma(pr) ? pr : pl;
+            }
+
+            list.Add(pick);
         }
 
         Object.DestroyImmediate(t);
-        var sb = new StringBuilder("\n| Lid Flip shot pixels: batch | lids | median RGB | Δluma vs lit (normal / deutan / protan) |\n|---|---|---|---|\n");
+        var sb = new StringBuilder("\n| Lid Flip shot pixels: batch | lids | median top RGB | Δluma vs lit, median (normal / deutan / protan) | 10th-percentile lid RGB | Δluma vs lit, 10th pct (n / d / p) | darkest sample: RGB, Δluma (n / d / p) | old centre-on-seam Δluma (n / d / p) |\n|---|---|---|---|---|---|---|---|\n");
         if (!byBatch.TryGetValue(LidGridView.LitBatch, out var lit) || lit.Count == 0)
-            return sb.Append("| (no lit lid in view) | | | |\n").ToString();
+            return sb.Append("| (no lit lid in view) | | | | | | | |\n").ToString();
         var litC = Median(lit);
+        var litSeam = Median(onSeam[LidGridView.LitBatch]);
+        var worst = 9f;
         foreach (var kv in byBatch)
         {
             var c = Median(kv.Value);
-            var dn = Mathf.Abs(Luma(c) - Luma(litC));
-            var dd = Mathf.Abs(Luma(Simulate(c, Deutan)) - Luma(Simulate(litC, Deutan)));
-            var dp = Mathf.Abs(Luma(Simulate(c, Protan)) - Luma(Simulate(litC, Protan)));
-            sb.Append($"| {LidGridView.BatchName(kv.Key)} | {kv.Value.Count} | {ColorUtility.ToHtmlStringRGB(c)} | {dn:F3} / {dd:F3} / {dp:F3} |\n");
+            // The 10th-percentile lid by luma (a lid in a cast shadow); the single darkest sample is listed too (it can sit
+            // on a seam or a thin cable shadow line that crosses a lid, which no one reads as the lid's colour).
+            var byLuma = new List<Color>(kv.Value);
+            byLuma.Sort((p, q) => Luma(p).CompareTo(Luma(q)));
+            var dark = byLuma[Mathf.FloorToInt(0.1f * (byLuma.Count - 1))];
+            var darkest = byLuma[0];
+            var (dn, dd, dp) = Gaps(c, litC);
+            var (kn, kd, kp) = Gaps(dark, litC);
+            var (sn, sd, sp2) = Gaps(Median(onSeam[kv.Key]), litSeam);
+            if (kv.Key != LidGridView.LitBatch)
+                worst = Mathf.Min(worst, Mathf.Min(Mathf.Min(dd, dp), Mathf.Min(kd, kp)));
+            var (xn, xd, xp) = Gaps(darkest, litC);
+            sb.Append($"| {LidGridView.BatchName(kv.Key)} | {kv.Value.Count} | {ColorUtility.ToHtmlStringRGB(c)} | {dn:F3} / {dd:F3} / {dp:F3} | {ColorUtility.ToHtmlStringRGB(dark)} | {kn:F3} / {kd:F3} / {kp:F3} | {ColorUtility.ToHtmlStringRGB(darkest)} {xn:F3} / {xd:F3} / {xp:F3} | {sn:F3} / {sd:F3} / {sp2:F3} |\n");
         }
 
+        sb.Append($"\n- worst calm-vs-lit deutan / protan gap (median and 10th-percentile lid): **{worst:F3}** → {(worst >= 0.12f ? "PASS" : "FAIL")} (rule ≥ 0.12)\n");
         return sb.ToString();
     }
+
+    private static (float n, float d, float p) Gaps(Color c, Color lit) => (
+        Mathf.Abs(Luma(c) - Luma(lit)),
+        Mathf.Abs(Luma(Simulate(c, Deutan)) - Luma(Simulate(lit, Deutan))),
+        Mathf.Abs(Luma(Simulate(c, Protan)) - Luma(Simulate(lit, Protan))));
 
     private static Color Median(List<Color> l)
     {

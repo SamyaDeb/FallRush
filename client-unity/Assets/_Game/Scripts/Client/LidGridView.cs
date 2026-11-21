@@ -109,10 +109,21 @@ namespace FallRush.Client
                 // Soft look: the foam sheen on lid tops is off (walkable), the soft ramp and shadows come from the globals.
             }
 
+            // G4.8z: a calm lid in a cast shadow (the sweeper, the claw pole, a Rushling) keeps 85 % of the sun, so it stays ≥ 0.12
+            // luma above the lit amber for deutan / protan eyes (measured: at 0.6 a pink lid in full shadow fell to 0.013).
+            // The shadow still shows as a faint lavender patch (~7 % darker); lit / warning lids keep the normal shadow.
+            for (var i = 0; i <= (int)B.LowEdge; i++)
+                _mats[i].SetFloat(ShadowKeepId, look == LookId.Soft ? CalmShadowKeep : 0.25f);
+
             // The telegraph colours glow a little so they read in shade too.
             _mats[(int)B.Lit].SetColor("_Emission", look == LookId.Candy ? new Color(0.28f, 0.2f, 0.02f) : new Color(0.3f, 0.15f, 0.01f));
             _mats[(int)B.Warn].SetColor("_Emission", new Color(0.25f, 0.04f, 0.14f));
         }
+
+        /// <summary>G4.8z: share of the sun a calm lid keeps in full cast shadow, soft look (the shader default is 0.25).</summary>
+        public const float CalmShadowKeep = 0.85f;
+
+        private static readonly int ShadowKeepId = Shader.PropertyToID("_ShadowKeep");
 
         /// <summary>True if <paramref name="g"/> is drawn here (no per-lid visuals).</summary>
         public static bool Instanced(HazardLidGrid g) => g != null && (g.visuals == null || g.visuals.Length == 0);

@@ -115,6 +115,7 @@ What to look at, per map:
 - **Sky + backdrop:** pleasant, or distracting?
 
 Your pick (G4.8-10):
+- G4.8z (2026-11-21): no pick yet → **soft stays the default and F7 stays live** until you pick.
 - Look: soft / candy / mixed (say what to keep from each):
 - Per map notes:
 -

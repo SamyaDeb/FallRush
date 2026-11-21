@@ -12,7 +12,7 @@ namespace FallRush.Client
         public static void Dust(Vector3 at, float impact) => FxDirector.Get()?.Dust(at, impact);
         public static void Streaks(Vector3 at, Vector3 dir) => FxDirector.Get()?.Streaks(at, dir);
         public static void SlideDust(Vector3 at) => FxDirector.Get()?.SlideDust(at);
-        public static void HitStars(Vector3 at) => FxDirector.Get()?.HitStars(at);
+        public static void Bonk(Vector3 at) => FxDirector.Get()?.Bonk(at);
         public static void Ring(Vector3 at) => FxDirector.Get()?.Ring(at);
         public static void Confetti(Vector3 at, int count = 70) => FxDirector.Get()?.Confetti(at, count);
         public static void Splash(Vector3 at) => FxDirector.Get()?.Splash(at);

@@ -52,6 +52,7 @@ Material:
     - _RimStrength: 0.15
     - _RushlingMesh: 0
     - _Scroll: -1000
+    - _ShadowKeep: 0.25
     - _SrcBlend: 1
     - _StripeWidth: 0.35
     - _Stripes: 0

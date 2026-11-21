@@ -57,6 +57,7 @@ Shader "FallRush/Toon"
         _LidPivot("Lid hinge (object)", Vector) = (0, 0.54, -0.31, 0)
         _OutlineColor("Outline colour", Color) = (0.165, 0.07, 0.31, 1)
         _OutlineWidth("Outline width (m)", Float) = 0.016
+        _ShadowKeep("Sun kept in full cast shadow (soft look)", Range(0,1)) = 0.25
         [HideInInspector] _SrcBlend("_SrcBlend", Float) = 1
         [HideInInspector] _DstBlend("_DstBlend", Float) = 0
         [HideInInspector] _ZWrite("_ZWrite", Float) = 1
@@ -98,6 +99,7 @@ Shader "FallRush/Toon"
             float4 _LidPivot;
             half4 _OutlineColor;
             float _OutlineWidth;
+            half _ShadowKeep;
         CBUFFER_END
 
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
@@ -307,7 +309,9 @@ Shader "FallRush/Toon"
                 half3 shade = lerp(_ShadeColor.rgb, half3(1, 1, 1), ramp);
                 // Real shadows (soft look only: the candy light casts none): the sun term drops to a quarter in full shadow,
                 // so a cast shadow reads as a soft lavender patch (shadow strength 0.6 on the light keeps it from going dark).
-                shade *= lerp(1.0h, lerp(0.25h, 1.0h, sun.shadowAttenuation), soft);
+                // G4.8z: _ShadowKeep (default 0.25) is raised on Lid Flip's calm lids so a lid in a cast shadow stays lighter
+                // than the lit amber for deutan / protan eyes (LidGridView).
+                shade *= lerp(1.0h, lerp(_ShadowKeep, 1.0h, sun.shadowAttenuation), soft);
 
                 half3 amb;
                 if (_FR_AmbSky.a > 0.0h)

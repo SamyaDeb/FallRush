@@ -126,6 +126,7 @@ Material:
     - _RimStrength: 0.3
     - _RushlingMesh: 0
     - _Scroll: -1000
+    - _ShadowKeep: 0.25
     - _Smoothness: 0.15
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1

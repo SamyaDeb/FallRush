@@ -16,7 +16,7 @@ namespace FallRush.Client
     /// <item>Noodle arms: 6-point verlet chains rendered as Catmull-Rom tubes (8 segments × 6 sides), trailing, flailing
     /// in the air and reaching forward on a dive. Visual only.</item>
     /// <item>Motion: landing squash (1.15, 0.8) / jump stretch (0.9, 1.12) on a spring (~0.18 s), lean toward acceleration
-    /// (≤ 18°, critically damped), wobble spring on impacts, stun pop (lid opens 25°, stars orbit 0.6 s), dive pitch 80°.</item>
+    /// (≤ 18°, critically damped), wobble spring on impacts, stun pop (lid opens 25°, dizzy swirls orbit 0.6 s), dive pitch 80°.</item>
     /// </list>
     /// Collision fairness: everything stays inside the 0.31 × 1.0 capsule except the arms (visual only, doc 17 §2.1).
     /// </summary>
@@ -139,10 +139,10 @@ namespace FallRush.Client
             for (var f = 0; f < 2; f++)
                 _feet[f] = Node(f == 0 ? "FootL" : "FootR", transform, Vector3.zero);
 
-            // Stun stars: one mesh, hidden until a stun starts; the ring spins.
-            _starsRoot = Node("Stars", _squash, new Vector3(0f, 1.18f, 0f));
-            _starsR = Renderer("StunStars", _starsRoot, out var sf);
-            sf.sharedMesh = RushlingParts.StunStars();
+            // G4.8z dizzy swirls (were stun stars): one mesh, hidden until a stun starts; the ring spins.
+            _starsRoot = Node("Swirls", _squash, new Vector3(0f, 1.18f, 0f));
+            _starsR = Renderer("StunSwirls", _starsRoot, out var sf);
+            sf.sharedMesh = RushlingParts.StunSwirls();
             _starsRoot.gameObject.SetActive(false);
 
             // Noodle arms + mittens + peg feet: one world-space dynamic mesh (its own GameObject at the origin).
@@ -711,7 +711,7 @@ namespace FallRush.Client
             _keyAngle = Mathf.Repeat(_keyAngle + (60f + hspeed * 110f + _keyBoost * 900f) * (diving || sliding ? 3f : 1f) * dt, 360f);
             ApplyBody();
 
-            // ---- stars ----
+            // ---- dizzy swirls ----
             var starsOn = _starsLeft > 0f || stun > 0;
             if (_starsRoot.gameObject.activeSelf != starsOn)
                 _starsRoot.gameObject.SetActive(starsOn);
