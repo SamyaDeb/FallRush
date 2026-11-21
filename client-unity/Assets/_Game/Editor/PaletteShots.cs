@@ -95,11 +95,41 @@ public static class PaletteShots
         },
     };
 
+    /// <summary>G4.8 iteration: rebuild every map (render-only art pass) and shoot (one Unity start, graphics on).</summary>
+    public static void RebuildAndShoot()
+    {
+        AllMapsBuilder.Run();
+        Run();
+    }
+
     [MenuItem("Fall Rush/Proof/Palette shots")]
     public static void Run()
     {
         var dir = CapsuleRunShots.Arg("-fallrushShotDir") ?? Path.GetFullPath(Path.Combine(Application.dataPath, "../../docs/proof/g4"));
         var tag = CapsuleRunShots.Arg("-fallrushPaletteTag") ?? "after";
+        s_Prefix = CapsuleRunShots.Arg("-fallrushShotPrefix") ?? "palette";
+        // G4.8: -fallrushLooks soft,candy shoots each look in turn (tag = the look's name).
+        var looks = CapsuleRunShots.Arg("-fallrushLooks");
+        if (looks != null)
+        {
+            Directory.CreateDirectory(dir);
+            foreach (var l in looks.Split(','))
+            {
+                LookState.Set(LookState.Parse(l) ?? LookId.Soft);
+                var rep = new StringBuilder($"# G4.8 look shots ({l})\n\n");
+                foreach (var m in Maps)
+                    if (CapsuleRunShots.Arg("-fallrushPaletteMap") == null || CapsuleRunShots.Arg("-fallrushPaletteMap") == m.Name)
+                        rep.Append(ShootMap(m, dir, l));
+                if (l == "soft")
+                    rep.Append(Colourblind(dir, s_Prefix, l));
+                File.WriteAllText(Path.Combine(dir, $"{s_Prefix}-report-{l}.md"), rep.ToString());
+                Debug.Log($"[shots] look {l} → {dir}\n{rep}");
+            }
+
+            LookState.Set(LookId.Soft);
+            return;
+        }
+
         var only = CapsuleRunShots.Arg("-fallrushPaletteMap");
         Directory.CreateDirectory(dir);
         var report = new StringBuilder($"# G4.6 palette shots ({tag})\n\n");
@@ -122,6 +152,9 @@ public static class PaletteShots
     }
 
     // ------------------------------------------------------------------ one map
+
+    /// <summary>G4.8: file name prefix of the shots (palette = G4.6, soft = the G4.8 look comparison).</summary>
+    private static string s_Prefix = "palette";
 
     private static string ShootMap(MapShot ms, string dir, string tag)
     {
@@ -155,6 +188,7 @@ public static class PaletteShots
             main.enabled = false;
         GraphicsQuality.ConfigurePipelineForShots(true, out var restore);
         var volume = GraphicsQuality.CreateShotVolume(true);
+        GraphicsQuality.ApplyShadows(LookState.Current, true); // G4.8: the soft look's sun shadows (none in candy)
         sb.Append($"Pipeline: {GraphicsQuality.Describe()}, quality level {QualitySettings.GetQualityLevel()} ({QualitySettings.names[QualitySettings.GetQualityLevel()]})\n\n");
 
         void Pose(int t)
@@ -191,8 +225,8 @@ public static class PaletteShots
         }
 
         Pose(0);
-        CapsuleRunShots.Shot(cam, dir, $"palette-{ms.Name}-spawn-{tag}", eye, look, 320, 180); // warm-up: the first batch frame
-        CapsuleRunShots.Shot(cam, dir, $"palette-{ms.Name}-spawn-{tag}", eye, look, 1280, 720);
+        CapsuleRunShots.Shot(cam, dir, $"{s_Prefix}-{ms.Name}-spawn-{tag}", eye, look, 320, 180); // warm-up: the first batch frame
+        CapsuleRunShots.Shot(cam, dir, $"{s_Prefix}-{ms.Name}-spawn-{tag}", eye, look, 1280, 720);
         actors.gameObject.SetActive(false);
         lidShots.gameObject.SetActive(false);
         sb.Append(CapsuleRunShots.CountVisible(cam, $"{ms.Name} spawn view ({tag}; Rushlings and lid snapshots hidden)"));
@@ -207,26 +241,26 @@ public static class PaletteShots
             at = hz.LidGrids[0].FirstWaveTicks + 18; // the first wave lit yellow
         Pose(at);
         actors.gameObject.SetActive(ms.Key == "Lobby");
-        CapsuleRunShots.Shot(cam, dir, $"palette-{ms.Name}-action-{tag}", ms.ActionEye, ms.ActionAt, 1280, 720);
+        CapsuleRunShots.Shot(cam, dir, $"{s_Prefix}-{ms.Name}-action-{tag}", ms.ActionEye, ms.ActionAt, 1280, 720);
         sb.Append($"- action shot: t {at / 30f:F2} s\n");
 
         if (hz.LidGrids.Length > 0)
         {
             var rt = hz.LidGrids[0].RingRetireTicks[0] - 8; // ring 4 pulsing magenta just before it retires
             Pose(rt);
-            CapsuleRunShots.Shot(cam, dir, $"palette-{ms.Name}-retire-{tag}", ms.ActionEye, ms.ActionAt, 1280, 720);
+            CapsuleRunShots.Shot(cam, dir, $"{s_Prefix}-{ms.Name}-retire-{tag}", ms.ActionEye, ms.ActionAt, 1280, 720);
             sb.Append($"- retire shot: t {rt / 30f:F2} s\n");
             Pose(at);
             cam.transform.SetPositionAndRotation(ms.ActionEye, Quaternion.LookRotation(ms.ActionAt - ms.ActionEye));
         }
 
         // Lid Flip: lit-vs-ring pixels in the action shot (the lids' states are known from the view).
-        if (view.LidView != null && tag == "after")
+        if (view.LidView != null && (tag == "after" || tag == "soft" || tag == "candy"))
         {
             // Measured inside the claw machine (the action framing looks through the glass panes): the spawn-height view.
             var me = new Vector3(0f, 9.2f, -7.5f);
-            CapsuleRunShots.Shot(cam, dir, $"palette-{ms.Name}-lit-measure-{tag}", me, new Vector3(0f, 6f, 1.5f), 1280, 720);
-            sb.Append(LidPixels(cam, view.LidView, Path.Combine(dir, $"palette-{ms.Name}-lit-measure-{tag}.png")));
+            CapsuleRunShots.Shot(cam, dir, $"{s_Prefix}-{ms.Name}-lit-measure-{tag}", me, new Vector3(0f, 6f, 1.5f), 1280, 720);
+            sb.Append(LidPixels(cam, view.LidView, Path.Combine(dir, $"{s_Prefix}-{ms.Name}-lit-measure-{tag}.png")));
         }
 
         // Overhead + measured section tops (t 0).
@@ -243,7 +277,7 @@ public static class PaletteShots
         var w = ms.Key == "BlockPartyDash" ? 2640 : 1200;
         var h = ms.Key == "BlockPartyDash" ? 500 : 1200;
         var tex = RenderTex(cam, w, h);
-        File.WriteAllBytes(Path.Combine(dir, $"palette-{ms.Name}-overhead-{tag}.png"), tex.EncodeToPNG());
+        File.WriteAllBytes(Path.Combine(dir, $"{s_Prefix}-{ms.Name}-overhead-{tag}.png"), tex.EncodeToPNG());
         Object.DestroyImmediate(tex);
         cam.orthographic = false;
         // Each sample: the walkable top under (x, z) found by a raycast down from y0 (0 = from above everything), seen
@@ -348,7 +382,9 @@ public static class PaletteShots
     /// <summary>Luma (Rec. 709 weights on the sRGB-encoded values: the convention of the stripe contrast test).</summary>
     public static float Luma(Color c) => c.r * 0.2126f + c.g * 0.7152f + c.b * 0.0722f;
 
-    private static string Colourblind(string dir)
+    private static string Colourblind(string dir) => Colourblind(dir, "palette", "after");
+
+    private static string Colourblind(string dir, string prefix, string tag)
     {
         var sb = new StringBuilder("\n## Colourblind sheets (Machado 2009, severity 1)\n\n");
         foreach (var m in Maps)
@@ -357,7 +393,7 @@ public static class PaletteShots
                 continue;
             foreach (var kind in new[] { "spawn", "action" })
             {
-                var src = Path.Combine(dir, $"palette-{m.Name}-{kind}-after.png");
+                var src = Path.Combine(dir, $"{prefix}-{m.Name}-{kind}-{tag}.png");
                 if (!File.Exists(src))
                     continue;
                 var t = new Texture2D(2, 2, TextureFormat.RGB24, false);
@@ -374,7 +410,7 @@ public static class PaletteShots
                     }
 
                 sheet.Apply();
-                var outName = $"palette-{m.Name}-{kind}-colourblind.png";
+                var outName = $"{prefix}-{m.Name}-{kind}-colourblind.png";
                 File.WriteAllBytes(Path.Combine(dir, outName), sheet.EncodeToPNG());
                 sb.Append($"- {outName}: normal | deuteranopia | protanopia\n");
                 Object.DestroyImmediate(t);
@@ -391,10 +427,12 @@ public static class PaletteShots
         }
 
         Pair("stripe yellow vs hit pink", p.hazardYellow, p.hazardMagenta);
+        var look = LookState.Current;
+        var lit = LidGridView.LitFor(look);
         for (var ring = 0; ring <= 4; ring++)
-            Pair($"lid lit vs top ring {ring} (tokens)", LidGridView.LitYellow, LidGridView.TopRingColour(ring));
-        Pair("lid lit vs lower shelf (tokens)", LidGridView.LitYellow, LidGridView.LowCalm);
-        Pair("lid lit vs lower edge (tokens)", LidGridView.LitYellow, LidGridView.LowEdge);
+            Pair($"lid lit vs top ring {ring} (tokens, {LookState.Name(look)})", lit, LidGridView.TopRingColour(ring, look));
+        Pair($"lid lit vs lower shelf (tokens, {LookState.Name(look)})", lit, LidGridView.LowCalmFor(look));
+        Pair($"lid lit vs lower edge (tokens, {LookState.Name(look)})", lit, LidGridView.LowEdgeFor(look));
         return sb.ToString();
     }
 
@@ -571,6 +609,86 @@ public static class PaletteShots
         Object.DestroyImmediate(go);
         restore();
         File.WriteAllText(Path.Combine(dir, "palette-post-cost-editor.md"), sb.ToString());
+        Debug.Log("[shots] " + sb);
+    }
+
+    /// <summary>
+    /// G4.8 Editor proxy of the soft look's cost (Metal on the M2, 1152 × 720, the Capsule Run spawn and action views, High
+    /// volume, 300 frames × 3 runs): candy (no shadows), soft without shadows, soft with shadows at 1024 and 2048. Writes
+    /// <c>soft-shadow-cost-editor.md</c>. A proxy only: the WebGL numbers come from the release build.
+    /// </summary>
+    public static void ShadowCost()
+    {
+        var dir = CapsuleRunShots.Arg("-fallrushShotDir") ?? Path.GetFullPath(Path.Combine(Application.dataPath, "../../docs/proof/g4"));
+        EditorSceneManager.OpenScene(BlockPartyDashBuilder.ScenePath, OpenSceneMode.Single);
+        GraphicsQuality.ConfigurePipelineForShots(true, out var restore);
+        var res0 = GraphicsQuality.ShadowMapResolution;
+        var go = new GameObject("CostCamera");
+        var cam = go.AddComponent<Camera>();
+        cam.clearFlags = CameraClearFlags.Skybox;
+        cam.fieldOfView = FollowCamera.BaseFov;
+        cam.farClipPlane = 600f;
+        if (Camera.main != null && Camera.main != cam)
+            Camera.main.enabled = false;
+        GraphicsQuality.PrepareShotCamera(cam);
+        var rt = new RenderTexture(1152, 720, 24, RenderTextureFormat.ARGB32);
+        cam.targetTexture = rt;
+        var px = new Texture2D(1, 1, TextureFormat.RGB24, false);
+        var vol = GraphicsQuality.CreateShotVolume(true);
+        var sb = new StringBuilder("# G4.8 soft look cost, Editor proxy (Metal, M2, 1152 × 720, High volume, 300 frames × 3 runs, median)\n\n" +
+                                   "| view | candy (G4.6, no shadows) | soft, shadows off | soft, shadows 1024 | soft, shadows 2048 |\n|---|---|---|---|---|\n");
+        double Time()
+        {
+            var runs = new List<double>();
+            for (var r = 0; r < 3; r++)
+            {
+                for (var w = 0; w < 20; w++)
+                    cam.Render();
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                for (var i = 0; i < 300; i++)
+                {
+                    cam.Render();
+                    RenderTexture.active = rt;
+                    px.ReadPixels(new Rect(0, 0, 1, 1), 0, 0);
+                    RenderTexture.active = null;
+                }
+
+                runs.Add(sw.Elapsed.TotalMilliseconds / 300.0);
+            }
+
+            runs.Sort();
+            return runs[1];
+        }
+
+        var sun = RenderSettings.sun;
+        foreach (var (name, eye, at) in new[] { ("spawn", new Vector3(0f, 3.4f, -2.1f), new Vector3(0f, 2.05f, 1.75f)), ("action", Maps[0].ActionEye, Maps[0].ActionAt) })
+        {
+            cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(at - eye));
+            LookState.Set(LookId.Candy);
+            var tc = Time();
+            LookState.Set(LookId.Soft);
+            if (sun != null)
+                sun.shadows = LightShadows.None;
+            var t0 = Time();
+            if (sun != null)
+                sun.shadows = LightShadows.Soft;
+            GraphicsQuality.ShadowMapResolution = 1024;
+            var t1 = Time();
+            GraphicsQuality.ShadowMapResolution = 2048;
+            var t2 = Time();
+            sb.Append($"| Capsule Run {name} | {tc:F3} ms | {t0:F3} ms | {t1:F3} ms | {t2:F3} ms |\n");
+        }
+
+        sb.Append("\nIncludes the 1-pixel sync read each frame (same in every column).\n");
+        GraphicsQuality.ShadowMapResolution = res0;
+        GraphicsQuality.DestroyShotVolume(vol);
+        cam.targetTexture = null;
+        rt.Release();
+        Object.DestroyImmediate(rt);
+        Object.DestroyImmediate(px);
+        Object.DestroyImmediate(go);
+        restore();
+        File.WriteAllText(Path.Combine(dir, "soft-shadow-cost-editor.md"), sb.ToString());
         Debug.Log("[shots] " + sb);
     }
 

@@ -60,17 +60,24 @@ namespace FallRush.Tests
         {
             public string Obj;
             public Color C;
+            /// <summary>G4.8 role / pattern from uv3 (−1: no dual colour on that mesh).</summary>
+            public int Role, Pattern;
         }
 
-        private static List<Top> WalkableTops(string sceneName)
+        private static List<Top> WalkableTops(string sceneName) => WalkableTops(sceneName, LookId.Candy);
+
+        /// <summary>
+        /// G4.8: the walkable tops as one look shows them: the soft look reads the vertex colour, the candy look uv3.rgb (the
+        /// dual-colour meshes); each through that look's light and grade. Rim / padding vertices (role 3, the trim) are skipped.
+        /// </summary>
+        private static List<Top> WalkableTops(string sceneName, LookId look)
         {
             var scene = EditorSceneManager.OpenScene($"Assets/_Game/Scenes/{sceneName}.unity", OpenSceneMode.Single);
             MapInfo info = null;
             foreach (var root in scene.GetRootGameObjects())
                 info ??= root.GetComponentInChildren<MapInfo>();
             var tops = new List<Top>();
-            var pal = PaletteTokens.Get();
-            var light = GraphicsQuality.TopLight(pal.sun, pal.ambientSky);
+            var light = GraphicsQuality.TopLight(look);
             var walkHazards = new HashSet<Transform>();
             if (info != null)
             {
@@ -106,6 +113,8 @@ namespace FallRush.Tests
                     var c = mesh.colors;
                     var u2 = new List<Vector2>();
                     mesh.GetUVs(1, u2);
+                    var u3 = new List<Vector4>();
+                    mesh.GetUVs(3, u3);
                     var baseC = (r.sharedMaterial.HasProperty("_BaseColor") ? r.sharedMaterial.GetColor("_BaseColor") : Color.white).linear;
                     var tri = mesh.triangles;
                     var nm = mf.transform.localToWorldMatrix.inverse.transpose;
@@ -119,10 +128,22 @@ namespace FallRush.Tests
                             continue; // belt chevrons
                         // On screen: (linear vertex colour × linearised material colour) × the map light on a top, then the grade.
                         var k = c.Length > a ? c[a] : Color.white;
-                        k = GraphicsQuality.Grade(new Color(k.r * baseC.r * light.r, k.g * baseC.g * light.g, k.b * baseC.b * light.b));
-                        var key = ColorUtility.ToHtmlStringRGB(k);
+                        int role = -1, pattern = 0;
+                        if (u3.Count > a && u3[a].w > 1.5f)
+                        {
+                            var code = Mathf.RoundToInt(u3[a].w - 2f);
+                            role = code / 8;
+                            pattern = code % 8;
+                            if (look == LookId.Candy)
+                                k = new Color(u3[a].x, u3[a].y, u3[a].z, 1f);
+                        }
+
+                        if (role == 3 || role == 4)
+                            continue; // the padded rim / rounded edge (trim) and hazard-coded parts (striped hazards), not floor
+                        k = GraphicsQuality.Grade(new Color(k.r * baseC.r * light.r, k.g * baseC.g * light.g, k.b * baseC.b * light.b), look);
+                        var key = ColorUtility.ToHtmlStringRGB(k) + role + pattern;
                         if (seen.Add(key))
-                            tops.Add(new Top { Obj = mf.transform.parent != null && mf.name == "MotorCollider" ? mf.transform.parent.name : mf.name, C = k });
+                            tops.Add(new Top { Obj = mf.transform.parent != null && mf.name == "MotorCollider" ? mf.transform.parent.name : mf.name, C = k, Role = role, Pattern = pattern });
                     }
                 }
             }
@@ -131,22 +152,43 @@ namespace FallRush.Tests
         }
 
         [Test]
-        public void MeaningColours_NeverOnAWalkableTop_AndNoTopNearWhite()
+        public void MeaningColours_NeverOnAWalkableTop_AndNoTopNearWhite() => MeaningRule(LookId.Candy);
+
+        /// <summary>
+        /// G4.8 soft look on the committed scenes: no meaning colour (hit pink, mint, goo, the soft sky) on a walkable top; no
+        /// top near-white (S ≥ 0.1); every patterned section top (role 1, pattern &gt; 0) in the pastel band (S 0.10–0.30, V 0.90–0.99:
+        /// the tokens' 0.12–0.28 / 0.93–0.98 after the bake and grade, ±0.02).
+        /// </summary>
+        [Test]
+        public void SoftLook_SectionTopsPastel_MeaningColoursNeverOnATop() => MeaningRule(LookId.Soft);
+
+        private static void MeaningRule(LookId look)
         {
             var p = PaletteTokens.Get();
             var report = new StringBuilder();
             var fails = new List<string>();
+            var meaning = look == LookId.Candy
+                ? Meaning(p)
+                : new[] { ("hit pink", p.hazardMagenta), ("mint", p.mint), ("goo", p.goo), ("sky top", p.SkyTop(LookId.Soft)), ("sky horizon", p.SkyHorizon(LookId.Soft)) };
+            var sections = 0;
             foreach (var (scene, _) in Maps)
             {
-                var tops = WalkableTops(scene);
+                var tops = WalkableTops(scene, look);
                 var colours = new HashSet<string>();
                 foreach (var t in tops)
                 {
                     colours.Add(ColorUtility.ToHtmlStringRGB(t.C));
-                    Color.RGBToHSV(t.C, out _, out var s, out _);
-                    if (s < 0.4f)
+                    Color.RGBToHSV(t.C, out _, out var s, out var v);
+                    if (s < (look == LookId.Candy ? 0.4f : 0.1f))
                         fails.Add($"{scene} {t.Obj}: top {ColorUtility.ToHtmlStringRGB(t.C)} near-white (S {s:F2})");
-                    foreach (var (name, m) in Meaning(p))
+                    if (look == LookId.Soft && t.Role == 1 && t.Pattern > 0)
+                    {
+                        sections++;
+                        if (s < 0.1f || s > 0.3f || v < 0.9f || v > 0.99f)
+                            fails.Add($"{scene} {t.Obj}: section top {ColorUtility.ToHtmlStringRGB(t.C)} outside the pastel band (S {s:F2}, V {v:F2})");
+                    }
+
+                    foreach (var (name, m) in meaning)
                     {
                         if (name == "mint" && GoalObject(t.Obj))
                             continue;
@@ -156,16 +198,19 @@ namespace FallRush.Tests
                     }
                 }
 
-                report.Append($"{scene}: {tops.Count} distinct top colours on walkable objects ({string.Join(" ", colours)})\n");
+                report.Append($"{scene} ({look}): {tops.Count} distinct top colours on walkable objects ({string.Join(" ", colours)})\n");
             }
 
+            if (look == LookId.Soft)
+                Assert.That(sections, Is.GreaterThan(10), "soft section tops found (dual-colour meshes)");
+
             // Lid Flip's lids are drawn by the client (no static tops): its solid colours by the same rules.
-            foreach (var c in LidGridView.SolidColours)
+            foreach (var c in LidGridView.SolidColoursFor(look))
             {
                 Color.RGBToHSV(c, out _, out var s, out _);
-                if (s < 0.4f)
+                if (s < (look == LookId.Candy ? 0.4f : 0.1f))
                     fails.Add($"LidGridView solid {ColorUtility.ToHtmlStringRGB(c)} near-white");
-                foreach (var (name, m) in Meaning(p))
+                foreach (var (name, m) in meaning)
                     if (DeltaE(c, m) < 15f)
                         fails.Add($"LidGridView solid {ColorUtility.ToHtmlStringRGB(c)} is {name}");
             }
@@ -222,6 +267,51 @@ namespace FallRush.Tests
             foreach (var c in LidGridView.SolidColours)
                 Assert.That(Mathf.Abs(Luma(c) - Luma(LidGridView.LitYellow)), Is.GreaterThanOrEqualTo(0.15f), $"lit vs solid {ColorUtility.ToHtmlStringRGB(c)}");
             Assert.That(LidGridView.LowCalm, Is.EqualTo(PaletteTokens.DefaultTop(PaletteTokens.HueOf("CrumbleShelf", "lower"))));
+        }
+
+        // Machado, Oliveira & Fernandes 2009, severity 1.0 (linear RGB): the matrices of the proof sheets (PaletteShots).
+        private static readonly float[] Deutan = { 0.367322f, 0.860646f, -0.227968f, 0.280085f, 0.672501f, 0.047413f, -0.011820f, 0.042940f, 0.968881f };
+        private static readonly float[] Protan = { 0.152286f, 1.052583f, -0.204868f, 0.114503f, 0.786281f, 0.099216f, -0.003882f, -0.048116f, 1.051998f };
+
+        private static Color Simulate(Color srgb, float[] m)
+        {
+            var l = srgb.linear;
+            return new Color(Mathf.Clamp01(m[0] * l.r + m[1] * l.g + m[2] * l.b), Mathf.Clamp01(m[3] * l.r + m[4] * l.g + m[5] * l.b),
+                Mathf.Clamp01(m[6] * l.r + m[7] * l.g + m[8] * l.b)).gamma;
+        }
+
+        /// <summary>
+        /// G4.8: Lid Flip in each look: no solid lid reads as mint or Lemon drop; the lit lid stands ≥ 0.15 off every solid lid in
+        /// luma for normal, deuteranopia and protanopia vision (the soft look's lit is a deeper amber: pale lids are lighter).
+        /// </summary>
+        [Test]
+        public void LidFlip_LitVsSolid_LumaGap_NormalDeutanProtan_BothLooks()
+        {
+            var p = PaletteTokens.Get();
+            float Luma(Color c) => c.r * 0.2126f + c.g * 0.7152f + c.b * 0.0722f;
+            var report = new StringBuilder();
+            foreach (var look in new[] { LookId.Soft, LookId.Candy })
+            {
+                var lit = LidGridView.LitFor(look);
+                foreach (var c in LidGridView.SolidColoursFor(look))
+                {
+                    Assert.That(DeltaE(c, p.mint), Is.GreaterThan(15f), $"{look}: solid lid {ColorUtility.ToHtmlStringRGB(c)} reads as mint");
+                    var n = Mathf.Abs(Luma(c) - Luma(lit));
+                    var d = Mathf.Abs(Luma(Simulate(c, Deutan)) - Luma(Simulate(lit, Deutan)));
+                    var pr = Mathf.Abs(Luma(Simulate(c, Protan)) - Luma(Simulate(lit, Protan)));
+                    report.Append($"{look} lit {ColorUtility.ToHtmlStringRGB(lit)} vs {ColorUtility.ToHtmlStringRGB(c)}: normal {n:F3} deutan {d:F3} protan {pr:F3}\n");
+                    Assert.That(n, Is.GreaterThanOrEqualTo(0.15f), $"{look} lit vs {ColorUtility.ToHtmlStringRGB(c)} (normal)");
+                    if (look == LookId.Soft) // G4.8 rule; the candy lit also glows (G4.6 proof: measured on shot pixels)
+                    {
+                        Assert.That(d, Is.GreaterThanOrEqualTo(0.15f), $"{look} lit vs {ColorUtility.ToHtmlStringRGB(c)} (deuteranopia)");
+                        Assert.That(pr, Is.GreaterThanOrEqualTo(0.15f), $"{look} lit vs {ColorUtility.ToHtmlStringRGB(c)} (protanopia)");
+                    }
+                }
+
+                Assert.That(LidGridView.TopRingColour(2, look), Is.EqualTo(PaletteTokens.DefaultTop(PaletteTokens.HueOf("CrumbleShelf", "ring2"), look)));
+            }
+
+            TestContext.WriteLine(report.ToString());
         }
 
         [Test]

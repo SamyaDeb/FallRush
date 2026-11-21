@@ -86,6 +86,103 @@ namespace FallRush.Tests
             UnityEngine.Object.DestroyImmediate(p);
         }
 
+        // ------------------------------------------------------------------ G4.8 soft look
+
+        [Test]
+        public void SoftPalette_TokensAsDocumented()
+        {
+            var p = ScriptableObject.CreateInstance<PaletteTokens>();
+            var tops = new[] { "F9D1E2", "F9EDC2", "D6EDF9", "E0F9D1", "DED1F9", "F9E4D1" };
+            var sides = new[] { "DB79A4", "DBC679", "79BADB", "9EDB79", "9879DB", "DBA879" };
+            var rims = new[] { "FF6FAE", "FFD43B", "4CC2FF", "86E04E", "A77DFF", "FF9A3D" };
+            for (var i = 0; i < 6; i++)
+            {
+                Assert.That(Hex(p.Top((SurfaceHue)i, LookId.Soft)), Is.EqualTo(tops[i]), ((SurfaceHue)i).ToString());
+                Assert.That(Hex(p.Side((SurfaceHue)i, LookId.Soft)), Is.EqualTo(sides[i]), ((SurfaceHue)i).ToString());
+                Assert.That(Hex(p.Rim((SurfaceHue)i, LookId.Soft)), Is.EqualTo(rims[i]), ((SurfaceHue)i).ToString());
+                // The candy look still answers the G4.6 tokens.
+                Assert.That(p.Top((SurfaceHue)i, LookId.Candy), Is.EqualTo(p.hueTops[i]));
+                Assert.That(p.Side((SurfaceHue)i, LookId.Candy), Is.EqualTo(p.hueSides[i]));
+            }
+
+            Assert.That(Hex(p.Sun(LookId.Soft)), Is.EqualTo("FFF3E0"));
+            Assert.That(Hex(p.SkyTop(LookId.Soft)), Is.EqualTo("66B5F2"));
+            Assert.That(Hex(p.SkyHorizon(LookId.Soft)), Is.EqualTo("9CD2F5"));
+            Assert.That(Hex(p.softLit), Is.EqualTo("FF8A00"));
+            UnityEngine.Object.DestroyImmediate(p);
+        }
+
+        /// <summary>
+        /// G4.8 soft look rules: tops pastel (S 0.12–0.28, V 0.93–0.98, never white), sides a mid tone (S 0.35–0.55) darker than
+        /// their tops, rims saturated (S ≥ 0.5), the meaning colours ΔE ≥ 15 off every top, the hit pink ΔE ≥ 30 and Δluma ≥ 0.15
+        /// off every floor, the sky under the saturation budget's 0.6.
+        /// </summary>
+        [Test]
+        public void SoftPalette_ReadabilityRules()
+        {
+            var p = ScriptableObject.CreateInstance<PaletteTokens>();
+            var report = new System.Text.StringBuilder();
+            for (var i = 0; i < 6; i++)
+            {
+                var h = (SurfaceHue)i;
+                var top = p.Top(h, LookId.Soft);
+                var side = p.Side(h, LookId.Soft);
+                var rim = p.Rim(h, LookId.Soft);
+                PaletteTokens.Sv(top, out var s, out var v);
+                Assert.That(s, Is.InRange(0.12f, 0.28f), h + " top saturation (pastel)");
+                Assert.That(v, Is.InRange(0.93f, 0.98f), h + " top value");
+                Assert.That(top, Is.Not.EqualTo(Color.white), h.ToString());
+                PaletteTokens.Sv(side, out var ss, out _);
+                Assert.That(ss, Is.InRange(0.35f, 0.55f), h + " side saturation (mid tone)");
+                Assert.That(Luma(side), Is.LessThan(Luma(top) - 0.1f), h + " side darker than its top");
+                Color.RGBToHSV(top, out var ht, out _, out _);
+                Color.RGBToHSV(side, out var hs, out _, out _);
+                var dh = Mathf.Abs(ht - hs);
+                Assert.That(Mathf.Min(dh, 1f - dh), Is.LessThan(0.03f), h + " side keeps the hue");
+                PaletteTokens.Sv(rim, out var rs, out _);
+                Assert.That(rs, Is.GreaterThanOrEqualTo(0.5f), h + " rim saturated");
+                foreach (var (name, m) in new[] { ("hit pink", p.hazardMagenta), ("mint", p.mint), ("goo", p.goo), ("sky top", p.SkyTop(LookId.Soft)), ("sky horizon", p.SkyHorizon(LookId.Soft)) })
+                    Assert.That(PaletteTests.DeltaE(top, m), Is.GreaterThanOrEqualTo(15f), $"{h} top vs {name}");
+                // A hazard against its floor (the pale floors make this easier: proven per hue).
+                var de = PaletteTests.DeltaE(top, p.hazardMagenta);
+                var dl = Mathf.Abs(Luma(top) - Luma(p.hazardMagenta));
+                Assert.That(de, Is.GreaterThanOrEqualTo(30f), $"{h}: hit pink vs floor ΔE");
+                Assert.That(dl, Is.GreaterThanOrEqualTo(0.15f), $"{h}: hit pink vs floor Δluma");
+                report.Append($"{h}: top {Hex(top)} S {s:F2} V {v:F2}; side {Hex(side)}; rim {Hex(rim)}; hit pink ΔE {de:F1} Δluma {dl:F2}; " +
+                              $"stripe yellow ΔE {PaletteTests.DeltaE(top, p.hazardYellow):F1} Δluma {Mathf.Abs(Luma(top) - Luma(p.hazardYellow)):F2}\n");
+            }
+
+            PaletteTokens.Sv(p.SkyTop(LookId.Soft), out var skyS, out _);
+            Assert.That(skyS, Is.LessThan(0.6f), "soft sky top under the saturation budget");
+            TestContext.WriteLine(report.ToString());
+            UnityEngine.Object.DestroyImmediate(p);
+        }
+
+        /// <summary>G4.8: the grade per look: candy = G4.6 (Neutral + gain), soft = natural (no tonemapper, sat +6, contrast +8, exposure 0).</summary>
+        [Test]
+        public void Grade_PerLook_BakeRoundTrips()
+        {
+            Assert.That(GraphicsQuality.GradeOf(LookId.Candy).Neutral, Is.True);
+            Assert.That(GraphicsQuality.GradeOf(LookId.Candy).Saturation, Is.EqualTo(22f));
+            var soft = GraphicsQuality.GradeOf(LookId.Soft);
+            Assert.That(soft.Neutral, Is.False);
+            Assert.That(soft.Saturation, Is.EqualTo(6f));
+            Assert.That(soft.Contrast, Is.EqualTo(8f));
+            Assert.That(soft.PostExposure, Is.EqualTo(0f));
+            Assert.That(soft.BloomThreshold, Is.GreaterThanOrEqualTo(1.2f), "bloom only on gloss highlights");
+            var p = PaletteTokens.Get();
+            foreach (var look in new[] { LookId.Soft, LookId.Candy })
+                for (var i = 0; i < 6; i++)
+                {
+                    var c = p.Top((SurfaceHue)i, look);
+                    var light = GraphicsQuality.TopLight(look);
+                    var a = GraphicsQuality.AlbedoFor(c, look);
+                    Assert.That(Mathf.Max(a.r, Mathf.Max(a.g, a.b)), Is.LessThan(GraphicsQuality.MaxAlbedo), $"{look} {(SurfaceHue)i}: bake within the albedo cap");
+                    var back = GraphicsQuality.Grade(new Color(a.r * light.r, a.g * light.g, a.b * light.b), look);
+                    Assert.That(Mathf.Abs(back.r - c.r) + Mathf.Abs(back.g - c.g) + Mathf.Abs(back.b - c.b), Is.LessThan(0.02f), $"{look} {(SurfaceHue)i}: lit top shows its token");
+                }
+        }
+
         [Test]
         public void Presets_TwelveValid_BotsDeterministic()
         {
