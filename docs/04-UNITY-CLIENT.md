@@ -452,6 +452,9 @@ Rules: no RPC, no wallet calls and no chain SDK in the adapter or the screens (t
 - **Brotli serving decision:** Decompression Fallback **off**; nginx adds `Content-Encoding: br` + the right `Content-Type` per file (verified). Unity 6000.3 **never compresses development builds** (manual: "Development builds aren't compressed"), so dev builds serve raw `.wasm`/`.data`/`.js`. `chmod -R a+rX` the build output (Unity writes `.br` files as 0600).
 - **Flakiness seen:** twice the Unity licensing client timed out (`Timed-out after 30.00s, waiting for EntitlementDetailsResponse`) while the Mac was swapping heavily; Package Manager then loaded no packages and compilation failed. A plain re-run passed.
 
+**G2/G3 builds (2026-11-19):** WebGL release 3 = **19.03 MB** (`reportedSize`; G1 16.45–16.55 MB), incremental rebuild 98 s, full 384–411 s, peak RSS 1.6 GB. The Mac dev build now includes the Menu and Lobby scenes (screens proof; the server ignores them). Map scenes carry baked toy-block / merged meshes (1–5 MB YAML each).
+
+
 ## 11. Tests
 
 **G1:** EditMode **275/275** (M4: 254). New: `G1Tests` (respawning tiles incl. rewind history, full ≡ deltas, emote codec + phase rule, snapshot size with the stumble flag, friendly names), motor v2 tests, the G1 prediction twin. Test asmdef now references `FallRush.Client` (for `UiNames` / `GameSettings` tests).
@@ -509,3 +512,6 @@ Rules: no RPC, no wallet calls and no chain SDK in the adapter or the screens (t
 - fall → respawn
 - round flow with bots
 - reconnect within 20 s
+
+**G2/G3 tests:** 287 EditMode (G1 275 + `LookTests` 7: palette tokens, readability, presets on the wire, hello preset, director clamp, Rushling ≤ 2.5k tris; `JuiceTests` 5: chain-chip states, practice adapter, every audio cue has a clip, every UI glyph renders with fallback + tabular body digits, juice hooks).
+

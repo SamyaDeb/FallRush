@@ -234,6 +234,16 @@ A 28 × 28 m toy plaza with 1.2 m walls, a capsule-machine plinth, four bumpers,
 - [ ] Readability check: hazard stripes, telegraphs, colorblind sim
 - [ ] Performance check: tris, draw calls and FPS within doc 17 §3.2 budgets
 
+### 8.1 G2/G3 results per map (2026-11-19, proof `docs/proof/G2G3-look-juice.md` §D–E)
+| Map | Readability | Originality (self-check; the two-person check is yours) | Performance (WebGL High, 1440 × 900) |
+|---|---|---|---|
+| Lobby | tops light, spawn pads mint, bumpers striped; props out of reach; the capsule machine now has a collider | gacha machines, bunting, podium on islands: ours | 59 FPS, 46 / 52 draw calls, 41k tris |
+| Block Party Dash | toy-block tops light, hazards striped (spinner bars, mallets, doors, bumpers, posts), checkpoint banners mint at 5 m, checkered finish; the title sign only during the intro | course layout ours (doc 08 §3); no FG obstacle silhouettes | 59 FPS, 69 / 122, 90k |
+| Goo Tower | ledges light, core decals flat, falling blocks striped yellow/magenta, purple goo with a bright lip; "Goo rising!" subtitle | capsule-machine tower with windows / gears / globe: ours | 59 FPS, 58 / 99, 121k |
+| Star Scramble | arena light, record turn table light, normal vs golden stars differ in size, colour, glow and halo | round toy arena with a record centre: ours | 59 FPS, 54 / 68, 48k |
+| Crumble Shelf | square pastel tiles, wobble = shake + yellow, respawn blink, spinner bars striped | square tiles in a claw machine (not hexagons) | 59 FPS, 41 / 72, 59k |
+Colour-blind: the stripe pattern rule (every hazard striped; stripe colours differ in luminance by > 0.3, tested); a simulated screenshot is UNVERIFIED.
+
 ## 9. Automated map QA
 
 - **Bot runner:** a headless input-bot follows waypoint paths at reference speed.

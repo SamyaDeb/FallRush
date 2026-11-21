@@ -168,6 +168,8 @@ A floating toy factory above the clouds:
 | Texture memory per map | ≤ 64 MB |
 | Frame rate | 60 FPS at 1440×900 on M2 |
 
+**Measured (G2/G3 final WebGL release, 1440 × 900, M2 Air, Chrome; proof §D):** FPS median 59 on every map at High and Low; 1 % low 53 (browser frame pacing, ~18.9 ms p99 frames, under the 55 floor: open item); draw calls max 122 (High) / 69 (Low), median ≤ 69; visible tris max 121k; Rushling 2,330 tris; texture memory ≈ 20.7 MB (High) / 13.7 MB (Low), estimated; build 19.03 MB.
+
 ### 3.3 Asset sourcing
 
 | Asset | Source | License rule |

@@ -1,6 +1,6 @@
 # Fall Rush — Project Status
 
-_Last updated: 2026-11-19 (G1 built: movement v2, animation, map retunes, UX; 275/275 EditMode, map QA PASS, soak 20/20; see G1 section)_
+_Last updated: 2026-11-19 (G2 look + G3 juice built; **game freeze declared**; 287/287 EditMode, soak 20/20, QA guard PASS, WebGL 19.03 MB; see the G2 + G3 section)_
 
 **Hackathon:** MagicBlock Blitz V10, running Nov 20 to Nov 27, 2026.
 - **Submission deadline:** Nov 27, 14:00 UTC (19:30 IST).
@@ -253,7 +253,30 @@ Proof: [`docs/proof/G1-polish.md`](docs/proof/G1-polish.md) · QA [`docs/proof/g
 - **WebGL font:** the built-in font has no "●", "▼", "–" glyphs in WebGL (M4's ping / lobby dots are invisible there): pick a real font in G3's UI kit.
 - Map signs kept: map titles (except BPD's, which sat on the start gate), CHECKPOINT n, FINISH, ESCAPE!. G2 makes them pretty.
 
-## Next: G2 look + G3 juice (Phase A, ends with the game freeze), prompt `docs/prompts/G2G3-PROMPT.md`
+## G2 look + G3 juice — ✅ built 2026-11-19 (proof `docs/proof/G2G3-look-juice.md`)
+| Item | State |
+|---|---|
+| Step 0: HUD counter readable (pills), title signs intro-only, banners above the camera; aligned tables; every glyph in WebGL | ✅ before/after in `docs/proof/g2g3/` |
+| Toon shader (hand-written URP HLSL, outline on Rushlings), palette SO, gradient sky, fog, flat lighting, exact blob shadows, Graphics High / Low | ✅ (G2-1, G2-2 change doc 17 §3.2: 🟡) |
+| Bolt final (1 body renderer + limbs, 16-glyph LED face, 2,330 tris), silhouette test, 12 presets synced (protocol v6) | ✅ |
+| Five maps dressed (code-built, reproducible), hashes unchanged, originality self-checks | ✅ (two-person originality check: yours) |
+| Budgets on the WebGL release | ✅ FPS 59, draw calls ≤ 122, tris ≤ 121k, textures ≈ 21 MB, 19.03 MB; ⚠ 1 % low 53 vs 55 floor (frame pacing, see proof §D.4) |
+| UI kit + OFL fonts, every screen restyled, capsule-pop transitions | ✅ |
+| Original music + SFX + chirps, code buses, ducking, WebGL unlock | ✅ (the sound is your call) |
+| VFX + feel (visual-only hit-stop), signature moments 1–5 | ✅ |
+| `IChainAdapter` + practice adapter, chain chip 4 states, deal / receipt slots | ✅ contract in doc 04 §7.y |
+| Tests 287/287, soak 20/20, Crumble QA guard PASS, WebGL self-test PASS, full matches in Chrome (High + Low) | ✅ |
+
+### ⚑ Game freeze: declared 2026-11-19 (ahead of Sun Nov 22 23:59 UTC)
+From here only bug fixes and integration changes in game code. Open items you may want fixed inside the freeze rules: the 1 % low reading (check in a normal Chrome window), chain-chip state screenshots (`?chain=cycle`), your feel / look / sound sign-off.
+
+### Notes for M5 / M6 / M8 (from G2 / G3)
+- **M6 implements `IChainAdapter`** (`Client/ChainAdapter.cs`): `State` from `evt.chainStatus`, `Deal` = the VRF seed + callback signature + explorer URL (the Deal screen already shows "VRF ✓ …" when `Verified`), `Receipt` = Rollup tx / Solana tx / Match PDA + URLs (three slots on the receipt). Every slot is `TODO(M6)` in `PracticeChainAdapter.cs` and `MatchHud.cs`. No chain code in the client.
+- **Protocol v6:** `match` slot rows carry the cosmetic preset (format v2). The Relay / chain worker never needs it.
+- **Assets the web pages can reuse (M8):** the logo (`Fall Rush  Logo.png`), the palette (`PaletteTokens` / doc 17 §3.1 hex), the fonts (Lilita One + Varela Round, OFL; `client-unity/Assets/_Game/Fonts/`), Bolt renders (`docs/proof/g2g3/bolt-closeup.png`, `presets.png`), the chain-chip styles (doc 17 §5, `ChainChipStyle`).
+- **Build size headroom:** 19.03 / 25 MB.
+
+## Earlier plan: G2 look + G3 juice (Phase A, ends with the game freeze), prompt `docs/prompts/G2G3-PROMPT.md`
 - G1 verified independently 2026-11-19: EditMode **275/275** re-run, a G1 match log re-verified (`scripts/m4-verify-log.py`), git clean (no remote, no VPS identifiers).
 - Carried into G2+G3 step 0: HUD banner vs the in-world BPD title/start-gate sign overlap; leaderboard alignment and WebGL glyphs (font); the MagicBlock-ready UI (`IChainAdapter`, chain chip states, deal/receipt slots) that `docs/14` G1 listed but the G1 prompt left out.
 - Still yours: play G1 and judge the feel; the real hidden-tab / tab-reopen steps (G1 proof §I); the pre-kickoff code rule.

@@ -20,8 +20,50 @@ Numbers are **measured** on the dev machine (MacBook Air M2, 8 GB) unless marked
 ## C. Decisions and deviations
 See doc 15 **G2-1 … G2-9, G3-1 … G3-6**. In short: hand-written shader (not Shader Graph), flat lighting (not baked), humans pick presets (doc 17 said server-random), protocol v6, a lobby capsule-machine collider (collision = visuals), no AudioMixer asset (code buses), audio synthesised by us, the claw only for Rushlings still visible at the result, the arm-tube winding fix.
 
-## D. Measurements
-(see §D.1–D.3 below, filled in from the WebGL release runs)
+## D. Measurements (WebGL release, Chrome via Playwright, canvas 1440 × 900 at DPR 1, M2 Air, against the Mac dev server; `?bot=match` plays the whole match)
+
+Per-map numbers come from the `[gate] budget` line (`GateLogger`, every 10 s window): FPS median and **1 % low** (the 99th-percentile frame time as FPS), draw calls median / max over every frame (`ProfilerRecorder "Draw Calls Count"`), the max visible triangles, and texture memory **estimated** from the loaded textures' sizes and formats (not a profiler counter).
+
+### D.1 Final build (WebGL release 3, **19.03 MB**), Graphics **High**
+| Map | Windows | FPS median | 1 % low | Draw calls median | Draw calls max | Tris max | Textures (est.) |
+|---|---|---|---|---|---|---|---|
+| Lobby | 2 | 59 | 53 | 46 | 52 | 41k | 20.7 MB |
+| Block Party Dash | 9 | 59 | 53 | **69** | **122** | 90k | 20.7 MB |
+| Goo Tower | 10 | 59 | 53 | **58** | **99** | 121k | 20.7 MB |
+| Star Scramble | 7 | 59 | 53 | 54 | 68 | 48k | 20.7 MB |
+| Crumble Shelf | 10 | 59 | 53 | 41 | 72 | 59k | 20.7 MB |
+
+### D.2 Final build, Graphics **Low**
+| Map | Windows | FPS median | 1 % low | Draw calls median | Draw calls max | Tris max | Textures (est.) |
+|---|---|---|---|---|---|---|---|
+| Block Party Dash | 7 | 59 | 53 | 49 | 69 | 70k | 13.7 MB |
+| Goo Tower | 10 | 59 | 53 | 39 | 65 | 107k | 13.7 MB |
+| Star Scramble | 7 | 59 | 53 | 29 | 41 | 46k | 13.7 MB |
+| Crumble Shelf | 13 | 59 | 53 | 30 | 39 | 39k | 13.7 MB |
+(The lobby window closed before the first Low log line.)
+
+### D.3 How we got there
+| Build | Size | BPD draw calls median / max (High) | Goo median / max | 1 % low (High) |
+|---|---|---|---|---|
+| G1 (greybox) | 16.55 MB in the G1 proof (the same Unity `reportedSize` counter logged 16.45 MB for it) | 128 / 421 | 191 / 256 | – |
+| G2/G3 build 1 | 18.96 MB | 141 / 175 | 78 / 181 | 53 |
+| build 2 (outline LOD, HUD churn removed) | 18.95 MB | 87 / 148 | 80 / 162 | 56 |
+| **build 3** (+ static chunk merge) | **19.03 MB** | **69 / 122** | **58 / 99** | 53 |
+Mac Metal A/B of the static merge (`FALLRUSH_NO_MERGE=1`): Goo 90 / 256 → 63 / 156, BPD max 238 → 216.
+
+### D.4 Budgets (doc 17 §3.2)
+| Budget | Result |
+|---|---|
+| 60 FPS at 1440 × 900 | **59 median on every map, both levels** (Chrome's rAF cadence) — met |
+| ≥ 55 FPS worst 1 % frames | **53** in builds 1 and 3, **56** in build 2, identical on every map and on both levels, even in the lobby at 41 draw calls: the 99th-percentile frame is ~18.9 ms, i.e. browser frame-pacing jitter (no 33 ms missed frames), not render cost. **Not met as written** (53 < 55); the cause is UNVERIFIED (Playwright-driven Chrome; please check in a normal Chrome window) |
+| Draw calls ≤ 150 in normal play | **met on every map** (max 122 High, 69 Low) |
+| Visible tris ≤ 300k | **met** (max 121k) |
+| A Rushling ≤ 2.5k tris incl. arms | **met** (2,330 Bolt; every preset tested) |
+| Texture memory ≤ 64 MB / map | **met** (20.7 MB estimate High, 13.7 MB Low) |
+| WebGL release ≤ 25 MB | **met** (19.03 MB; +2.5 MB vs G1: fonts' SDF atlases, 38 audio clips, scenes' baked meshes) |
+| Load time to the menu | ~1.2 s on localhost with a warm browser cache (cold, over a network: UNVERIFIED) |
+
+**Self-test** (`?selftest=1`, final build): PASS `hazard_vectors_v1` `fc06826c…` and PASS `hazard_vectors_v2` `d4b2a73a…` (0 mismatches). **Full match** in Chrome on both levels: `COMPLETE`, 38 events; no exceptions (only Unity's startup `getInternalformatParameter` warnings and Chrome's "AudioContext was not allowed to start" warnings until the first click, which is the expected browser rule).
 
 ## E. Originality and readability checks (doc 08 §8; two-person originality check still needs you)
 Asked per map: "could a reviewer name a Fall Guys asset we copied?"
@@ -37,7 +79,17 @@ Asked per map: "could a reviewer name a Fall Guys asset we copied?"
 **Readability:** walkable tops light / desaturated (tested), hazards striped and saturated (spinner bars, mallet heads with bands, bumpers with bands, door stripes, falling blocks, world-space stripes on static hazard posts), goals mint / checkered (spawn pads, checkpoint stripes and banners, summit pad, finish), no stripes on safe geometry (Goo Tower core bands fixed). **Colour-blind:** we documented the pattern rule instead of a simulation screenshot: every hazard carries the stripe **pattern** (geometry stripes or the shader's world-space stripes), and the two stripe colours differ in luminance by > 0.3 (tested), so they read in grey-scale, i.e. under deuteranopia / protanopia. A simulated screenshot is UNVERIFIED (not produced).
 
 ## F. Gameplay guard
-(filled in: map hashes, QA, soak, prediction)
+Nothing in the motor, `movement_v2.json`, colliders, map geometry the motor touches, hazard defs or rules changed, **except one lobby collider** (G2-7: the capsule machine now has a box collider matching its visual; the lobby has no eliminations and is not hashed). Guard runs on the final code:
+- **Map content hashes unchanged** for all six maps after every rebuild (`map_hashes_v1.txt` diff empty; the EditMode test asserts the committed scenes).
+- **EditMode 287 / 287** (G1: 275; new: `LookTests` ×7, `JuiceTests` ×5), incl. the prediction twins (0 corrections) and hazard vectors v1 / v2.
+- **Soak** `scripts/m4-soak.sh 20 8`: **20 / 20 COMPLETE**, `20/20 logs valid`, 38 events each, durations 418–441 s for the last ones (G1: 343–442 s).
+- **Map QA guard** `scripts/g1-qa.sh 100 CrumbleShelf`: **QA PASS**, medians reference 76.4 s / normal 71.9 s (G1: 76.5 / 71.8 s) — `g2g3/qa-guard-crumbleshelf.md`.
+- **Real client (WebGL):** final build, two full matches: prediction 1 correction in 52 Low windows (6 in 147 windows in total), 0 hazard mismatches.
 
-## G. Screenshots and capture
-(listed in §G below)
+## G. Screenshots and capture (`docs/proof/g2g3/`, ≤ 960 px)
+- **Step 0 before / after:** `before/before-*.png` (G1 build) → `play-blockpartydash.png`, `intro-*.png`, `intermission.png` (aligned table), `webgl-*.png` (glyphs in WebGL).
+- **Every screen:** `menu.png`, `settings.png`, `webgl-menu.png`, `lobby.png` (capsule drop + roster), `deal-pending.png` / `deal-dealt.png` (Chaos Capsule machine, VRF slot), `intro-*.png` (four maps), `play-*.png` / `spectate-*.png`, `result-claw.png` and `result-gootower.png` (the claw), `intermission.png`, `champion-crown.png` (Crown Capsule ceremony), `receipt.png` / `webgl-receipt.png` (explorer slots, chain chip).
+- **Bolt:** `bolt-closeup.png`, `bolt-silhouette.png` (unlit black; taken in the lobby at ~10–25 m rather than the exact 20 m side shot), `presets.png` (the 12 presets).
+- **Chain chip states:** the four styles are tested (`JuiceTests.ChainChip_FourStates_MapToDoc17Styles`); screenshots of the cycling chip (`?chain=cycle`) were **not** taken — UNVERIFIED visually.
+- **Signature moments:** 1 `lobby.png`, 2 `deal-*.png`, 3 `result-claw.png` / `result-gootower.png`, 4 `champion-crown.png`, 5 the countdown machine (seen in captures, no still committed).
+- **Capture:** `capture-gootower.webm` (0.9 MB, 11 s at 10 fps: a WebGL Goo Tower climb, spectating).
