@@ -324,7 +324,7 @@ public static class MapDressing
         }
     }
 
-    /// <summary>Block Party Dash: banners over the checkpoints, flags on the finish arch, toy pillars under the decks,
+    /// <summary>Capsule Run (key BlockPartyDash): banners over the checkpoints, flags on the finish arch, toy pillars under the decks,
     /// floating islands and balloons beside and below the course (never inside its reach).</summary>
     private static void BlockPartyDash(Scene scene, MeshBuilder mb, System.Random rng)
     {
@@ -363,7 +363,7 @@ public static class MapDressing
             }
         }
 
-        // Floating islands below and beside the course, balloons in the air at a distance.
+        // Floating islands below and beside the course, balloons in the air at a distance (G4.2: Capsule Run is ≈ 229 m).
         for (var i = 0; i < 16; i++)
         {
             var z = -20f + i * 18f + (float)rng.NextDouble() * 6f;
@@ -371,10 +371,10 @@ public static class MapDressing
             Island(mb, new Vector3(side * (26f + (float)rng.NextDouble() * 22f), -16f - (float)rng.NextDouble() * 14f, z), 6f + (float)rng.NextDouble() * 6f, rng);
         }
 
-        for (var i = 0; i < 18; i++)
+        for (var i = 0; i < 17; i++)
         {
             var side = i % 2 == 0 ? -1f : 1f;
-            Balloon(mb, new Vector3(side * (19f + (float)rng.NextDouble() * 10f), 4f + (float)rng.NextDouble() * 9f, -10f + i * 15f), Party[i % Party.Length]);
+            Balloon(mb, new Vector3(side * (19f + (float)rng.NextDouble() * 10f), 4f + (float)rng.NextDouble() * 9f + i * 0.5f, -10f + i * 15f), Party[i % Party.Length]);
         }
     }
 
