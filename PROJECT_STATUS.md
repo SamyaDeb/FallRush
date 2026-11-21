@@ -1,6 +1,6 @@
 # Fall Rush — Project Status
 
-_Last updated: 2026-11-19 (M4 built: full match, 254/254 EditMode, map QA PASS, soak 20/20; see M4 section)_
+_Last updated: 2026-11-19 (G1 built: movement v2, animation, map retunes, UX; 275/275 EditMode, map QA PASS, soak 20/20; see G1 section)_
 
 **Hackathon:** MagicBlock Blitz V10, running Nov 20 to Nov 27, 2026.
 - **Submission deadline:** Nov 27, 14:00 UTC (19:30 IST).
@@ -224,10 +224,33 @@ Proof: [`docs/proof/M4-match.md`](docs/proof/M4-match.md) · map QA [`docs/proof
 - Hazard seed: `Deal.HazardSeed` (u64 per round) → `H(vrf_seed ‖ round ‖ obstacleId)` with 32 bytes; widen `RoundMessage.HazardSeed`.
 - Re-run on the VPS: WebGL ↔ Linux server gate + a full match (the production pairing was not measured in M4).
 
-## Next: G1 gameplay polish (Phase A), prompt `docs/prompts/G1-PROMPT.md`
-- M4 verified independently 2026-11-19: EditMode **254/254** re-run, a match log re-verified with `scripts/m4-verify-log.py` (4 rounds, 38 events, transcript OK), git clean (no remote, no VPS identifiers).
-- Your play notes live in `docs/playtest/G1-notes.md` (too fast, S1 gaps too small and flat, genre animations, bugs). Add bugs there as you find them; G1 reads it first.
-- G1 plan: movement v2 (`movement_v2.json`, ~5 m/s, momentum, ~1.2 m hop, stumble, belly slide, tumble), own procedural animation set, all maps retuned (S1 wider gaps + height variation, Final 1.0 s wobble + respawning top tiles), nameplates/camera/UX bug list, settings, dev tuning mode.
+## G1 gameplay polish (Phase A) — ✅ built locally (2026-11-19)
+Proof: [`docs/proof/G1-polish.md`](docs/proof/G1-polish.md) · QA [`docs/proof/g1-map-qa.md`](docs/proof/g1-map-qa.md) · screenshots `docs/proof/g1/` · your notes with status: `docs/playtest/G1-notes.md`. One run, no checkpoint, **no VPS action**.
+
+| Item | State |
+|---|---|
+| Movement v2 (`movement_v2.json`: 5 m/s, 28/30 m/s², 30 % air, 20 m/s², 1.2 m hop, dive 7/2.5 + belly slide, stumble > 3 m), hash + generated constants + tests; v1 unchanged | ✅ |
+| Prediction exact with v2 (twins incl. slides, stumbles, respawning tiles: 0 corrections / 0 hazard mismatches); hazard vectors v1/v2 unchanged | ✅ |
+| Own procedural animation set (run, idle, jump/fall, stumble, dive/slide, tumble/get-up, bump, celebrations, emotes 1–4) | ✅ (feel: your call) |
+| S1 Block Hop rebuilt (height variation; right lane narrowed after your note); Goo Tower / Star Scramble fixes for v2; Final 1.0 s wobble + top-shelf respawn | ✅ |
+| Map QA 100 runs × every cell, ref + normal | ✅ PASS · BPD 61.9 / 88.4 s · Goo 85.2 / 89.6 s · Star 60 s · Final 76.5 / 71.8 s |
+| Soak | ✅ 20 / 20 |
+| Real clients: localhost / 150 ms + loss (non-push corr. / 5 s) | ✅ 0.00 / 0.18; hazard mismatches 0; all 3 probes connected through loss |
+| UX: screen-space nameplates, settings, name entry, friendly names, hints, controls card, camera decollider, help bar F1, connect retries, dev practice/tuning mode | ✅ |
+| EditMode | ✅ **275 / 275** |
+| WebGL release | see proof §H |
+
+### For you (G1)
+- **Play it** (README "G1: run it") and judge the feel; tune live with the practice mode (F6 / F7) and tell me values or notes in `docs/playtest/G1-notes.md`.
+- Run the hidden-tab / tab-reopen steps in proof §I (automation cannot do a real hidden Chrome tab).
+- Decisions G1-1…11 in doc 15 (🟡 = changes a documented value: movement table, S1 gap band, Goo Tower 85–89 s with bots, visual-only turn rate).
+
+### Notes for G2 / G3 (from G1)
+- **Don't change the motor or the map geometry/hazard timings** without re-running `scripts/g1-qa.sh` (the maps are tuned to v2). Art can replace meshes / materials freely; keep colliders and the `Geometry` / `Hazards` roots.
+- **Visuals that exist (greybox, restyle them):** Bolt (procedural parts, 9 face glyphs incl. Happy / Sad), all poses in `RushlingVisuals` (doc 17 §2.3.1), hazard telegraphs, instanced tiles (top-shelf respawn blink), podium + crown, HUD texts (outlined), panels (`UiKit`), settings panel (`SettingsPanel`, UGUI default controls), screen-space nameplates.
+- **Juice hooks (G3):** `RushlingVisuals.StunStartedThisFrame / DiveStartedThisFrame`, landing (impact 0–1), stumble start, get-up pop, emote start, tile respawn (`ReactiveSet.TileReturnsIn`), `GameSettings.MusicVolume / SfxVolume` (sliders already saved).
+- **Budgets:** dev labels are stripped from builds and WebGL static batching is on; draw calls in proof §H. Doc 17 §3.2 budget (150) is still for G2's art pass.
+- Map signs kept: map titles (except BPD's, which sat on the start gate), CHECKPOINT n, FINISH, ESCAPE!. G2 makes them pretty.
 
 ## Next milestones
 - **M5:** Rush Relay (identity, directory, outbox from the M4 jsonl log). **M6:** chain integration (VRF seed swap, ER events, finalize) + the VPS deploy (`docs/14`).

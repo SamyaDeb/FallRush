@@ -109,3 +109,31 @@ Automation cannot hide a real Chrome tab or close-and-reopen it in the same sess
 4. **Close + reopen within 20 s:** during round 2 (if you are still in), close the tab, then within 20 s press **Ctrl/Cmd + Shift + T** (reopens the same tab with its sessionStorage). Expected: "reconnecting with the token" → you are back in the same slot, still alive (`[gs] resume slot N → … (grace ok)` in the server log).
 5. **After 20 s:** close the tab and wait 30 s before reopening. Expected: you spectate and are `ELIMINATED (disconnected)` at the end of that round.
 6. Note anything odd in `docs/playtest/G1-notes.md`.
+
+## D. Map retunes and QA (`scripts/g1-qa.sh 100`, full tables: [`g1-map-qa.md`](g1-map-qa.md))
+
+Per-section retunes: doc 08 §3.1 (Block Party Dash: S1 rebuilt, S3 belt), §5.1 (Goo Tower), §6.1 (Star Scramble), §7.1 (Crumble Shelf). Every map × variant × allowed modifier × 100 runs, reference + normal bots (Block Party Dash reference tier added in G1): **all PASS** (valid result every run, 0 soft-locks, qualified ≤ target, determinism, the goo never overtakes a route, one champion, scores = pickups − drops).
+
+| Map | Bots | Reference median | Normal median | GDD target | M4 normal | Notes |
+|---|---|---|---|---|---|---|
+| Block Party Dash | 12 | **61.9 s** | **88.4 s** (MoonBounce 108–111 s) | 75–120 s (humans) | 97.5 s | reference bots are the fast floor; normal falls ≈ 2.7 per bot per race, ref ≈ 0.3; 1 timer expiry in 1,000 normal races |
+| Goo Tower | 8 | **85.2 s** | **89.6 s** | 90–120 s | 66.4 s | every route index escapes alone, goo margin **8.3–9.4 s**; ≈ 5 escape per round |
+| Star Scramble | 5 | 60.0 s | 60.0 s (timer) | 60–75 s | 60 s | unchanged mode timer |
+| Crumble Shelf | 3 | **76.5 s** | **71.8 s** | 60–120 s | 27.2 s | 1.0 s wobble + top-shelf respawn; one champion in 100 % of runs |
+
+Goo Tower is 0.4–5 s under the 90 s floor with bots (decision G1-5); human climbs are slower. The Goo / Star / Crumble 100-run cells ran on the build before the last bot fix (reference-tier MoonBounce ease-off, which only touches precise jumps when the apex > 1.3 m); Block Party Dash re-ran on the final build.
+
+**Tuning log (each from a QA run):** S1 right lane 2.4–2.6 → 2.0–2.1 m (ref falls 27–71 → 3–5 / race; your note); Goo Tower route 1 gooed at 31 s → the "1.4 m" gap was 3 m (two steps removed) → one step; then gooed at 37 s → the ramp-gap jump point fired 2.7 m early → 0.35 m radius; MoonBounce on BPD hit the 150 s timer (bots overshoot small blocks with the 4.3 m moon hop) → 70 % stick on precise jumps (normal), then the same for the reference tier (it bypassed the noise layer).
+
+## F. Tests, soak, real clients
+
+- **EditMode: 275 / 275** (M4: 254).
+- **Prediction vs server twin**, movement v2: the M4 twins (tile drops + goo at leads 1/3/6 × delays 2/5; stars + bumpers) still 0 corrections / 0 hazard mismatches, plus the G1 twin with 10–12 belly slides, 1–2 stumbles and respawning tiles per case: **0 corrections, 0 silent resyncs, 0 hazard mismatches, 0 reactive late** (4 cases).
+- **Hazard vectors**: v1 (`fc06826c…`) and v2 (`d4b2a73a…`) unchanged and passing (knock vectors depend only on the capsule size, which v2 keeps); no v3 needed.
+- **Soak** (`scripts/m4-soak.sh 20 8`, sim speed 8): **20 / 20 COMPLETE**, every jsonl log re-verified (`20/20 logs valid`), 38 events each, match duration (roster lock → complete) min 343 / median 399 / max 442 s (M4: 294 / 377 / 388: v2 rounds are longer), sim step p95 ≤ 0.23 ms. Ran on the build before the reference-tier MoonBounce bot fix (bots only).
+- **Real clients** (`scripts/m4-match-run.sh`, 3 probe clients playing BotBrain on their predicted state + 9 bots, full match, server on :7787):
+
+| Run | Windows | Non-push corrections / 5 s | Push / 5 s | Hazard mismatches | Reactive late | RTT p50 | Notes |
+|---|---|---|---|---|---|---|---|
+| localhost | 63 | **0.00** | 0.10 | **0** | **0** | 17 ms | a probe reached the final |
+| 150 ms ± 15 + 2 % loss | 68 | **0.18** | 0.24 | **0** | **0** | 178–192 ms | **all 3 probes connected** (M4: one gave up at 10 × 1 s) and one played the final (Crumble Shelf: 0.00) |

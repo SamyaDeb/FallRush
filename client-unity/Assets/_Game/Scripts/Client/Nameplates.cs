@@ -58,7 +58,7 @@ namespace FallRush.Client
         }
 
         public static string LabelFor(string name, bool bot, bool own) =>
-            own ? "<size=20><color=#FF3EA5>▼ YOU</color></size>" : bot ? $"<size=11><color=#7B2FF7>BOT</color></size> {name}" : name;
+            own ? "<size=20><color=#FF3EA5>YOU</color></size>" : bot ? $"<size=11><color=#7B2FF7>BOT</color></size> {name}" : name;
 
         /// <summary>Call once per frame per slot, before <see cref="Layout"/>.</summary>
         public void Set(int slot, bool visible, Vector3 headWorld, string text)

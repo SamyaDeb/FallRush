@@ -421,7 +421,7 @@ namespace FallRush.Client
             else
                 _sb.Append("\nWaiting for a player…");
             _lobbyText.text = _sb.ToString();
-            _sb.Append("\n\n<size=17><b>Controls</b>  WASD move · Space jump · Shift / left click dive (jump right after landing to skip the slide) · mouse look · <b>1–4 emotes</b> · Esc settings</size>");
+            _sb.Append("\n\n<size=17><b>Controls</b>  WASD move · Space jump · Shift / left click dive (jump right after landing to skip the slide) · mouse look · <b>1-4 emotes</b> · Esc settings</size>");
             _lobbyText.text = _sb.ToString();
             _start.gameObject.SetActive(cs.MatchSlot != 255 && m.HostSlot == cs.MatchSlot);
             _counter.text = "Run, jump and bump while you wait";

@@ -32,7 +32,7 @@ namespace FallRush.Client
 #endif
             _walletButton = UiKit.Button(panel, "Connect Wallet (smoke test)", UiKit.Mint, OnConnectWallet);
             _wallet = UiKit.Label(panel, string.Empty, 18, UiKit.Ink, FontStyle.Normal, 48);
-            UiKit.Label(panel, "WASD move · Space jump · Shift / left click dive · mouse look · 1–4 emotes (lobby) · Esc settings", 16, UiKit.Ink);
+            UiKit.Label(panel, "WASD move · Space jump · Shift / left click dive · mouse look · 1-4 emotes (lobby) · Esc settings", 16, UiKit.Ink);
             UiKit.Label(panel, $"build {Application.version} · protocol v{Protocol.Version}", 16, UiKit.Grape);
             var sp = SettingsPanel.Build(canvas, new Vector2(640, 520));
             sp.anchorMin = sp.anchorMax = sp.pivot = new Vector2(1f, 0.5f);

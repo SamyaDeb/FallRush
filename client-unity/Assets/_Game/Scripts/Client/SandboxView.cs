@@ -183,7 +183,16 @@ namespace FallRush.Client
             if (mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked && !_overlay.activeSelf && !pointerOverUi)
                 Cursor.lockState = CursorLockMode.Locked; // WebGL: pointer lock needs this user gesture
             var probe = NetBootstrap.Instance != null && NetBootstrap.Instance.IsProbe; // scripted view: no pointer lock
-            var showOptions = Cursor.lockState != CursorLockMode.Locked && !_overlay.activeSelf && _photo == null && !probe;
+            // G1: settings open on Esc only (they covered the lobby panel whenever the mouse was free); a click on the game closes them.
+            var locked = Cursor.lockState == CursorLockMode.Locked;
+            if (_wasLocked && !locked)
+                _optionsOpen = true; // Esc while playing (the browser releases pointer lock itself)
+            else if (kb != null && kb.escapeKey.wasPressedThisFrame && !locked)
+                _optionsOpen = !_optionsOpen;
+            if (locked)
+                _optionsOpen = false;
+            _wasLocked = locked;
+            var showOptions = _optionsOpen && !_overlay.activeSelf && _photo == null && !probe;
             if (_options.activeSelf != showOptions)
                 _options.SetActive(showOptions);
 
@@ -454,7 +463,7 @@ namespace FallRush.Client
             plateCanvas.SetParent(transform, false);
             plateCanvas.GetComponent<Canvas>().sortingOrder = -10;
             _plates = new Nameplates(plateCanvas, PhysxMotorWorld.GameplayMask());
-            var hint = UiKit.Label(canvas, "Click to capture the mouse · WASD move · Space jump · Shift / left click dive · 1–4 emote (lobby) · Esc settings · F1 hide this · Tab spectate", 16, UiKit.Ink);
+            var hint = UiKit.Label(canvas, "Click to capture the mouse · WASD move · Space jump · Shift / left click dive · 1-4 emote (lobby) · Esc settings · F1 hide this · Tab spectate", 16, UiKit.Ink);
             _hint = hint.gameObject;
             _hintUntil = Time.unscaledTime + 8f;
             var hrt = (RectTransform)hint.transform;
@@ -487,6 +496,7 @@ namespace FallRush.Client
         }
 
         private float _emoteNext;
+        private bool _optionsOpen, _wasLocked;
 
         private void OnEmote(int slot, int id)
         {
