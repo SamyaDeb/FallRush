@@ -80,8 +80,64 @@ namespace FallRush.Shared
         /// <summary>G4.1a <c>ROLLING_BALL</c> lanes (knock volumes, no collider), checked in <see cref="ApplyKnocks"/> after the mallets.</summary>
         public RollingBallDef[] RollingBalls = Array.Empty<RollingBallDef>();
 
+        /// <summary>G4.1b <c>LID_FLIP</c> grids: lid colliders on/off from the pure state at each tick (posed like doors).</summary>
+        public LidGridDef[] LidGrids = Array.Empty<LidGridDef>();
+
         /// <summary>True when the set has G4 kit defs (they are hashed only then, so older maps keep their content hash).</summary>
-        public bool HasG4 => RollingBalls.Length > 0;
+        public bool HasG4 => RollingBalls.Length + LidGrids.Length > 0;
+
+        private LidState[] _lidStates = Array.Empty<LidState>();
+        private LidState[] _lidGridStates = Array.Empty<LidState>();
+        private int[] _lidScratch = Array.Empty<int>();
+        private int _lidT = int.MinValue;
+        private bool _lidValid;
+
+        /// <summary>All lids of all grids, grid by grid in <see cref="LidGrids"/> order.</summary>
+        public int LidCount
+        {
+            get
+            {
+                var n = 0;
+                foreach (var g in LidGrids)
+                    n += g.Count;
+                return n;
+            }
+        }
+
+        /// <summary>Sizes the lid buffers (call once after setting <see cref="LidGrids"/>; no allocation per tick afterwards).</summary>
+        public void InitLids()
+        {
+            var total = LidCount;
+            var max = 0;
+            foreach (var g in LidGrids)
+                max = Math.Max(max, g.Count);
+            _lidStates = new LidState[total];
+            _lidGridStates = new LidState[max];
+            _lidScratch = new int[max];
+            _lidValid = false;
+        }
+
+        /// <summary>Every lid's state at server tick <paramref name="tick"/> (cached for the last tick asked). Pure: f(defs, seed, t).</summary>
+        public LidState[] LidStatesAt(uint tick)
+        {
+            var t = Time(tick);
+            if (_lidValid && t == _lidT)
+                return _lidStates;
+            if (_lidStates.Length != LidCount)
+                InitLids();
+            var o = 0;
+            for (var g = 0; g < LidGrids.Length; g++)
+            {
+                ref readonly var d = ref LidGrids[g];
+                HazardMath.LidStates(in d, t, _lidGridStates, _lidScratch);
+                Array.Copy(_lidGridStates, 0, _lidStates, o, d.Count);
+                o += d.Count;
+            }
+
+            _lidT = t;
+            _lidValid = true;
+            return _lidStates;
+        }
 
         /// <summary>M4: number of reactive elements (tiles, falling blocks, star anchors).</summary>
         public int ReactiveCount => (Grids.Length > 0 ? Grids[0].Count : 0) + Blocks.Length + (StarFields.Length > 0 ? StarFields[0].AnchorCount : 0);
@@ -97,7 +153,7 @@ namespace FallRush.Shared
         /// <summary>Goo surface (mm) at <paramref name="tick"/>, or <see cref="int.MinValue"/> without goo.</summary>
         public int GooYMm(uint tick) => Goo.Length > 0 ? HazardMath.GooYMm(in Goo[0], Time(tick)) : int.MinValue;
 
-        public int Count => Sweepers.Length + Platforms.Length + Conveyors.Length + Pads.Length + TurnTables.Length + Doors.Length + Mallets.Length + Bumpers.Length + RollingBalls.Length;
+        public int Count => Sweepers.Length + Platforms.Length + Conveyors.Length + Pads.Length + TurnTables.Length + Doors.Length + Mallets.Length + Bumpers.Length + RollingBalls.Length + LidGrids.Length;
 
         /// <summary>Round-relative hazard time of server tick <paramref name="tick"/> (negative before the round starts).</summary>
         public int Time(uint tick) => unchecked((int)(tick - RoundStartTick));

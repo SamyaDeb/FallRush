@@ -15,6 +15,7 @@ namespace FallRush.Client
     /// <item>Mallet heads glow during their wind-up (<see cref="HazardMath.MalletWindup"/>), before each pass through the bottom.</item>
     /// <item>Conveyor chevrons light up in a travelling wave in the belt direction (speed-true).</item>
     /// <item>G4.1a rolling balls are placed and spun from the pure lane pose; the chute light flashes before each release.</item>
+    /// <item>G4.1b lids: lit = yellow pulse, flipped = a 180° flip over 6 ticks (and back), retire warn = blinking, retired = drop away.</item>
     /// </list>
     /// No colliders are touched here: only visual transforms and material property blocks.
     /// </summary>
@@ -173,6 +174,7 @@ namespace FallRush.Client
             }
 
             UpdateBalls(hz, t);
+            UpdateLids(hz, t, reducedMotion);
 
             for (var i = 0; i < _map.conveyors.Length && i < hz.Conveyors.Length; i++)
             {
@@ -227,6 +229,98 @@ namespace FallRush.Client
                     _mpb.Clear();
                     _mpb.SetColor(FlashId, new Color(Glow.r, Glow.g, Glow.b, w));
                     lane.chute.SetPropertyBlock(_mpb);
+                }
+            }
+        }
+
+        private LidState[] _lidStates = Array.Empty<LidState>();
+        private int[] _lidScratch = Array.Empty<int>();
+        private Renderer[][] _lidRenderers;
+        private static readonly Color Lemon = new Color(1f, 0.83f, 0.23f);
+
+        /// <summary>G4.1b: lid visuals from the pure lid states at the hazard tick (the colliders follow the same states in the motor world).</summary>
+        private void UpdateLids(HazardSet hz, double t, bool reduced)
+        {
+            var grids = _map.lidGrids;
+            if (grids == null || grids.Length == 0)
+                return;
+            if (_lidRenderers == null)
+            {
+                _lidRenderers = new Renderer[grids.Length][];
+                for (var g = 0; g < grids.Length; g++)
+                {
+                    var vs = grids[g] != null ? grids[g].visuals : Array.Empty<Transform>();
+                    _lidRenderers[g] = new Renderer[vs.Length];
+                    for (var i = 0; i < vs.Length; i++)
+                        _lidRenderers[g][i] = vs[i] != null ? vs[i].GetComponentInChildren<Renderer>() : null;
+                }
+            }
+
+            var t0 = (int)Math.Floor(t);
+            var f = (float)(t - t0);
+            for (var g = 0; g < grids.Length && g < hz.LidGrids.Length; g++)
+            {
+                var grid = grids[g];
+                if (grid == null)
+                    continue;
+                ref readonly var d = ref hz.LidGrids[g];
+                if (_lidStates.Length < d.Count)
+                {
+                    _lidStates = new LidState[d.Count];
+                    _lidScratch = new int[d.Count];
+                }
+
+                HazardMath.LidStates(in d, t0, _lidStates, _lidScratch);
+                for (var i = 0; i < grid.visuals.Length && i < d.Count; i++)
+                {
+                    var v = grid.visuals[i];
+                    if (v == null)
+                        continue;
+                    d.LidCenterMm(i, out var x, out var y, out var z);
+                    var st = _lidStates[i];
+                    var pos = new Vector3(x * 0.001f, y * 0.001f, z * 0.001f);
+                    var angle = 0f;
+                    var flash = new Color(Lemon.r, Lemon.g, Lemon.b, 0f);
+                    var visible = true;
+                    switch (st)
+                    {
+                        case LidState.Lit:
+                            flash.a = reduced ? 1f : 0.55f + 0.45f * Mathf.Sin((float)t * 0.7f);
+                            break;
+                        case LidState.Flipped:
+                        {
+                            // 180° over the first 6 ticks of the flipped window, and back over its last 6.
+                            var into = HazardMath.LidFlippedFor(in d, i, t0, _lidScratch) + f;
+                            var left = d.FlippedTicks - into;
+                            var u = Mathf.Clamp01(Mathf.Min((float)into, (float)left) / 6f);
+                            angle = 180f * (reduced ? (u > 0.5f ? 1f : 0f) : u);
+                            break;
+                        }
+                        case LidState.RetireWarn:
+                            flash = new Color(Flash.r, Flash.g, Flash.b, reduced || ((int)(t * 0.25) & 1) == 0 ? 1f : 0f);
+                            break;
+                        case LidState.Retired:
+                        {
+                            var since = (float)(t - d.RetireTick(i)) / 30f;
+                            pos.y -= 0.5f * 20f * since * since;
+                            visible = since < 1.5f;
+                            break;
+                        }
+                    }
+
+                    if (v.gameObject.activeSelf != visible)
+                        v.gameObject.SetActive(visible);
+                    if (!visible)
+                        continue;
+                    v.position = pos;
+                    v.rotation = Quaternion.Euler(angle, 0f, 0f);
+                    var r = _lidRenderers[g].Length > i ? _lidRenderers[g][i] : null;
+                    if (r != null)
+                    {
+                        _mpb.Clear();
+                        _mpb.SetColor(FlashId, flash);
+                        r.SetPropertyBlock(_mpb);
+                    }
                 }
             }
         }

@@ -37,6 +37,7 @@ namespace FallRush.Net
         public HazardStarField[] starFields = new HazardStarField[0];
         // G4 kit
         public HazardRollingBall[] rollingBalls = new HazardRollingBall[0];
+        public HazardLidGrid[] lidGrids = new HazardLidGrid[0];
 
         [Tooltip("Ordered checkpoints (race maps); the last is the finish.")]
         public RaceCheckpoint[] checkpoints = new RaceCheckpoint[0];
@@ -70,6 +71,7 @@ namespace FallRush.Net
             public Collider[] Doors = new Collider[0];
             public Collider[] Tiles = new Collider[0];
             public Collider[] Blocks = new Collider[0];
+            public Collider[] Lids = new Collider[0];
         }
 
         /// <summary>M2 form: variant A, no modifier, M2 phases (tests and tools).</summary>
@@ -162,6 +164,17 @@ namespace FallRush.Net
             for (var i = 0; i < rb.Length; i++)
                 rb[i] = rollingBalls[i].Resolve(in q, zeroPhase);
             h.RollingBalls = rb;
+            var lg = new LidGridDef[Len(lidGrids)];
+            var lidCols = new List<Collider>();
+            for (var i = 0; i < lg.Length; i++)
+            {
+                lg[i] = lidGrids[i].Resolve(in q, zeroPhase);
+                lidCols.AddRange(lidGrids[i].lids);
+            }
+
+            h.LidGrids = lg;
+            h.InitLids();
+            cols.Lids = lidCols.ToArray();
             if (Len(starFields) > 0)
                 h.StarFields = new[] { starFields[0].Resolve(in q) };
             h.InitReactive();
@@ -288,6 +301,7 @@ namespace FallRush.Net
             foreach (var a in fallingBlocks) yield return a;
             foreach (var a in starFields) yield return a;
             foreach (var a in rollingBalls) yield return a; // G4: appended, so older maps keep their obstacle id list
+            foreach (var a in lidGrids) yield return a;
         }
 
         private byte[] _hash;

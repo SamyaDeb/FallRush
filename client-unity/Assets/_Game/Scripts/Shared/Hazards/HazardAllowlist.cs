@@ -163,6 +163,46 @@ namespace FallRush.Shared
             Knock(e, who, d.KnockbackCms, d.KnockUpCms, d.StunTicks, d.ImmunityTicks);
         }
 
+        /// <summary>
+        /// G4.1b <c>LID_FLIP</c>: N odd 5–11, lids 1.2–2.2 m, a real telegraph (lit ≥ 0.5 s), waves 1–10 s apart, at most half
+        /// the alive lids per wave, rings retiring in order and never the inner 3 × 3, and the fairness floor (≥ 5 of the
+        /// inner 3 × 3 solid at every tick, enforced by <see cref="HazardMath.LidWaveSet"/>).
+        /// </summary>
+        public static void Check(in LidGridDef d, string who, List<string> e)
+        {
+            if (d.N % 2 == 0)
+                e.Add($"{who}: n={d.N} must be odd (a centre lid)");
+            Range(e, who, "n", d.N, 5, 11);
+            Range(e, who, "lidMm", d.LidMm, 1200, 2200);
+            Range(e, who, "gapMm", d.GapMm, 0, 300);
+            Range(e, who, "thicknessMm", d.ThicknessMm, 100, 1000);
+            Range(e, who, "litTicks", d.LitTicks, 15, 90);
+            Range(e, who, "flippedTicks", d.FlippedTicks, 15, 150);
+            Range(e, who, "firstWaveTicks", d.FirstWaveTicks, 0, 900);
+            Range(e, who, "wavesPerStage", d.WavesPerStage, 1, 64);
+            Range(e, who, "minInnerSolid", d.MinInnerSolid, 5, 9);
+            Range(e, who, "retireWarnTicks", d.RetireWarnTicks, 30, 300);
+            if (d.WaveIntervals == null || d.WaveIntervals.Length == 0 || d.WaveIntervals.Length > 8)
+                e.Add($"{who}: waveIntervals needs 1–8 stages");
+            else
+                foreach (var iv in d.WaveIntervals)
+                    Range(e, who, "waveInterval", iv, 30, 300);
+            if (d.FlipPermille == null || d.FlipPermille.Length == 0 || d.FlipPermille.Length > 8)
+                e.Add($"{who}: flipPermille needs 1–8 stages");
+            else
+                foreach (var pm in d.FlipPermille)
+                    Range(e, who, "flipPermille", pm, 0, 500);
+            var rings = d.RingRetireTicks ?? Array.Empty<int>();
+            if (rings.Length > Math.Max(0, d.Mid - 1))
+                e.Add($"{who}: {rings.Length} ring retire ticks for n={d.N}: the inner 3 × 3 never retires (at most {Math.Max(0, d.Mid - 1)})");
+            for (var i = 0; i < rings.Length; i++)
+            {
+                Range(e, who, "ringRetireTicks", rings[i], d.RetireWarnTicks, 36000);
+                if (i > 0 && rings[i] <= rings[i - 1])
+                    e.Add($"{who}: ringRetireTicks must increase (outermost ring first)");
+            }
+        }
+
         /// <summary>Every def of a resolved set; returns the problems (empty = valid). <paramref name="spawnsMm"/>: x,y,z feet triplets (G4 spawn checks).</summary>
         public static List<string> Validate(HazardSet h, int[] spawnsMm)
         {
@@ -176,6 +216,7 @@ namespace FallRush.Shared
             for (var i = 0; i < h.Mallets.Length; i++) Check(in h.Mallets[i], $"MALLET_SWING[{i}]", e);
             for (var i = 0; i < h.Bumpers.Length; i++) Check(in h.Bumpers[i], $"BUMPER[{i}]", e);
             for (var i = 0; i < h.RollingBalls.Length; i++) Check(in h.RollingBalls[i], $"ROLLING_BALL[{i}]", e, spawnsMm);
+            for (var i = 0; i < h.LidGrids.Length; i++) Check(in h.LidGrids[i], $"LID_FLIP[{i}]", e);
             return e;
         }
 

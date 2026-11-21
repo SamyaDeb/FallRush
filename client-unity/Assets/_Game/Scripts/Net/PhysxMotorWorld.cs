@@ -22,6 +22,8 @@ namespace FallRush.Net
         private readonly Collider[] _doors;
         private readonly Collider[] _tiles;
         private readonly Collider[] _blocks;
+        private readonly Collider[] _lids;
+        private bool[] _lidOn;
         private bool[] _tileOn, _blockOn;
         private readonly System.Collections.Generic.Dictionary<int, int> _surfaceOf = new System.Collections.Generic.Dictionary<int, int>();
         private uint _tick;
@@ -46,6 +48,11 @@ namespace FallRush.Net
             _doors = cols.Doors ?? System.Array.Empty<Collider>();
             _tiles = cols.Tiles ?? System.Array.Empty<Collider>();
             _blocks = cols.Blocks ?? System.Array.Empty<Collider>();
+            _lids = cols.Lids ?? System.Array.Empty<Collider>();
+            _lidOn = new bool[_lids.Length];
+            for (var i = 0; i < _lids.Length; i++)
+                _lidOn[i] = _lids[i] != null && _lids[i].enabled;
+            _hazards.InitLids();
             _tileOn = new bool[_tiles.Length];
             _blockOn = new bool[_blocks.Length];
             for (var i = 0; i < _tiles.Length; i++)
@@ -54,6 +61,7 @@ namespace FallRush.Net
                 _blockOn[i] = _blocks[i] != null && _blocks[i].enabled;
             Check(_tiles.Length, _hazards.Grids.Length > 0 ? _hazards.Grids[0].Count : 0, "crumble tile");
             Check(_blocks.Length, _hazards.Blocks.Length, "falling block");
+            Check(_lids.Length, _hazards.LidCount, "lid");
             Check(_platforms.Length, _hazards.Platforms.Length, "platform");
             Check(_doors.Length, _hazards.Doors.Length, "door");
             Check(cols.TurnTables?.Length ?? 0, _hazards.TurnTables.Length, "turn table");
@@ -84,7 +92,7 @@ namespace FallRush.Net
         public uint PosedTick => _tick;
         public HazardSet Hazards => _hazards;
 
-        /// <summary>Poses platforms and doors at <paramref name="tick"/> (round-relative hazard time) and syncs PhysX (queries only; nothing is simulated).</summary>
+        /// <summary>Poses platforms, doors and G4 lids at <paramref name="tick"/> (round-relative hazard time) and syncs PhysX (queries only; nothing is simulated).</summary>
         public void BeginTick(uint tick)
         {
             if (_posed && tick == _tick)
@@ -112,6 +120,22 @@ namespace FallRush.Net
                     {
                         _blockOn[i] = on;
                         _blocks[i].enabled = on;
+                    }
+                }
+            }
+
+            // G4.1b lid grids: each lid's collider on/off from the pure state at this tick (posed like the doors), so a
+            // rewind / re-simulation sees the same floor at every tick on the server and in client prediction.
+            if (_lids.Length > 0)
+            {
+                var ls = _hazards.LidStatesAt(tick);
+                for (var i = 0; i < _lids.Length; i++)
+                {
+                    var on = HazardMath.LidSolid(ls[i]);
+                    if (on != _lidOn[i])
+                    {
+                        _lidOn[i] = on;
+                        _lids[i].enabled = on;
                     }
                 }
             }

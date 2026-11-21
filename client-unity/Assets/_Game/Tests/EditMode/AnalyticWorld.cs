@@ -28,6 +28,7 @@ namespace FallRush.Tests
             public int Door;     // ≥ 0: posed from HazardSet.Doors[Door]
             public int Tile;     // M4: ≥ 0 crumble tile (off once dropped)
             public int Block;    // M4: ≥ 0 falling block (off while fallen)
+            public int Lid1;     // G4: lid index + 1 (0 = not a lid); off while flipped / retired
             public bool Off;
         }
 
@@ -141,6 +142,25 @@ namespace FallRush.Tests
                 _boxes.Add(new Box { Min = c - h, Max = c + h, Surface = -1, Platform = -1, Door = -1, Tile = -1, Block = i });
             }
 
+            // G4.1b: lids (switched off from the pure lid state per tick, like the PhysX motor world).
+            var lo = 0;
+            foreach (var g in hazards.LidGrids)
+            {
+                var hx = (g.LidMm) / 2;
+                for (var i = 0; i < g.Count; i++)
+                {
+                    g.LidCenterMm(i, out var x, out var y, out var z);
+                    _boxes.Add(new Box
+                    {
+                        Min = HazardMath.MmToVec(x - hx, y - g.ThicknessMm / 2, z - hx), Max = HazardMath.MmToVec(x + hx, y + g.ThicknessMm / 2, z + hx),
+                        Surface = -1, Platform = -1, Door = -1, Tile = -1, Block = -1, Lid1 = lo + i + 1,
+                    });
+                }
+
+                lo += g.Count;
+            }
+
+            hazards.InitLids();
             BeginTick(0);
             return this;
         }
@@ -154,6 +174,13 @@ namespace FallRush.Tests
             for (var i = 0; i < _boxes.Count; i++)
             {
                 var b = _boxes[i];
+                if (b.Lid1 > 0)
+                {
+                    b.Off = !HazardMath.LidSolid(_hazards.LidStatesAt(tick)[b.Lid1 - 1]);
+                    _boxes[i] = b;
+                    continue;
+                }
+
                 if (b.Tile >= 0 || b.Block >= 0)
                 {
                     var rx = _hazards.Reactive;

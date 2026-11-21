@@ -134,6 +134,10 @@ namespace FallRush.Shared
             foreach (var d in h.RollingBalls)
                 w.I32(d.StartXMm).I32(d.StartYMm).I32(d.StartZMm).I32(d.EndXMm).I32(d.EndYMm).I32(d.EndZMm).I32(d.RadiusMm).I32(d.SpeedMmS)
                     .I32(d.PeriodTicks).I32(zeroPhase ? 0 : d.Phase16).I32(d.TelegraphTicks).I32(d.KnockbackCms).I32(d.KnockUpCms).I32(d.StunTicks).I32(d.ImmunityTicks);
+            w.I32(h.LidGrids.Length);
+            foreach (var d in h.LidGrids)
+                w.I32(d.OriginXMm).I32(d.OriginZMm).I32(d.TopMm).I32(d.N).I32(d.LidMm).I32(d.GapMm).I32(d.ThicknessMm).I32(d.LitTicks).I32(d.FlippedTicks)
+                    .I32(d.FirstWaveTicks).Ints(d.WaveIntervals).I32(d.WavesPerStage).Ints(d.FlipPermille).Ints(d.RingRetireTicks).I32(d.RetireWarnTicks).I32(d.MinInnerSolid);
         }
     }
 }
