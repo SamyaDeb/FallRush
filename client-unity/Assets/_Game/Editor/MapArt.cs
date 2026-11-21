@@ -42,6 +42,8 @@ public static class MapArt
 
         // 2. hazard groups first (they read the original materials' colours), then 3. blocks.
         MapDressing.DecorateHazards(info, mapKey);
+        PropKit.Clear();
+        PropSwap.Hazards(info, geo); // G4.9: the Blender prop kit on hazard / arch / beam render parts (render only)
         if (info != null)
             MergeHazards(info, vc, mapKey);
         if (geo != null)
@@ -849,10 +851,20 @@ public static class MapArt
                     body.AddComponent<MeshRenderer>().sharedMaterial = cr.sharedMaterial;
                     Object.DestroyImmediate(cr);
                     Object.DestroyImmediate(cf);
+                    // G4.9: the quilted pillow prop (unit radius / height, pivot at the base) instead of the prism body; its
+                    // two lemon bands replace the builder's bands. The prism is r × h with its top at the collider's pivot.
+                    var top = body.transform.position;
+                    var s = body.transform.lossyScale; // = the collider prism's r × h × r (cr is gone)
+                    body.GetComponent<MeshFilter>().sharedMesh = PropKit.Get("pillow_bumper");
+                    body.transform.position = top - Vector3.up * Mathf.Abs(s.y);
+                    PropSwap.Log.Add("pillow_bumper");
+                    for (var i = bm.visual.childCount - 1; i >= 0; i--)
+                        if (bm.visual.GetChild(i).name.StartsWith("Band_"))
+                            Object.DestroyImmediate(bm.visual.GetChild(i).gameObject);
                 }
 
                 Merge(bm.visual, vc, null, mapKey, hit: true);
-                bm.visual.gameObject.isStatic = true; // bumpers never move: static batching
+                bm.visual.gameObject.isStatic = false; // G4.9: the pillow squashes on a hit (client render scale): its own renderer
             }
         foreach (var pd in info.pads)
             if (pd != null && pd.visual != null)
@@ -896,7 +908,7 @@ public static class MapArt
             var mesh = mf.sharedMesh;
             var isCube = IsCube(mesh);
             var matName = mat.name;
-            var stripes = matName == "HazardYellow" || matName == "HazardMagenta";
+            var stripes = !mesh.name.StartsWith("Prop_") && (matName == "HazardYellow" || matName == "HazardMagenta"); // G4.9: a prop keeps its own colours
             var st = StyleFor(matName, mapKey, hue, LookId.Soft);
             var stc = StyleFor(matName, mapKey, hue, LookId.Candy);
             if (mover && (matName == "SpawnMint" || matName == "Grape" || matName == "TableStripe"))
@@ -933,6 +945,8 @@ public static class MapArt
                     walkPart ? ToyMesh.RoleTop : partRole, partRole);
                 styled = true;
             }
+            else if (mesh.name.StartsWith("Prop_"))
+                styled = true; // G4.9: the prop kit carries both looks (PropKit)
             else if (mover && (matName == "TableStripe" || matName == "SpawnMint" || matName == "Grape"))
             {
                 tint = st.Top;

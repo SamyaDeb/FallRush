@@ -453,6 +453,7 @@ namespace FallRush.Client
             if (vis.StunStartedThisFrame)
             {
                 Fx.Bonk(feet);
+                _hazardViews?.SquashBumperNear(feet); // G4.9: the pillow bumper squashes and wobbles (client-only)
                 GameAudio.Play(GameAudio.Sfx.Bonk, feet, vol, 0.9f + UnityEngine.Random.value * 0.2f);
                 _hitStopUntil[i] = Time.unscaledTime + 0.06f; // hit-stop: the visuals freeze ~60 ms (the sim never does)
                 if (own)

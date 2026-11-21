@@ -35,6 +35,7 @@ namespace FallRush.Client
         private readonly Renderer[] _chevrons;
         private readonly int[] _chevronCount;
         private readonly float[] _padSquash;
+        private readonly float[] _bumperHit;
         private static readonly Color Flash = UiKit.Magenta;
         private static readonly Color Glow = new Color(1f, 0.95f, 0.6f);
 
@@ -50,6 +51,9 @@ namespace FallRush.Client
                 _malletHeads[i] = map.mallets[i] != null && map.mallets[i].visual != null ? map.mallets[i].visual.GetComponent<Renderer>() : null;
             }
 
+            _bumperHit = new float[map.bumpers.Length];
+            for (var i = 0; i < _bumperHit.Length; i++)
+                _bumperHit[i] = -1f;
             _padSquash = new float[map.pads.Length];
             for (var i = 0; i < _padSquash.Length; i++)
                 _padSquash[i] = -1f;
@@ -84,6 +88,50 @@ namespace FallRush.Client
             }
         }
 
+        /// <summary>G4.9 squash on hit: the full squash of a padded bumper (12 %), and with reduced motion (4 %, no wobble).</summary>
+        public const float BumperSquash = 0.12f, BumperSquashReduced = 0.04f, BumperWobbleSecs = 0.4f;
+
+        /// <summary>
+        /// G4.9: a stun right next to a bumper (within its radius + 1.2 m, at its height) squashes the pillow and wobbles it
+        /// back over 0.4 s. Client-only: the bumper's render transform (its visual root); the collider is a separate object.
+        /// </summary>
+        public void SquashBumperNear(Vector3 feet)
+        {
+            for (var i = 0; i < _map.bumpers.Length; i++)
+            {
+                var bm = _map.bumpers[i];
+                if (bm == null || bm.visual == null)
+                    continue;
+                var d = feet - bm.visual.position;
+                var r = bm.def.RadiusMm / 1000f + 1.2f;
+                if (d.x * d.x + d.z * d.z < r * r && d.y > -1.5f && d.y < bm.def.HeightMm / 1000f + 1.5f)
+                    _bumperHit[i] = Time.unscaledTime;
+            }
+        }
+
+        /// <summary>The bumper's render scale <paramref name="secs"/> after a hit (squash down, bulge out, wobble back).</summary>
+        public static Vector3 BumperScale(float secs, bool reduced)
+        {
+            var u = secs / BumperWobbleSecs;
+            if (u >= 1f || u < 0f)
+                return Vector3.one;
+            var s = reduced ? BumperSquashReduced * (1f - u) * (1f - u) : BumperSquash * Mathf.Cos(u * Mathf.PI * 3f) * Mathf.Pow(1f - u, 1.5f);
+            return new Vector3(1f + 0.6f * s, 1f - s, 1f + 0.6f * s);
+        }
+
+        private void BumperSquashUpdate(bool reduced)
+        {
+            for (var i = 0; i < _bumperHit.Length; i++)
+            {
+                if (_bumperHit[i] < 0f || _map.bumpers[i] == null || _map.bumpers[i].visual == null)
+                    continue;
+                var secs = Time.unscaledTime - _bumperHit[i];
+                _map.bumpers[i].visual.localScale = BumperScale(secs, reduced);
+                if (secs >= BumperWobbleSecs)
+                    _bumperHit[i] = -1f;
+            }
+        }
+
         private void PadSquash(bool reduced)
         {
             for (var i = 0; i < _padSquash.Length; i++)
@@ -112,6 +160,7 @@ namespace FallRush.Client
             var t0 = (int)Math.Floor(t);
             var f = (float)(t - t0);
             PadSquash(reducedMotion);
+            BumperSquashUpdate(reducedMotion);
 
             for (var i = 0; i < _map.sweepers.Length && i < hz.Sweepers.Length; i++)
             {

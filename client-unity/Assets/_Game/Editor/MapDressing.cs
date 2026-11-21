@@ -319,6 +319,13 @@ public static class MapDressing
             mb.Sphere(top + new Vector3((i - 1) * w * 0.35f, -3.1f, (float)rng.NextDouble() * w * 0.2f), new Vector3(w * 0.32f, w * 0.18f, w * 0.3f), Color.white, new Color(0.84f, 0.88f, 1f), 10, 6);
     }
 
+    /// <summary>G4.9: a Blender kit prop (<see cref="PropKit"/>) merged into the dressing mesh (no extra draw call).</summary>
+    private static void Prop(MeshBuilder mb, string name, Vector3 at, Quaternion rot, float scale = 1f) =>
+        mb.Add(PropKit.Get(name), Matrix4x4.TRS(at, rot, Vector3.one * scale));
+
+    private static void Prop(MeshBuilder mb, string name, Vector3 at, Quaternion rot, Vector3 scale) =>
+        mb.Add(PropKit.Get(name), Matrix4x4.TRS(at, rot, scale));
+
     private static void Balloon(MeshBuilder mb, Vector3 p, Color c)
     {
         mb.Sphere(p, new Vector3(0.55f, 0.68f, 0.55f), Color.Lerp(c, Color.white, 0.25f), c * 0.85f, 10, 7);
@@ -326,30 +333,21 @@ public static class MapDressing
         mb.Cylinder(p + new Vector3(0f, -0.82f, 0f), p + new Vector3(0.15f, -3.2f, 0.05f), 0.015f, new Color(0.95f, 0.95f, 1f), 4);
     }
 
-    /// <summary>Bunting: a sagging string with triangular party flags (no yellow-magenta pairs, which mean "hazard").</summary>
+    /// <summary>Bunting (G4.9: the kit's 6 m string of 8 party flags, stretched to the span): never a lemon-magenta pair (that means "hazard").</summary>
     private static void Bunting(MeshBuilder mb, Vector3 a, Vector3 b, float sag, int flags)
     {
-        Vector3 At(float t) => Vector3.Lerp(a, b, t) + Vector3.down * (sag * 4f * t * (1f - t));
-        const int segs = 12;
-        for (var i = 0; i < segs; i++)
-            mb.Cylinder(At(i / (float)segs), At((i + 1) / (float)segs), 0.02f, new Color(0.95f, 0.95f, 1f), 4);
-        var dir = (b - a).normalized;
-        for (var i = 0; i < flags; i++)
-        {
-            var t = (i + 0.5f) / flags;
-            var p = At(t);
-            var c = Party[i % Party.Length];
-            mb.Triangle(p - dir * 0.28f, p + dir * 0.28f, p + Vector3.down * 0.62f, c);
-        }
+        // The kit string is 6 m: tile it along the span (scallops), each piece stretched to fit.
+        var d = b - a;
+        var count = Mathf.Max(1, Mathf.RoundToInt(d.magnitude / 6f));
+        var rot = Quaternion.FromToRotation(Vector3.right, d.normalized);
+        var piece = d.magnitude / count;
+        for (var k = 0; k < count; k++)
+            Prop(mb, "bunting", a + d * (k / (float)count), rot, new Vector3(piece / 6f, Mathf.Clamp(sag / count / 0.5f, 0.6f, 1.6f), 1f));
     }
 
-    private static void Pennant(MeshBuilder mb, Vector3 baseTop, float h, Color c)
-    {
-        mb.Cylinder(baseTop, baseTop + Vector3.up * h, 0.05f, new Color(0.95f, 0.95f, 1f), 6);
-        var top = baseTop + Vector3.up * h;
-        mb.Triangle(top, top + Vector3.down * 0.7f, top + new Vector3(1.1f, -0.35f, 0f), c);
-        mb.Sphere(top + Vector3.up * 0.08f, Vector3.one * 0.1f, P.sunYellow, P.sunYellow, 6, 4);
-    }
+    /// <summary>G4.9: the kit pennant (pole + flag), scaled to the pole height; <paramref name="c"/> tints the flag only in the
+    /// old builder (the kit flag is party magenta: one shared mesh, no per-colour variants).</summary>
+    private static void Pennant(MeshBuilder mb, Vector3 baseTop, float h, Color c) => Prop(mb, "pennant", baseTop, Quaternion.identity, Mathf.Max(0.4f, h / 3.1f));
 
     /// <summary>A gacha capsule machine: magenta cabinet, glass globe full of two-tone capsules, a crank, a chute.</summary>
     private static void CapsuleMachine(MeshBuilder mb, MeshBuilder glass, Vector3 basePos, float s, System.Random rng)
@@ -441,14 +439,18 @@ public static class MapDressing
                     // posts continue up to it visually (above any jump: nothing there to land on).
                     var top = (t.position + r.position) * 0.5f + Vector3.up * 3.9f;
                     var w = Mathf.Abs(r.position.x - t.position.x) + 0.6f;
-                    Block(mb, top, new Vector3(w, 0.9f, 0.3f), P.walkTop, P.mint);
+                    Prop(mb, "ribbon_banner", top, Quaternion.identity, new Vector3(w / 6.4f, 0.9f / 0.8f, 1f)); // G4.9 kit ribbon
                     foreach (var post in new[] { t, r })
                         Block(mb, post.position + Vector3.up * 2.7f, new Vector3(0.42f, 2.6f, 0.42f), P.mint, P.mint);
                     Pennant(mb, t.position + Vector3.up * 4.3f, 1.2f, P.mint);
                     Pennant(mb, r.position + Vector3.up * 4.3f, 1.2f, P.mint);
                 }
                 else if (t.name == "ArchPostL" || t.name == "ArchPostR")
-                    Pennant(mb, t.position + Vector3.up * (t.lossyScale.y * 0.5f), 2.2f, t.name == "ArchPostL" ? P.magenta : P.grape);
+                {
+                    // G4.9: a confetti cannon on each finish-arch post top (8 m up: out of reach), aimed up over the deck.
+                    var side = t.name == "ArchPostL" ? 1f : -1f;
+                    Prop(mb, "confetti_cannon", t.position + Vector3.up * (t.lossyScale.y * 0.5f), Quaternion.Euler(0f, side * 90f, 0f), 1.1f);
+                }
                 else if (t.name.EndsWith("Deck") && t.GetComponent<BoxCollider>() != null)
                 {
                     // A toy pillar down into the clouds, well inside the deck's footprint.
@@ -459,6 +461,16 @@ public static class MapDressing
                     Block(mb, c, new Vector3(Mathf.Min(4f, b.size.x * 0.35f), 12f, Mathf.Min(4f, b.size.z * 0.35f)), P.walkTop, P.blockSides[rng.Next(P.blockSides.Length)]);
                 }
             }
+        }
+
+        // G4.9: the inflatable start arch frames the start gate (z 10): posts at x ±11.2 beside the 20 m deck (x ±10, out of
+        // the walk volume), inner top 7.3 m over the deck (above any jump; nothing there to land on).
+        Prop(mb, "start_arch", new Vector3(0f, 0f, 9.4f), Quaternion.identity);
+        // Inflatable towers well beside the course (≥ 24 m out), feet down in the clouds.
+        for (var i = 0; i < 6; i++)
+        {
+            var side = i % 2 == 0 ? -1f : 1f;
+            Prop(mb, "inflatable_tower", new Vector3(side * (24f + i % 3 * 3f), -6f + i * 1.2f, 20f + i * 38f), Quaternion.Euler(0f, i * 40f, 0f), 1.3f);
         }
 
         // Floating islands below and beside the course, balloons in the air at a distance (G4.2: Capsule Run is ≈ 229 m).
@@ -525,10 +537,14 @@ public static class MapDressing
             mb.Cylinder(p0, p1, 0.7f, i % 2 == 0 ? P.magenta : Color.Lerp(P.magenta, Color.white, 0.3f), 10);
         }
 
+        // G4.9: a giant wind-up key on top of the dome (the machine is a toy: y ≈ 34, far above the 22 m summit).
+        Prop(mb, "windup_key", domeTop + Vector3.up * 8.6f, Quaternion.Euler(-90f, 0f, 0f), 4f);
         for (var i = 0; i < 8; i++)
         {
             var a = i * Mathf.PI / 4f + 0.3f;
-            Island(mb, new Vector3(Mathf.Cos(a) * 40f, -8f - i % 3 * 6f, Mathf.Sin(a) * 40f), 7f, rng);
+            var c = new Vector3(Mathf.Cos(a) * 40f, -8f - i % 3 * 6f, Mathf.Sin(a) * 40f);
+            Island(mb, c, 7f, rng);
+            Prop(mb, "goo_blob", c + new Vector3(1.2f, 0f, -0.8f), Quaternion.Euler(0f, i * 45f, 0f), 1.6f); // goo spills on the far islands
         }
     }
 
@@ -537,6 +553,13 @@ public static class MapDressing
     {
         for (var i = 0; i < 4; i++)
             mb.Cylinder(new Vector3(0f, -1f - i * 1.4f, 0f), new Vector3(0f, -2.4f - i * 1.4f, 0f), 16.5f - i * 1.6f, i % 2 == 0 ? P.blockSides[i] : Color.Lerp(P.blockSides[i + 1], Color.white, 0.3f), 40);
+        // G4.9: prize stars on the drum's top band, facing out (Star Fountain is the score map: stars mean points here).
+        for (var i = 0; i < 12; i++)
+        {
+            var a = i * Mathf.PI / 6f;
+            var n = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+            Prop(mb, "prize_star", n * 16.6f + Vector3.up * -1.7f, Quaternion.LookRotation(n), 1.2f);
+        }
         for (var i = 0; i < 12; i++)
         {
             var a = i * Mathf.PI / 6f + 0.26f;
@@ -565,6 +588,8 @@ public static class MapDressing
         foreach (var (c, sz) in new[] { (new Vector3(0f, 21.4f, f), new Vector3(2f * f + 1.2f, 2.6f, 1.2f)), (new Vector3(0f, 21.4f, -f), new Vector3(2f * f + 1.2f, 2.6f, 1.2f)),
                      (new Vector3(f, 21.4f, 0f), new Vector3(1.2f, 2.6f, 2f * f + 1.2f)), (new Vector3(-f, 21.4f, 0f), new Vector3(1.2f, 2.6f, 2f * f + 1.2f)) })
             Block(mb, c, sz, P.walkTop, P.grape);
+        // G4.9: the claw hangs from the header ring at y ≈ 19 (13 m above the top shelf: out of every reach).
+        Prop(mb, "claw", new Vector3(0f, 19.2f, 0f), Quaternion.identity, 2.2f);
         for (var i = 0; i < 16; i++)
         {
             var x = -f + i * (2f * f / 15f);
