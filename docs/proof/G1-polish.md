@@ -137,3 +137,36 @@ Goo Tower is 0.4–5 s under the 90 s floor with bots (decision G1-5); human cli
 |---|---|---|---|---|---|---|---|
 | localhost | 63 | **0.00** | 0.10 | **0** | **0** | 17 ms | a probe reached the final |
 | 150 ms ± 15 + 2 % loss | 68 | **0.18** | 0.24 | **0** | **0** | 178–192 ms | **all 3 probes connected** (M4: one gave up at 10 × 1 s) and one played the final (Crumble Shelf: 0.00) |
+
+## H. WebGL (release, Chrome via Playwright, against the Mac dev server on :7787)
+
+| | Result |
+|---|---|
+| Release build 1 | 654 s build / 682 s wall, peak RSS 1.87 GB, **16.54 MB** (`wasm.br` 10.28, `data.br` 6.13, `framework.js.br` 0.08, `loader.js` 0.03) vs M4 16.45 MB (+0.09 MB) |
+| Full match | `?bot=match` (normal-tier BotBrain on the predicted state): lobby → deal → Block Party Dash → Goo Tower → Star Scramble → Crumble Shelf → champion → receipt, `COMPLETE` (38 events). No exceptions (only Unity's start-up "hidden URP shader not supported" lines, as in M4) |
+| Determinism self-test (`?selftest=1`) | **PASS** `hazard_vectors_v1` `fc06826c…` and **PASS** `hazard_vectors_v2` `d4b2a73a…` |
+| Corrections in racing windows | BPD 0 (13 windows) · Goo 4 (10) · Star 1 (7) · Crumble 0 (8) → ≈ 0.11 / 5 s; **0 hazard mismatches** |
+
+**FPS and draw calls per map** (Playwright's 1280 × 720 window, M2 Air):
+
+| Map | FPS (median / min of 5 s windows) | Frame p95 max | Draw calls (median / max) | Tris max | M4 draw calls |
+|---|---|---|---|---|---|
+| Lobby | 59 / 59 | 18 ms | 55 / 135 | 31k | 160 |
+| Block Party Dash | 59 / 59 | 19 ms | 128 / 421 | 57k | 490 |
+| Goo Tower | 59 / 59 | 18 ms | 191 / 256 | 48k | 282 |
+| Star Scramble | 59 / 59 | 18 ms | 51 / 139 | 32k | 171 |
+| Crumble Shelf | 59 / 59 | 18 ms | 35 / 62 | 19k | 51 |
+
+Draw calls fell on every map (developer labels stripped, static batching). The maxima are moments with 12 Rushlings and the whole course in view. Doc 17's budget of 150 is G2's (art) target.
+
+**Bugs found in WebGL and fixed** (build 2 verifies them, below):
+- The new settings panel opened whenever the mouse was free, so it covered the lobby panel (incl. Start) and the spectate view (`g1/bug-webgl-settings-over-lobby.png`). It now opens on Esc / pointer-lock loss only.
+- The WebGL build's font has no "–", "▼" or "●" glyphs (no OS fallback). The G1 strings now use ASCII ("1-4", "YOU"). The M4 dots (ping, lobby list, chain chip) are still missing: **G3** (UI kit font) item.
+
+| Release build 2 (after the two fixes) | 334 s build / 404 s wall, **16.55 MB**. Verified in Chrome: the settings panel stays closed in the lobby and while spectating (`g1/webgl-b2-lobby.png`, the Final under Moon Bounce), "1-4" renders. (2 of the 2 allowed WebGL builds.) |
+
+## J. Screenshots (`docs/proof/g1/`, 800 px)
+Every phase and map from a windowed probe match on the Mac dev server (run "b": lobby countdown, dealing, dealt, every round intro, play and spectate on all four maps, every round result, every intermission, champion, receipt), plus WebGL shots (`webgl-*`).
+- **Before / after:** nameplates `before-nameplates-m4.png` → `after-nameplates.png`; camera in Goo Tower `before-camera-gootower-m4.png` → `after-camera-gootower.png`; S1 Block Hop `docs/proof/m4/05-roundintro-r1-blockpartydash.png` (flat blocks) → `play-blockpartydash.png` (the probe on the stepped right lane).
+- `bug-webgl-settings-over-lobby.png`: the WebGL bug found and fixed in §H.
+- Note: run "b" was taken before two later fixes (labels overlapping a nearer one are now hidden, not dimmed; the start gate lifts 5.2 m and its title sign is dev-only).

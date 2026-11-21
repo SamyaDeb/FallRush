@@ -238,7 +238,7 @@ Proof: [`docs/proof/G1-polish.md`](docs/proof/G1-polish.md) · QA [`docs/proof/g
 | Real clients: localhost / 150 ms + loss (non-push corr. / 5 s) | ✅ 0.00 / 0.18; hazard mismatches 0; all 3 probes connected through loss |
 | UX: screen-space nameplates, settings, name entry, friendly names, hints, controls card, camera decollider, help bar F1, connect retries, dev practice/tuning mode | ✅ |
 | EditMode | ✅ **275 / 275** |
-| WebGL release | see proof §H |
+| WebGL release: full match in Chrome, 59 FPS on every map, self-test v1 + v2 PASS, 16.55 MB (M4 16.45); draw calls BPD 128 median / 421 max (M4 490), Goo 191 / 256 (M4 282) | ✅ |
 
 ### For you (G1)
 - **Play it** (README "G1: run it") and judge the feel; tune live with the practice mode (F6 / F7) and tell me values or notes in `docs/playtest/G1-notes.md`.
@@ -250,6 +250,7 @@ Proof: [`docs/proof/G1-polish.md`](docs/proof/G1-polish.md) · QA [`docs/proof/g
 - **Visuals that exist (greybox, restyle them):** Bolt (procedural parts, 9 face glyphs incl. Happy / Sad), all poses in `RushlingVisuals` (doc 17 §2.3.1), hazard telegraphs, instanced tiles (top-shelf respawn blink), podium + crown, HUD texts (outlined), panels (`UiKit`), settings panel (`SettingsPanel`, UGUI default controls), screen-space nameplates.
 - **Juice hooks (G3):** `RushlingVisuals.StunStartedThisFrame / DiveStartedThisFrame`, landing (impact 0–1), stumble start, get-up pop, emote start, tile respawn (`ReactiveSet.TileReturnsIn`), `GameSettings.MusicVolume / SfxVolume` (sliders already saved).
 - **Budgets:** dev labels are stripped from builds and WebGL static batching is on; draw calls in proof §H. Doc 17 §3.2 budget (150) is still for G2's art pass.
+- **WebGL font:** the built-in font has no "●", "▼", "–" glyphs in WebGL (M4's ping / lobby dots are invisible there): pick a real font in G3's UI kit.
 - Map signs kept: map titles (except BPD's, which sat on the start gate), CHECKPOINT n, FINISH, ESCAPE!. G2 makes them pretty.
 
 ## Next milestones
