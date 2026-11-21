@@ -1,0 +1,3 @@
+- **spawn view (follow framing)**: 21 visible renderers, 21 renderer × material draws (MergedStatic 6, Hazards 12, Dressing 2; by root: Hazards 12; Geometry 1; MergedStatic 6; Dressing 2;) — Editor frustum count, no Rushlings, no UI; not a GPU capture.
+- **spawn look-up**: 14 visible renderers, 14 renderer × material draws (MergedStatic 4, Hazards 6, Dressing 3; by root: MergedStatic 4; Hazards 6; Dressing 3; Geometry 1;) — Editor frustum count, no Rushlings, no UI; not a GPU capture.
+- goo mid-round shot: t 45 s, goo y 5.64 m (stand-in plane at the pure GooYMm height)

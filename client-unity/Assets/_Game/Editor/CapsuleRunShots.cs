@@ -83,9 +83,9 @@ public static class CapsuleRunShots
         Object.DestroyImmediate(go);
     }
 
-    private static MapInfo _map;
+    internal static MapInfo _map;
 
-    private static void Pose(HazardViewDriver view, HazardSet hz, double t)
+    internal static void Pose(HazardViewDriver view, HazardSet hz, double t)
     {
         view.Update(hz, t, false);
         if (_map == null)
@@ -107,13 +107,13 @@ public static class CapsuleRunShots
         Debug.Log($"[shots] t={t}: balls active {active}/{total}, first {first}, hz lanes {hz.RollingBalls.Length}");
     }
 
-    private static void Shot(Camera cam, string dir, string name, Vector3 eye, Vector3 at, int w, int h)
+    internal static void Shot(Camera cam, string dir, string name, Vector3 eye, Vector3 at, int w, int h)
     {
         cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(at - eye));
         Render(cam, Path.Combine(dir, name + ".png"), w, h);
     }
 
-    private static void Render(Camera cam, string path, int w, int h)
+    internal static void Render(Camera cam, string path, int w, int h)
     {
         var rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4 };
         cam.targetTexture = rt;
@@ -132,7 +132,7 @@ public static class CapsuleRunShots
     }
 
     /// <summary>Enabled renderers whose bounds meet the camera frustum, × their sub-meshes (an Editor proxy for draw calls).</summary>
-    private static string CountVisible(Camera cam, string label)
+    internal static string CountVisible(Camera cam, string label)
     {
         var planes = GeometryUtility.CalculateFrustumPlanes(cam);
         int renderers = 0, draws = 0, chunks = 0, hazards = 0, dressing = 0;
@@ -157,7 +157,7 @@ public static class CapsuleRunShots
         return sb.ToString();
     }
 
-    private static string Arg(string name)
+    internal static string Arg(string name)
     {
         var a = System.Environment.GetCommandLineArgs();
         for (var i = 0; i < a.Length - 1; i++)

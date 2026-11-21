@@ -1,6 +1,6 @@
 # Fall Rush — Project Status
 
-_Last updated: 2026-11-20 (**G4.2 Capsule Run done**: 0 free routes, race QA PASS, tests 329/329; next G4.3 Goo Tower. Before: **G4.0 + G4.1 done**: design rules, display names, route-cost QA, ROLLING_BALL + LID_FLIP + bump flag (off); 323/323 EditMode, vectors v3, guard QA + soak 20/20 PASS; next G4.2 Capsule Run. Earlier: G2/G3 game freeze, see below)_
+_Last updated: 2026-11-20 (**G4.3 Goo Tower done**: 2 laps / 14 m core / 22 m, 0 free routes, all ratios ≤ 1.25, survival QA PASS, tests 338/338; open: round median 59 s vs 90–110 and 4.1–4.3 normal escapes (your call, proof §4); 150 ms probe fixed (R22); next G4.4 Star Fountain. Before: **G4.2 Capsule Run done**: 0 free routes, race QA PASS, tests 329/329. Before: **G4.0 + G4.1 done**: design rules, display names, route-cost QA, ROLLING_BALL + LID_FLIP + bump flag (off); 323/323 EditMode, vectors v3, guard QA + soak 20/20 PASS; next G4.2 Capsule Run. Earlier: G2/G3 game freeze, see below)_
 
 **Hackathon:** MagicBlock Blitz V10, running Nov 20 to Nov 27, 2026.
 - **Submission deadline:** Nov 27, 14:00 UTC (19:30 IST).
@@ -267,7 +267,8 @@ The G2/G3 "game freeze" is reopened for G4 by your decision: **gameplay freeze S
 | Vectors v3 `e158996b…` (v1/v2 unchanged), sandbox G4 section, prediction twin 0 corrections | ✅ |
 | Guard on today's maps: g1-qa BPD PASS (identical numbers), m4-qa 20 ×4 PASS, soak 20/20 | ✅ |
 | **G4.2** Capsule Run rebuilt (key `BlockPartyDash`): 7 beats, no in-world text, route cost 36 → **0 free routes**, race QA PASS (8/12 every run, normal median 86.7 s; three variant-A cells under 85 s, accepted), tests 329/329, guard + soak; proof `docs/proof/G4.2-capsule-run.md` | ✅ |
-| **G4.3** Goo Tower → G4.4 Star Fountain → G4.5 Lid Flip → G4.6 palette → G4.7 QA + freeze | next |
+| **G4.3** Goo Tower rebuilt (2 laps, 14 m core, 22 m; 8 sides, one obstacle each, every lane a knock hazard; no in-world text): route cost **0 free routes, ratios ≤ 1.25**; survival QA PASS (reference 4.9–5.0 / normal 4.1–4.3 escaped, median 51.5 / 58.9 s — **under target, your call**); every route escapes alone (margin 6.5–9.5 s); prediction 0 hazard mismatches (150 ms ≤ 0.2 corrections / 5 s); guard ×3 PASS; tests 338/338; R22 150 ms probe fixed; proof `docs/proof/G4.3-goo-tower.md` | ✅ (open items) |
+| G4.4 Star Fountain → G4.5 Lid Flip → G4.6 palette → G4.7 QA + freeze | next |
 
 Proof: `docs/proof/G4.0-G4.1.md`. Try the new hazards: menu "Practice: G4 hazards sandbox (dev)" in the Editor.
 
@@ -276,6 +277,13 @@ Proof: `docs/proof/G4.0-G4.1.md`. Try the new hazards: menu "Practice: G4 hazard
 
 ### For you (G4.2)
 - Play Capsule Run and write notes in `docs/playtest/G4-notes.md` (steps there). Open: per-cell durations (A None / ButterFloors / TinyTilt 77–80 s with normal bots), outer slope lines hit more than inner ones, the finish arch at the top edge of the spawn view.
+
+### For you (G4.3)
+- Play Goo Tower (steps in `docs/playtest/G4-notes.md`). Decide: (1) round length 59 s and 4.1–4.3 normal escapes — catch ledges on lap 2, a longer climb, or accept a short round (proof §4); (2) the summit is outside the default spawn frame (beacon visible looking up); (3) the k1 / k7 gumballs roll toward the core, not toward the rail.
+
+### Notes for M6 (from G4.3)
+- **New `GooTower` content hash `fe3f12083cbb969daf8575bd137de1442f08222f785b0908686f058ab0d16747`** (was `fb5a25bb…`) → map-pool / ruleset v2. Key, id 1, mode Survival, 2 variants, modifier weights (None only) and `map_pool_v1.json` unchanged.
+- Dev only: probe clients use `-fallrushConnectTimeoutMs 4000` (R22). The shipped `NetClientConfig` is unchanged; on the VPS re-check the WebGL connect at 150 ms in M6.
 
 ### Notes for M6 (from G4.2)
 - **New `BlockPartyDash` content hash `50125d891a5394c76e2b44e9179c21deb02347c6d13f986c8447218a70b6a754`** (was `965b8ccf…`) → map-pool / ruleset v2. Key, id 0, mode, 2 variants, modifier weights and `map_pool_v1.json` unchanged.
