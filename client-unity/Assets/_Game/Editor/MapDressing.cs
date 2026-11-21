@@ -466,9 +466,13 @@ public static class MapDressing
         private readonly List<Vector3> _v = new List<Vector3>();
         private readonly List<Vector3> _n = new List<Vector3>();
         private readonly List<Color> _c = new List<Color>();
+        private readonly List<Vector2> _u2 = new List<Vector2>(); // G4.6: uv2 of added meshes (hazard view-rim flag y = 4); padded with 0
         private readonly List<int> _t = new List<int>();
 
         public int Count => _v.Count;
+
+        /// <summary>G4.6: primitive colours are sRGB palette colours: bake them like the blocks (<see cref="MapArt.Bake"/>).</summary>
+        private void AddC(Color c) => _c.Add(MapArt.Bake(c));
 
         /// <summary>A UV sphere (ellipsoid with radii <paramref name="r"/>), colour blended from <paramref name="top"/> to <paramref name="bottom"/>.</summary>
         public void Sphere(Vector3 c, Vector3 r, Color top, Color bottom, int seg = 12, int rings = 8)
@@ -484,7 +488,7 @@ public static class MapDressing
                     var d = new Vector3(Mathf.Sin(phi) * Mathf.Cos(th), Mathf.Cos(phi), Mathf.Sin(phi) * Mathf.Sin(th));
                     _v.Add(c + Vector3.Scale(d, r));
                     _n.Add(new Vector3(d.x / r.x, d.y / r.y, d.z / r.z).normalized);
-                    _c.Add(Color.Lerp(bottom, top, d.y * 0.5f + 0.5f));
+                    AddC(Color.Lerp(bottom, top, d.y * 0.5f + 0.5f));
                 }
             }
 
@@ -512,8 +516,8 @@ public static class MapDressing
             {
                 var ang = i * Mathf.PI * 2f / sides;
                 var n = u * Mathf.Cos(ang) + w * Mathf.Sin(ang);
-                _v.Add(a + n * r); _n.Add(n); _c.Add(col * 0.9f);
-                _v.Add(b + n * r); _n.Add(n); _c.Add(col);
+                _v.Add(a + n * r); _n.Add(n); AddC(col * 0.9f);
+                _v.Add(b + n * r); _n.Add(n); AddC(col);
             }
 
             for (var i = 0; i < sides; i++)
@@ -526,11 +530,11 @@ public static class MapDressing
             foreach (var (p, nn) in new[] { (a, -d), (b, d) })
             {
                 var c0 = _v.Count;
-                _v.Add(p); _n.Add(nn); _c.Add(col);
+                _v.Add(p); _n.Add(nn); AddC(col);
                 for (var i = 0; i < sides; i++)
                 {
                     var ang = i * Mathf.PI * 2f / sides;
-                    _v.Add(p + (u * Mathf.Cos(ang) + w * Mathf.Sin(ang)) * r); _n.Add(nn); _c.Add(col);
+                    _v.Add(p + (u * Mathf.Cos(ang) + w * Mathf.Sin(ang)) * r); _n.Add(nn); AddC(col);
                 }
 
                 for (var i = 0; i < sides; i++)
@@ -552,7 +556,7 @@ public static class MapDressing
                 for (var k = 0; k < 3; k++)
                 {
                     _n.Add(nn);
-                    _c.Add(col);
+                    AddC(col);
                 }
 
                 _t.Add(s); _t.Add(s + 1); _t.Add(s + 2);
@@ -566,13 +570,18 @@ public static class MapDressing
             var mv = mesh.vertices;
             var mn = mesh.normals;
             var mc = mesh.colors;
+            var mu = new List<Vector2>();
+            mesh.GetUVs(1, mu);
             var nm = m.inverse.transpose;
+            while (_u2.Count < start)
+                _u2.Add(Vector2.zero);
             for (var i = 0; i < mv.Length; i++)
             {
+                _u2.Add(mu.Count > i ? mu[i] : Vector2.zero);
                 _v.Add(m.MultiplyPoint3x4(mv[i]));
                 _n.Add(nm.MultiplyVector(mn.Length > i ? mn[i] : Vector3.up).normalized);
                 var col = mc.Length > i ? mc[i] : Color.white;
-                _c.Add(tint.HasValue ? col * tint.Value : col);
+                _c.Add(tint.HasValue ? col * tint.Value.linear : col); // mesh colours are linear already
             }
 
             foreach (var t in mesh.triangles)
@@ -592,6 +601,13 @@ public static class MapDressing
             mesh.SetVertices(_v);
             mesh.SetNormals(_n);
             mesh.SetColors(_c);
+            if (_u2.Exists(u => u != Vector2.zero))
+            {
+                while (_u2.Count < _v.Count)
+                    _u2.Add(Vector2.zero);
+                mesh.SetUVs(1, _u2);
+            }
+
             mesh.SetTriangles(FixWinding(_t), 0);
             mesh.RecalculateBounds();
             go.AddComponent<MeshFilter>().sharedMesh = mesh;

@@ -38,6 +38,26 @@ public static class StarScrambleBuilder
     /// <summary>Burst origin (the crown, world): the arcs start here.</summary>
     public static readonly Vector3 Crown = new Vector3(0f, 3.5f, 0f);
 
+    /// <summary>
+    /// G4.6 render-only section tag (doc 17 §3.1 hue table) from the builder's names: the islands, the turntable, the static
+    /// centre (the inner floor disc and its ring line, r ≤ 11.2 m), else the outer ring.
+    /// </summary>
+    public static string SectionAt(Transform t)
+    {
+        for (var x = t; x != null; x = x.parent)
+        {
+            var n = x.name;
+            if (n.Contains("ss_island"))
+                return "islands";
+            if (n.Contains("ss_table"))
+                return "table";
+            if (n == "ArenaRingIn" || n == "ArenaRing")
+                return "centre";
+        }
+
+        return "outer";
+    }
+
     // ------------------------------------------------------------------ tuning (G4.4c log in docs/proof/G4.4-star-fountain.md)
     private const int TablePeriod = 900;            // 30 s per turn, rim 1.9 m/s (TurboToys 750: 2.3 m/s; cap 4)
     private const int SweepPeriod = 90;             // 3 s per turn, tip 7.3 m/s (TurboToys 75: 8.8 m/s; cap 12). G4.4c: 105 → 90 (normal bots dropped 0.94 per round in A)

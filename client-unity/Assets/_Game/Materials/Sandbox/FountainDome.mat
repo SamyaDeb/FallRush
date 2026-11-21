@@ -134,6 +134,7 @@ Material:
     - _Parallax: 0.005
     - _QueueOffset: 0
     - _ReceiveShadows: 1
+    - _RimAll: 0
     - _RimPower: 3
     - _RimStrength: 0.3
     - _RushlingMesh: 0
@@ -147,6 +148,7 @@ Material:
     - _Stripes: 0
     - _Surface: 0
     - _Unlit: 0
+    - _ViewRim: 0
     - _WorkflowMode: 1
     - _XRMotionVectorsPass: 1
     - _ZWrite: 1

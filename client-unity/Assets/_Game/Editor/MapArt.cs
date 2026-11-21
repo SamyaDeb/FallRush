@@ -34,6 +34,7 @@ public static class MapArt
         EnsurePaletteAsset();
         EnsureRuntimeAssets();
         BevelCache.Clear();
+        BakeCache.Clear();
         _cube = Resources.GetBuiltinResource<Mesh>("Cube.fbx");
         var geo = Find(scene, "Geometry");
         var hz = Find(scene, "Hazards");
@@ -42,7 +43,7 @@ public static class MapArt
         // 2. hazard groups first (they read the original materials' colours), then 3. blocks.
         MapDressing.DecorateHazards(info, mapKey);
         if (info != null)
-            MergeHazards(info, vc);
+            MergeHazards(info, vc, mapKey);
         if (geo != null)
             Blocks(geo, vc, mapKey);
         if (hz != null)
@@ -257,6 +258,8 @@ public static class MapArt
         m.SetColor("_BaseColor", color);
         m.SetColor("_ShadeColor", P.shade);
         m.SetFloat("_RimStrength", 0.3f);
+        m.SetFloat("_ViewRim", 0f);
+        m.SetFloat("_RimAll", 0f);
         m.SetFloat("_Gloss", 0f);
         m.SetFloat("_Unlit", 0f);
         m.SetColor("_Emission", Color.black);
@@ -286,13 +289,19 @@ public static class MapArt
     }
 
     /// <summary>White base × vertex colours: every block and merged hazard of a map shares it.</summary>
-    public static Material VertexColorMaterial() => ToonAsset("VertexColor", Color.white, m => m.SetFloat("_RimStrength", 0.22f));
+    public static Material VertexColorMaterial() => ToonAsset("VertexColor", Color.white, m =>
+    {
+        m.SetFloat("_RimStrength", 0.22f);
+        m.SetFloat("_ViewRim", 0.38f); // G4.6: hit-hazard parts only (uv2.y = 4), never up-facing faces
+    });
 
     /// <summary>Rushling body material (cloned per colour at runtime is no longer needed: the parts carry vertex colours).</summary>
     public static Material CharacterMaterial() => ToonAssetAt(ProjectSetup.Root + "/Resources/FallRush/Character.mat", Color.white, m =>
     {
         m.SetFloat("_Gloss", 0.55f);
         m.SetFloat("_RimStrength", 0.42f);
+        m.SetFloat("_ViewRim", 0.35f); // G4.6: Rushlings keep a rim in shade too
+        m.SetFloat("_RimAll", 1f);
         m.SetColor("_OutlineColor", P.ink);
         m.SetFloat("_OutlineWidth", 0.016f);
         m.SetFloat("_RushlingMesh", 1f); // uv2.x = lid on Rushling meshes
@@ -307,6 +316,8 @@ public static class MapArt
         m.SetFloat("_Stripes", 1f);
         m.SetColor("_StripeColor", P.hazardMagenta);
         m.SetFloat("_StripeWidth", 0.28f);
+        m.SetFloat("_ViewRim", 0.38f); // G4.6: static hazard posts get the view rim too
+        m.SetFloat("_RimAll", 1f);
     });
 
     /// <summary>Retones a greybox builder material in place (same asset, so scene references stay) by its name.</summary>
@@ -350,39 +361,88 @@ public static class MapArt
     private static bool IsCube(MeshFilter mf) => mf != null && IsCube(mf.sharedMesh);
 
     /// <summary>Materials that keep their own look (transparent glass, thin decals): not turned into toy blocks.</summary>
-    private static bool KeepsOwnMaterial(string name) => name == "LobbyGlass" || name == "GooDome" || name == "StarRing";
+    private static bool KeepsOwnMaterial(string name) => name == "LobbyGlass" || name == "GooDome";
 
-    private static Style StyleFor(string matName, Vector3 pos, string mapKey)
+    /// <summary>
+    /// G4.6: the surface hue of a built object = its section (doc 17 §3.1 hue table, <see cref="PaletteTokens.Sections"/>).
+    /// The section comes from the builder (its layout constants / object names), never from the colour of a material.
+    /// </summary>
+    public static SurfaceHue HueFor(string mapKey, Transform t)
+    {
+        string section = null;
+        switch (mapKey)
+        {
+            case "BlockPartyDash":
+            {
+                var r = t.GetComponent<Renderer>();
+                section = BlockPartyDashBuilder.SectionAt(r != null && r.enabled ? r.bounds.center : t.position);
+                break;
+            }
+            case "GooTower": section = GooTowerBuilder.SectionAt(t); break;
+            case "StarScramble": section = StarScrambleBuilder.SectionAt(t); break;
+            case "Lobby": section = LobbySection(t); break;
+        }
+
+        return PaletteTokens.HueOf(mapKey, section);
+    }
+
+    /// <summary>Lobby: the plaza deck Soda blue, its checker tiles (<c>Tile_x_z</c>) alternating Bubblegum / Tangerine.</summary>
+    private static string LobbySection(Transform t)
+    {
+        var parts = t.name.Split('_');
+        if (parts.Length == 3 && parts[0] == "Tile" && int.TryParse(parts[1], out var x) && int.TryParse(parts[2], out var z))
+            return ((x - z) / 2 & 1) == 0 ? "tileA" : "tileB";
+        return "deck";
+    }
+
+    /// <summary>Walkable surface materials: their top is the section hue, their sides the hue's side.</summary>
+    private static bool IsSurface(string m) => m == "Walkable" || m == "BpdDeck" || m == "LobbyDeck" || m == "StarFloor" || m == "GooLedge" ||
+                                              m == "GooStep" || m == "Feature" || m == "BpdBlock" || m == "GooBlock" || m == "ShouldBlock" ||
+                                              m == "Platform" || m == "LobbyTile";
+
+    private static bool IsWall(string m) => m == "BpdWall" || m == "LobbyWall" || m == "GooRail" || m == "Beam";
+
+    /// <summary>The belt body: the section hue at low saturation (darker than the decks, so the light chevrons read as moving).</summary>
+    public static Color BeltTop(Color hueTop)
+    {
+        Color.RGBToHSV(hueTop, out var h, out _, out _);
+        return Color.HSVToRGB(h, 0.5f, 0.78f);
+    }
+
+    /// <summary>Turntable stripes / spokes: the section hue darkened toward ink (readable as moving, never mint on a walkable top).</summary>
+    public static Color MoverStripe(Color hueTop) => Color.Lerp(hueTop, PaletteTokens.Get().ink, 0.35f);
+
+    private static readonly Dictionary<Color, Color> BakeCache = new Dictionary<Color, Color>();
+
+    /// <summary>
+    /// G4.6-3: an sRGB palette colour → the vertex colour that shows it on a lit top after the grade
+    /// (<see cref="FallRush.Client.GraphicsQuality.AlbedoFor"/> under the map light: warm sun + cool sky ambient).
+    /// </summary>
+    public static Color Bake(Color srgb)
+    {
+        if (BakeCache.TryGetValue(srgb, out var c))
+            return c;
+        c = FallRush.Client.GraphicsQuality.AlbedoFor(srgb, FallRush.Client.GraphicsQuality.TopLight(P.sun, P.ambientSky));
+        BakeCache[srgb] = c;
+        return c;
+    }
+
+    private static Style StyleFor(string matName, Vector3 pos, string mapKey, SurfaceHue hue)
     {
         var p = P;
-        var hash = Mathf.Abs(Mathf.RoundToInt(pos.x * 0.37f) * 7 + Mathf.RoundToInt(pos.z * 0.29f) * 13 + Mathf.RoundToInt(pos.y) * 3);
-        var pastel = p.blockSides[hash % p.blockSides.Length];
-        var s = new Style { Top = p.walkTop, Band = p.walkBand, Side = p.walkSide, BandH = 0.14f, Bevel = 0.05f };
+        var top = p.HueTop(hue);
+        var side = p.HueSide(hue);
+        var s = new Style { Top = top, Band = Color.Lerp(top, Color.white, 0.3f), Side = side, BandH = 0.14f, Bevel = 0.05f };
+        if (IsSurface(matName))
+            return s;
+        if (IsWall(matName))
+        {
+            s.Side = Color.Lerp(side, p.ink, 0.12f); // rails / walls a shade deeper than the decks
+            return s;
+        }
+
         switch (matName)
         {
-            case "Walkable":
-            case "BpdDeck":
-            case "LobbyDeck":
-            case "StarFloor":
-            case "GooLedge":
-            case "GooStep":
-                s.Side = mapKey == "GooTower" ? Color.Lerp(p.walkSide, p.goo, 0.18f) : p.walkSide;
-                break;
-            case "Feature":
-            case "BpdBlock":
-            case "GooBlock":
-            case "ShouldBlock":
-            case "Platform":
-            case "LobbyTile":
-                s.Side = pastel;
-                break;
-            case "BpdWall":
-            case "LobbyWall":
-            case "GooRail":
-            case "Beam":
-                s.Side = p.wallSide;
-                s.Top = Color.Lerp(p.walkTop, p.wallSide, 0.25f);
-                break;
             case "SpawnMint":
             case "Spring":
                 s.Top = s.Band = Color.Lerp(p.mint, Color.white, 0.15f);
@@ -391,8 +451,9 @@ public static class MapArt
                 break;
             case "Grape":
             case "CrumbleFrame":
-                s.Top = s.Band = Color.Lerp(p.grape, Color.white, 0.25f);
-                s.Side = p.grape;
+                // G4.6: machine purple, deepened toward ink (the lighter grape top sat within ΔE 10 of goo and Grape fizz).
+                s.Top = s.Band = Color.Lerp(p.grape, p.ink, 0.35f);
+                s.Side = Color.Lerp(p.grape, p.ink, 0.5f);
                 break;
             case "Checker":
             case "Ink":
@@ -405,8 +466,8 @@ public static class MapArt
                 s.Stripes = true;
                 break;
             case "Belt":
-                s.Top = s.Band = new Color(0.66f, 0.64f, 0.86f);
-                s.Side = new Color(0.55f, 0.52f, 0.78f);
+                s.Top = s.Band = BeltTop(top);
+                s.Side = Color.Lerp(BeltTop(top), p.ink, 0.25f);
                 break;
             case "BeltArrow":
                 s.Top = s.Band = s.Side = new Color(0.97f, 0.97f, 1f);
@@ -422,11 +483,40 @@ public static class MapArt
             case "StarRim":
                 s.Top = s.Band = s.Side = p.sunYellow;
                 break;
-            default:
-                return s;
+            case "StarRing":
+                s.Top = s.Band = s.Side = side; // the static centre's edge line (its hue's side)
+                break;
         }
 
         return s;
+    }
+
+    /// <summary>Round prisms (floors, discs, hubs) that take a block style: re-coloured by vertex like the toy blocks.</summary>
+    private static bool StyledPrism(string m) => IsSurface(m) || IsWall(m) || m == "Grape" || m == "StarRing";
+
+    /// <summary>A copy of a prism mesh (top cap at local y 0, body down to −1) in a block style: top cap, sides with AO, dark bottom.</summary>
+    private static Mesh StyledMesh(Mesh src, Style st)
+    {
+        var key = $"{src.name}_{ColorUtility.ToHtmlStringRGB(st.Top)}{ColorUtility.ToHtmlStringRGB(st.Side)}";
+        if (BevelCache.TryGetValue(key, out var cached))
+            return cached;
+        var v = src.vertices;
+        var n = src.normals;
+        var c = new Color[v.Length];
+        const float ao = 0.74f;
+        var top = Bake(st.Top);
+        var side = Bake(st.Side); // baked, as BevelBoxRaw
+        for (var i = 0; i < v.Length; i++)
+        {
+            var ny = n.Length > i ? n[i].y : 0f;
+            c[i] = ny > 0.7f ? top : ny < -0.7f ? side * (ao * 0.85f) : Color.Lerp(side * ao, side, Mathf.Clamp01(1f + v[i].y));
+        }
+
+        var m = Object.Instantiate(src);
+        m.name = "Styled_" + key;
+        m.colors = c;
+        BevelCache[key] = m;
+        return m;
     }
 
     private static void Blocks(Transform root, Material vc, string mapKey)
@@ -434,14 +524,25 @@ public static class MapArt
         var stripes = StripeMaterial();
         foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
         {
-            if (!IsCube(mf))
-                continue;
             var r = mf.GetComponent<MeshRenderer>();
             if (r == null || r.sharedMaterial == null || KeepsOwnMaterial(r.sharedMaterial.name))
                 continue;
             var t = mf.transform;
+            var matName = r.sharedMaterial.name;
+            if (!IsCube(mf))
+            {
+                // G4.6: round floors / discs / hubs (static prisms) take the section hue in vertex colours on the shared material.
+                if (mf.sharedMesh != null && mf.sharedMesh.name.StartsWith("Prism") && StyledPrism(matName))
+                {
+                    mf.sharedMesh = StyledMesh(mf.sharedMesh, StyleFor(matName, t.position, mapKey, HueFor(mapKey, t)));
+                    r.sharedMaterial = vc;
+                }
+
+                continue;
+            }
+
             var size = t.lossyScale;
-            var st = StyleFor(r.sharedMaterial.name, t.position, mapKey);
+            var st = StyleFor(matName, t.position, mapKey, HueFor(mapKey, t));
             mf.sharedMesh = BevelBox(Abs(size), st);
             r.sharedMaterial = st.Stripes ? stripes : vc;
         }
@@ -462,6 +563,11 @@ public static class MapArt
         var key = $"{size.x:F3}_{size.y:F3}_{size.z:F3}_{ColorUtility.ToHtmlStringRGB(top)}{ColorUtility.ToHtmlStringRGB(band)}{ColorUtility.ToHtmlStringRGB(side)}_{bandH:F2}_{bevel:F3}";
         if (BevelCache.TryGetValue(key, out var cached))
             return cached;
+        // G4.6: vertex colours are read as linear (linear project) and then lit and graded; bake each (sRGB, on-screen)
+        // palette colour through the inverse grade, so a lit top shows its token after the grade (decision G4.6-3).
+        top = Bake(top);
+        band = Bake(band);
+        side = Bake(side);
         var b = Mathf.Min(bevel, Mathf.Min(size.x, Mathf.Min(size.y, size.z)) * 0.25f);
         var hx = size.x * 0.5f;
         var hy = size.y * 0.5f;
@@ -586,23 +692,23 @@ public static class MapArt
 
     // ------------------------------------------------------------------ hazard groups → one mesh each
 
-    private static void MergeHazards(MapInfo info, Material vc)
+    private static void MergeHazards(MapInfo info, Material vc, string mapKey)
     {
         foreach (var sw in info.sweepers)
             if (sw != null && sw.barVisual != null)
-                Merge(sw.barVisual, vc, null);
+                Merge(sw.barVisual, vc, null, mapKey, hit: true);
         foreach (var pl in info.platforms)
             if (pl != null && pl.visual != null)
-                Merge(pl.visual, vc, null);
+                Merge(pl.visual, vc, null, mapKey, mover: true); // G4.6: the mint rim → the hue's mover stripe
         foreach (var tt in info.turnTables)
             if (tt != null && tt.visual != null)
-                Merge(tt.visual, vc, null);
+                Merge(tt.visual, vc, null, mapKey, mover: true);
         foreach (var d in info.doors)
             if (d != null && d.visual != null)
-                Merge(d.visual, vc, t => t == d.visual || t.name.StartsWith("Bar_") ? 1f : 0f); // the door body (G4.2: or its grille bars) flashes, the stripes stay
+                Merge(d.visual, vc, t => t == d.visual || t.name.StartsWith("Bar_") ? 1f : 0f, mapKey, hit: true); // the door body (G4.2: or its grille bars) flashes, the stripes stay
         foreach (var ml in info.mallets)
             if (ml != null && ml.visual != null)
-                Merge(ml.visual, vc, t => t.name == "HeadBody" ? 1f : 0f); // the head glows during the wind-up
+                Merge(ml.visual, vc, t => t.name == "HeadBody" ? 1f : 0f, mapKey, hit: true); // the head glows during the wind-up
         foreach (var bm in info.bumpers)
             if (bm != null && bm.visual != null)
             {
@@ -622,27 +728,30 @@ public static class MapArt
                     Object.DestroyImmediate(cf);
                 }
 
-                Merge(bm.visual, vc, null);
+                Merge(bm.visual, vc, null, mapKey, hit: true);
                 bm.visual.gameObject.isStatic = true; // bumpers never move: static batching
             }
         foreach (var pd in info.pads)
             if (pd != null && pd.visual != null)
-                Merge(pd.visual, vc, null);
+                Merge(pd.visual, vc, null, mapKey);
         foreach (var fb in info.fallingBlocks)
             if (fb != null && fb.visual != null)
-                Merge(fb.visual, vc, null);
+                Merge(fb.visual, vc, null, mapKey, mover: true);
         foreach (var cv in info.conveyors)
             if (cv != null && cv.visual != null)
-                Merge(cv.visual, vc, null, chevrons: true);
+                Merge(cv.visual, vc, null, mapKey, chevrons: true);
     }
 
     /// <summary>
     /// Merges every MeshRenderer under <paramref name="root"/> (inclusive) into one mesh on the root, in its local space,
     /// with each part's material colour (and its block style) baked into vertex colours. Parts are removed; the root
-    /// transform the client moves is kept.
+    /// transform the client moves is kept. G4.6: walkable parts take the group's section hue; <paramref name="hit"/> groups
+    /// (sweepers, mallets, doors, bumpers) flag uv2.y = 4 for the toon view rim; <paramref name="mover"/> (turntables) turns
+    /// its stripes / spokes (and a moving platform its mint rim) into the hue's darker stripe (never mint on a walkable top).
     /// </summary>
-    private static void Merge(Transform root, Material vc, System.Func<Transform, float> mask, bool chevrons = false)
+    private static void Merge(Transform root, Material vc, System.Func<Transform, float> mask, string mapKey, bool chevrons = false, bool hit = false, bool mover = false)
     {
+        var hue = HueFor(mapKey, root);
         var parts = root.GetComponentsInChildren<MeshRenderer>(true);
         if (parts.Length == 0)
             return;
@@ -664,8 +773,27 @@ public static class MapArt
             var isCube = IsCube(mesh);
             var matName = mat.name;
             var stripes = matName == "HazardYellow" || matName == "HazardMagenta";
+            var st = StyleFor(matName, r.transform.position, mapKey, hue);
+            if (mover && (matName == "SpawnMint" || matName == "Grape" || matName == "TableStripe"))
+            {
+                st.Top = st.Band = st.Side = MoverStripe(P.HueTop(hue));
+                st.Bevel = 0f;
+            }
+
+            var tint = (Color?)null;
+            var styled = false;
             if (isCube && !stripes)
-                mesh = BevelBox(Abs(r.transform.lossyScale), StyleFor(matName, r.transform.position, ""));
+            {
+                mesh = BevelBox(Abs(r.transform.lossyScale), st);
+                styled = true;
+            }
+            else if (!isCube && !stripes && mesh.name.StartsWith("Prism") && StyledPrism(matName))
+            {
+                mesh = StyledMesh(mesh, st);
+                styled = true;
+            }
+            else if (mover && (matName == "TableStripe" || matName == "SpawnMint" || matName == "Grape"))
+                tint = st.Top;
             var m = toLocal * r.transform.localToWorldMatrix;
             var mv = mesh.vertices;
             var mn = mesh.normals;
@@ -679,12 +807,15 @@ public static class MapArt
             {
                 v.Add(m.MultiplyPoint3x4(mv[i]));
                 n.Add(m.inverse.transpose.MultiplyVector(mn.Length > i ? mn[i] : Vector3.up).normalized);
-                var k = isCube && !stripes ? (mc.Length > i ? mc[i] : Color.white) : col;
+                // Styled meshes are already baked (BevelBoxRaw / StyledMesh); material and token colours are sRGB: bake them.
+                var k = styled ? (mc.Length > i ? mc[i] : Color.white) : Bake(col);
                 if (stripes)
-                    k = matName == "HazardYellow" ? P.hazardYellow : P.hazardMagenta;
+                    k = Bake(matName == "HazardYellow" ? P.hazardYellow : P.hazardMagenta);
+                if (tint.HasValue)
+                    k = Bake(tint.Value);
                 k.a = a;
                 c.Add(k);
-                u2.Add(new Vector2(idx, 0f));
+                u2.Add(new Vector2(idx, hit ? 4f : 0f));
             }
 
             foreach (var t in mesh.triangles)
@@ -785,8 +916,8 @@ public static class MapArt
             var l = go.GetComponent<Light>();
             if (l != null && l.type == LightType.Directional)
             {
-                l.color = P.sun;
-                l.intensity = 1.2f;
+                l.color = P.sun;      // G4.6: warm sun #FFF1DC
+                l.intensity = FallRush.Client.GraphicsQuality.SunIntensity;
                 l.shadows = LightShadows.None;
                 l.transform.rotation = Quaternion.Euler(48f, -35f, 0f);
                 RenderSettings.sun = l;

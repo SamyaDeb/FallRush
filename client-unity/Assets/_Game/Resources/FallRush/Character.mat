@@ -46,6 +46,7 @@ Material:
     - _LidAngle: 0
     - _MidLevel: 0.6
     - _OutlineWidth: 0.016
+    - _RimAll: 1
     - _RimPower: 3
     - _RimStrength: 0.42
     - _RushlingMesh: 1
@@ -54,6 +55,7 @@ Material:
     - _StripeWidth: 0.35
     - _Stripes: 0
     - _Unlit: 0
+    - _ViewRim: 0.35
     - _ZWrite: 1
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}

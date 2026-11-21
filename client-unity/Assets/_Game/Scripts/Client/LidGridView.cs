@@ -12,7 +12,9 @@ namespace FallRush.Client
     /// shelf and 5 × 5 lower shelf). All lids are drawn with GPU instancing (<see cref="Graphics.RenderMeshInstanced"/>), one
     /// batch per state colour, from the pure lid state at the hazard tick (the motor's colliders follow the same states):
     /// <list type="bullet">
-    /// <item>solid = a calm colour (top shelf mint / cloud by ring, lower shelf lilac, its outer ring darker so its edge reads from above);</item>
+    /// <item>solid = the ring's surface hue (G4.6, doc 17 §3.1: top shelf ring 4 Bubblegum, ring 3 Tangerine, ring 2 Soda blue, rings 1–0
+    /// Bubblegum (G4.6-5: Sour apple read too close to the lit lemon in luminance); the lower shelf Grape fizz with a Grape-fizz-side outer ring so its edge reads from above). Never mint
+    /// (reserved for goal / spring / spawn), never Lemon drop (the lit telegraph is lemon);</item>
     /// <item>lit = sun yellow for the whole lit window (≥ 1 s, no blink: the telegraph never goes dark);</item>
     /// <item>flipped = the lid swings down on a hinge along its edge facing the grid centre (90° over 6 ticks, back over the
     /// last 6), showing its dark underside and the gap;</item>
@@ -26,7 +28,7 @@ namespace FallRush.Client
 
         private enum B
         {
-            TopA, TopB, LowA, LowB, LowEdge, Lit, Warn, WarnLight, Open, Count,
+            TopPink, Top3, Top2, Low, LowEdge, Lit, Warn, WarnLight, Open, Count,
         }
 
         private readonly MapInfo _map;
@@ -37,22 +39,31 @@ namespace FallRush.Client
         private LidState[] _states = Array.Empty<LidState>();
         private int[] _lidScratch = Array.Empty<int>();
 
-        public static readonly Color TopCalmA = new Color(0.66f, 0.94f, 0.84f);   // mint (inner 3 × 3 and even rings)
-        public static readonly Color TopCalmB = new Color(0.95f, 0.97f, 1f);      // cloud
-        public static readonly Color LowCalmA = new Color(0.79f, 0.72f, 1f);      // lilac
-        public static readonly Color LowCalmB = new Color(0.88f, 0.84f, 1f);
-        public static readonly Color LowEdge = new Color(0.55f, 0.36f, 0.95f);    // grape: the lower shelf's outer ring
+        public static readonly Color TopRing4 = PaletteTokens.DefaultTop(SurfaceHue.Bubblegum);
+        public static readonly Color TopRing3 = PaletteTokens.DefaultTop(SurfaceHue.Tangerine);
+        public static readonly Color TopRing2 = PaletteTokens.DefaultTop(SurfaceHue.SodaBlue);
+        public static readonly Color TopRing10 = PaletteTokens.DefaultTop(SurfaceHue.Bubblegum); // G4.6-5 (Sour apple: Δluma vs lit < 0.15)
+        public static readonly Color LowCalm = PaletteTokens.DefaultTop(SurfaceHue.GrapeFizz);
+        public static readonly Color LowEdge = PaletteTokens.DefaultSide(SurfaceHue.GrapeFizz);   // the lower shelf's outer ring
         public static readonly Color LitYellow = new Color(1f, 0.83f, 0.2f);
         public static readonly Color WarnMagenta = new Color(1f, 0.24f, 0.65f);
         public static readonly Color WarnLight = new Color(1f, 0.62f, 0.85f);
         public static readonly Color Open = new Color(0.32f, 0.24f, 0.5f);
+
+        /// <summary>The calm colour of a top-shelf lid in ring <paramref name="ring"/>.</summary>
+        public static Color TopRingColour(int ring) => ring >= 4 ? TopRing4 : ring == 3 ? TopRing3 : ring == 2 ? TopRing2 : TopRing10;
+
+        /// <summary>Every solid (calm) lid colour: top rings 4 / 3 / 2 / 1–0, lower shelf, lower edge (tests).</summary>
+        public static Color[] SolidColours => new[] { TopRing4, TopRing3, TopRing2, TopRing10, LowCalm, LowEdge };
+
+        public static string BatchName(int b) => ((B)b).ToString();
 
         public LidGridView(MapInfo map)
         {
             _map = map;
             _mesh = LidMesh();
             var src = map != null ? map.playerMaterial : null;
-            var cols = new[] { TopCalmA, TopCalmB, LowCalmA, LowCalmB, LowEdge, LitYellow, WarnMagenta, WarnLight, Open };
+            var cols = new[] { TopRing4, TopRing3, TopRing2, LowCalm, LowEdge, LitYellow, WarnMagenta, WarnLight, Open }; // rings 4 and 1–0 share Bubblegum: one batch
             for (var i = 0; i < cols.Length; i++)
             {
                 _mats[i] = Tinted(src, cols[i]);
@@ -70,9 +81,14 @@ namespace FallRush.Client
         private static Material Tinted(Material src, Color c)
         {
             var m = src != null ? new Material(src) : new Material(Shader.Find("FallRush/Toon"));
-            m.SetColor("_BaseColor", c);
+            // G4.6-3: the colours are on-screen (graded) colours; the material gets the albedo that shows them on a lit top.
+            var p = PaletteTokens.Get();
+            var a = GraphicsQuality.AlbedoFor(c, GraphicsQuality.TopLight(p.sun, p.ambientSky));
+            m.SetColor("_BaseColor", new Color(Mathf.LinearToGammaSpace(a.r), Mathf.LinearToGammaSpace(a.g), Mathf.LinearToGammaSpace(a.b), 1f));
             m.SetShaderPassEnabled("SRPDefaultUnlit", false);
             m.SetFloat("_RushlingMesh", 0f);
+            m.SetFloat("_RimAll", 0f); // lid tops are walkable: no view rim
+            m.SetFloat("_Gloss", 0f);  // G4.6: no specular glint washing a lid top toward white
             m.enableInstancing = true;
             return m;
         }
@@ -130,7 +146,7 @@ namespace FallRush.Client
                     d.LidCenterMm(i, out var x, out var y, out var z);
                     var pos = new Vector3(x * 0.001f, y * 0.001f, z * 0.001f);
                     var ring = d.Ring(i);
-                    var calm = lower ? (ring == d.Mid ? B.LowEdge : ring % 2 == 0 ? B.LowA : B.LowB) : ring % 2 == 0 ? B.TopA : B.TopB;
+                    var calm = lower ? (ring == d.Mid ? B.LowEdge : B.Low) : ring == 3 ? B.Top3 : ring == 2 ? B.Top2 : B.TopPink;
                     var batch = calm;
                     var angle = 0f;
                     switch (_states[i])

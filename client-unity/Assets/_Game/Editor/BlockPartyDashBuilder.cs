@@ -79,6 +79,13 @@ public static class BlockPartyDashBuilder
     private const float BumperR = 1.7f; // with the capsule: 2 m reach each, three bumpers cover the 10 m belt
     private const float FinishY = Y1 + BeltRise, FinishZ = 222f, FinishZ1 = 229f;
 
+    /// <summary>
+    /// G4.6 render-only section tag (doc 17 §3.1 hue table, <c>PaletteTokens.Sections</c>) from the layout constants: the
+    /// z of an object's centre. Checkpoint decks belong to the section they end (CP1 → slope, CP2 → hop, CP3 → sweep, CP4 → mallet).
+    /// </summary>
+    public static string SectionAt(Vector3 p) => p.z < SlopeZ0 ? "start" : p.z < 54f ? "slope" : p.z < HopZ0 ? "gates" :
+        p.z < 124f ? "hop" : p.z < RunZ0 ? "sweep" : p.z < BeltZ0 ? "mallet" : "belt";
+
     private static float SlopeY(float z) => Mathf.Clamp01((z - SlopeZ0) / (SlopeZ1 - SlopeZ0)) * Y1;
     private static float BeltY(float z) => Y1 + Mathf.Clamp01((z - BeltZ0) / (BeltZ1 - BeltZ0)) * BeltRise;
     private static float CentreZ(int i) => HopZ0 + CentreGap + CentreDepth * 0.5f + i * (CentreDepth + CentreGap);

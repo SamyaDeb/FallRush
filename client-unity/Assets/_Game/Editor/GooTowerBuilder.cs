@@ -83,6 +83,37 @@ public static class GooTowerBuilder
     public static Vector3 Corner(int k) => P(k, -HalfLen - CornerHalf, 0f, H(k));
     public static bool Lap1(int k) => k < 4;
 
+    /// <summary>
+    /// G4.6 render-only section tag (doc 17 §3.1 hue table): side k from the builder's names (<c>S{k}_…</c>,
+    /// <c>Corner_{k}</c>, <c>CornerRail_{k}…</c>, hazard ids <c>gt_k{k}_…</c>; the summit corner 8 belongs to side 7),
+    /// everything else (ground ring, spawn deck) "ground".
+    /// </summary>
+    public static string SectionAt(Transform t)
+    {
+        for (var x = t; x != null; x = x.parent)
+        {
+            var n = x.name;
+            var k = -1;
+            if (n.StartsWith("CornerRail_") && n.Length > 11 && char.IsDigit(n[11]))
+                k = n[11] - '0';
+            else if (n.StartsWith("Corner_") && int.TryParse(n.Substring(7), out var c))
+                k = c;
+            else if (n.Length > 2 && n[0] == 'S' && char.IsDigit(n[1]) && n[2] == '_')
+                k = n[1] - '0';
+            else
+            {
+                var g = n.IndexOf("gt_k", System.StringComparison.Ordinal);
+                if (g >= 0 && n.Length > g + 4 && char.IsDigit(n[g + 4]))
+                    k = n[g + 4] - '0';
+            }
+
+            if (k >= 0)
+                return "k" + Mathf.Min(k, Sides - 1);
+        }
+
+        return "ground";
+    }
+
     [MenuItem("Fall Rush/Setup/Build Map_GooTower")]
     public static void Run()
     {
