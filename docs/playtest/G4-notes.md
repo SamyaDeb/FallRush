@@ -99,3 +99,22 @@ What to look at (proof `docs/proof/G4.5-lid-flip.md`):
 Your notes:
 -
 
+
+## G4.8 soft look (2026-11-21)
+How to compare:
+- **In any build, press F7** to switch between **soft** (the new default: pastel tops, coloured padded rims, rounded blocks, patterns, soft shadows, stadium backdrop) and **candy** (G4.6). The switch is instant and changes nothing but the picture.
+- WebGL: `?look=soft` or `?look=candy` in the URL picks the start look; desktop: `-fallrushLook soft|candy`.
+- Side-by-side images: `docs/proof/g4/soft-compare-<map>-{spawn,action,overhead}.png` (G2/G3 → G4.6 → G4.8). Proof: `docs/proof/G4.8-soft-look.md`.
+
+What to look at, per map:
+- **Is it calmer?** Tops pastel, edges coloured. Does the course still read at a glance (where to walk, where the gaps are)?
+- **Rims and bevels:** do edges look padded/soft without hiding where a platform ends?
+- **Shadows:** do they help you judge jumps (soft only)? Any frame drop on Low?
+- **Hazards and meaning colours** (red/pink hazards, goal, boost pads, Lid Flip's lit lid): still the loudest thing on screen?
+- **Lid Flip in soft:** the lit lid is now deep amber `#FF8A00`. Do you ever miss it?
+- **Sky + backdrop:** pleasant, or distracting?
+
+Your pick (G4.8-10):
+- Look: soft / candy / mixed (say what to keep from each):
+- Per map notes:
+-
