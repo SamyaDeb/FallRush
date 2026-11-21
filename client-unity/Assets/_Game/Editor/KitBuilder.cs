@@ -582,7 +582,8 @@ public static class KitBuilder
 
         var d = rb.def;
         HazardMath.PrepareBall(ref d);
-        var n = Mathf.Max(HazardMath.BallMaxAlive(in d), rb.hasVariantB ? HazardMath.BallMaxAlive(in rb.variantB) : 0);
+        // + 1: a map may retune variant B's speed after this call (G4.2), which can keep one more ball alive.
+        var n = Mathf.Max(HazardMath.BallMaxAlive(in d), rb.hasVariantB ? HazardMath.BallMaxAlive(in rb.variantB) : 0) + 1;
         rb.balls = new Transform[n];
         for (var i = 0; i < n; i++)
         {
@@ -598,8 +599,17 @@ public static class KitBuilder
             r.sharedMaterial = HazardM;
             r.shadowCastingMode = ShadowCastingMode.Off;
             // A band so the spin reads.
-            LocalVisual(ball, "BallBand", Vector3.zero, new Vector3(radius * 2.04f, radius * 0.4f, radius * 2.04f), HazardY);
+            // G4.2: a flattened sphere (a cube band became a square slab once MapArt turned cubes into toy blocks).
+            var band = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            band.name = "BallBand";
+            Object.DestroyImmediate(band.GetComponent<Collider>());
+            band.transform.SetParent(ball, false);
+            band.transform.localScale = new Vector3(radius * 2.06f, radius * 0.55f, radius * 2.06f);
+            var br = band.GetComponent<MeshRenderer>();
+            br.sharedMaterial = HazardY;
+            br.shadowCastingMode = ShadowCastingMode.Off;
             ball.gameObject.SetActive(false);
+            rb.balls[i] = ball; // G4.2 fix: the pool was built but never stored, so no client ever drew a ball
         }
 
         // Chute light behind the release point (static geometry frame + a dynamic light block for the telegraph).

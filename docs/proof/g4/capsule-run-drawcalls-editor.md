@@ -1,0 +1,2 @@
+- **spawn view (gate closed)**: 91 visible renderers, 91 renderer × material draws (MergedStatic 15, Hazards 70, Dressing 2; by root: MergedStatic 15; Hazards 70; Geometry 4; Dressing 2;) — Editor frustum count, no Rushlings, no UI; not a GPU capture.
+- **spawn view (after RUSH, hazards moving)**: 86 visible renderers, 86 renderer × material draws (MergedStatic 15, Hazards 65, Dressing 2; by root: MergedStatic 15; Hazards 65; Geometry 4; Dressing 2;) — Editor frustum count, no Rushlings, no UI; not a GPU capture.

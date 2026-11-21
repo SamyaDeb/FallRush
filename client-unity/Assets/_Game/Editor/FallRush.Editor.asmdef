@@ -4,6 +4,7 @@
     "references": [
         "FallRush.Shared",
         "FallRush.Net",
+        "FallRush.Client",
         "Unity.Netcode.Runtime",
         "Unity.TextMeshPro"
     ],

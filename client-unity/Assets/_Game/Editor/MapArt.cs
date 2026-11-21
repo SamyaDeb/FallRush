@@ -599,7 +599,7 @@ public static class MapArt
                 Merge(tt.visual, vc, null);
         foreach (var d in info.doors)
             if (d != null && d.visual != null)
-                Merge(d.visual, vc, t => t == d.visual ? 1f : 0f); // the door body flashes, the stripes stay
+                Merge(d.visual, vc, t => t == d.visual || t.name.StartsWith("Bar_") ? 1f : 0f); // the door body (G4.2: or its grille bars) flashes, the stripes stay
         foreach (var ml in info.mallets)
             if (ml != null && ml.visual != null)
                 Merge(ml.visual, vc, t => t.name == "HeadBody" ? 1f : 0f); // the head glows during the wind-up
