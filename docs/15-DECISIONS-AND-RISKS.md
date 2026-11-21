@@ -109,14 +109,15 @@
 | G4.2-11 | Fixed G4.1's ROLLING_BALL pool (never stored: no client drew a ball) | ✅ | KitBuilder |
 | G4.3-1 | Spiral starts on the east face (k0 north), not the south: the belt sides k2 / k6 must run along Z (`CONVEYOR` pitches about X only) | ✅ | GooTowerBuilder |
 | G4.3-2 | k0 inner stairs 12 × 0.23 m instead of 8 × 0.34 m (motor step offset 0.25 m: 0.34 m steps would need a hop each) | ✅ | proof §2 |
-| G4.3-3 | k0: block 1 is a static rest block (3 falling blocks, not 4), trench floor 0.7 m under each block, falling delay 0.6 → 0.8 s, both mallets at s +2.5, outer one swinging across, lap-1 mallets soft knock — bots queued / trapped at y 0 were gooed at 12 s; hard knocks cleared the 0.4 m rail | ✅ | proof §5 #11 |
+| G4.3-3 | k0: block 1 is a static rest block (3 falling blocks, not 4), trench floor 0.7 m under each block, falling delay 0.6 → 0.8 s, both mallets at s +2.5 swinging across (G4.3d: along the steps / jumps the look-ahead found no window), flat rails beside the blocks, lap-1 mallets soft knock — bots queued / trapped at y 0 were gooed at 12 s; hard knocks cleared the 0.4 m rail | ✅ | proof §5 #11 |
 | G4.3-4 | k1 lifts 2.4 × 3 m (two 3 × 3 m lifts don't fit a 5 m ledge); the gumball rolls **inward** from a dispenser on the rail (outward, a knock cleared the rail into the goo) | **you** (direction) | proof §2 |
 | G4.3-5 | k2 shelf at 7.7 m with a ramp to corner 3 (at corner height the landing counted as k3), belt 0.6 m/s (plan ≈ 1.5) for the 1.25 ratio | ✅ | proof §5 #7 |
-| G4.3-6 | k4: columns 1.8 m, gaps 2.0 m, 0.2 m rise per gap (plan 1.6 m, 2.2–2.4 m, ≤ 0.4); mallet across at 40°, 240 / 270 ticks | ✅ | proof §5 #3–4 |
+| G4.3-6 | k4: columns 2.0 m, gaps 1.8 m (movement-v2 safe), 0.2 m rise per gap and 0.45 m onto corner 5 (plan 1.6 m, 2.2–2.4 m, ≤ 0.4); mallet across at 40°, 270 / 300 ticks — lap-2 falls land in the goo (45 falls / 100 at 2.0 m gaps) | ✅ | proof §5 #3–4 |
 | G4.3-7 | k6 bumpers on the outer half, passed on the core side; corner-6 spring on the corner's front quarter | ✅ | proof §5 #9 |
 | G4.3-8 | k7: a gumball crossing in front of the doors (existing type, inward) — door push-outs alone gave no contact | ✅ | proof §5 #10 |
 | G4.3-9 | Goo 235 → **170 mm/s**, delay 6 → **3 s** | ✅ | proof §5 #5 |
-| G4.3-10 | **Round 2 median 59 s (target 90–110) and normal rounds 4.1–4.3 escapes (target exactly 5): shipped at the closest tuning** — lap-2 falls land on goo-covered lap 1; options in proof §4 | **you** | proof §4 |
+| G4.3-13 | k5 variant B = a slower period (84 vs 70 ticks), same direction (plan: direction): turned the other way the bar threw outer-arc bots off lap 2 | ✅ | proof §5 #15 |
+| G4.3-10 | **Round 2 median 57 s (target 90–110): shipped at the closest tuning.** Escapes 4.85–4.99 (5 in ≈ 85–99 % of rounds), margins 8.6–9.5 s, route cost PASS. Longer cycles (G4.3d) gained ≤ 10 s and broke ratios / margins (reverted); options in proof §4 | **you** | proof §4 |
 | G4.3-11 | The summit (22 m above the start corner) is outside the default spawn frame; a beacon marks it (visible looking up) | **you** | proof §8 |
 | G4.3-12 | Bot code: jump arcs in the look-ahead; Survival bots start a side at its first point; out-of-reach re-acquire; `RouteQa` for Survival; goo probe per route index. Other maps' guard QA PASS | ✅ | WaypointBot, BotBrain, RouteQa, ModeQa |
 

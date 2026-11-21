@@ -210,15 +210,15 @@ Course line ≈ 255 m (checkpoints at 47.0 / 115.3 / 132.3 / 175.8 / 226.3 m, fi
 
 ## 5. Map 2 — **Goo Tower** (Survival, key `GooTower`) — G4.3 rebuild, 2026-11-20
 
-Code: `Editor/GooTowerBuilder.cs` (re-runnable). Proof, QA, tuning log: `docs/proof/G4.3-goo-tower.md`. Map hash `fe3f1208…`.
+Code: `Editor/GooTowerBuilder.cs` (re-runnable). Proof, QA, tuning log: `docs/proof/G4.3-goo-tower.md`. Map hash `5d5a00be…`.
 
 - **Layout:** a square spiral ledge round a solid 14 × 14 m capsule-machine core, **2 laps × 4 sides**, 22 m tall. Ledge 5 m (band 7…12 m from the centre), sides 14 m between 5 × 5 m corners, +2.75 m per side; path ≈ 152 m. Starts on the east face going north (counter-clockwise from above) so the belt sides run along Z. Lap 1 is solid to the ground with a 0.4 m outer rail; lap 2 is 1 m slabs 11 m above lap 1 with an open edge. The ground ring (y 0) catches lap-1 falls; spawn deck behind corner 0; summit pad on corner 8 (22 m, above corner 0) with a beacon. No in-world text.
-- **Sides (one obstacle each, every lane a knock hazard):** k0 Stair Steps (12 walkable steps / 3 falling blocks + a rest block over a trench; two mallets at s +2.5, soft knock) · k1 Lift Pair (2.75 m wall, two lifts half a period apart, a gumball rolling inward across the lift queue) · k2 Belt Ramp vs Spring (0.6 m/s belt ramp / a spring onto a 7.7 m shelf; a bumper on each) · k3 Bumper Ledge (ramp, 3 staggered bumpers) · k4 Narrow Steps (two 1.8 m columns of pitched blocks over 2.0 m gaps, a mallet swinging across them) · k5 Sweeper (0.35 m bar on a 2.4 m arm, 80 ticks) · corner-6 spring shortcut onto the k6 belt · k6 Belt Against You (2 m/s, 2 bumpers passed on the core side) · k7 Gate (3 doors in a travelling wave, a gumball crossing in front) → summit.
+- **Sides (one obstacle each, every lane a knock hazard):** k0 Stair Steps (12 walkable steps / 3 falling blocks + a rest block over a trench; two mallets at s +2.5 swinging across, soft knock) · k1 Lift Pair (2.75 m wall, two lifts half a period apart, a gumball rolling inward across the lift queue) · k2 Belt Ramp vs Spring (0.6 m/s belt ramp / a spring onto a 7.7 m shelf; a bumper on each) · k3 Bumper Ledge (ramp, 3 staggered bumpers) · k4 Narrow Steps (two 2.0 m columns of pitched blocks over 1.8 m gaps, a mallet swinging across them) · k5 Sweeper (0.35 m bar on a 2.4 m arm, 70 / B 84 ticks) · corner-6 spring shortcut onto the k6 belt · k6 Belt Against You (2 m/s, 2 bumpers passed on the core side) · k7 Gate (3 doors in a travelling wave, a gumball crossing in front) → summit.
 - **Goo:** GOO_PLANE −1.5 m, **0.17 m/s, delay 3 s** (y 0 at ≈ 12 s, summit at ≈ 141 s; timer 150 s).
-- **Variants:** mallet periods, lift periods, ball periods, sweeper direction, door wave direction.
-- **Constraint (kept):** the goo never overtakes any route at reference speed — every route index escapes alone (min margin 6.5–9.5 s).
-- **QA (100 runs):** route cost **0 free routes, all ratios ≤ 1.25**; Survival QA PASS (reference 4.9–5.0 escaped, normal 4.1–4.3; median 51.5 / 58.9 s — under the 90–110 s target, open: proof §4).
-- **Bot rule learned here:** on lap 2, a hazard that pushes *outward* (or a bumper passed on its outer side) is an elimination once the goo covers lap 1; place pushes along the path or toward the core. A mallet swinging *along* a lane of jumps leaves no window (the head is always in a jumping capsule's way): swing it across.
+- **Variants:** mallet periods, lift periods, ball periods, sweeper period, door wave direction.
+- **Constraint (kept):** the goo never overtakes any route at reference speed — every route index escapes alone (min margin 8.6–9.5 s).
+- **QA (100 runs):** route cost **0 free routes, all ratios ≤ 1.25**; Survival QA PASS (reference 4.97–4.99 escaped, normal 4.85–4.92; median 50.8 / 56.8 s — under the 90–110 s target, open: proof §4).
+- **Bot rule learned here:** on lap 2, a hazard that pushes *outward* (or a bumper passed on its outer side) is an elimination once the goo covers lap 1; place pushes along the path or toward the core. A mallet swinging *along* a lane (jumps or stairs) leaves the look-ahead no window: swing it across. A climb block's top must stay below the next side's start height − 0.3 m (bots pick the side's route by height).
 
 ## 5.0 Goo Tower, 3 laps / 40 m (M4–G1) — **replaced by the G4.3 rebuild (above)**
 

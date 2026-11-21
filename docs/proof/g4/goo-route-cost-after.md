@@ -1,47 +1,47 @@
-### Route cost: Goo Tower (key GooTower, map hash fe3f1208), 100 runs per variant, modifier None, 8 BotBrain bots
+### Route cost: Goo Tower (key GooTower, map hash 5d5a00be), 100 runs per variant, modifier None, 8 BotBrain bots
 
 Timing = reference-tier bots (median section time per route, ratio to the section's fastest route; target 1.0–1.25×). Contacts = normal-tier bots, per 100 traversals of the route (hazard hits / door push-outs / falls). **FREE ROUTE** = no hazard contact (hits + door pushes = 0) in any traversal; falls alone do not count.
 
 | Map | Variant | Section | Route | Traversals (ref) | Median s | Ratio | Traversals (normal) | Hits / 100 | Door pushes / 100 | Falls / 100 | Flag |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| GooTower | A | 0 | k0-steps | 401 | 7.6 | 1.10 | 335 | 109.6 | 0.0 | 20.0 |  |
-| GooTower | A | 0 | k0-falling | 370 | 6.9 | 1.00 | 334 | 66.2 | 0.0 | 19.8 |  |
-| GooTower | A | 1 | k1-lift0 | 385 | 7.6 | 1.20 | 340 | 57.1 | 0.0 | 0.3 |  |
-| GooTower | A | 1 | k1-lift1 | 384 | 6.3 | 1.00 | 322 | 55.9 | 0.0 | 1.9 |  |
-| GooTower | A | 2 | k2-ramp | 417 | 5.4 | 1.00 | 372 | 114.2 | 0.0 | 0.0 |  |
-| GooTower | A | 2 | k2-spring | 442 | 6.6 | 1.24 | 370 | 97.3 | 0.0 | 0.0 |  |
-| GooTower | A | 3 | k3-inner | 400 | 3.7 | 1.00 | 337 | 49.9 | 0.0 | 11.3 |  |
-| GooTower | A | 3 | k3-outer | 369 | 4.0 | 1.07 | 324 | 107.7 | 0.0 | 13.3 |  |
-| GooTower | A | 4 | k4-inner | 322 | 6.7 | 1.00 | 226 | 48.2 | 0.0 | 45.1 |  |
-| GooTower | A | 4 | k4-outer | 369 | 7.1 | 1.06 | 227 | 44.5 | 0.0 | 47.1 |  |
-| GooTower | A | 5 | k5-inner | 346 | 3.8 | 1.00 | 230 | 18.3 | 0.0 | 0.4 |  |
-| GooTower | A | 5 | k5-outer | 293 | 4.0 | 1.05 | 215 | 19.5 | 0.0 | 3.3 |  |
-| GooTower | A | 6 | k6-belt | 334 | 6.2 | 1.23 | 198 | 119.7 | 0.0 | 0.0 |  |
-| GooTower | A | 6 | k6-spring | 289 | 5.0 | 1.00 | 246 | 117.5 | 0.0 | 0.0 |  |
-| GooTower | A | 7 | k7-door0 | 141 | 6.3 | 1.12 | 106 | 59.4 | 0.9 | 0.0 |  |
-| GooTower | A | 7 | k7-door1 | 121 | 5.6 | 1.00 | 108 | 77.8 | 3.7 | 0.0 |  |
-| GooTower | A | 7 | k7-door2 | 126 | 6.9 | 1.23 | 113 | 64.6 | 5.3 | 0.0 |  |
-| GooTower | B | 0 | k0-steps | 398 | 7.9 | 1.14 | 367 | 82.8 | 0.0 | 9.5 |  |
-| GooTower | B | 0 | k0-falling | 373 | 6.9 | 1.00 | 330 | 63.6 | 0.0 | 20.6 |  |
-| GooTower | B | 1 | k1-lift0 | 360 | 7.5 | 1.00 | 345 | 46.7 | 0.0 | 1.2 |  |
-| GooTower | B | 1 | k1-lift1 | 411 | 8.4 | 1.12 | 345 | 44.1 | 0.0 | 0.9 |  |
-| GooTower | B | 2 | k2-ramp | 440 | 5.5 | 1.00 | 392 | 116.3 | 0.0 | 0.0 |  |
-| GooTower | B | 2 | k2-spring | 439 | 6.7 | 1.22 | 372 | 98.7 | 0.0 | 0.0 |  |
-| GooTower | B | 3 | k3-inner | 377 | 3.7 | 1.00 | 354 | 49.7 | 0.0 | 11.9 |  |
-| GooTower | B | 3 | k3-outer | 394 | 4.0 | 1.06 | 333 | 106.9 | 0.0 | 10.5 |  |
-| GooTower | B | 4 | k4-inner | 325 | 6.5 | 1.00 | 237 | 41.4 | 0.0 | 40.5 |  |
-| GooTower | B | 4 | k4-outer | 343 | 7.1 | 1.08 | 243 | 41.6 | 0.0 | 46.1 |  |
-| GooTower | B | 5 | k5-inner | 331 | 3.8 | 1.00 | 246 | 21.5 | 0.0 | 0.0 |  |
-| GooTower | B | 5 | k5-outer | 321 | 4.4 | 1.16 | 182 | 30.8 | 0.0 | 28.6 |  |
-| GooTower | B | 6 | k6-belt | 316 | 6.2 | 1.23 | 213 | 113.6 | 0.0 | 0.0 |  |
-| GooTower | B | 6 | k6-spring | 313 | 5.0 | 1.00 | 215 | 115.8 | 0.0 | 0.0 |  |
-| GooTower | B | 7 | k7-door0 | 140 | 6.0 | 1.00 | 104 | 62.5 | 0.0 | 0.0 |  |
-| GooTower | B | 7 | k7-door1 | 137 | 6.2 | 1.02 | 96 | 75.0 | 5.2 | 0.0 |  |
-| GooTower | B | 7 | k7-door2 | 123 | 6.7 | 1.10 | 114 | 47.4 | 3.5 | 0.0 |  |
+| GooTower | A | 0 | k0-steps | 400 | 6.1 | 1.00 | 401 | 41.6 | 0.0 | 0.0 |  |
+| GooTower | A | 0 | k0-falling | 382 | 7.5 | 1.24 | 366 | 55.7 | 0.0 | 9.3 |  |
+| GooTower | A | 1 | k1-lift0 | 388 | 7.3 | 1.09 | 388 | 62.9 | 0.0 | 0.0 |  |
+| GooTower | A | 1 | k1-lift1 | 394 | 6.7 | 1.00 | 375 | 51.2 | 0.0 | 1.1 |  |
+| GooTower | A | 2 | k2-ramp | 439 | 5.3 | 1.00 | 423 | 117.0 | 0.0 | 0.0 |  |
+| GooTower | A | 2 | k2-spring | 455 | 6.6 | 1.24 | 422 | 97.9 | 0.0 | 0.0 |  |
+| GooTower | A | 3 | k3-inner | 396 | 3.7 | 1.00 | 362 | 51.9 | 0.0 | 11.6 |  |
+| GooTower | A | 3 | k3-outer | 386 | 4.0 | 1.07 | 396 | 108.1 | 0.0 | 11.4 |  |
+| GooTower | A | 4 | k4-inner | 345 | 6.6 | 1.00 | 303 | 27.7 | 0.0 | 25.7 |  |
+| GooTower | A | 4 | k4-outer | 398 | 7.3 | 1.10 | 309 | 31.4 | 0.0 | 22.0 |  |
+| GooTower | A | 5 | k5-inner | 398 | 3.9 | 1.00 | 310 | 33.5 | 0.0 | 0.0 |  |
+| GooTower | A | 5 | k5-outer | 317 | 4.0 | 1.02 | 296 | 26.7 | 0.0 | 2.0 |  |
+| GooTower | A | 6 | k6-belt | 361 | 6.2 | 1.23 | 281 | 122.4 | 0.0 | 0.0 |  |
+| GooTower | A | 6 | k6-spring | 343 | 5.0 | 1.00 | 316 | 118.7 | 0.0 | 0.0 |  |
+| GooTower | A | 7 | k7-door0 | 139 | 6.7 | 1.16 | 148 | 57.4 | 2.0 | 0.0 |  |
+| GooTower | A | 7 | k7-door1 | 123 | 5.8 | 1.00 | 114 | 78.1 | 3.5 | 0.0 |  |
+| GooTower | A | 7 | k7-door2 | 137 | 6.0 | 1.05 | 130 | 66.9 | 1.5 | 0.0 |  |
+| GooTower | B | 0 | k0-steps | 399 | 6.0 | 1.00 | 402 | 46.5 | 0.0 | 0.2 |  |
+| GooTower | B | 0 | k0-falling | 382 | 7.3 | 1.22 | 346 | 56.1 | 0.0 | 15.0 |  |
+| GooTower | B | 1 | k1-lift0 | 370 | 8.0 | 1.00 | 385 | 41.6 | 0.0 | 0.3 |  |
+| GooTower | B | 1 | k1-lift1 | 411 | 8.3 | 1.04 | 360 | 47.2 | 0.0 | 0.6 |  |
+| GooTower | B | 2 | k2-ramp | 438 | 5.4 | 1.00 | 421 | 122.1 | 0.0 | 0.0 |  |
+| GooTower | B | 2 | k2-spring | 458 | 6.7 | 1.23 | 409 | 98.8 | 0.0 | 0.0 |  |
+| GooTower | B | 3 | k3-inner | 385 | 3.7 | 1.00 | 376 | 47.3 | 0.0 | 12.5 |  |
+| GooTower | B | 3 | k3-outer | 396 | 4.0 | 1.06 | 362 | 106.6 | 0.0 | 12.4 |  |
+| GooTower | B | 4 | k4-inner | 369 | 6.7 | 1.00 | 293 | 27.6 | 0.0 | 27.0 |  |
+| GooTower | B | 4 | k4-outer | 373 | 7.0 | 1.04 | 315 | 29.5 | 0.0 | 16.2 |  |
+| GooTower | B | 5 | k5-inner | 367 | 3.8 | 1.00 | 301 | 13.3 | 0.0 | 0.0 |  |
+| GooTower | B | 5 | k5-outer | 355 | 4.0 | 1.04 | 292 | 26.7 | 0.0 | 5.1 |  |
+| GooTower | B | 6 | k6-belt | 344 | 6.2 | 1.23 | 290 | 115.5 | 0.0 | 0.0 |  |
+| GooTower | B | 6 | k6-spring | 350 | 5.0 | 1.00 | 294 | 124.1 | 0.0 | 0.0 |  |
+| GooTower | B | 7 | k7-door0 | 144 | 6.0 | 1.03 | 133 | 51.9 | 1.5 | 0.0 |  |
+| GooTower | B | 7 | k7-door1 | 133 | 6.0 | 1.04 | 124 | 64.5 | 3.2 | 0.0 |  |
+| GooTower | B | 7 | k7-door2 | 120 | 5.8 | 1.00 | 128 | 52.3 | 4.7 | 0.0 |  |
 
 - Free routes (no hazard contact): **0**
 - Routes slower than 1.25× the section's fastest: **0**
 - Section = the spiral side the bot's brain is on (`BotBrain.Section`, by the height of its last ground contact); a traversal ends on the next side or at the summit. A drop to a lower side counts as a fall on the side it left (no traversal time). Route index = the bot's choice among that side's usable routes. Single-route sides are exempt from the ratio.
-- Wall time: 44 s
+- Wall time: 45 s
 
 **ROUTE COST PASS** (no free route; slowest route ≤ 1.25× the fastest per section)

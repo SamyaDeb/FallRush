@@ -38,12 +38,12 @@ How to play it:
 - **Full match:** `bash scripts/m1-macserver.sh start` → Quick Play; the tower is Round 2.
 
 What to look at (proof `docs/proof/G4.3-goo-tower.md`):
-- **k0:** stairs vs falling blocks (block 1 stays; the trench under them is shallow). Mallets at the top of the side.
+- **k0:** stairs vs falling blocks (block 1 stays; the trench under them is shallow). Two mallets swinging across the lanes near the top of the side.
 - **k1:** queue for a lift while gumballs roll across the queue toward the core.
 - **k2:** belt ramp vs the spring onto the shelf. **k3:** weave the three bumpers.
-- **k4 (lap 2):** real jumps on narrow columns under a mallet swinging across them — a hit drops you a lap (into the goo after ≈ 30 s). Too punishing?
+- **k4 (lap 2):** jumps (1.8 m gaps) on 2 m columns under a mallet swinging across them — a hit drops you a lap (into the goo after ≈ 30 s). Too punishing?
 - **k5:** jump the low bar. **Corner 6:** the spring shortcut up the belt. **k7:** read the door wave, mind the gumball.
-- **Round length:** bots take ≈ 59 s (target was 90–110 s) and normal bots average 4.1–4.3 escapes, not 5. Does it feel too short / too lethal? (Options in proof §4.)
+- **Round length:** bots take ≈ 57 s (target was 90–110 s); 5 escape in nearly every round. Does it feel too short? (Options in proof §4.)
 - **Summit:** it is straight above the start, outside the default camera; look up to see the beacon. Is that OK?
 
 Your notes:

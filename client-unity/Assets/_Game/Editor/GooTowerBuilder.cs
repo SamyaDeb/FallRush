@@ -15,12 +15,13 @@ using UnityEngine;
 /// slabs 11 m above lap 1 with an open outer edge (a fall lands on the same side one lap down).</item>
 /// <item>The spiral runs counter-clockwise seen from above and starts on the <b>east</b> face going north (k0), so the
 /// two belt sides (k2, k6) run along Z: <c>CONVEYOR</c> pitches about X only.</item>
-/// <item>k0 Stair Steps: inner 12 × 0.23 m steps, outer 4 falling blocks over a trench; a mallet swinging along each
-/// lane. k1 Lift Pair: a 2.75 m wall, two lifts half a period apart, a gumball crossing the approach toward the rail.
-/// k2 Belt Ramp vs Spring: belt ramp against you / a spring onto a shelf, a bumper at the top of each. k3 Bumper
-/// Ledge: a ramp with 3 staggered bumpers. k4 Narrow Steps: two 1.6 m columns of pitched blocks over 2.2 m gaps under a
-/// mallet swinging along them. k5 Sweeper: a low bar on a 2.4 m arm. Corner 6: a spring shortcut onto k6. k6 Belt
-/// Against You: a full-width belt with 2 bumpers. k7 Gate: 3 doors lifting in a travelling wave, then the summit pad
+/// <item>k0 Stair Steps: inner 12 × 0.23 m steps, outer 3 falling blocks + a rest block over a shallow trench; a mallet
+/// swinging across each lane (soft knock). k1 Lift Pair: a 2.75 m wall, two lifts half a period apart, a gumball rolling
+/// across the lift queue toward the core. k2 Belt Ramp vs Spring: belt ramp against you / a spring onto a shelf, a bumper
+/// on each. k3 Bumper Ledge: a ramp with 3 staggered bumpers. k4 Narrow Steps: two 2.0 m columns of pitched blocks over
+/// 1.8 m gaps under a mallet swinging across them. k5 Sweeper: a low bar on a 2.4 m arm. Corner 6: a spring shortcut onto
+/// k6. k6 Belt Against You: a full-width belt with 2 bumpers. k7 Gate: 3 doors lifting in a travelling wave and a gumball
+/// crossing in front, then the summit pad
 /// (corner 8, y 22): the first 5 to reach it escape.</item>
 /// </list>
 /// Hazard ids <c>gt_k{side}_{kind}_{n}</c>. Spawn deck south of corner 0 (behind the start, −U(0)); the ground ring at
@@ -47,14 +48,15 @@ public static class GooTowerBuilder
     public const int GooDelayTicks = 90;    // G4.3c: 6 → 4 → 3 s (keeps the reference start margin ≈ 9 s)
 
     // ------------------------------------------------------------------ tuning (G4.3c log in docs/proof/G4.3-goo-tower.md)
-    private static readonly int[] K0MalletA = { 150, 170 }, K0MalletB = { 170, 150 }; // inner / outer lane
-    private const int K1LiftA = 130, K1LiftB = 180; // G4.3c: A 150 → 130 (lift 1 was 1.30× lift 0)
+    private static readonly int[] K0MalletA = { 200, 220 }, K0MalletB = { 220, 200 }; // G4.3d: 150/170 → 200/220 (round length) // inner / outer lane
+    private const int K1LiftA = 130, K1LiftB = 180; // G4.3c/d: A 150 → 130 (lift 1 was 1.30× lift 0); longer cycles tried in G4.3d (170–260 / 200–290) put one lift over 1.25× and cost goo margin // G4.3c: A 150 → 130 (lift 1 was 1.30× lift 0)
     private const int K1BallA = 54, K1BallB = 66; // G4.3c: 75 / 96 → 54 / 66 (the inner lift lane was a free route)
     private const float K2BeltMs = 0.6f; // G4.3c: 1.5 → 0.7 → 0.3 → 0.6 (ramp 1.58×, 1.34× the spring; then the spring 1.29×)
-    private const int K4MalletA = 240, K4MalletB = 270; // G4.3c: 160/190 → 200/230 → 240/270
-    private const int K5SweepA = 80; // G4.3c: 84 → 70 → 80 (70 + a 0.4 m bar: reference bots were swept off lap 2)               // B turns the other way
-    private const float K6BeltMs = 2.0f;
-    private const int DoorClosed = 102, DoorOpening = 6, DoorOpen = 60, DoorClosing = 12; // cycle 180, offsets 60
+    private const int K4MalletA = 270, K4MalletB = 300; // G4.3c/d: 160/190 → 200/230 → 240/270 → 270/300
+    private const int K5SweepB = 84; // G4.3d: B = a slower period, same direction (turned the other way, its tangent threw outer-arc bots off lap 2: 29 falls / 100)
+    private const int K5SweepA = 70; // G4.3d: 80 → 70 (with the outer arc waiting, k5 had 3–4 hits / 100) // G4.3c: 84 → 70 → 80 (70 + a 0.4 m bar: reference bots were swept off lap 2)               // B turns the other way
+    private const float K6BeltMs = 2.0f; // (G4.3d: 2.5 made the belt 1.40× the corner spring)
+    private const int DoorClosed = 102, DoorOpening = 6, DoorOpen = 60, DoorClosing = 12; // cycle 180, offsets 60 (G4.3d: 240 / 300 made door 2 1.29× door 1)
 
     private static Transform _geo, _hz;
     private static Material _step, _block, _ledge, _rail, _coreMat;
@@ -301,6 +303,17 @@ public static class GooTowerBuilder
         Slope(k, $"Rail{name}", s0, ya + RailH, s1, yb + RailH, HalfW - RailW, HalfW, RailH + 0.3f, _rail);
     }
 
+    /// <summary>
+    /// G4.3d: k0's rail beside the gap before block j (at the previous block's height) and beside block j, each flat and
+    /// 0.4 m above its walk surface (a single sloped segment left it 0.1 m above the block's front: knocked bots cleared it
+    /// onto the ground ring in the goo).
+    /// </summary>
+    private static void RailBlock(int k, int j, float a, float gap, float bl, float topY, float step)
+    {
+        Rail(k, $"G{j}", a - gap, Mathf.Max(0f, topY - step), a, Mathf.Max(0f, topY - step));
+        Rail(k, $"B{j}", a, topY, a + bl, topY);
+    }
+
     // ------------------------------------------------------------------ hazards
 
     private static HazardMallet AlongMallet(int k, string id, float s, float w, float surfaceY, float halfWidth, int periodA, int periodB, float arm = 3f, float amp = 50f, bool across = false)
@@ -401,7 +414,7 @@ public static class GooTowerBuilder
                 // G4.3c: block 1 stays (a rest step before the mallet): bots waiting on the corner at y 0 for the mallet
                 // were caught by the goo at 12 s in a crowd. Static, solid down to the trench floor.
                 SideBox(k, "RestBlock1", a, a + bl, 0f, HalfW - RailW, Mathf.Max(0f, topY - 0.7f), topY, _block);
-                Rail(k, $"B{j}", a - gap, topY - Rise / nb, a + bl, topY);
+                RailBlock(k, j, a, gap, bl, topY, Rise / nb);
                 continue;
             }
 
@@ -425,13 +438,14 @@ public static class GooTowerBuilder
             KitBuilder.LocalVisual(vis.transform, "Stripe", new Vector3(0f, 0.51f, 0f), new Vector3(0.96f, 0.02f, 0.3f), KitBuilder.HazardM);
             fb.visual = vis.transform;
             Blocks.Add(fb);
-            Rail(k, $"B{j}", a - gap, topY - Rise / nb, a + bl, topY);
+            RailBlock(k, j, a, gap, bl, topY, Rise / nb);
         }
 
         // Mallets swinging along the side: inner lane at s −2.5, outer lane at s +2.5.
         // G4.3c: the inner mallet moved −2.5 → +2.5 (beside the outer one): its queue then forms on the steps above the
         // early goo, not on corner 0.
-        AlongMallet(k, "gt_k0_mallet_0", 2.5f, -HalfW * 0.5f, StepTop(2.5f), 1.2f, K0MalletA[0], K0MalletB[0]);
+        // G4.3d: across as well: along the steps the look-ahead found no window (8 s timeouts, then a hit; A route-0 goo margin 2 s).
+        AlongMallet(k, "gt_k0_mallet_0", 2.5f, -HalfW * 0.5f, StepTop(2.5f), 1.0f, K0MalletA[0], K0MalletB[0], 3f, 40f, across: true);
         // G4.3c: the outer one swings across its lane over block 2 (along a lane of jumps it left no window: bots timed out
         // on the rest block and were hit).
         AlongMallet(k, "gt_k0_mallet_1", 2.3f, (HalfW - RailW) * 0.5f, y0 + Rise * 3 / nb, 1.0f, K0MalletA[1], K0MalletB[1], 3f, 40f, across: true);
@@ -595,10 +609,14 @@ public static class GooTowerBuilder
     {
         const int k = 4;
         var y0 = H(k);
-        const float gap = 2.0f, jumpRise = 0.2f; // G4.3c rise 0.35 → 0.2: // G4.3c: 2.2 → 2.0 (1.73 m blocks left 0.7 m of run-up: reference bots landed short)
+        // G4.3c/d: gaps 2.2 → 2.0 → 1.8 m (movement-v2 safe gap; normal bots fell 45 / 100 traversals here, and on lap 2 a
+        // fall lands in the goo); 0.2 m rise per gap (0.35 / 0.38 cut the reach: bots landed short), and 0.45 m onto the
+        // wide corner 5 so the last block ends at 13.3 m, under k5's start height − 0.3 m (above it bots switched to k5's
+        // route on the block and walked off the column).
+        const float gap = 1.8f, jumpRise = 0.2f, lastRise = 0.45f;
         const int nSeg = 3;
-        var segLen = (2f * HalfLen - (nSeg + 1) * gap) / nSeg; // 1.73 m
-        var segRise = (Rise - (nSeg + 1) * jumpRise) / nSeg;   // 0.45 m inside each block
+        var segLen = (2f * HalfLen - (nSeg + 1) * gap) / nSeg; // 2.27 m
+        var segRise = (Rise - nSeg * jumpRise - lastRise) / nSeg; // 0.57 m inside each block
         var cols = new[] { -1.25f, 1.25f };
         var segS0 = new float[nSeg];
         var segY0 = new float[nSeg];
@@ -610,7 +628,7 @@ public static class GooTowerBuilder
 
         foreach (var cw in cols)
             for (var j = 0; j < nSeg; j++)
-                Slope(k, $"Col{(cw < 0 ? "In" : "Out")}{j}", segS0[j], segY0[j], segS0[j] + segLen, segY0[j] + segRise, cw - 0.9f, cw + 0.9f, 1f, _block); // G4.3c: 1.6 → 1.8 m
+                Slope(k, $"Col{(cw < 0 ? "In" : "Out")}{j}", segS0[j], segY0[j], segS0[j] + segLen, segY0[j] + segRise, cw - 1.0f, cw + 1.0f, 1f, _block); // G4.3c/d: 1.6 → 1.8 → 2.0 m
 
         // One mallet over the middle blocks at s 0, swinging across both columns. A hit throws you off the column: you drop
         // onto k0, one lap down (from ≈ 25 s the goo is already there).
@@ -649,12 +667,15 @@ public static class GooTowerBuilder
         Floor(k, "Deck", -HalfLen, rampS, -HalfW, HalfW, y0);
         Slope(k, "Ramp", rampS, y0, HalfLen, y1, -HalfW, HalfW, 0.5f, _ledge);
         RampBody(k, "Ramp", rampS, y0, HalfLen, y1, -HalfW, HalfW, 0.5f);
-        var sw = KitBuilder.Spinner(_hz, _geo, "gt_k5_sweep_0", P(k, pivotS, 0f, y0), 2.4f, 0.35f, K5SweepA, -K5SweepA);
+        var sw = KitBuilder.Spinner(_hz, _geo, "gt_k5_sweep_0", P(k, pivotS, 0f, y0), 2.4f, 0.35f, K5SweepA, K5SweepB);
         Sweepers.Add(sw);
 
         // Corner 6 spring (the k6 shortcut) is built with k6. Routes: inner / outer arc round the post (the bar reflex jumps).
         foreach (var w in new[] { -1.45f, 1.45f })
-            Route(k, w < 0 ? "inner" : "outer", StartCorner(k, w * 0.5f), W(k, -5.6f, w, y0, WaypointAction.Run, 0, 0.8f), W(k, pivotS, w, y0, WaypointAction.Run, 0, 0.8f),
+            // G4.3d: the outer arc waits until the run past the post is clear (relying on the jump reflex, outer-arc bots hit
+            // after the post were thrown off the open edge); the inner arc keeps the reflex (a hit there pushes you toward the
+            // core; waiting made it 2.7× the outer arc).
+            Route(k, w < 0 ? "inner" : "outer", StartCorner(k, w * 0.5f), W(k, -5.6f, w, y0, WaypointAction.Run, 0, 0.6f), W(k, pivotS, w, y0, WaypointAction.Run, 0, 0.8f),
                 W(k, rampS + 0.6f, w * 0.8f, y0 + 0.3f, WaypointAction.Run, 0, 0.8f), W(k, 6.4f, w * 0.6f, y1), EndCorner(k, w * 0.4f));
     }
 
