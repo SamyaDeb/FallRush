@@ -38,7 +38,13 @@ namespace FallRush.Net
             line2 += $" ms={sw.ElapsedMilliseconds}";
             Debug.Log(line2);
             line += "\n" + line2;
-            return ok && ok2;
+            // G4.1: v3 = v2 + the rolling-ball / lid-grid cases.
+            sw.Restart();
+            var ok3 = HazardVectorsV3.SelfTest(HazardVectorsV3Expected.Data, HazardVectorsV3Expected.Digest, platform, out var line3);
+            line3 += $" ms={sw.ElapsedMilliseconds}";
+            Debug.Log(line3);
+            line += "\n" + line3;
+            return ok && ok2 && ok3;
         }
     }
 }
