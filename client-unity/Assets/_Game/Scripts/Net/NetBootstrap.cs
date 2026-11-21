@@ -594,6 +594,12 @@ namespace FallRush.Net
                 Transport.ConnectTimeoutMS = clientConfig.connectTimeoutMs;
                 Transport.MaxConnectAttempts = clientConfig.maxConnectAttempts;
             }
+            // R22 (G4.3, DEV / measurement only): on desktop, UTP's WebSocketLayer gives the HTTP upgrade ONE final timeout
+            // equal to ConnectTimeoutMS (no retry). Through the 150 ms + 2 % loss netem relay a single lost segment costs
+            // Linux's 1 s initial RTO and the 1000 ms default fails the probe. WebGL uses timeout × attempts (10 s) and is
+            // unaffected, so the shipped config stays; probe clients pass -fallrushConnectTimeoutMs.
+            if (int.TryParse(GetArgValue("-fallrushConnectTimeoutMs"), out var connectMs) && connectMs > 0)
+                Transport.ConnectTimeoutMS = connectMs;
 
             var hello = new Protocol.Hello
             {

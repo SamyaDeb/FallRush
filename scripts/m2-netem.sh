@@ -19,10 +19,10 @@ case "${1:-status}" in
     JIT=""; [[ "$J" != "0" ]] && JIT="${J}ms distribution normal"  # netem rejects a distribution with zero jitter
     docker rm -f "$NAME" >/dev/null 2>&1 || true
     docker run -d --name "$NAME" --cap-add NET_ADMIN -p 127.0.0.1:7778:7778 --cpus 0.5 --memory 128m "$IMAGE" sh -c "
-        apk add --no-cache iproute2 socat >/dev/null &&
+        for i in 1 2 3 4 5; do apk add --no-cache iproute2 socat >/dev/null && break; sleep 3; done && command -v socat >/dev/null &&
         tc qdisc add dev eth0 root netem delay ${D}ms ${JIT} loss ${L}% &&
         tc qdisc show dev eth0 &&
-        exec socat TCP-LISTEN:7778,fork,reuseaddr,nodelay TCP:host.docker.internal:${NETEM_UPSTREAM_PORT:-7777},nodelay" >/dev/null
+        exec socat ${SOCAT_DEBUG:-} TCP-LISTEN:7778,fork,reuseaddr,nodelay TCP:host.docker.internal:${NETEM_UPSTREAM_PORT:-7777},nodelay" >/dev/null
     for _ in $(seq 1 30); do docker logs "$NAME" 2>&1 | grep -q netem && break; sleep 1; done
     sleep 2 # socat starts right after the qdisc line
     docker logs "$NAME" 2>&1 | tail -2

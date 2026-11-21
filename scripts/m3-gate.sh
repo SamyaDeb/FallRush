@@ -11,7 +11,7 @@ URL="${1:?url}"; SECS="${2:-150}"; LABEL="${3:-m3}"
 shift $(( $# < 3 ? $# : 3 ))
 for n in 1 2 3; do
   bash "$ROOT/scripts/m2-probe.sh" "$URL" "$SECS" race "$LABEL-$n" "$@" > /dev/null &
-  sleep 1
+  sleep "${PROBE_STAGGER_S:-2}"   # R22: staggered connects (was 1 s)
 done
 wait
 cd "$ROOT" && python3 scripts/m2-summarize.py "$LABEL-1" "$LABEL-2" "$LABEL-3"
