@@ -25,7 +25,7 @@
    2. **Share the space.** One main route per section. A shortcut is short, visible and genuinely risky. No parallel lanes that split the pack.
    3. **Breathe, then squeeze.** Open area, chokepoint, open area. Chokepoints are 7–10 m wide, so the crowd piles up and bumps.
    4. **Hazards push you into people.** Knockbacks send you sideways into the crowd or back down a slope, not straight off the map.
-   5. **Read it without words.** No in-world signs. Pink means it hits you, yellow means it moves soon, mint means safe or goal, blue means it moves you.
+   5. **Read it without words.** No in-world signs. Pink means it hits you, yellow means it moves soon, mint means safe or goal, blue means it moves you. **G4.6:** hot pink (+ stripe) hits you, pulsing lemon moves soon, mint is goal / spring / spawn, goo is goo, sky is sky; every walkable top carries its section's candy hue (Bubblegum, Soda blue, Sour apple, Grape fizz, Tangerine; Lemon drop unused), one per section (doc 17 §3.1). Movers read by their motion, stripes and chevrons, not by blue.
    6. **See the goal.** The finish arch or summit is visible from the start, and the course rises toward it.
    7. **Escalate.** Each section is harder than the last. The final third has the tightest timing.
 5. **Original.** Each map passes the originality check (§8). These maps do not trace any existing game's levels.
@@ -121,6 +121,8 @@ Allowlists unchanged (the new kit has no tunable speed beyond the goo, checked b
 
 ## 3. Map 1A — **Capsule Run** (Race, key `BlockPartyDash`) — G4.2 rebuild, 2026-11-20
 
+- **Colour (G4.6):** start funnel Soda blue · Gumball Slope + CP1 Tangerine · Wave Gates Grape fizz · Hop Field + CP2 Sour apple · Sweep Pad + CP3 Bubblegum · Mallet Run + CP4 Soda blue · Belt Climb + side ledges Tangerine (belt body Tangerine at S 0.5 under light chevrons) · finish deck, checkpoint posts, arch mint + checker. Sections by z (`BlockPartyDashBuilder.SectionAt`).
+
 > **The Block Party Dash text below (§3 table, §3.1) is replaced by this section** (kept for history). Proof: `docs/proof/G4.2-capsule-run.md`. Builder: `Editor/BlockPartyDashBuilder.cs`. Map id 0, key, mode, 2 variants and modifiers 0/1/2/3/5 unchanged; content hash `50125d89…`.
 
 | Beat | z (m) | Build | Variant A / B |
@@ -210,6 +212,8 @@ Course line ≈ 255 m (checkpoints at 47.0 / 115.3 / 132.3 / 175.8 / 226.3 m, fi
 
 ## 5. Map 2 — **Goo Tower** (Survival, key `GooTower`) — G4.3 rebuild, 2026-11-20
 
+- **Colour (G4.6):** ground ring + spawn deck Sour apple; lap 1 sides k0–k3 Sour apple / Soda blue / Tangerine / Bubblegum; lap 2 k4–k7 the same shifted by one (Soda blue / Tangerine / Bubblegum / Sour apple); corner k lands in side k's hue, the summit corner in k7's; summit pad mint + checker; core goo-tinted (not walkable); no Grape fizz (tested). Sections by the builder's names (`GooTowerBuilder.SectionAt`).
+
 Code: `Editor/GooTowerBuilder.cs` (re-runnable). Proof, QA, tuning log: `docs/proof/G4.3-goo-tower.md`. Map hash `5d5a00be…`.
 
 - **Layout:** a square spiral ledge round a solid 14 × 14 m capsule-machine core, **2 laps × 4 sides**, 22 m tall. Ledge 5 m (band 7…12 m from the centre), sides 14 m between 5 × 5 m corners, +2.75 m per side; path ≈ 152 m. Starts on the east face going north (counter-clockwise from above) so the belt sides run along Z. Lap 1 is solid to the ground with a 0.4 m outer rail; lap 2 is 1 m slabs 11 m above lap 1 with an open edge. The ground ring (y 0) catches lap-1 falls; spawn deck behind corner 0; summit pad on corner 8 (22 m, above corner 0) with a beacon. No in-world text.
@@ -242,6 +246,8 @@ Code: `Editor/GooTowerBuilder.cs` (re-runnable). Proof, QA, tuning log: `docs/pr
 A square spiral ledge (6 m wide, two 3 m lanes) round a 24 × 24 m capsule-machine core: 3 laps × 4 sides, each side a 24 m climb of +3.33 m plus a 6 × 6 m corner landing (path ≈ 360 m, 40 m tall). Lap 1, sides 0–1 **stair blocks** (inner: 16 small steps; outer: three 8 m blocks, +1.11 m jumps; side 1's are **falling blocks**); sides 2–3 **moving lifts** (a 3.3 m wall mid-side: outer lane a 4.4 × 2.9 m lift, period A 150 / B 120 ticks; inner lane a 29° belt ramp at 1.5 m/s or steps). Lap 2 **conveyor ramps**: inner lane belts against you (3 m/s pitched belts on the Z sides, 2.5 m/s belted treads with 0.83 m risers on the X sides — a CONVEYOR only pitches about X), outer lane a faster static climb with a 1.4–1.6 m gap (a miss drops you a lap); railed. Lap 3 **bumpers on narrow ledges**: a 4.5 m stair ledge with three bumpers and an open edge behind a 0.7 m lip; side 10's 1.5 m safe lane is the **shortcut behind a gate** (variant A open from RUSH, B open 15 of every 639 ticks). **Summit pad** (5.6 m, mint + checker) on the last corner at 40 m. Ground ring at y 0 catches falls from lap 1; spawn deck west of the start corner. Goo: y0 −1.5 m, delay 6 s, **0.30 m/s** (tuned in QA), summit reached at ≈ 144 s; timer 150 s. Map hash and QA: §9.2.
 
 ## 6. Map 3 — **Star Fountain** (Skill, key `StarScramble`) — G4.4 rebuild, 2026-11-20
+
+- **Colour (G4.6):** static centre (the floor ring between the turntable and r 11.2 m) Grape fizz with a Grape-fizz-side edge line · turntable Soda blue with darker-blue stripes · outer ring Tangerine · islands Sour apple · rim lip sun yellow (not walkable); springs and spawn pads mint (`StarScrambleBuilder.SectionAt`).
 
 Code: `Editor/StarScrambleBuilder.cs` (re-runnable: `Fall Rush/Setup/Build Map_StarScramble`, batch `-executeMethod StarScrambleBuilder.Run`). Proof, QA, tuning log: `docs/proof/G4.4-star-fountain.md`. Map hash `0bde7d75…`. Map id 2, key, mode, variants, modifiers (None, MoonBounce, TurboToys, BigBonk) and the 60 s timer unchanged.
 
@@ -276,6 +282,8 @@ Code: `Editor/StarScrambleBuilder.cs` (re-runnable: `Fall Rush/Setup/Build Map_S
 
 ## 7. Map 4 — **Lid Flip** (Final, key `CrumbleShelf`) — G4.5 rebuild, 2026-11-20
 
+- **Colour (G4.6, `LidGridView`):** top-shelf lids by ring: ring 4 Bubblegum, ring 3 Tangerine, ring 2 Soda blue, rings 1–0 Bubblegum (decision G4.6-5: Sour apple read within 0.06 luma of the lit lemon); lower shelf Grape fizz with a Grape-fizz-side outer ring; lit lemon, retire warn magenta pulse, open underside dark. No mint, no Lemon drop (tested).
+
 Code: `Editor/CrumbleShelfBuilder.cs` (re-runnable: `Fall Rush/Setup/Build Map_CrumbleShelf`, batch `-executeMethod CrumbleShelfBuilder.Run`). Proof, QA, tuning log: `docs/proof/G4.5-lid-flip.md`. Map hash `b0684a98…`. Map id 3, key, mode Final, variants, modifiers (None, MoonBounce, ButterFloors), the 120 s timer, kill-Y −6 m and the scene name unchanged.
 
 - **Top shelf (`cs_lids_top`):** `LID_FLIP` 9 × 9 capsule lids of 1.8 m (gap 6 cm, 16.7 m square, 0.4 m thick), tops y 6. Waves light a seeded share of the alive lids **yellow for 1 s**, then they **swing open on a hinge for 1 s** (no collider); A intervals 90 → 75 → 66 → 60 ticks, 16 → 24 → 38 → 50 %; B 84 → 72 → 63 → 60, 18 → 26 → 40 → 50 %; 8 waves a stage, first at 3 s. Rings retire outside-in at **25 / 50 / 75 s** (magenta pulse 3 s before) down to the inner 3 × 3; ≥ 5 of the inner 3 × 3 solid at every tick. Lit + open ≤ the shortest interval, so **every flip follows a full second of yellow**.
@@ -306,6 +314,8 @@ The reactive crumble-grid code (`HazardCrumbleGrid`, `CRUMBLE_TILE`, `ReactiveSe
 Shelves at tile tops y 12 / 6 / 0, 9 × 9 tiles of 1.6 m (243 box colliders, 1.56 m wide with 4 cm gaps, 0.4 m thick; visuals: one chamfered-corner mesh drawn instanced, pink / mint / yellow alternating with white per shelf). Two foam spinner bars hang from the claw over the top shelf (arm 6.6 m; low 0.35 m to jump: A 330 / B 270 ticks per turn; high 0.95 m to dive under: A −400 / B −300), raised until 60 s. Kill-Y −6 m. Timer 120 s. Open claw-machine frame (visual only). 12 spawns on top-shelf tiles.
 
 ### 7.2 `Map_Lobby` (M4-11, `Editor/LobbyBuilder.cs`)
+
+- **Colour (G4.6):** Soda blue plaza deck and walls, checker tiles alternating Bubblegum / Tangerine, plinth machine purple, spawn pads and spring mint.
 
 A 28 × 28 m toy plaza with 1.2 m walls, a capsule-machine plinth, four bumpers, a spring pad onto a lookout block, 12 spawns on a ring; no eliminations (a fall respawns after 1 s). Map hash `77dcefe7…`.
 

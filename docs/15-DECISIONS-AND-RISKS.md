@@ -144,6 +144,20 @@
 | G4.5-8 | **Timer tiebreak on a lid map = slot**: `FinalRules` ranks timer survivors by deepest *crumble* shelf, then tiles touched — both 0 on Lid Flip. Normal bots reach the timer 0–3 %, flawless bots 29–57 %. Not changed (rules frozen) | ❓ your call: (a) leave, (b) lid-aware tiebreak in `FinalRules` (top shelf beats lower, then fewer falls, then slot) | proof §7 |
 | G4.5-9 | Prediction probe on Lid Flip ran with 12 players (dev one-round match), not 3; localhost 0.00 and 150 ms + loss ≤ 0.18 non-push / 5 s, 0 hazard mismatches; the 150 ms leg needed Docker Desktop started locally | ✅ | proof §5 |
 
+### G4.6 decisions (2026-11-20; candy palette + grade, recorded in docs/proof/G4.6-candy-palette.md §9 — say if you want any changed)
+| # | Decision | By | Where |
+|---|---|---|---|
+| G4.6-1 | Top tokens = the plan hues at V 0.92, S ≤ 0.74 (the plan hexes had V 1.0; Lemon / Tangerine S 0.77 / 0.76, outside the 0.45–0.75 / 0.85–0.95 band); sides = the plan's values | ✅ | `PaletteTokens`, doc 17 §3.1 |
+| G4.6-2 | Meaning tokens take the plan values (hit pink `#FF2D8A`, lemon `#FFD43B`, mint `#2FE0A8`, goo `#9B3CFF`, sky `#2E9BFF → #A6E3FF`); brand Magenta / Sun Yellow / Grape unchanged for the UI | ✅ | `PaletteTokens` |
+| G4.6-3 | Palette = on-screen colours: vertex colours (and lid materials) are baked through the exact inverse of the grade and the map light; pre-tonemap gain ×1.6 (colour filter), post-exposure stays −0.15. Neutral maps white to 0.82 and sat +22 clipped linear tokens to S 1.0 (measured); the G2 near-white tops came from un-converted vertex colours in a linear project | ✅ | `MapArt.Bake`, `GraphicsQuality.AlbedoFor`; proof §3 |
+| G4.6-4 | Low keeps Tonemapping + Colour Adjustments (post on, bloom + vignette off); Editor proxy +0.14 ms; WebGL cost UNVERIFIED (G4.7 build #1); URP HDR grading mode set at runtime | ✅ | `GraphicsQuality`; proof §7 |
+| G4.6-5 | Lid Flip rings 1–0 Sour apple → **Bubblegum**: Sour apple was 0.06 luma from the lit lemon (needs ≥ 0.15); rings 4 and 1–0 share a batch (lid batches stay 5) | ✅ | `LidGridView`; proof §5 |
+| G4.6-6 | Mint reserved: moving-platform rims and turntable spokes / stripes → the section hue darkened toward ink (movers read a shade darker); machine Grape deepened toward ink `#5F25BD` (light grape was ΔE 9 from Grape fizz on Goo Tower) | ✅ | `MapArt` |
+| G4.6-7 | View rim on Rushlings, stripe posts and hit hazards, off on up-facing faces (the sun rim too); outline thickness tiers not done | ✅ | `Toon.shader` |
+| G4.6-8 | Sky not compensated (reads cooler / greyer after the grade): the menu cameras run no post, a compensated sky material would over-brighten the menu | 🟡 look call | proof §9 |
+| G4.6-9 | Sweep Pad stays Bubblegum with the pink / yellow sweepers: the stripe's yellow band reads (0.29 luma vs the floor) but the pink half merges with the floor | 🟡 your call | proof §5 |
+| G4.6-10 | Goo Tower falling blocks stay hazard-striped (outside the hue rule); the Lobby tile parity rule lives in `MapArt` (LobbyBuilder untouched) | ✅ | `MapArt` |
+
 ## Top risks (live; update daily in PROJECT_STATUS)
 
 | # | Risk | Likelihood | Impact | Mitigation |

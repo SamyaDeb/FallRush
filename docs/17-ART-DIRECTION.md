@@ -130,25 +130,43 @@ A floating toy factory above the clouds:
 - foam mallets
 - marble-run tubes
 
-### 3.1 Palette (sampled from the logo; tune in-engine)
+### 3.1 Palette (G4.6 candy palette, 2026-11-20; tokens in `Scripts/Net/PaletteTokens.cs`, tested by `LookTests` / `PaletteTests`)
 
-| Token | Hex | Use |
+Colours below are **on-screen** colours: the map bake divides out the light and the grade (decision G4.6-3), so a lit top shows its token after the grade (measured on Editor shots, proof `docs/proof/G4.6-candy-palette.md` §3).
+
+**Surface hues — every walkable top is coloured, one hue per section**
+
+| Hue | Plan hue | Top token | Side token |
+|---|---|---|---|
+| Bubblegum | `#FF6FAE` | `#EB66A0` | `#D8327F` |
+| Lemon drop | `#FFD43B` | `#EBC53D` | `#F09A12` |
+| Soda blue | `#4CC2FF` | `#46B2EB` | `#1F82E0` |
+| Sour apple | `#86E04E` | `#86E04E` | `#3FA82F` |
+| Grape fizz | `#A77DFF` | `#9A73EB` | `#6D3FE0` |
+| Tangerine | `#FF9A3D` | `#EB903D` | `#E05A1F` |
+
+Tops sit at S 0.45–0.75, V 0.85–0.95 (the plan hues brought to V 0.92 and S ≤ 0.74, decision G4.6-1), never white; sides are the same hue (< 18°), darker in luma and at least as saturated; the band at the top of a side is the top lightened 30 %. Rails / walls take the section hue (sides a shade deeper toward ink); belts take the hue at S 0.5 / V 0.78 under the light chevrons; turntable stripes and moving-platform rims the hue darkened 35 % toward ink.
+
+**Meaning colours — reserved, never on a walkable top (ΔE76 ≥ 15, tested on the committed scenes)**
+
+| Meaning | Token | Notes |
 |---|---|---|
-| Sky | `#3FA9F5` → `#BFE6FF` gradient | Skybox, fog |
-| Magenta | `#FF3EA5` | Hero accents, UI primary |
-| Sun Yellow | `#FFD21F` | UI highlights, collectibles, crowns |
-| Grape | `#7B2FF7` | Outlines, UI frames, checker |
-| Cloud White | `#FFFFFF` | Shells, text |
-| Mint | `#5BE3B5` | Safe zones, checkpoints, "go" |
-| Hazard stripe | Yellow `#FFD21F` + magenta `#FF3EA5`, diagonal stripes | **Everything that hurts or knocks back** |
-| Goo | `#9B5CFF`, glossy, emissive specks | Rising-hazard material |
+| Hit (hits you) | hot pink `#FF2D8A` | always with the stripe (light band `#FFD43B`; luma contrast 0.45) |
+| About to move | lemon `#FFD43B` | pulsing; the lit lids, gate / belt / chute pulses, the crown glow |
+| Goal / spring / spawn | mint `#2FE0A8` | + checker; finish deck, summit, checkpoint posts, arch, spawn pads, springs |
+| Goo | `#9B3CFF` | + glitter |
+| Sky | `#2E9BFF` → `#A6E3FF` | skybox, fog |
 
-**Readability rules:**
-- Walkable surfaces are light and desaturated.
-- Hazards are always striped and high-saturation.
-- Goals are mint or checkered.
-- Never use the hazard stripe on safe geometry.
-- Color-blind check: hazards also carry the stripe *pattern*, so color is not the only signal (GDD §13).
+**Brand / UI tokens (unchanged):** Magenta `#FF3EA5`, Sun Yellow `#FFD21F` (UI, collectibles, crowns, the Star Fountain rim lip), Grape `#7B2FF7` (UI frames; in the maps machine parts are Grape deepened toward ink `#5F25BD`), Cloud White `#FFFFFF`, ink `#2A1250`.
+
+**Readability rules (G4.6):**
+- Every walkable top carries a surface hue; one hue per section, so players know where they are.
+- Meaning colours never on a walkable top. Lemon drop on at most one section per map, never beside a yellow telegraph, never on Lid Flip (today: unused). Grape fizz never on Goo Tower. Mint only on goal / spring / spawn.
+- Bubblegum vs hit pink: ΔE ≥ 15 and the stripe's light band stands off a Bubblegum floor in luma (> 0.15); hazards keep the stripe.
+- Hazards always striped and high-saturation; stripe luma contrast > 0.3 (colour-blind rule); on Lid Flip the lit lid differs from every solid lid by ≥ 0.15 luma, also under Deuteranopia / Protanopia (measured from shot pixels).
+- Section table: `PaletteTokens.Sections` (doc 08 lists it per map).
+
+**Light and grade:** warm sun `#FFF1DC` (1.2), cool sky ambient `#BFD9FF`, warm violet ground ambient `#C2A6D6`. Grade on both graphics levels: Neutral tonemapping, saturation +22, contrast +12, post-exposure −0.15, a ×1.6 pre-tonemap gain (colour filter); High adds bloom (threshold 1.15) and the vignette.
 
 ### 3.2 Shading & lighting (MacBook Air M2 budget)
 
@@ -261,10 +279,12 @@ Proof, decisions and measurements: [`docs/proof/G2G3-look-juice.md`](proof/G2G3-
 - **`FallRush/Toon`** (`Assets/_Game/Shaders/Toon.shader`): a hand-written URP Forward HLSL shader, not Shader Graph (we build headless in batch mode; a text shader is reviewable, has only the variants we need: instancing × fog, and carries the outline as a second pass, which Shader Graph cannot do in URP without a renderer feature). 3-band cel ramp on half-Lambert from the one sun, a shade tint, rim light on the lit side, palette tint `_BaseColor × vertex colour`, fake AO baked into vertex colours, optional gloss highlight, hazard stripes (world / object space), a telegraph flash mask (vertex alpha), the belts' travelling chevron light (uv2.x), and Rushling flags in uv2.y (LED screen atlas, key spin, lid hinge, no-hull parts). SRP Batcher compatible (one `UnityPerMaterial` buffer), GPU-instancing compatible.
 - **Outline:** inverted hull in the `SRPDefaultUnlit` pass, enabled only on the Rushling material (`SetShaderPassEnabled`), width 1.6 cm growing gently with distance; small parts (seam, emblem, goggles, face) and the thin noodle arms (0.6 cm) get no fat hull.
 - **Palette:** `PaletteTokens` ScriptableObject (`Resources/FallRush/Palette.asset`, regenerated from the code defaults by every map build) = doc 17 §3.1 hex values (tested) + our derived tokens (ink, amber, walkable top `#F2F0FF`, pastel block sides). Rules enforced by the art pass and tested: walkable tops light and desaturated (s < 0.12, v > 0.9), hazards saturated and always striped, goals mint / checkered, no hazard stripes on safe geometry (the Goo Tower core bands were hazard yellow: now Grape), stripe luminance contrast > 0.3 (readable without hue: the colour-blind rule).
+- **G4.6 candy palette (2026-11-20, proof `docs/proof/G4.6-candy-palette.md`):** the G2 rules above are replaced by §3.1: every walkable top carries its section's surface hue (S 0.45–0.75, V 0.85–0.95 measured on screen), sides the same hue darker, meaning colours reserved. Vertex colours are baked through the inverse of the grade and the map light (`MapArt.Bake`, `GraphicsQuality.AlbedoFor`): the project renders in linear space and vertex colours are not converted, which is why the G2 tops read near-white (measured `#FEFEFD`).
 - **Sky:** `FallRush/SkyGradient` skybox `#3FA9F5 → #BFE6FF` with a soft warm sun glow; linear distance fog in the horizon colour (start 70–90 m); clouds are merged flattened puffs (one static mesh per map, far, below and around).
 - **Lighting:** flat, **no baking** (8 GB machine, code-rebuilt maps, a toon look does not need GI): one directional sun (no realtime shadows), trilight ambient (palette sky / ground, set as shader globals by the client), the cel ramp and the vertex AO.
 - **Blob shadows:** one soft disc per Rushling, raycast straight down from the capsule to the first gameplay surface (exact: where it would land), shrinking / fading with height, drawn in **one** instanced call.
 - **Post (Graphics: High):** low Bloom (threshold 1.15, intensity 0.35), Colour Adjustments (+10 saturation, +8 contrast), a subtle Vignette (0.16), full render scale. **Low:** no post, the WebGL quality level's 0.8 render scale. Settings toggle, `?gfx=low|high` / `-fallrushGfx` for measurements.
+- **G4.6 grade and rim:** both levels keep the grade (Neutral tonemapping — URP HDR grading mode, switched at runtime —, saturation +22, contrast +12, post-exposure −0.15, ×1.6 pre-tonemap gain); High adds bloom (threshold 1.15) + vignette, Low drops only those (Editor proxy: Low +0.14 ms over no post, WebGL UNVERIFIED until G4.7 build #1). Warm sun `#FFF1DC`, cool sky ambient, warm violet ground. Toon shader: a view rim independent of the sun on Rushlings (`_RimAll`), stripe posts and merged hit hazards (uv2.y = 4), never on up-facing faces (the old sun rim is now also off on tops, which had washed far decks white). No new keywords; SRP Batcher layout kept (two floats in `UnityPerMaterial`). Outline thickness tiers (thick on hazards, thin on props) are not done.
 
 ### 8.2 Bolt final + cosmetics (G2.2)
 - One renderer per Rushling body (shell, seam, hinge, emblem, key, and the lid: dome, LED screen, topper) + one dynamic limbs mesh (noodle arms, mittens, peg feet) + the stun stars (only while stunned). The shader spins the key (`_KeyAngle`) and hinges the lid (`_LidAngle`), and draws the face from a 16-glyph, 64 px-per-cell anti-aliased atlas (idle, run, jump, dive, stunned, falling, blink, happy, sad = x x with tears, qualified ★★, champion crown, wink, angry, love ♥♥, sleepy, smug), tinted per face theme.
