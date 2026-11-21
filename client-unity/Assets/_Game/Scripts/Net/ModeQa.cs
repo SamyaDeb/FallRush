@@ -30,7 +30,26 @@ namespace FallRush.Net
             public int Pickups, Drops, ScoreSum, ScoreExpected;
             public bool ChampionOk;
             public string Result;
+            // G4.4 Skill (Star Fountain)
+            public int TablePicks, GoldenCollected, GoldenSpawned, SpringTries, SpringOk, FallsMaxBot, DropsMaxBot, Slot0Score;
+            public int[] Scores; // final scores, best first
+            public int[] Values; // the round result's ranking values, in ranking order
+            public bool[] QualifiedFlags;
         }
+
+        /// <summary>G4.4 camper probe spots on Star Fountain (world mm; island ≥ 0 = ride that island). Mirrors StarScrambleBuilder.</summary>
+        public static readonly (string name, int x, int z, int island)[] CampSpots =
+        {
+            ("fountain base (r 2.2, on the table)", Spot(2200, 200).x, Spot(2200, 200).z, -1),
+            ("turntable edge (r 8.5)", Spot(8500, 90).x, Spot(8500, 90).z, -1),
+            ("outer ring between sweepers (r 13, 90°)", Spot(13000, 90).x, Spot(13000, 90).z, -1),
+            ("outer anchor at a sweeper flank (r 13, 12°: variant A anchor)", Spot(13000, 12).x, Spot(13000, 12).z, -1),
+            ("island 0", 0, 0, 0),
+            ("island 1", 0, 0, 1),
+            ("island 2", 0, 0, 2),
+        };
+
+        private static (int x, int z) Spot(int r, float deg) => ((int)Math.Round(Math.Sin(deg * Math.PI / 180) * r), (int)Math.Round(Math.Cos(deg * Math.PI / 180) * r));
 
         public static string TierArg()
         {
@@ -69,7 +88,7 @@ namespace FallRush.Net
 
         private static readonly bool GooTrace = Environment.GetEnvironmentVariable("FALLRUSH_QA_GOO") == "1";
 
-        public static Stats RunOne(MapInfo map, CapsuleCollider probe, int variant, int modifier, int run, BotTier tier, int bots = 12, int forcedRoute = -1, Action<SimCore, IRoundRules, HazardSet> perTick = null, Action<BotBrainSet> onBots = null)
+        public static Stats RunOne(MapInfo map, CapsuleCollider probe, int variant, int modifier, int run, BotTier tier, int bots = 12, int forcedRoute = -1, Action<SimCore, IRoundRules, HazardSet> perTick = null, Action<BotBrainSet> onBots = null, int campSpot = -1)
         {
             var seed = (ulong)(0x4D4E0000 + variant * 1000003 + modifier * 10007 + run * 7919 + (int)tier * 104729);
             var p = new RoundParams { MapId = map.MapId, Variant = (byte)variant, Modifier = (byte)modifier, HazardSeed = seed, RoundIndex = 1 };
@@ -106,15 +125,30 @@ namespace FallRush.Net
                     if (set[i]?.Waypoints != null)
                         set[i].Waypoints.ForcedRoute = forcedRoute;
             onBots?.Invoke(set); // G4.0c route QA reads each bot's route choice
+            if (campSpot >= 0 && campSpot < CampSpots.Length && core.Slots[0].Active)
+            {
+                // G4.4 camper probe: slot 0 is a reference bot that never leaves its spot; the others keep their tier.
+                var sp = CampSpots[campSpot];
+                set.Replace(0, new BotBrain(0, BotTier.Reference, (uint)(p.HazardSeed * 2654435761UL), rules, core, Array.Empty<BotRoute>())
+                {
+                    Camp = true, CampXMm = sp.x, CampZMm = sp.z, CampIsland = sp.island,
+                });
+            }
+
+            var skillTrack = mode == "Skill";
+            var springAt = new uint[SimCore.MaxSlots];
             core.BotInput = set.Input;
             var rush = rules.Begin(core, core.Tick);
             hz.RoundStartTick = rush;
             var cap = rush + rules.TimerTicks + 120;
+            int springTries = 0, springOk = 0;
             var trace = Environment.GetEnvironmentVariable("FALLRUSH_QA_TRACE") == "1";
             while (!rules.IsOver && core.Tick < cap)
             {
                 core.Step();
                 perTick?.Invoke(core, rules, hz);
+                if (skillTrack)
+                    TrackSprings(core, hz, springAt, ref springTries, ref springOk);
                 if (GooTrace && mode == "Survival")
                     for (var i = 0; i < SimCore.MaxSlots; i++)
                         if (core.Slots[i].Active && (core.Slots[i].LastStep & PlayerStep.Result.Gooed) != 0)
@@ -167,6 +201,8 @@ namespace FallRush.Net
             st.Qualified = res.QualifiedCount;
             st.Order = res.Order.Length;
             st.Result = res.ToString();
+            st.Values = res.Value;
+            st.QualifiedFlags = res.Qualified;
             for (var k = 0; k < res.Order.Length; k++)
             {
                 if (res.Reasons[k] == ElimReason.Goo)
@@ -198,11 +234,120 @@ namespace FallRush.Net
                 st.ScoreExpected = collectedValue - st.Drops;
                 for (var i = 0; i < SimCore.MaxSlots; i++)
                     st.ScoreSum += sk.Players[i].Score;
+
+                // G4.4: where the pickups were (turntable share), golden stars, springs, falls / drops per bot, final scores.
+                foreach (var e in hz.Reactive.Log)
+                {
+                    if (e.Type != RxType.StarCollect)
+                        continue;
+                    if (e.Id >= HazardMath.StarDropBase)
+                    {
+                        var d = e.Id - HazardMath.StarDropBase;
+                        if (d < hz.Reactive.Drops.Count)
+                        {
+                            var dr = hz.Reactive.Drops[d];
+                            HazardMath.DropPosMm(in f, dr.Xcm * 10, dr.Ycm * 10, dr.Zcm * 10, (uint)(d + 1), f.DropPopTicks, out var x, out _, out var z);
+                            if (hz.TurnTables.Length > 0 && (long)x * x + (long)z * z <= (long)hz.TurnTables[0].RadiusMm * hz.TurnTables[0].RadiusMm)
+                                st.TablePicks++;
+                        }
+                    }
+                    else if (e.Id >= HazardMath.StarGoldenBase)
+                        st.GoldenCollected++;
+                    else if (HazardMath.StarSlot(in f, hz.Seed, e.Id, out var a, out _, out _, out _) && f.Attach != null && a < f.Attach.Length && f.Attach[a] >= 1000)
+                        st.TablePicks++;
+                }
+
+                for (var g = 1; f.GoldenEveryTicks > 0 && g * f.GoldenEveryTicks < (int)rules.TimerTicks; g++)
+                    st.GoldenSpawned++;
+                st.SpringTries = springTries;
+                st.SpringOk = springOk;
+                var scores = new List<int>();
+                for (var i = 0; i < SimCore.MaxSlots; i++)
+                {
+                    if (!sk.Players[i].In)
+                        continue;
+                    scores.Add(sk.Players[i].Score);
+                    st.FallsMaxBot = Math.Max(st.FallsMaxBot, core.FallsBySlot[i]);
+                }
+
+                scores.Sort((x, y) => y.CompareTo(x));
+                st.Scores = scores.ToArray();
+                st.Slot0Score = sk.Players[0].Score;
+                var dropsBy = new int[SimCore.MaxSlots];
+                foreach (var e in hz.Reactive.Log)
+                    if (e.Type == RxType.StarDrop && (uint)e.Slot < (uint)dropsBy.Length)
+                        dropsBy[e.Slot]++;
+                foreach (var dcount in dropsBy)
+                    st.DropsMaxBot = Math.Max(st.DropsMaxBot, dcount);
             }
 
             // Final: exactly one champion once the director's minimum-advance is applied (0 qualified → the top-ranked).
             st.ChampionOk = mode != "Final" || (st.Qualified <= 1 && res.Order.Length > 0);
             return st;
+        }
+
+        private static readonly bool SpringTrace = Environment.GetEnvironmentVariable("FALLRUSH_QA_SPRING") == "1";
+
+        /// <summary>G4.4: a spring launch counts as a try; it succeeds if the bot stands on an island within 2 s without falling.</summary>
+        private static void TrackSprings(SimCore core, HazardSet hz, uint[] springAt, ref int tries, ref int ok)
+        {
+            var t = hz.Time(core.Tick);
+            for (var i = 0; i < SimCore.MaxSlots; i++)
+            {
+                if (!core.Slots[i].Active)
+                    continue;
+                ref readonly var s = ref core.Slots[i].State;
+                var step = core.Slots[i].LastStep;
+                if ((step & PlayerStep.Result.Launched) != 0 && springAt[i] == 0)
+                {
+                    springAt[i] = core.Tick;
+                    tries++;
+                    if (SpringTrace)
+                        Debug.Log($"[qa-spring] LAUNCH slot={i} t={t} at ({s.PosX},{s.PosY},{s.PosZ}) v=({s.VelX},{s.VelY},{s.VelZ}) r={(int)Math.Sqrt((double)s.PosX * s.PosX + (double)s.PosZ * s.PosZ)}");
+                    continue;
+                }
+
+                if (springAt[i] == 0)
+                    continue;
+                if (SpringTrace && (core.Tick - springAt[i]) % 3 == 0)
+                    Debug.Log($"[qa-spring]   fly slot={i} age={core.Tick - springAt[i]} at ({s.PosX},{s.PosY},{s.PosZ}) v=({s.VelX},{s.VelY},{s.VelZ}) g={(s.Has(MotorState.Grounded) ? 1 : 0)} surf={s.Surface} step={step}");
+                if ((step & PlayerStep.Result.FellOut) != 0 || s.Has(MotorState.Respawning) || core.Tick - springAt[i] > 60)
+                {
+                    if (SpringTrace)
+                        Debug.Log($"[qa-spring] FAIL slot={i} age={core.Tick - springAt[i]} at ({s.PosX},{s.PosY},{s.PosZ}) r={(int)Math.Sqrt((double)s.PosX * s.PosX + (double)s.PosZ * s.PosZ)}");
+                    springAt[i] = 0;
+                    continue;
+                }
+
+                if (!s.Has(MotorState.Grounded) || core.Tick - springAt[i] < 5)
+                    continue;
+                for (var k = 0; k < hz.Platforms.Length; k++)
+                {
+                    ref readonly var pl = ref hz.Platforms[k];
+                    HazardMath.PlatformCenterMm(in pl, t, out var cx, out var cy, out var cz);
+                    if (Math.Abs(s.PosX - cx) <= pl.HalfXMm + 50 && Math.Abs(s.PosZ - cz) <= pl.HalfZMm + 50 && s.PosY >= cy)
+                    {
+                        ok++;
+                        break;
+                    }
+                }
+
+                if (SpringTrace)
+                {
+                    var rr = (int)Math.Sqrt((double)s.PosX * s.PosX + (double)s.PosZ * s.PosZ);
+                    var on = false;
+                    for (var k = 0; k < hz.Platforms.Length; k++)
+                    {
+                        ref readonly var pl = ref hz.Platforms[k];
+                        HazardMath.PlatformCenterMm(in pl, t, out var cx, out var cy, out var cz);
+                        on |= Math.Abs(s.PosX - cx) <= pl.HalfXMm + 50 && Math.Abs(s.PosZ - cz) <= pl.HalfZMm + 50 && s.PosY >= cy;
+                    }
+
+                    Debug.Log($"[qa-spring] LAND {(on ? "island" : "MISS")} slot={i} age={core.Tick - springAt[i]} at ({s.PosX},{s.PosY},{s.PosZ}) r={rr}");
+                }
+
+                springAt[i] = 0; // landed (on an island or not)
+            }
         }
 
         /// <summary>Survival constraint: one reference bot alone on route index r of every side; min goo margin (s) and the escape time.</summary>
@@ -252,6 +397,8 @@ namespace FallRush.Net
             md.Append(mode switch { "Survival" => "Escaped / goo / fell (mean) |", "Skill" => "Pickups / drops (mean) · score check |", "Final" => "One champion · fell (mean) |", _ => "Falls / hits (mean) |" });
             md.Append(" Stuck re-acquires / run |\n|---|---|---|---|---|---|---|---|---|---|---|\n");
             var medians = new Dictionary<BotTier, List<float>>();
+            var skillRows = new StringBuilder();
+            var skillOk = true;
             foreach (var tier in tiers)
             {
                 medians[tier] = new List<float>();
@@ -260,6 +407,8 @@ namespace FallRush.Net
                     {
                         var durs = new List<float>();
                         int valid = 0, soft = 0, timers = 0, q = 0, esc = 0, goo = 0, fell = 0, pick = 0, drop = 0, scoreBad = 0, champOk = 0, falls = 0, hits = 0, stuck = 0;
+                        int tablePicks = 0, gold = 0, goldSpawned = 0, springTries = 0, springOk = 0, close = 0, fallsMax = 0, exact3 = 0, third = 0;
+                        var thirds = new List<int>();
                         for (var r = 0; r < runs; r++)
                         {
                             var st = RunOne(map, probe, v, m, r, tier, nBots);
@@ -285,6 +434,20 @@ namespace FallRush.Net
                             falls += st.Falls;
                             hits += st.Hits;
                             stuck += st.Stuck;
+                            if (mode == "Skill")
+                            {
+                                tablePicks += st.TablePicks;
+                                gold += st.GoldenCollected;
+                                goldSpawned += st.GoldenSpawned;
+                                springTries += st.SpringTries;
+                                springOk += st.SpringOk;
+                                fallsMax = Math.Max(fallsMax, st.FallsMaxBot);
+                                exact3 += st.Qualified == Math.Min(nBots, TargetFor(mode)) ? 1 : 0;
+                                if (st.Scores != null && st.Scores.Length >= 4 && st.Scores[2] - st.Scores[3] <= 2)
+                                    close++;
+                                if (st.Scores != null && st.Scores.Length >= 3)
+                                    thirds.Add(st.Scores[2]);
+                            }
                         }
 
                         durs.Sort();
@@ -301,6 +464,23 @@ namespace FallRush.Net
                         md.Append($"| {tier} | {(v == 0 ? "A" : "B")} | {ModifierEffects.Get(m).Key} | {runs} | {valid}/{runs} | {soft} | {(float)q / n:F2} | {med:F1} / {p90:F1} | {timers} | {extra} | {(float)stuck / n:F1} |\n");
                         if (valid != runs || soft > 0 || scoreBad > 0)
                             allOk = false;
+                        if (mode == "Skill")
+                        {
+                            thirds.Sort();
+                            var share = pick > 0 ? 100f * tablePicks / pick : 0f;
+                            var dropsPerBot = (float)drop / n / nBots;
+                            var fallsPerBot = (float)falls / n / nBots;
+                            var goldPct = goldSpawned > 0 ? 100f * gold / goldSpawned : 0f;
+                            var springPct = springTries > 0 ? 100f * springOk / springTries : float.NaN;
+                            var closePct = 100f * close / n;
+                            var dropOk = tier == BotTier.Reference ? dropsPerBot <= 2f : dropsPerBot >= 1f && dropsPerBot <= 4f;
+                            var springGate = tier != BotTier.Reference || springTries == 0 || springPct >= 70f;
+                            var fallGate = tier != BotTier.Reference || fallsPerBot <= 2f;
+                            var cellOk = exact3 == n && share >= 60f && dropOk && goldPct >= 50f && springGate && closePct >= 40f && fallGate;
+                            skillOk &= cellOk;
+                            skillRows.Append($"| {tier} | {(v == 0 ? "A" : "B")} | {ModifierEffects.Get(m).Key} | {exact3}/{n} | {dropsPerBot:F2} | {share:F0} % | {gold}/{goldSpawned} ({goldPct:F0} %) | {springOk}/{springTries} ({springPct:F0} %) | {closePct:F0} % | {fallsPerBot:F2} (max {fallsMax}) | {(thirds.Count > 0 ? thirds[thirds.Count / 2] : 0)} | {(cellOk ? "met" : "**not met**")} |\n");
+                            Debug.Log($"[qa-skill] tier={tier} v={(v == 0 ? "A" : "B")} mod={ModifierEffects.Get(m).Key} exact3={exact3}/{n} drops/bot={dropsPerBot:F2} table={share:F0}% gold={gold}/{goldSpawned} spring={springOk}/{springTries} close={closePct:F0}% falls/bot={fallsPerBot:F2} max={fallsMax} 3rd median={(thirds.Count > 0 ? thirds[thirds.Count / 2] : 0)} {(cellOk ? "met" : "NOT MET")}");
+                        }
                         Debug.Log($"[qa] {mode} tier={tier} variant={(v == 0 ? "A" : "B")} modifier={ModifierEffects.Get(m).Key} valid={valid}/{runs} soft={soft} median={med:F1}s p90={p90:F1}s timers={timers} q={(float)q / n:F2} {extra} elapsed={sw.Elapsed.TotalSeconds:F0}s");
                     }
             }
@@ -312,6 +492,16 @@ namespace FallRush.Net
                 var med = kv.Value.Count > 0 ? kv.Value[kv.Value.Count / 2] : float.NaN;
                 var inTarget = med >= target.x && med <= target.y;
                 md.Append($"- {kv.Key} tier: overall median **{med:F1} s** (GDD §4.1 target {target.x}–{target.y} s): **{(inTarget ? "within target" : "outside the target")}**\n");
+            }
+
+            if (mode == "Skill")
+            {
+                md.Append("\n#### Star Fountain targets (G4.4 §3c)\n\n| Tier | Variant | Modifier | Exactly 3 qualify | Drops / bot | Pickups on the table | Golden collected | Spring → island | 3rd–4th ≤ 2 pts | Falls / bot | 3rd-place median | Targets |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n");
+                md.Append(skillRows);
+                md.Append("\nTargets: exactly 3 qualify; ≥ 60 % of pickups on the turntable; drops per bot 1–4 (normal), ≤ 2 (reference); golden ≥ 50 % collected; reference spring → island ≥ 70 %; 3rd and 4th within 2 points in ≥ 40 % of runs; reference ≤ 2 falls per bot.\n");
+                md.Append($"\n**Star Fountain targets {(skillOk ? "MET" : "NOT MET")}** (every cell)\n");
+                if (CampArg())
+                    md.Append(CamperTable(map, probe, Math.Max(10, runs / 2)));
             }
 
             if (mode == "Survival")
@@ -356,6 +546,51 @@ namespace FallRush.Net
             var path = OutPath();
             File.WriteAllText(path, md.ToString());
             Debug.Log($"[qa] {(allOk ? "PASS" : "FAIL")} wall={sw.Elapsed.TotalSeconds:F0}s → {path}\n{md}");
+        }
+
+        private static bool CampArg() => Array.IndexOf(Environment.GetCommandLineArgs(), "-fallrushQaCamp") >= 0;
+
+        /// <summary>
+        /// G4.4 camper probe: one reference bot that never leaves a spot (slot 0) + 4 normal bots, modifier None, both
+        /// variants; its median score vs the 3rd-place median of the same rounds. Every spot must score below 3rd place.
+        /// </summary>
+        public static string CamperTable(MapInfo map, CapsuleCollider probe, int runs)
+        {
+            var sb = new StringBuilder();
+            sb.Append($"\n#### Camper probe ({runs} runs per spot × variant, 1 reference camper + 4 normal bots, modifier None)\n\n| Spot | Variant | Camper score median (mean) | 3rd-place median | Camper qualified | Below 3rd |\n|---|---|---|---|---|---|\n");
+            var all = true;
+            for (var spot = 0; spot < CampSpots.Length; spot++)
+                foreach (var v in new[] { 0, 1 })
+                {
+                    var cs = new List<int>();
+                    var th = new List<int>();
+                    var qual = 0;
+                    for (var r = 0; r < runs; r++)
+                    {
+                        var st = RunOne(map, probe, v, 0, 5000 + r, BotTier.Normal, 5, campSpot: spot);
+                        if (st.Scores == null || st.Scores.Length < 3)
+                            continue;
+                        cs.Add(st.Slot0Score);
+                        th.Add(st.Scores[2]);
+                        qual += st.Result != null && st.Slot0Score >= st.Scores[2] ? 1 : 0;
+                    }
+
+                    cs.Sort();
+                    th.Sort();
+                    var cm = cs.Count > 0 ? cs[cs.Count / 2] : 0;
+                    var tm = th.Count > 0 ? th[th.Count / 2] : 0;
+                    var mean = 0.0;
+                    foreach (var x in cs)
+                        mean += x;
+                    mean /= Math.Max(1, cs.Count);
+                    var ok = cm < tm;
+                    all &= ok;
+                    sb.Append($"| {CampSpots[spot].name} | {(v == 0 ? "A" : "B")} | {cm} ({mean:F1}) | {tm} | {qual}/{cs.Count} (score ≥ 3rd) | {(ok ? "yes" : "**NO**")} |\n");
+                    Debug.Log($"[qa-camp] {CampSpots[spot].name} v={(v == 0 ? "A" : "B")} camper={cm} ({mean:F1}) third={tm} q={qual}/{cs.Count} {(ok ? "below" : "NOT BELOW")}");
+                }
+
+            sb.Append($"\n**Camper probe {(all ? "PASS" : "FAIL")}** (every spot below the 3rd-place median)\n");
+            return sb.ToString();
         }
 
         private static string OutPath()

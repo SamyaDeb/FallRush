@@ -194,7 +194,7 @@ namespace FallRush.Shared
         // ------------------------------------------------------------------ noise (tiers)
 
         /// <summary>G1: the hop is moon-high (MoonBounce, apex 1.5 m): precise jumps are approached at 70 % stick.</summary>
-        private bool MoonHop => _cfg != null && _cfg.JumpApex > 1.3f;
+        private bool MoonHop => _cfg != null && _cfg.JumpApex > 1.3f && _mode != "Skill"; // G4.4: a 70 % stick in the air brakes a spring launch (Star Fountain islands)
 
         private InputCmd Noise(uint tick, in MotorState s, InputCmd plan)
         {
@@ -339,6 +339,43 @@ namespace FallRush.Shared
             cmd.MoveY = (sbyte)Math.Round(az / l * 127);
         }
 
+        /// <summary>
+        /// G4.4: a spring pad you are not using throws you out toward its island: steer round any pad whose square (+0.9 m)
+        /// lies on the way ahead (sideways detour), like <see cref="AvoidBumpers"/>.
+        /// </summary>
+        private void AvoidPads(in MotorState s, ref InputCmd cmd, int except)
+        {
+            float ax = cmd.MoveX, az = cmd.MoveY;
+            var ml = Math.Sqrt(ax * ax + az * az);
+            if (ml < 1)
+                return;
+            double ux = ax / ml, uz = az / ml;
+            for (var i = 0; i < _hz.Pads.Length; i++)
+            {
+                if (i == except)
+                    continue;
+                ref readonly var p = ref _hz.Pads[i];
+                double bx = (p.CenterXMm - s.PosX) * 0.001, bz = (p.CenterZMm - s.PosZ) * 0.001;
+                var d = Math.Sqrt(bx * bx + bz * bz);
+                var r = Math.Max(p.HalfXMm, p.HalfZMm) * 0.0014 + 0.9;
+                if (d > 5 || d < 1e-3)
+                    continue;
+                var along = bx * ux + bz * uz;
+                var side = bx * uz - bz * ux;
+                if (along <= -0.3 || Math.Abs(side) >= r)
+                    continue;
+                var push = (r - Math.Abs(side)) / r * 200.0 * (side >= 0 ? -1 : 1);
+                ax += (float)(uz * push);
+                az += (float)(-ux * push);
+            }
+
+            var l = Math.Sqrt(ax * ax + az * az);
+            if (l < 1)
+                return;
+            cmd.MoveX = (sbyte)Math.Round(ax / l * 127);
+            cmd.MoveY = (sbyte)Math.Round(az / l * 127);
+        }
+
         /// <summary>Jump a low spinner bar / dive under a high one if it hits us within 3–6 ticks (what a player sees).</summary>
         private void ReactToBars(uint tick, in MotorState s, ref InputCmd cmd)
         {
@@ -376,9 +413,19 @@ namespace FallRush.Shared
             }
         }
 
-        // ------------------------------------------------------------------ skill: stars
+        // ------------------------------------------------------------------ skill: stars (G4.4 Star Fountain)
+
+        /// <summary>G4.4 QA camper probe: hold this world spot (mm) all round, or (<see cref="CampIsland"/> ≥ 0) ride that island.</summary>
+        public bool Camp;
+        public int CampXMm, CampZMm;
+        public int CampIsland = -1;
+        private int _flightIsland = -1;
 
         private readonly List<int> _live = new List<int>();
+
+        /// <summary>The island (platform index) a star anchor rides, or −1.</summary>
+        private static int IslandOf(in StarFieldDef f, int anchor) =>
+            f.Attach != null && anchor < f.Attach.Length && f.Attach[anchor] >= 0 && f.Attach[anchor] < 1000 ? f.Attach[anchor] : -1;
 
         private InputCmd SkillPlan(uint tick, in MotorState s)
         {
@@ -386,20 +433,40 @@ namespace FallRush.Shared
                 return new InputCmd { Tick = tick };
             var f = _hz.StarFields[0];
             var t = _hz.Time(tick);
+            InputCmd cmd;
+            if (Camp)
+            {
+                cmd = CampPlan(tick, in s, t);
+                ReactToBars(tick, in s, ref cmd);
+                return cmd;
+            }
+
             _live.Clear();
             SkillRules.LiveStars(_hz, t, tick, _live);
             // Dropped stars count as targets (id StarDropBase + index).
             for (var d = 0; d < _hz.Reactive.Drops.Count; d++)
                 if (_hz.Reactive.DropAvailable(d, tick, out _) || tick - _hz.Reactive.Drops[d].Tick < (uint)f.DropPopTicks)
                     _live.Add(HazardMath.StarDropBase + d);
+            // G4.4 burst: once the arcs fly (the last 0.5 s, what a player sees), the next wave's stars are targets at their
+            // spawn-tick pose.
+            var nextWave = StarBurst.NextWave(in f, t, out var nextSpawn);
+            var before = nextSpawn - t;
+            if (nextWave >= 0 && before <= StarBurst.ArcTicks)
+                for (var k = 0; k < f.WaveSize; k++)
+                {
+                    var id = nextWave * f.WaveSize + k;
+                    if (id < HazardMath.StarGoldenBase)
+                        _live.Add(id);
+                }
 
             var best = -1;
             var bestScore = double.MinValue;
-            int bx = 0, by = 0, bz = 0;
+            int bx = 0, bz = 0, bIsland = -1;
             var range = S.StarPickRange * 1000.0;
             foreach (var id in _live)
             {
                 int x, y, z, value;
+                var island = -1;
                 if (id >= HazardMath.StarDropBase)
                 {
                     var e = _hz.Reactive.Drops[id - HazardMath.StarDropBase];
@@ -408,17 +475,25 @@ namespace FallRush.Shared
                 }
                 else
                 {
-                    HazardMath.StarSlot(in f, _hz.Seed, id, out var a, out _, out _, out value);
-                    HazardMath.StarAnchorMm(in f, _hz, a, t, out x, out y, out z);
+                    HazardMath.StarSlot(in f, _hz.Seed, id, out var a, out var sp, out var ex, out value);
+                    island = IslandOf(in f, a);
+                    // Aim where it will be when we get there (a turntable star moves): pose at t + travel time (≤ 1 s).
+                    HazardMath.StarAnchorMm(in f, _hz, a, Math.Max(t, sp), out x, out y, out z);
+                    double ddx = x - s.PosX, ddz = z - s.PosZ;
+                    var lead = (int)Math.Min(30, Math.Sqrt(ddx * ddx + ddz * ddz) / 5000.0 * 30.0);
+                    if (island < 0 && lead > 0)
+                        HazardMath.StarAnchorMm(in f, _hz, a, Math.Max(t, sp) + lead, out x, out y, out z);
+                    // An island star needs the spring trip (≈ 3 s) before it expires.
+                    if (island >= 0 && ex - t < 90)
+                        continue;
                 }
 
                 long dx = x - s.PosX, dz = z - s.PosZ;
                 var dist = Math.Sqrt((double)dx * dx + (double)dz * dz);
                 if (dist > range)
                     continue;
-                var up = y - s.PosY;
-                if (up > 1800 && Tier != BotTier.Good && Tier != BotTier.Reference)
-                    continue; // islands: only the good bots go for them
+                if (island >= 0)
+                    dist += 4000; // the detour via the spring
                 var score = value * 4000.0 / (dist + 3000.0) - (id == _target ? -0.15 : 0); // a little stickiness
                 // Others closer to it make it less attractive.
                 for (var i = 0; i < SimCore.MaxSlots; i++)
@@ -435,8 +510,8 @@ namespace FallRush.Shared
                     bestScore = score;
                     best = id;
                     bx = x;
-                    by = y;
                     bz = z;
+                    bIsland = island;
                 }
             }
 
@@ -447,61 +522,244 @@ namespace FallRush.Shared
                 Retargets++;
             }
 
-            InputCmd cmd;
-            if (best < 0)
+            var rr = Math.Sqrt((double)s.PosX * s.PosX + (double)s.PosZ * s.PosZ);
+            var onIsland = OnIsland(in s, t) >= 0;
+            // Committed to a spring flight: keep steering at that island until we land (changing your mind mid-air
+            // drops you into the gap).
+            if (s.Has(MotorState.Grounded))
+                _flightIsland = -1;
+            else if (_flightIsland < 0 && s.VelY > 600)
+                _flightIsland = LaunchedToward(in s);
+            if (_flightIsland >= 0 && !s.Has(MotorState.Grounded))
+                return FlyTo(tick, in s, _flightIsland, t);
+
+            if (bIsland >= 0)
             {
-                // Nothing in reach: drift toward the middle (where the next wave will be).
-                cmd = SteerTo(tick, in s, 0, 0);
+                cmd = SteerToIsland(tick, in s, bIsland, t);
             }
-            else if (by - s.PosY > 1800)
+            else if (onIsland)
             {
-                // A golden star on an island: the nearest spring pad that points roughly at it, else jump from the rim.
-                cmd = SteerToIsland(tick, in s, bx, bz);
+                cmd = LeaveIsland(tick, in s, t);
+            }
+            else if (best < 0 || before <= 45 && Dist(s, bx, bz) > 4000)
+            {
+                // G4.4: nothing worth it, or the crown glows (a wave within 1.5 s) and our star is far: head for the
+                // fountain ring (r 5 m on our side), where most of the burst lands.
+                var k = rr < 1 ? 0.0 : 5000.0 / rr;
+                cmd = SteerTo(tick, in s, (int)(s.PosX * k), (int)(s.PosZ * k));
             }
             else
             {
                 cmd = SteerTo(tick, in s, bx, bz);
             }
 
-            // Stay off the rim (Ø 36 m arena) unless heading for an island.
-            var rr = Math.Sqrt((double)s.PosX * s.PosX + (double)s.PosZ * s.PosZ);
-            if (rr > 16800 && (best < 0 || by - s.PosY <= 1800))
+            // Stay off the rim (r 18 m) unless heading for an island.
+            if (rr > 16800 && bIsland < 0 && !onIsland)
                 cmd = SteerTo(tick, in s, 0, 0);
             AvoidBumpers(in s, ref cmd);
-            if (s.Has(MotorState.Grounded) && tick % 47 == (uint)Slot)
+            if (bIsland < 0 && s.Has(MotorState.Grounded))
+                AvoidPads(in s, ref cmd, -1);
+            ReactToBars(tick, in s, ref cmd); // G4.4: jump the low sweeper bars
+            if (s.Has(MotorState.Grounded) && tick % 47 == (uint)Slot && bIsland < 0 && !onIsland && rr < 14000)
                 cmd.Buttons |= InputCmd.JumpPressed | InputCmd.JumpHeld; // a hop now and then (players do)
             return cmd;
         }
 
-        private InputCmd SteerToIsland(uint tick, in MotorState s, int ix, int iz)
+        private static double Dist(in MotorState s, int x, int z)
         {
-            var best = -1;
-            var bestD = double.MaxValue;
+            double dx = x - s.PosX, dz = z - s.PosZ;
+            return Math.Sqrt(dx * dx + dz * dz);
+        }
+
+        /// <summary>The island (platform) we stand on at hazard time t, or −1.</summary>
+        private int OnIsland(in MotorState s, int t)
+        {
+            if (s.PosY < 500)
+                return -1;
+            for (var i = 0; i < _hz.Platforms.Length; i++)
+            {
+                ref readonly var p = ref _hz.Platforms[i];
+                HazardMath.PlatformCenterMm(in p, t, out var cx, out var cy, out var cz);
+                if (Math.Abs(s.PosX - cx) <= p.HalfXMm + 100 && Math.Abs(s.PosZ - cz) <= p.HalfZMm + 100 && s.PosY >= cy && s.PosY <= cy + p.HalfYMm + 1500)
+                    return i;
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// Back to the arena from an island: run in at 30° off the island's line (so the landing and the run-in miss its
+        /// spring, which would throw you straight back out) and hop at the island's inner edge (over the gap and the lip).
+        /// </summary>
+        private InputCmd LeaveIsland(uint tick, in MotorState s, int t)
+        {
+            var rr0 = Math.Sqrt((double)s.PosX * s.PosX + (double)s.PosZ * s.PosZ);
+            var ang = (Slot & 1) == 0 ? 0.52 : -0.52;
+            double ux = rr0 < 1 ? 0 : s.PosX / rr0, uz = rr0 < 1 ? 0 : s.PosZ / rr0;
+            var tx = (ux * Math.Cos(ang) - uz * Math.Sin(ang)) * 10000;
+            var tz = (ux * Math.Sin(ang) + uz * Math.Cos(ang)) * 10000;
+            var cmd = SteerTo(tick, in s, (int)tx, (int)tz);
+            var i = OnIsland(in s, t);
+            if (i < 0 || !s.Has(MotorState.Grounded))
+                return cmd;
+            ref readonly var p = ref _hz.Platforms[i];
+            HazardMath.PlatformCenterMm(in p, t, out var cx, out _, out var cz);
+            var rr = Math.Sqrt((double)s.PosX * s.PosX + (double)s.PosZ * s.PosZ);
+            if (rr < 1)
+                return cmd;
+            // 0.45 m further in: off the island → jump now.
+            var ax = s.PosX - s.PosX / rr * 450;
+            var az = s.PosZ - s.PosZ / rr * 450;
+            if (Math.Abs(ax - cx) > p.HalfXMm || Math.Abs(az - cz) > p.HalfZMm)
+                cmd.Buttons |= InputCmd.JumpPressed | InputCmd.JumpHeld;
+            return cmd;
+        }
+
+        /// <summary>
+        /// In the air toward an island: steer at it only within 30° of our flight direction. Air control keeps the speed
+        /// only along the stick; steering hard sideways bleeds a spring launch (MoonBounce flights landed short).
+        /// </summary>
+        private InputCmd FlyTo(uint tick, in MotorState s, int island, int t)
+        {
+            HazardMath.PlatformCenterMm(in _hz.Platforms[island], t + 8, out var ix, out _, out var iz);
+            double vx = s.VelX, vz = s.VelZ, tx = ix - s.PosX, tz = iz - s.PosZ;
+            var vl = Math.Sqrt(vx * vx + vz * vz);
+            var tl = Math.Sqrt(tx * tx + tz * tz);
+            if (vl < 50 || tl < 1 || (vx * tx + vz * tz) / (vl * tl) >= 0.866)
+                return SteerTo(tick, in s, ix, iz);
+            return SteerTo(tick, in s, (int)(s.PosX + vx / vl * 3000), (int)(s.PosZ + vz / vl * 3000));
+        }
+
+        /// <summary>Just thrown by a spring pad (rising, within 2.5 m of one): the island it launches toward, or −1.</summary>
+        private int LaunchedToward(in MotorState s)
+        {
             for (var i = 0; i < _hz.Pads.Length; i++)
             {
                 ref readonly var p = ref _hz.Pads[i];
-                // Pad launch direction vs the island direction.
-                double lx = p.LaunchXCms, lz = p.LaunchZCms;
-                double tx = ix - p.CenterXMm, tz = iz - p.CenterZMm;
-                var ll = Math.Sqrt(lx * lx + lz * lz) * Math.Sqrt(tx * tx + tz * tz);
-                if (ll < 1 || (lx * tx + lz * tz) / ll < 0.8)
+                double dx = s.PosX - p.CenterXMm, dz = s.PosZ - p.CenterZMm;
+                if (dx * dx + dz * dz > 2500.0 * 2500.0)
                     continue;
-                double dx = p.CenterXMm - s.PosX, dz = p.CenterZMm - s.PosZ;
-                var d = dx * dx + dz * dz;
-                if (d < bestD)
+                for (var k = 0; k < _hz.Platforms.Length; k++)
+                    if (PadFor(k) == i)
+                        return k;
+            }
+
+            return -1;
+        }
+
+        /// <summary>The spring pad whose launch points at island <paramref name="island"/>'s middle position, or −1.</summary>
+        private int PadFor(int island)
+        {
+            if ((uint)island >= (uint)_hz.Platforms.Length)
+                return -1;
+            ref readonly var pl = ref _hz.Platforms[island];
+            var best = -1;
+            var bestCos = 0.8;
+            for (var i = 0; i < _hz.Pads.Length; i++)
+            {
+                ref readonly var p = ref _hz.Pads[i];
+                double lx = p.LaunchXCms, lz = p.LaunchZCms;
+                double tx = pl.CenterXMm - p.CenterXMm, tz = pl.CenterZMm - p.CenterZMm;
+                var ll = Math.Sqrt(lx * lx + lz * lz) * Math.Sqrt(tx * tx + tz * tz);
+                if (ll < 1)
+                    continue;
+                var c = (lx * tx + lz * tz) / ll;
+                if (c > bestCos)
                 {
-                    bestD = d;
+                    bestCos = c;
                     best = i;
                 }
             }
 
-            if (best >= 0)
-                return SteerTo(tick, in s, _hz.Pads[best].CenterXMm, _hz.Pads[best].CenterZMm);
-            // No pad: run at it and jump at the rim.
-            var cmd = SteerTo(tick, in s, ix, iz);
-            var rr = Math.Sqrt((double)s.PosX * s.PosX + (double)s.PosZ * s.PosZ);
-            if (rr > 17300 && s.Has(MotorState.Grounded))
-                cmd.Buttons |= InputCmd.JumpPressed | InputCmd.JumpHeld;
+            return best;
+        }
+
+        /// <summary>Spring flight (ticks) from a pad top to an island top <paramref name="dyMm"/> higher, and the horizontal distance (mm).</summary>
+        private void Flight(in SpringPadDef p, int dyMm, out int ticks, out int distMm)
+        {
+            var vy = p.LaunchYCms * 0.01;
+            var vh = Math.Sqrt((double)p.LaunchXCms * p.LaunchXCms + (double)p.LaunchZCms * p.LaunchZCms) * 0.01;
+            var g = Math.Max(1.0, _cfg.Gravity);
+            var up = vy / g;
+            var apex = vy * vy / (2 * g);
+            var fall = Math.Max(0.05, apex - dyMm * 0.001);
+            var down = Math.Sqrt(2 * fall / (g * Math.Max(1.0, _cfg.FallMultiplier)));
+            ticks = (int)Math.Round((up + down) * 30);
+            distMm = (int)(vh * (up + down) * 1000);
+        }
+
+        /// <summary>
+        /// G4.4: to an island by its spring. Wait 2.5 m short of the pad until the island will be under the landing point
+        /// (pure platform pose at arrival + flight), then run over the pad; in the air steer at the island.
+        /// </summary>
+        private InputCmd SteerToIsland(uint tick, in MotorState s, int island, int t)
+        {
+            var pi = PadFor(island);
+            ref readonly var pl = ref _hz.Platforms[island];
+            if (OnIsland(in s, t) == island)
+            {
+                HazardMath.PlatformCenterMm(in pl, t + 3, out var ix, out _, out var iz);
+                return SteerTo(tick, in s, ix, iz);
+            }
+
+            if (pi < 0)
+            {
+                HazardMath.PlatformCenterMm(in pl, t, out var ix, out _, out var iz);
+                return SteerTo(tick, in s, ix, iz);
+            }
+
+            ref readonly var p = ref _hz.Pads[pi];
+            double dlx = p.LaunchXCms, dlz = p.LaunchZCms;
+            var dl = Math.Sqrt(dlx * dlx + dlz * dlz);
+            dlx /= dl;
+            dlz /= dl;
+            var along = (s.PosX - p.CenterXMm) * dlx + (s.PosZ - p.CenterZMm) * dlz; // < 0: short of the pad
+            if (!s.Has(MotorState.Grounded) && (along > -400 || s.VelY > 300))
+            {
+                if (s.VelY > 600 && along > -1200)
+                    _flightIsland = island; // launched by the pad
+                return FlyTo(tick, in s, island, t);
+            }
+
+            Flight(in p, pl.CenterYMm + pl.HalfYMm - p.CenterYMm, out var fly, out var reach);
+            var wx = (int)(p.CenterXMm - dlx * 2500);
+            var wz = (int)(p.CenterZMm - dlz * 2500);
+            var lateral = Math.Abs((s.PosX - p.CenterXMm) * dlz - (s.PosZ - p.CenterZMm) * dlx);
+            var committed = along > -2700 && lateral < 700;
+            var toPad = Math.Max(0.0, -along) / 5000.0 * 30.0 + 2;
+            // Landing point (launched at the pad's near edge, ballistic: air control never brakes a launch) and the island box then.
+            var from = -Math.Max(p.HalfXMm, p.HalfZMm) * 0.7;
+            var lx = p.CenterXMm + dlx * (from + reach);
+            var lz = p.CenterZMm + dlz * (from + reach);
+            HazardMath.PlatformCenterMm(in pl, t + (int)toPad + fly, out var cx, out _, out var cz);
+            var margin = committed ? 200 : 450;
+            var good = Math.Abs(lx - cx) <= pl.HalfXMm - margin && Math.Abs(lz - cz) <= pl.HalfZMm - margin;
+            if (committed && good)
+                return SteerTo(tick, in s, (int)(p.CenterXMm + dlx * 3000), (int)(p.CenterZMm + dlz * 3000));
+            if (committed)
+            {
+                // Bad timing on the way in: back off to the wait point.
+                return SteerTo(tick, in s, wx, wz);
+            }
+
+            var dw = Dist(s, wx, wz);
+            if (dw > 500)
+                return SteerTo(tick, in s, wx, wz);
+            if (good)
+                return SteerTo(tick, in s, (int)(p.CenterXMm + dlx * 3000), (int)(p.CenterZMm + dlz * 3000));
+            var hold = new InputCmd { Tick = tick };
+            hold.CamYaw = (ushort)(Yaw256.FromVector((int)(dlx * 1000), (int)(dlz * 1000), s.Yaw) << 8);
+            return hold;
+        }
+
+        /// <summary>G4.4 QA camper: hold a fixed spot (or ride an island) all round; no star chasing.</summary>
+        private InputCmd CampPlan(uint tick, in MotorState s, int t)
+        {
+            if (CampIsland >= 0 && CampIsland < _hz.Platforms.Length)
+                return SteerToIsland(tick, in s, CampIsland, t);
+            var cmd = SteerTo(tick, in s, CampXMm, CampZMm);
+            if (Dist(s, CampXMm, CampZMm) < 250)
+                cmd.MoveX = cmd.MoveY = 0;
             return cmd;
         }
 

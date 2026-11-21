@@ -29,6 +29,9 @@ namespace FallRush.Net
 
         public BotBrain this[int slot] => _bots[slot];
 
+        /// <summary>G4.4 QA: put a different brain in a slot (the camper probe's reference bot among normal ones).</summary>
+        public void Replace(int slot, BotBrain brain) => _bots[slot] = brain;
+
         /// <summary>Routes that pass a gate the variant keeps (practically) closed are left out (bots see that door never opens).</summary>
         public static BotRoute[] UsableRoutes(BotRoute[] routes, HazardSet hz)
         {
