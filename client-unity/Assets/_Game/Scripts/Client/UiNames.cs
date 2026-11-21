@@ -3,7 +3,7 @@ using FallRush.Shared;
 
 namespace FallRush.Client
 {
-    /// <summary>G1 §3.5.3: player-facing names for config keys ("BlockPartyDash" → "Block Party Dash", None → "No modifier").</summary>
+    /// <summary>G1 §3.5.3: player-facing names for config keys (maps: G4-3 display names, e.g. BlockPartyDash → "Capsule Run"; None → "No modifier").</summary>
     public static class UiNames
     {
         private static readonly string[] MapCache = new string[32];
@@ -13,7 +13,7 @@ namespace FallRush.Client
         {
             if ((uint)mapId < (uint)MapCache.Length && MapCache[mapId] != null)
                 return MapCache[mapId];
-            var s = Spaced(MapPoolV1.KeyOf((byte)mapId));
+            var s = MapDisplayNames.Of((byte)mapId); // G4-3: display name, never the key
             if ((uint)mapId < (uint)MapCache.Length)
                 MapCache[mapId] = s;
             return s;

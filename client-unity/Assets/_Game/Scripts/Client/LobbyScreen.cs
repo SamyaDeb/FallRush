@@ -119,7 +119,7 @@ namespace FallRush.Client
             {
                 var r = cs.Round.Value;
                 var label = r.MapId == MapPoolV1.BlockPartyDash
-                    ? $"Enter Block Party Dash ({(r.Variant == 0 ? "A" : "B")}, {ModifierEffects.Get(r.Modifier).Key})"
+                    ? $"Enter {UiNames.Map(r.MapId)} ({(r.Variant == 0 ? "A" : "B")}, {UiNames.Modifier(r.Modifier)})"
                     : "Enter Sandbox + obstacle kit";
                 UiKit.SetButtonText(_enter, label);
             }
