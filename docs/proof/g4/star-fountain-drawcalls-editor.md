@@ -1,0 +1,5 @@
+- **spawn view (follow framing, stand-ins included)**: 43 visible renderers, 43 renderer × material draws (MergedStatic 4, Hazards 12, Dressing 2; by root: ShotStandIns 9; MergedStatic 4; Hazards 12; Geometry 16; Dressing 2;) — Editor frustum count, no Rushlings, no UI; not a GPU capture.
+- burst shot: t 31.77 s (wave 4 spawns at 32 s)
+- pack shot: t 32.83 s
+- sweeper hit shot: t 11.27 s, slot 2
+- spring shot: t 17.67 s, slot 0 at y 2.51 m

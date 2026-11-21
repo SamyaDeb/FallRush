@@ -12,6 +12,7 @@ namespace FallRush.Net
     {
         private readonly ClientSim _sim;
         private WaypointBot _bot;
+        private BotBrain _brain; // G4.4: Skill maps (Star Fountain) have no routes: the server bots' brain on the predicted state
         private ClientPrediction _for;
         private uint _roundStart;
         private readonly uint _seed;
@@ -38,10 +39,14 @@ namespace FallRush.Net
                     Laps++;
                 _for = pred;
                 _roundStart = start;
-                _bot = new WaypointBot(_sim.OwnSlot == SnapHeader.NoSlot ? 0 : _sim.OwnSlot, map.botRoutes, pred.Hazards, pred.Cfg, _seed);
+                var slot = _sim.OwnSlot == SnapHeader.NoSlot ? 0 : _sim.OwnSlot;
+                _bot = new WaypointBot(slot, map.botRoutes, pred.Hazards, pred.Cfg, _seed);
+                _brain = map.definition != null && map.definition.mode == "Skill"
+                    ? new BotBrain(slot, BotTier.Reference, _seed, "Skill", pred.Hazards, pred.Cfg, System.Array.Empty<BotRoute>(), () => 0, null)
+                    : null;
             }
 
-            var c = _bot.Next(cmd.Tick, pred.State, _sim.OwnRace & PlayerState.RaceCheckpointMask);
+            var c = _brain != null ? _brain.Next(cmd.Tick, pred.State) : _bot.Next(cmd.Tick, pred.State, _sim.OwnRace & PlayerState.RaceCheckpointMask);
             cmd.MoveX = c.MoveX;
             cmd.MoveY = c.MoveY;
             cmd.Buttons = c.Buttons;

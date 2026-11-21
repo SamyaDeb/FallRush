@@ -241,7 +241,21 @@ Code: `Editor/GooTowerBuilder.cs` (re-runnable). Proof, QA, tuning log: `docs/pr
 
 A square spiral ledge (6 m wide, two 3 m lanes) round a 24 × 24 m capsule-machine core: 3 laps × 4 sides, each side a 24 m climb of +3.33 m plus a 6 × 6 m corner landing (path ≈ 360 m, 40 m tall). Lap 1, sides 0–1 **stair blocks** (inner: 16 small steps; outer: three 8 m blocks, +1.11 m jumps; side 1's are **falling blocks**); sides 2–3 **moving lifts** (a 3.3 m wall mid-side: outer lane a 4.4 × 2.9 m lift, period A 150 / B 120 ticks; inner lane a 29° belt ramp at 1.5 m/s or steps). Lap 2 **conveyor ramps**: inner lane belts against you (3 m/s pitched belts on the Z sides, 2.5 m/s belted treads with 0.83 m risers on the X sides — a CONVEYOR only pitches about X), outer lane a faster static climb with a 1.4–1.6 m gap (a miss drops you a lap); railed. Lap 3 **bumpers on narrow ledges**: a 4.5 m stair ledge with three bumpers and an open edge behind a 0.7 m lip; side 10's 1.5 m safe lane is the **shortcut behind a gate** (variant A open from RUSH, B open 15 of every 639 ticks). **Summit pad** (5.6 m, mint + checker) on the last corner at 40 m. Ground ring at y 0 catches falls from lap 1; spawn deck west of the start corner. Goo: y0 −1.5 m, delay 6 s, **0.30 m/s** (tuned in QA), summit reached at ≈ 144 s; timer 150 s. Map hash and QA: §9.2.
 
-## 6. Map 3 — **Star Scramble** (Skill)
+## 6. Map 3 — **Star Fountain** (Skill, key `StarScramble`) — G4.4 rebuild, 2026-11-20
+
+Code: `Editor/StarScrambleBuilder.cs` (re-runnable: `Fall Rush/Setup/Build Map_StarScramble`, batch `-executeMethod StarScrambleBuilder.Run`). Proof, QA, tuning log: `docs/proof/G4.4-star-fountain.md`. Map hash `0bde7d75…`. Map id 2, key, mode, variants, modifiers (None, MoonBounce, TurboToys, BigBonk) and the 60 s timer unchanged.
+
+- **Arena:** a disc r 18 m (floor top y 0) with a 0.3 m rim lip (48 segments: hop it on purpose, you don't walk off by accident); kill-Y −10 m; 12 spawns on the outer ring (r 16) between the sweepers and the springs, facing the fountain. No in-world text.
+- **Fountain (`ss_fountain`, static):** a capsule-machine column r 1.4 m, 2.6 m tall (2.4 m above the table: out of every hop, MoonBounce included), a glass capsule dome with capsules inside, a crown of capsule halves at 3.5 m. Every 8 s it bursts the next wave: **the crown glows from 1 s before, the stars fly from the crown to their anchors in the last 0.5 s** (`Shared/Hazards/StarBurst.cs`, view only, a pure function of the hazard time; the pickup starts at the spawn tick as before).
+- **Turntable (`ss_table`):** TURN_TABLE r **9 m** (the allowlist max), top 0.2 m (walk on), 900 ticks per turn (rim 1.9 m/s; TurboToys 2.3), 12 radial stripes. A one way, B the other.
+- **Outer sweepers (`ss_sweep_0..2`):** SPINNERs at r 13.5 m (0°, 120°, 240°), arm 3.5 m, bar 0.35 m (jump it), **90 ticks** per turn (tip 7.3 m/s; TurboToys 8.8), soft knock. A hit is a knockback → you drop a star (existing rule). B: the middle one turns the other way.
+- **Islands (`ss_island_0..2`):** 4 × 4 m at r 22 m (60°, 180°, 300°: 60° off the sweepers), top 0.8 m; A slide ±3 m along the rim (12 s), B ±1.5 m in and out (10 s). Golden star (+3) every 15 s on one island (life **12 s**). A miss is a fall and a 1 s respawn.
+- **Springs (`ss_pad_0..2`):** at r 15.5 m in front of each island's middle position, **7.0 m/s out**, 10 m/s up (launched at the pad's near edge; measured landings, 10-run sample over all modifiers: median r 20.7, p10 20.2, p90 23.1 — the long ones are MoonBounce). Mint.
+- **Stars:** 16 anchors riding the turntable (rings r 3.5 × 6 and r 6.5 × 10, `Attach = 1000`), 6 on the outer floor **at the sweepers' flanks** (two per sweeper, inside its sweep circle: A r 13 m ± 12°, B r 13.5 m ± 10°), 3 golden (one per island). B rotates the table rings (inner +30°, outer −18°). Waves of 8 every 8 s on distinct seeded anchors (≈ 5.8 of 8 on the table), **life 6 s**; golden every 15 s, life 12 s. Bumpers: none (the M4 six removed; the sweepers met the drop target).
+- **QA (100 runs per tier × variant × modifier, 5 bots):** QA PASS (100 % valid, 0 soft-locks, exactly 3 qualify, deterministic); pickups on the table 63–67 %; drops per bot normal 1.20–1.76, reference 0.89–1.31 (M4: 0.0); golden collected 71–100 %; reference spring → island 85–100 %; 3rd–4th within 2 points in 56–75 % of runs; reference falls 0.00–0.32 per bot; camper probe: every spot (fountain base, table edge, outer ring, a sweeper-flank anchor, each island) scores a median 0–6 vs a 3rd-place median of 15–16.
+- **Bot rules learned here:** a spring you are not using throws you back out (steer round it, return from an island at an angle); once launched, keep steering at the island (changing your mind mid-air drops you in the gap); air control keeps a launch's speed only along the stick (a 70 % stick or a hard sideways steer brakes it).
+
+## 6.0 Star Scramble (M4–G1) — **replaced by Star Fountain (above)**
 
 - **Layout:** a circular arena (Ø 36 m) with:
   - a central `TURN_TABLE`
@@ -253,7 +267,7 @@ A square spiral ledge (6 m wide, two 3 m lanes) round a 24 × 24 m capsule-machi
 - **Duration:** 60 s.
 - **Variants:** island path shapes A/B.
 
-### 6.1 As built (M4, `Editor/StarScrambleBuilder.cs`)
+### 6.1 As built (M4, replaced in G4.4)
 
 **G1 retune:** island tops 1.0 → **0.8 m** (2 m gap up to +0.8 m at v2), spring pads 6.5 → **5.8 m/s** outward (lands ≈ 0.5 m onto the island under v2 gravity).
 

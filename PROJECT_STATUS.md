@@ -1,6 +1,6 @@
 # Fall Rush — Project Status
 
-_Last updated: 2026-11-20 (**G4.3 Goo Tower done**: 2 laps / 14 m core / 22 m, 0 free routes, all ratios ≤ 1.25, survival QA PASS (escapes 4.85–4.99, goo margins 8.6–9.5 s), tests 338/338; open: round median 57 s vs 90–110 (your call, proof §4); 150 ms probe fixed (R22); next G4.4 Star Fountain. Before: **G4.2 Capsule Run done**: 0 free routes, race QA PASS, tests 329/329. Before: **G4.0 + G4.1 done**: design rules, display names, route-cost QA, ROLLING_BALL + LID_FLIP + bump flag (off); 323/323 EditMode, vectors v3, guard QA + soak 20/20 PASS; next G4.2 Capsule Run. Earlier: G2/G3 game freeze, see below)_
+_Last updated: 2026-11-20 (**G4.4 Star Fountain done**: Round 3 rebuilt round a capsule fountain that bursts 8 stars every 8 s onto a 9 m turntable; Skill QA PASS with every G4.4 target met in all 16 tier × variant × modifier cells (drops 0.0 → 0.9–1.8 per bot, 63–67 % of pickups on the table, golden 71–100 %, camper probe PASS); Round 2 target revised to 50–65 s (G4.4-0); tests 352/352; next G4.5 Lid Flip. Before: **G4.3 Goo Tower done**: 2 laps / 14 m core / 22 m, 0 free routes, all ratios ≤ 1.25, survival QA PASS (escapes 4.85–4.99, goo margins 8.6–9.5 s), tests 338/338; open: round median 57 s vs 90–110 (your call, proof §4); 150 ms probe fixed (R22); next G4.4 Star Fountain. Before: **G4.2 Capsule Run done**: 0 free routes, race QA PASS, tests 329/329. Before: **G4.0 + G4.1 done**: design rules, display names, route-cost QA, ROLLING_BALL + LID_FLIP + bump flag (off); 323/323 EditMode, vectors v3, guard QA + soak 20/20 PASS; next G4.2 Capsule Run. Earlier: G2/G3 game freeze, see below)_
 
 **Hackathon:** MagicBlock Blitz V10, running Nov 20 to Nov 27, 2026.
 - **Submission deadline:** Nov 27, 14:00 UTC (19:30 IST).
@@ -268,7 +268,8 @@ The G2/G3 "game freeze" is reopened for G4 by your decision: **gameplay freeze S
 | Guard on today's maps: g1-qa BPD PASS (identical numbers), m4-qa 20 ×4 PASS, soak 20/20 | ✅ |
 | **G4.2** Capsule Run rebuilt (key `BlockPartyDash`): 7 beats, no in-world text, route cost 36 → **0 free routes**, race QA PASS (8/12 every run, normal median 86.7 s; three variant-A cells under 85 s, accepted), tests 329/329, guard + soak; proof `docs/proof/G4.2-capsule-run.md` | ✅ |
 | **G4.3** Goo Tower rebuilt (2 laps, 14 m core, 22 m; 8 sides, one obstacle each, every lane a knock hazard; no in-world text): route cost **0 free routes, ratios ≤ 1.25**; survival QA PASS (reference 4.97–4.99 / normal 4.85–4.92 escaped, median 50.8 / 56.8 s — **under target, your call**); every route escapes alone (margin 8.6–9.5 s); prediction 0 hazard mismatches (150 ms whole-run ≤ 0.21 corrections / 5 s; one 40 s racing window 0.75); guard ×3 PASS; tests 338/338; R22 150 ms probe fixed; proof `docs/proof/G4.3-goo-tower.md` | ✅ (open items) |
-| G4.4 Star Fountain → G4.5 Lid Flip → G4.6 palette → G4.7 QA + freeze | next |
+| **G4.4** Star Fountain (key `StarScramble`): capsule fountain (burst every 8 s, crown glow 1 s before, view-only arcs), 9 m turntable carrying 16 anchors, 3 low sweepers (drop a star), 3 islands with the golden star by mint springs, 0.3 m rim lip, no in-world text. Skill QA PASS, **every target met** in all 16 cells (100 runs each); camper probe PASS; guard identical (BPD, Crumble) + Goo PASS; soak 20/20; prediction 0 hazard mismatches (150 ms: 0.17–0.25 non-push / 5 s; one localhost client 0.50); draw calls 43 (Editor); tests 352/352; Round 2 target 50–65 s (G4.4-0); proof `docs/proof/G4.4-star-fountain.md` | ✅ |
+| G4.5 Lid Flip → G4.6 palette → G4.7 QA + freeze | next |
 
 Proof: `docs/proof/G4.0-G4.1.md`. Try the new hazards: menu "Practice: G4 hazards sandbox (dev)" in the Editor.
 
@@ -280,6 +281,13 @@ Proof: `docs/proof/G4.0-G4.1.md`. Try the new hazards: menu "Practice: G4 hazard
 
 ### For you (G4.3)
 - Play Goo Tower (steps in `docs/playtest/G4-notes.md`). Decide: (1) round length 57 s — accept a short Round 2, add path (a third lap / bigger core), or crowd-holding gates (proof §4); (2) the summit is outside the default spawn frame (beacon visible looking up); (3) the k1 / k7 gumballs roll toward the core, not toward the rail.
+
+### For you (G4.4)
+- Play Star Fountain (steps in `docs/playtest/G4-notes.md`). Decide: (1) Round 2 at 50–65 s was applied by default (G4.4-0; say if you want option 2 or 3 of the G4.3 proof); (2) the match now sums to ≈ 6.1 min from roster lock, under the GDD's 7–9 min line; (3) the plan page could not be read here (G4.4-11) — say if it differs from what was built.
+
+### Notes for M6 (from G4.4)
+- **New `StarScramble` content hash `0bde7d757426f1b131aaa2366dca88f5b172f161c875580197d5a77adfd31c89`** (was `4e004f12…`) → map-pool / ruleset v2. Key, id 2, mode Skill, 2 variants, modifier weights (None, MoonBounce, TurboToys, BigBonk), the 60 s timer and `map_pool_v1.json` unchanged.
+- The burst is view only: in M6 the wave anchors keep coming from the per-obstacle seed (one-line swap to `H(vrf_seed ‖ round ‖ obstacleId)`).
 
 ### Notes for M6 (from G4.3)
 - **New `GooTower` content hash `5d5a00be7e0ea51fa361f27bfa7b95e693f69e4590ab9a7bc0a7bb978912e27e`** (was `fb5a25bb…`) → map-pool / ruleset v2. Key, id 1, mode Survival, 2 variants, modifier weights (None only) and `map_pool_v1.json` unchanged.

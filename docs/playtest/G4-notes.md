@@ -49,3 +49,19 @@ What to look at (proof `docs/proof/G4.3-goo-tower.md`):
 Your notes:
 -
 
+
+## Star Fountain (G4.4, 2026-11-20)
+How to play it:
+- **Practice (no server):** a desktop dev build `FallRushDevServer -fallrushPractice StarScramble` (or WebGL dev `?practice=StarScramble`). The stars and the fountain burst show; stars are not collectable in practice. R = respawn, F6 = tuning, F3 = netcode HUD.
+- **Local match on Star Fountain only:** `bash scripts/m1-macserver.sh start -fallrushMap StarScramble` (a one-round dev match: you + 11 bots), then Editor → `Boot.unity` → Play → Quick Play. Variant B: add `-fallrushVariant 1`; a modifier: `-fallrushModifier MoonBounce` (or TurboToys, BigBonk). Stop: `bash scripts/m1-macserver.sh stop`.
+- **Full match:** `bash scripts/m1-macserver.sh start` → Quick Play; Star Fountain is Round 3 (5 players, 3 qualify, 60 s).
+
+What to look at (proof `docs/proof/G4.4-star-fountain.md`):
+- **The burst:** the fountain crown glows 1 s before each wave (every 8 s), then 8 stars fly out to the turntable and the outer floor. Do you see it coming and rush in?
+- **The turntable:** 9 m, one turn per 30 s; the stars ride it. Easy to chase?
+- **Sweepers:** three low bars on the outer ring (jump them). A hit drops one of your stars (it pops off; anyone can grab it). Stars at the sweepers' flanks are the risky ones. Fair?
+- **Islands + springs:** the golden star (+3) every 15 s on one of three islands; take the mint spring in front of it and time it with the island's slide. Coming back: hop off the island's inner edge, and don't run back over the spring (it throws you out again).
+- **Round length:** 60 s (unchanged). Is it decided late enough?
+
+Your notes:
+-

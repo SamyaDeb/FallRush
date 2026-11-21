@@ -121,6 +121,19 @@
 | G4.3-11 | The summit (22 m above the start corner) is outside the default spawn frame; a beacon marks it (visible looking up) | **you** | proof §8 |
 | G4.3-12 | Bot code: jump arcs in the look-ahead; Survival bots start a side at its first point; out-of-reach re-acquire; `RouteQa` for Survival; goo probe per route index. Other maps' guard QA PASS | ✅ | WaypointBot, BotBrain, RouteQa, ModeQa |
 | G4.4-0 | **Round 2 target 50–65 s (short, tense climb)**, was 90–110 s (doc 08) / 90–120 s (GDD §4.1). G4.3 proof §4 option 1, applied by default (no other choice in `docs/playtest/G4-notes.md`). Measured: normal median 56.8 s, reference 50.8 s, p90 62.8–64.8 s; longer cycles gained ≤ 10 s and broke ratios / margins. Match ≈ 6.1 min from roster lock (≈ 6.8 min lobby → receipt), under the GDD's 7–9 min line | ✅ (default; say if you want option 2 or 3) | GDD §4.1, doc 08 §5 |
+| G4.4-1 | **Turntable = a 9 m disc round the fountain** (plan: a ring 6–11 m): the allowlist caps TURN_TABLE at r 9 m and was not widened; 900 ticks per turn (rim 1.9 m/s, cap 4) | ✅ | builder, doc 08 §6 |
+| G4.4-2 | **Outer star anchors at the sweepers' flanks** (two per sweeper, inside its 3.5 m sweep circle: A r 13 m ± 12°, B r 13.5 m ± 10°), not midway between sweepers: a radial line 30° off a sweeper clears its sweep by 3.25 m, so stars there cost no contact (the M4 map measured 0.0 drops) | ✅ | proof §5 |
+| G4.4-3 | Spring launch 5.8 → **7.0 m/s** out (up 10): players touch the pad's near edge, and 5.8 landed ≈ r 19.5 (short of the island), 6.5 on its inner edge | ✅ | proof §5 |
+| G4.4-4 | Sweeper period **90 ticks** (plan 90–120; 105 left normal bots at 0.94 drops per round in A); arm 3.5 m, bar 0.35 m | ✅ | proof §5 |
+| G4.4-5 | Wave life 16 → **6 s**, golden life 10 → **12 s** (still under the 15 s spacing); waves every 8 s × 8 and golden +3 every 15 s unchanged | ✅ | proof §5 |
+| G4.4-6 | **12 spawns** on the outer ring (prompt: 5): the scene keeps `Protocol.MaxPlayers` spawns (hashed); a 12-player match's Skill round uses 5 of them | ✅ | builder |
+| G4.4-7 | No bumpers (the M4 six removed): the three sweepers met the drop target, so the ≤ 3 turntable-edge bumpers were not needed | ✅ | proof §3 |
+| G4.4-8 | Bot code (Skill only): burst preference (the crown glow, then the arcs), turntable lead, the sweeper jump reflex, timed springs with a flight lock, an angled island return, pad avoidance, no MoonBounce 70 % air stick in Skill; probe clients use the same brain on Skill maps. Other maps' guard identical cell for cell (Block Party Dash, Crumble Shelf), Goo Tower PASS | ✅ | BotBrain, RaceProbeBot, ModeQa |
+| G4.4-9 | The burst is **view only** (`StarBurst`, pure in t); the DEV practice mode now draws the stars and the burst too (not collectable there). `SkillRules`, the star timeline and hazard vectors v1/v2/v3 unchanged | ✅ | ReactiveViews, PracticeMode |
+| G4.4-10 | Round timer stays **60 s** (it is map content, `timerCapSeconds`; the plan's 60–75 s did not need more) | ✅ | builder |
+| G4.4-11 | The plan page (artifact) could not be read from this session (not found for this account); built from `G4-PROMPT.md` §4 and the G4.4 prompt §2 | ✅ (say if the page differs) | proof §1 |
+| G4.4-12 | Fixed a G2 dressing bug: the Star Fountain island undersides were ≈ 15 m slabs at floor height (sized in world metres under a scaled parent), reading as ground across the gap; render only, map hash unchanged | ✅ | MapDressing, proof §6 |
+| G4.4-13 | Prediction probe on Star Fountain ran with 12 players (3 probe clients + 9 bots: the dev one-round match fills to 12), not 5; 150 ms + loss met (0.17–0.25 non-push / 5 s, 0 hazard mismatches); one localhost client 0.50 / 5 s in its round windows (1 run) | 🟡 | proof §5 |
 
 ## Top risks (live; update daily in PROJECT_STATUS)
 

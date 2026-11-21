@@ -78,7 +78,8 @@ public static class MapDressing
         for (var i = 0; i < 3; i++)
         {
             var k = 1f - i * 0.28f;
-            var go = KitBuilder.Visual(vis, $"Under_{i}", vis.position + new Vector3(0f, -s.y * 0.5f - 0.35f - i * 0.55f, 0f), new Vector3(s.x * k * 0.92f, 0.55f, s.z * k * 0.92f), mat);
+            // G4.4 fix: the size is local to the scaled island visual (it was given in world metres: a ≈ 15 m slab at floor height that read as a bridge across the gap).
+            var go = KitBuilder.Visual(vis, $"Under_{i}", vis.position + new Vector3(0f, -s.y * 0.5f - 0.35f - i * 0.55f, 0f), new Vector3(k * 0.92f, 0.55f / s.y, k * 0.92f), mat);
             go.isStatic = false;
         }
     }
