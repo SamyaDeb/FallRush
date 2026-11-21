@@ -69,6 +69,7 @@ public static class MapArt
         MapDressing.Dress(scene, info, mapKey, vc);
         if (System.Environment.GetEnvironmentVariable("FALLRUSH_NO_MERGE") != "1")
             MergeStatic(scene);
+        ShadowCasters(scene);
         AssetDatabase.SaveAssets();
     }
 
@@ -123,6 +124,27 @@ public static class MapArt
         }
 
         Debug.Log($"[setup] merged static renderers into {n} chunks");
+    }
+
+    /// <summary>
+    /// G4.8: every opaque map renderer (chunks, hazards, props) casts and receives the soft look's sun shadows; clouds,
+    /// glass, text and transparent parts never cast. The candy look's light casts none, so this costs nothing there.
+    /// </summary>
+    private static void ShadowCasters(Scene scene)
+    {
+        foreach (var root in scene.GetRootGameObjects())
+        {
+            if (root.name != "Geometry" && root.name != "Hazards" && root.name != "MergedStatic" && root.name != "Dressing")
+                continue;
+            foreach (var r in root.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                var m = r.sharedMaterial;
+                var cast = m != null && m.renderQueue < (int)RenderQueue.Transparent && (!m.HasProperty("_ZWrite") || m.GetFloat("_ZWrite") > 0.5f) && r.GetComponent<TMPro.TextMeshPro>() == null &&
+                           r.GetComponent<TextMesh>() == null && !r.name.StartsWith("Clouds") && r.name != "Glass" && !r.name.StartsWith("Backdrop") && (!m.HasProperty("_Unlit") || m.GetFloat("_Unlit") < 0.5f);
+                r.shadowCastingMode = cast ? ShadowCastingMode.On : ShadowCastingMode.Off;
+                r.receiveShadows = cast;
+            }
+        }
     }
 
     private static Transform Find(Scene scene, string name)
@@ -351,9 +373,12 @@ public static class MapArt
 
     public struct Style
     {
-        public Color Top, Band, Side;
+        public Color Top, Band, Side, Rim;
         public float BandH, Bevel;
         public bool Stripes;
+        /// <summary>G4.8: a walkable section surface (pastel top, padded rims, soft pattern <see cref="Pattern"/>).</summary>
+        public bool Walkable;
+        public int Pattern;
     }
 
     private static bool IsCube(Mesh m) => m != null && (m == _cube || m.name == "Cube" && AssetDatabase.GetAssetPath(m) == "Library/unity default resources");
@@ -412,29 +437,49 @@ public static class MapArt
     /// <summary>Turntable stripes / spokes: the section hue darkened toward ink (readable as moving, never mint on a walkable top).</summary>
     public static Color MoverStripe(Color hueTop) => Color.Lerp(hueTop, PaletteTokens.Get().ink, 0.35f);
 
-    private static readonly Dictionary<Color, Color> BakeCache = new Dictionary<Color, Color>();
+    private static readonly Dictionary<(Color, LookId), Color> BakeCache = new Dictionary<(Color, LookId), Color>();
 
     /// <summary>
-    /// G4.6-3: an sRGB palette colour → the vertex colour that shows it on a lit top after the grade
-    /// (<see cref="FallRush.Client.GraphicsQuality.AlbedoFor"/> under the map light: warm sun + cool sky ambient).
+    /// G4.6-3 / G4.8: an sRGB palette colour → the vertex colour that shows it on a lit top after the grade of
+    /// <paramref name="look"/> (<see cref="FallRush.Client.GraphicsQuality.AlbedoFor(Color, LookId)"/>: its sun, sky ambient and grade).
     /// </summary>
-    public static Color Bake(Color srgb)
+    public static Color Bake(Color srgb, LookId look)
     {
-        if (BakeCache.TryGetValue(srgb, out var c))
+        if (BakeCache.TryGetValue((srgb, look), out var c))
             return c;
-        c = FallRush.Client.GraphicsQuality.AlbedoFor(srgb, FallRush.Client.GraphicsQuality.TopLight(P.sun, P.ambientSky));
-        BakeCache[srgb] = c;
+        c = FallRush.Client.GraphicsQuality.AlbedoFor(srgb, look);
+        BakeCache[(srgb, look)] = c;
         return c;
     }
 
-    private static Style StyleFor(string matName, Vector3 pos, string mapKey, SurfaceHue hue)
+    /// <summary>The tone-on-tone pattern of a section hue (soft look, walkable tops): one per hue, so one per section.</summary>
+    public static int PatternFor(SurfaceHue h)
+    {
+        switch (h)
+        {
+            case SurfaceHue.SodaBlue: return 1;   // wide soft stripes
+            case SurfaceHue.Tangerine: return 2;  // polka dots
+            case SurfaceHue.SourApple: return 3;  // checks
+            case SurfaceHue.Bubblegum: return 4;  // chevrons
+            case SurfaceHue.GrapeFizz: return 2;
+            default: return 1;
+        }
+    }
+
+    private static Style StyleFor(string matName, string mapKey, SurfaceHue hue, LookId look)
     {
         var p = P;
-        var top = p.HueTop(hue);
-        var side = p.HueSide(hue);
-        var s = new Style { Top = top, Band = Color.Lerp(top, Color.white, 0.3f), Side = side, BandH = 0.14f, Bevel = 0.05f };
+        var top = p.Top(hue, look);
+        var side = p.Side(hue, look);
+        var s = new Style
+        {
+            Top = top, Band = Color.Lerp(top, Color.white, 0.3f), Side = side, Rim = p.Rim(hue, look), BandH = 0.14f, Bevel = 0.05f,
+            Walkable = IsSurface(matName), Pattern = PatternFor(hue),
+        };
         if (IsSurface(matName))
             return s;
+        s.Pattern = 0;
+        s.Rim = s.Band;
         if (IsWall(matName))
         {
             s.Side = Color.Lerp(side, p.ink, 0.12f); // rails / walls a shade deeper than the decks
@@ -445,46 +490,46 @@ public static class MapArt
         {
             case "SpawnMint":
             case "Spring":
-                s.Top = s.Band = Color.Lerp(p.mint, Color.white, 0.15f);
+                s.Top = s.Band = s.Rim = Color.Lerp(p.mint, Color.white, 0.15f);
                 s.Side = p.mint;
                 s.Bevel = 0.03f;
                 break;
             case "Grape":
             case "CrumbleFrame":
                 // G4.6: machine purple, deepened toward ink (the lighter grape top sat within ΔE 10 of goo and Grape fizz).
-                s.Top = s.Band = Color.Lerp(p.grape, p.ink, 0.35f);
+                s.Top = s.Band = s.Rim = Color.Lerp(p.grape, p.ink, 0.35f);
                 s.Side = Color.Lerp(p.grape, p.ink, 0.5f);
                 break;
             case "Checker":
             case "Ink":
-                s.Top = s.Band = s.Side = p.ink;
+                s.Top = s.Band = s.Side = s.Rim = p.ink;
                 s.Bevel = 0.02f;
                 break;
             case "HazardYellow":
             case "HazardMagenta":
-                s.Top = s.Band = s.Side = Color.white;
+                s.Top = s.Band = s.Side = s.Rim = Color.white;
                 s.Stripes = true;
                 break;
             case "Belt":
-                s.Top = s.Band = BeltTop(top);
-                s.Side = Color.Lerp(BeltTop(top), p.ink, 0.25f);
+                s.Top = s.Band = s.Rim = BeltTop(p.HueTop(hue));
+                s.Side = Color.Lerp(BeltTop(p.HueTop(hue)), p.ink, 0.25f);
                 break;
             case "BeltArrow":
-                s.Top = s.Band = s.Side = new Color(0.97f, 0.97f, 1f);
+                s.Top = s.Band = s.Side = s.Rim = new Color(0.97f, 0.97f, 1f);
                 s.Bevel = 0f;
                 break;
             case "Door":
-                s.Top = s.Band = s.Side = new Color(1f, 0.93f, 0.66f);
+                s.Top = s.Band = s.Side = s.Rim = new Color(1f, 0.93f, 0.66f);
                 break;
             case "GooCore":
-                s.Top = s.Band = Color.Lerp(p.goo, Color.white, 0.55f);
+                s.Top = s.Band = s.Rim = Color.Lerp(p.goo, Color.white, 0.55f);
                 s.Side = Color.Lerp(p.goo, Color.white, 0.35f);
                 break;
             case "StarRim":
-                s.Top = s.Band = s.Side = p.sunYellow;
+                s.Top = s.Band = s.Side = s.Rim = p.sunYellow;
                 break;
             case "StarRing":
-                s.Top = s.Band = s.Side = side; // the static centre's edge line (its hue's side)
+                s.Top = s.Band = s.Side = s.Rim = side; // the static centre's edge line (its hue's side)
                 break;
         }
 
@@ -494,34 +539,219 @@ public static class MapArt
     /// <summary>Round prisms (floors, discs, hubs) that take a block style: re-coloured by vertex like the toy blocks.</summary>
     private static bool StyledPrism(string m) => IsSurface(m) || IsWall(m) || m == "Grape" || m == "StarRing";
 
-    /// <summary>A copy of a prism mesh (top cap at local y 0, body down to −1) in a block style: top cap, sides with AO, dark bottom.</summary>
-    private static Mesh StyledMesh(Mesh src, Style st)
+    /// <summary>
+    /// A copy of a prism mesh (top cap at local y 0, body down to −1) in a block style, both looks: top cap, sides with AO,
+    /// dark bottom. G4.8: <paramref name="scale"/> (radius, height, radius in metres) lets it extend down to
+    /// <paramref name="extraDown"/> more metres and carry a padded rim ring over the exposed arcs <paramref name="rimRuns"/>.
+    /// </summary>
+    private static Mesh StyledMesh(Mesh src, Style soft, Style candy, Vector3 scale, float extraDown, List<Vector2> rimRuns, int topRole, int sideRole)
     {
-        var key = $"{src.name}_{ColorUtility.ToHtmlStringRGB(st.Top)}{ColorUtility.ToHtmlStringRGB(st.Side)}";
+        var key = $"{src.name}_{ColorUtility.ToHtmlStringRGB(soft.Top)}{ColorUtility.ToHtmlStringRGB(soft.Side)}{ColorUtility.ToHtmlStringRGB(candy.Top)}{ColorUtility.ToHtmlStringRGB(candy.Side)}_{scale.x:F2}_{scale.y:F2}_{extraDown:F2}_{topRole}{sideRole}_{RunsKey(rimRuns)}";
         if (BevelCache.TryGetValue(key, out var cached))
             return cached;
         var v = src.vertices;
         var n = src.normals;
-        var c = new Color[v.Length];
-        const float ao = 0.74f;
-        var top = Bake(st.Top);
-        var side = Bake(st.Side); // baked, as BevelBoxRaw
+        var tri = src.triangles;
+        var bs = new ToyMesh.Baked(soft, LookId.Soft);
+        var bc = new ToyMesh.Baked(candy, LookId.Candy);
+        var buf = new ToyMesh.Buffers();
+        var hm = Mathf.Max(1e-3f, scale.y);
+        var height = hm + extraDown;
         for (var i = 0; i < v.Length; i++)
         {
-            var ny = n.Length > i ? n[i].y : 0f;
-            c[i] = ny > 0.7f ? top : ny < -0.7f ? side * (ao * 0.85f) : Color.Lerp(side * ao, side, Mathf.Clamp01(1f + v[i].y));
+            // metres, top at 0; the body bottom (y −1) moves down by extraDown.
+            var y = v[i].y < -0.5f ? -height : v[i].y * hm;
+            var p = new Vector3(v[i].x * scale.x, y, v[i].z * scale.z);
+            var nn = n.Length > i ? Vector3.Scale(n[i], new Vector3(1f / scale.x, 1f / hm, 1f / scale.z)).normalized : Vector3.up;
+            var ny = nn.y;
+            Color cs, cc;
+            int role;
+            if (ny > 0.7f)
+            {
+                cs = bs.Top;
+                cc = bc.Top;
+                role = topRole;
+            }
+            else if (ny < -0.7f)
+            {
+                cs = bs.Bottom;
+                cc = bc.Bottom;
+                role = sideRole;
+            }
+            else
+            {
+                cs = bs.SideAt(y + height, -y, height);
+                cc = bc.SideAt(y + height, -y, height);
+                role = sideRole;
+            }
+
+            buf.Add(p, nn, cs, cc, role, soft.Pattern);
         }
 
-        var m = Object.Instantiate(src);
-        m.name = "Styled_" + key;
-        m.colors = c;
+        buf.T.AddRange(tri);
+        if (rimRuns != null && rimRuns.Count > 0)
+            ToyMesh.RimRing(buf, scale.x, rimRuns, bs.Rim, bc.Rim, soft.Pattern);
+        var m = buf.ToMesh("Styled_" + Mathf.Abs(key.GetHashCode()).ToString("X"), new Vector3(scale.x, hm, scale.z));
         BevelCache[key] = m;
         return m;
+    }
+
+    private static string RunsKey(List<Vector2> runs)
+    {
+        if (runs == null)
+            return "";
+        var sb = new System.Text.StringBuilder();
+        foreach (var r in runs)
+            sb.Append($"{r.x:F2}:{r.y:F2},");
+        return sb.ToString();
+    }
+
+    // ------------------------------------------------------------------ G4.8 neighbour analysis (render only)
+
+    /// <summary>The top rounding radius of a walkable block (0.15–0.25 m with its size).</summary>
+    public const float TopRadius = 0.2f, TightRadius = 0.03f, MinThickness = 0.6f;
+
+    /// <summary>
+    /// Is the point just outside a top edge covered by another solid at about the same height or higher (an abutting deck, a
+    /// wall)? Then that edge gets no rim and a tight radius (no groove between two decks).
+    /// </summary>
+    private static bool Covered(Vector3 world, float topY, Collider self)
+    {
+        foreach (var c in Physics.OverlapSphere(world, 0.06f, ~0, QueryTriggerInteraction.Ignore))
+            if (c != self && c.bounds.max.y >= topY - 0.2f)
+                return true;
+        return false;
+    }
+
+    /// <summary>The block's top edges: exposed runs get rims, mostly covered sides a tight radius.</summary>
+    private static ToyMesh.Shape BlockShape(Transform t, Vector3 size, bool walkable, bool staticGeo)
+    {
+        var sh = new ToyMesh.Shape { Radius = walkable ? Mathf.Clamp(Mathf.Min(size.x, size.z) * 0.08f, 0.15f, 0.25f) : 0.12f };
+        sh.TopRole = walkable ? ToyMesh.RoleTop : ToyMesh.RoleSide;
+        var col = t.GetComponent<Collider>();
+        if (!walkable || col == null || col.isTrigger)
+            return sh;
+        var hx = size.x * 0.5f;
+        var hy = size.y * 0.5f;
+        var hz = size.z * 0.5f;
+        var l2w = t.localToWorldMatrix;
+        var inv = new Vector3(1f / size.x, 1f / size.y, 1f / size.z);
+        Vector3 W(Vector3 q) => l2w.MultiplyPoint3x4(Vector3.Scale(q, inv));
+        var topY = W(new Vector3(0f, hy, 0f)).y;
+        var rims = Mathf.Min(size.x, size.z) >= 0.9f;
+        for (var side = 0; side < 4; side++)
+        {
+            ToyMesh.EdgeFrame(side, hx, hz, out var start, out var dir, out var outward, out var len);
+            var steps = Mathf.Max(2, Mathf.CeilToInt(len / 0.4f));
+            var covered = 0;
+            var runStart = -1f;
+            for (var k = 0; k <= steps; k++)
+            {
+                var u = len * k / steps;
+                var q = start + dir * u + outward * 0.25f + Vector3.up * (hy - 0.08f);
+                var cov = Covered(W(q), topY, col);
+                covered += cov ? 1 : 0;
+                if (!cov && runStart < 0f)
+                    runStart = Mathf.Max(0f, u - len / steps * 0.5f);
+                if ((cov || k == steps) && runStart >= 0f)
+                {
+                    var end = cov ? Mathf.Max(runStart, u - len / steps * 0.5f) : len;
+                    if (k == steps && !cov)
+                        end = len;
+                    if (end - runStart > 0.3f && rims)
+                        sh.Rims.Add(new ToyMesh.RimRun { Side = side, A = runStart <= len / steps * 0.5f + 1e-3f ? 0f : runStart, B = end });
+                    runStart = -1f;
+                }
+            }
+
+            if (covered * 2 > steps + 1)
+                sh.SideRadius[side] = TightRadius;
+        }
+
+        // Chunky: extend the render mesh down to ≥ 0.6 m, only where nothing sits under it (2 m clear: no walk volume filled).
+        if (staticGeo && size.y < MinThickness)
+        {
+            var extra = MinThickness - size.y;
+            var c = W(new Vector3(0f, -hy - 0.02f - (extra + 2f) * 0.5f, 0f));
+            var half = new Vector3(Mathf.Max(0.05f, hx - 0.1f), (extra + 2f) * 0.5f, Mathf.Max(0.05f, hz - 0.1f));
+            var hits = Physics.OverlapBox(c, half, t.rotation, ~0, QueryTriggerInteraction.Ignore);
+            var free = true;
+            foreach (var h in hits)
+                if (h != col)
+                    free = false;
+            if (free)
+                sh.ExtraDown = extra;
+        }
+
+        return sh;
+    }
+
+    /// <summary>The exposed arcs (radians) of a round top of radius <paramref name="radius"/> (prism, top at the transform).</summary>
+    private static List<Vector2> RingRuns(Transform t, float radius)
+    {
+        var runs = new List<Vector2>();
+        var col = t.GetComponent<Collider>();
+        if (col == null || radius < 0.9f)
+            return runs;
+        const int n = 48;
+        var cov = new bool[n];
+        var any = false;
+        for (var k = 0; k < n; k++)
+        {
+            var a = k * Mathf.PI * 2f / n;
+            var w = t.position + t.rotation * new Vector3(Mathf.Cos(a) * (radius + 0.25f), -0.08f, Mathf.Sin(a) * (radius + 0.25f));
+            cov[k] = Covered(w, t.position.y, col);
+            any |= cov[k];
+        }
+
+        if (!any)
+        {
+            runs.Add(new Vector2(0f, Mathf.PI * 2f));
+            return runs;
+        }
+
+        // Runs of uncovered samples, starting after a covered one (wraps around).
+        var first = System.Array.IndexOf(cov, true);
+        var i = 0;
+        while (i < n)
+        {
+            var k = (first + i) % n;
+            if (cov[k])
+            {
+                i++;
+                continue;
+            }
+
+            var s0 = first + i;
+            while (i < n && !cov[(first + i) % n])
+                i++;
+            var a0 = (s0 - 0.5f) * Mathf.PI * 2f / n;
+            var a1 = (first + i - 0.5f) * Mathf.PI * 2f / n;
+            if (a1 - a0 > 0.3f / radius)
+                runs.Add(new Vector2(a0, a1));
+        }
+
+        return runs;
+    }
+
+    private static float PrismExtra(Transform t, Vector3 scale)
+    {
+        if (scale.y >= MinThickness)
+            return 0f;
+        var col = t.GetComponent<Collider>();
+        var extra = MinThickness - scale.y;
+        var c = t.position + Vector3.down * (scale.y + 0.02f + (extra + 2f) * 0.5f);
+        foreach (var h in Physics.OverlapBox(c, new Vector3(scale.x * 0.65f, (extra + 2f) * 0.5f, scale.z * 0.65f), t.rotation, ~0, QueryTriggerInteraction.Ignore))
+            if (h != col)
+                return 0f;
+        return extra;
     }
 
     private static void Blocks(Transform root, Material vc, string mapKey)
     {
         var stripes = StripeMaterial();
+        var staticGeo = root.name == "Geometry";
+        Physics.SyncTransforms();
         foreach (var mf in root.GetComponentsInChildren<MeshFilter>(true))
         {
             var r = mf.GetComponent<MeshRenderer>();
@@ -529,165 +759,58 @@ public static class MapArt
                 continue;
             var t = mf.transform;
             var matName = r.sharedMaterial.name;
+            var hue = HueFor(mapKey, t);
+            var soft = StyleFor(matName, mapKey, hue, LookId.Soft);
+            var candy = StyleFor(matName, mapKey, hue, LookId.Candy);
             if (!IsCube(mf))
             {
                 // G4.6: round floors / discs / hubs (static prisms) take the section hue in vertex colours on the shared material.
                 if (mf.sharedMesh != null && mf.sharedMesh.name.StartsWith("Prism") && StyledPrism(matName))
                 {
-                    mf.sharedMesh = StyledMesh(mf.sharedMesh, StyleFor(matName, t.position, mapKey, HueFor(mapKey, t)));
+                    var sc = Abs(t.lossyScale);
+                    var walk = soft.Walkable && t.GetComponent<Collider>() != null;
+                    mf.sharedMesh = StyledMesh(mf.sharedMesh, soft, candy, sc, walk && staticGeo ? PrismExtra(t, sc) : 0f, walk ? RingRuns(t, sc.x) : null,
+                        walk ? ToyMesh.RoleTop : ToyMesh.RoleSide, ToyMesh.RoleSide);
                     r.sharedMaterial = vc;
                 }
 
                 continue;
             }
 
-            var size = t.lossyScale;
-            var st = StyleFor(matName, t.position, mapKey, HueFor(mapKey, t));
-            mf.sharedMesh = BevelBox(Abs(size), st);
-            r.sharedMaterial = st.Stripes ? stripes : vc;
+            var size = Abs(t.lossyScale);
+            var sh = BlockShape(t, size, soft.Walkable, staticGeo);
+            if (soft.Stripes)
+                sh.SideRole = sh.TopRole = ToyMesh.RoleHazard;
+            mf.sharedMesh = RoundBox(size, soft, candy, sh);
+            r.sharedMaterial = soft.Stripes ? stripes : vc;
         }
     }
 
     private static Vector3 Abs(Vector3 v) => new Vector3(Mathf.Abs(v.x), Mathf.Abs(v.y), Mathf.Abs(v.z));
 
-    // ------------------------------------------------------------------ chamfered toy block
+    // ------------------------------------------------------------------ toy blocks (G4.8: rounded, see ToyMesh)
 
-    /// <summary>
-    /// A chamfered box in normalised space (unit cube, for <c>localScale = size</c>) whose bevel, colour band and AO are
-    /// sized in metres for <paramref name="size"/>. Flat-shaded faces + 45° chamfers + corner triangles.
-    /// </summary>
-    public static Mesh BevelBox(Vector3 size, Style st) => BevelBoxRaw(size, st.Top, st.Band, st.Side, st.BandH, st.Bevel);
-
-    public static Mesh BevelBoxRaw(Vector3 size, Color top, Color band, Color side, float bandH, float bevel)
+    public static Mesh RoundBox(Vector3 size, Style soft, Style candy, ToyMesh.Shape sh)
     {
-        var key = $"{size.x:F3}_{size.y:F3}_{size.z:F3}_{ColorUtility.ToHtmlStringRGB(top)}{ColorUtility.ToHtmlStringRGB(band)}{ColorUtility.ToHtmlStringRGB(side)}_{bandH:F2}_{bevel:F3}";
+        var key = $"RB_{size.x:F3}_{size.y:F3}_{size.z:F3}_{ColorUtility.ToHtmlStringRGB(soft.Top)}{ColorUtility.ToHtmlStringRGB(soft.Side)}{ColorUtility.ToHtmlStringRGB(soft.Rim)}" +
+                  $"{ColorUtility.ToHtmlStringRGB(candy.Top)}{ColorUtility.ToHtmlStringRGB(candy.Band)}{ColorUtility.ToHtmlStringRGB(candy.Side)}_{soft.Pattern}{(soft.Walkable ? 1 : 0)}_{candy.BandH:F2}_{sh.Key()}";
         if (BevelCache.TryGetValue(key, out var cached))
             return cached;
-        // G4.6: vertex colours are read as linear (linear project) and then lit and graded; bake each (sRGB, on-screen)
-        // palette colour through the inverse grade, so a lit top shows its token after the grade (decision G4.6-3).
-        top = Bake(top);
-        band = Bake(band);
-        side = Bake(side);
-        var b = Mathf.Min(bevel, Mathf.Min(size.x, Mathf.Min(size.y, size.z)) * 0.25f);
-        var hx = size.x * 0.5f;
-        var hy = size.y * 0.5f;
-        var hz = size.z * 0.5f;
-        var band0 = Mathf.Min(bandH, size.y * 0.3f);
-        var v = new List<Vector3>();
-        var n = new List<Vector3>();
-        var c = new List<Color>();
-        var tris = new List<int>();
-        var ao = 0.74f;
-
-        Color SideAt(float y)
-        {
-            // y in metres from the bottom: fake AO toward the bottom, the band at the top.
-            var k = Mathf.Clamp01(y / Mathf.Max(0.3f, size.y * 0.8f));
-            return Color.Lerp(side * ao, side, Mathf.SmoothStep(0f, 1f, k));
-        }
-
-        void Quad(Vector3 a, Vector3 bb, Vector3 cc, Vector3 d, Vector3 nn, Color ca, Color cb, Color ccl, Color cd)
-        {
-            var i = v.Count;
-            v.Add(a); v.Add(bb); v.Add(cc); v.Add(d);
-            for (var k = 0; k < 4; k++)
-                n.Add(nn);
-            c.Add(ca); c.Add(cb); c.Add(ccl); c.Add(cd);
-            tris.Add(i); tris.Add(i + 1); tris.Add(i + 2);
-            tris.Add(i); tris.Add(i + 2); tris.Add(i + 3);
-        }
-
-        void Tri(Vector3 a, Vector3 bb, Vector3 cc, Vector3 nn, Color col)
-        {
-            var i = v.Count;
-            v.Add(a); v.Add(bb); v.Add(cc);
-            for (var k = 0; k < 3; k++)
-            {
-                n.Add(nn);
-                c.Add(col);
-            }
-
-            tris.Add(i); tris.Add(i + 1); tris.Add(i + 2);
-        }
-
-        // Top (y = hy), inset by b.
-        Quad(new Vector3(-hx + b, hy, -hz + b), new Vector3(-hx + b, hy, hz - b), new Vector3(hx - b, hy, hz - b), new Vector3(hx - b, hy, -hz + b), Vector3.up, top, top, top, top);
-        // Bottom.
-        var bot = side * (ao * 0.85f);
-        Quad(new Vector3(-hx + b, -hy, -hz + b), new Vector3(hx - b, -hy, -hz + b), new Vector3(hx - b, -hy, hz - b), new Vector3(-hx + b, -hy, hz - b), Vector3.down, bot, bot, bot, bot);
-
-        // Four sides, each split into the lower body and the top band; chamfers between faces.
-        var dirs = new[] { Vector3.forward, Vector3.right, Vector3.back, Vector3.left };
-        for (var f = 0; f < 4; f++)
-        {
-            var nn = dirs[f];
-            var tangent = Vector3.Cross(Vector3.up, nn); // along the face, left → right seen from outside
-            var halfW = Mathf.Abs(nn.z) > 0.5f ? hx : hz;
-            var depth = Mathf.Abs(nn.z) > 0.5f ? hz : hx;
-            var o = nn * depth;
-            var y0 = -hy + b;
-            var y1 = hy - b - band0;
-            var y2 = hy - b;
-            Vector3 P2(float u, float y) => o + tangent * u + Vector3.up * y;
-            var w = halfW - b;
-            if (y1 > y0)
-                Quad(P2(-w, y0), P2(-w, y1), P2(w, y1), P2(w, y0), nn, SideAt(b), SideAt(y1 + hy), SideAt(y1 + hy), SideAt(b));
-            var yb = Mathf.Max(y0, y1);
-            Quad(P2(-w, yb), P2(-w, y2), P2(w, y2), P2(w, yb), nn, band, band, band, band);
-
-            // Top chamfer (face ↔ top) and bottom chamfer (face ↔ bottom).
-            var nTop = (nn + Vector3.up).normalized;
-            var tIn = o - nn * b;
-            Quad(P2(-w, y2), tIn + tangent * -w + Vector3.up * hy, tIn + tangent * w + Vector3.up * hy, P2(w, y2), nTop, band, top, top, band);
-            var nBot = (nn + Vector3.down).normalized;
-            Quad(tIn + tangent * -w - Vector3.up * hy, P2(-w, y0), P2(w, y0), tIn + tangent * w - Vector3.up * hy, nBot, bot, SideAt(b), SideAt(b), bot);
-
-            // Vertical chamfer to the next face (at +tangent end) and the two corner triangles.
-            var nx = dirs[(f + 1) % 4];
-            var nCorner = (nn + nx).normalized;
-            var nxDepth = Mathf.Abs(nx.z) > 0.5f ? hz : hx;
-            Vector3 Q(float y) => nn * depth + tangent * w + Vector3.up * y;               // this face's right edge
-            Vector3 R(float y) => nx * nxDepth - nn * (depth - b) + Vector3.up * y;     // next face's left edge
-            if (y1 > y0)
-                Quad(Q(y0), Q(y1), R(y1), R(y0), nCorner, SideAt(b), SideAt(y1 + hy), SideAt(y1 + hy), SideAt(b));
-            Quad(Q(yb), Q(y2), R(y2), R(yb), nCorner, band, band, band, band);
-            var topCorner = nn * (depth - b) + tangent * w + Vector3.up * hy;
-            Tri(Q(y2), topCorner, R(y2), (nn + nx + Vector3.up).normalized, band);
-            var botCorner = nn * (depth - b) + tangent * w - Vector3.up * hy;
-            Tri(Q(y0), R(y0), botCorner, (nn + nx + Vector3.down).normalized, bot);
-        }
-
-        // Normalise to the unit cube; normals pre-multiplied by the scale (inverse-transpose of the object scale).
-        var inv = new Vector3(1f / Mathf.Max(1e-4f, size.x), 1f / Mathf.Max(1e-4f, size.y), 1f / Mathf.Max(1e-4f, size.z));
-        for (var i = 0; i < v.Count; i++)
-        {
-            v[i] = Vector3.Scale(v[i], inv);
-            n[i] = Vector3.Scale(n[i], size).normalized;
-        }
-
-        var mesh = new Mesh { name = "ToyBlock_" + key.Substring(0, Mathf.Min(24, key.Length)) };
-        mesh.SetVertices(v);
-        mesh.SetNormals(n);
-        mesh.SetColors(c);
-        mesh.SetTriangles(FixWinding(v, n, tris), 0);
-        mesh.RecalculateBounds();
-        BevelCache[key] = mesh;
-        return mesh;
+        var m = ToyMesh.RoundBox(size, soft, candy, sh);
+        BevelCache[key] = m;
+        return m;
     }
 
-    /// <summary>Flips any triangle whose winding disagrees with its normal (the quads above are built by hand).</summary>
-    private static List<int> FixWinding(List<Vector3> v, List<Vector3> n, List<int> t)
+    /// <summary>
+    /// A rounded toy block in normalised space (unit cube, for <c>localScale = size</c>) with one set of colours in both looks
+    /// (props, dressing; only the bake differs per look). <paramref name="bevel"/> ≤ 0.01 keeps thin decals flat-edged; above
+    /// it the corners round at ≥ 0.14 m (G4.8: chunky toy props). Role prop (soft gloss).
+    /// </summary>
+    public static Mesh BevelBoxRaw(Vector3 size, Color top, Color band, Color side, float bandH, float bevel)
     {
-        for (var i = 0; i < t.Count; i += 3)
-        {
-            var a = v[t[i]];
-            var fn = Vector3.Cross(v[t[i + 1]] - a, v[t[i + 2]] - a);
-            // Unity is clockwise-front (left-handed): the front face (clockwise) has its cross product along the normal.
-            if (Vector3.Dot(fn, n[t[i]]) < 0f)
-                (t[i + 1], t[i + 2]) = (t[i + 2], t[i + 1]);
-        }
-
-        return t;
+        var st = new Style { Top = top, Band = band, Side = side, Rim = band, BandH = bandH, Bevel = bevel };
+        var sh = new ToyMesh.Shape { Radius = bevel <= 0.01f ? bevel : Mathf.Max(bevel, 0.14f), TopRole = ToyMesh.RoleProp, SideRole = ToyMesh.RoleProp };
+        return RoundBox(size, st, st, sh);
     }
 
     // ------------------------------------------------------------------ hazard groups → one mesh each
@@ -759,6 +882,7 @@ public static class MapArt
         var n = new List<Vector3>();
         var c = new List<Color>();
         var u2 = new List<Vector2>();
+        var u3 = new List<Vector4>();
         var tris = new List<int>();
         var toLocal = root.worldToLocalMatrix;
         var chevron = 0;
@@ -773,31 +897,54 @@ public static class MapArt
             var isCube = IsCube(mesh);
             var matName = mat.name;
             var stripes = matName == "HazardYellow" || matName == "HazardMagenta";
-            var st = StyleFor(matName, r.transform.position, mapKey, hue);
+            var st = StyleFor(matName, mapKey, hue, LookId.Soft);
+            var stc = StyleFor(matName, mapKey, hue, LookId.Candy);
             if (mover && (matName == "SpawnMint" || matName == "Grape" || matName == "TableStripe"))
             {
-                st.Top = st.Band = st.Side = MoverStripe(P.HueTop(hue));
-                st.Bevel = 0f;
+                // Soft: the hue's mid-tone side, a touch deeper (a pastel lerped toward ink reads grey on the pale decks).
+                st.Top = st.Band = st.Side = st.Rim = Color.Lerp(P.Side(hue, LookId.Soft), P.ink, 0.3f);
+                stc.Top = stc.Band = stc.Side = stc.Rim = MoverStripe(P.HueTop(hue));
+                st.Bevel = stc.Bevel = 0f;
+                st.Walkable = false;
             }
 
+            // G4.8: hit hazards gloss (role 4); walkable mover parts (platform decks, turntable discs, falling blocks) take
+            // the pastel top, its pattern-free top role and padded rims all round; everything else is a side.
+            var walkPart = mover && st.Walkable;
+            var partRole = hit ? ToyMesh.RoleHazard : ToyMesh.RoleSide;
+            st.Pattern = walkPart ? 0 : st.Pattern;
             var tint = (Color?)null;
+            var tintC = (Color?)null;
             var styled = false;
             if (isCube && !stripes)
             {
-                mesh = BevelBox(Abs(r.transform.lossyScale), st);
+                var size = Abs(r.transform.lossyScale);
+                var sh = new ToyMesh.Shape { Radius = walkPart ? Mathf.Clamp(Mathf.Min(size.x, size.z) * 0.08f, 0.15f, 0.25f) : 0.12f, TopRole = walkPart ? ToyMesh.RoleTop : partRole, SideRole = partRole };
+                if (walkPart && Mathf.Min(size.x, size.z) >= 0.9f)
+                    for (var side = 0; side < 4; side++)
+                        sh.Rims.Add(new ToyMesh.RimRun { Side = side, A = 0f, B = side % 2 == 0 ? size.x : size.z });
+                mesh = RoundBox(size, st, stc, sh);
                 styled = true;
             }
             else if (!isCube && !stripes && mesh.name.StartsWith("Prism") && StyledPrism(matName))
             {
-                mesh = StyledMesh(mesh, st);
+                var sc = Abs(r.transform.lossyScale);
+                mesh = StyledMesh(mesh, st, stc, sc, 0f, walkPart && sc.x >= 0.9f ? new List<Vector2> { new Vector2(0f, Mathf.PI * 2f) } : null,
+                    walkPart ? ToyMesh.RoleTop : partRole, partRole);
                 styled = true;
             }
             else if (mover && (matName == "TableStripe" || matName == "SpawnMint" || matName == "Grape"))
+            {
                 tint = st.Top;
+                tintC = stc.Top;
+            }
+
             var m = toLocal * r.transform.localToWorldMatrix;
             var mv = mesh.vertices;
             var mn = mesh.normals;
             var mc = mesh.colors;
+            var mu3 = new List<Vector4>();
+            mesh.GetUVs(3, mu3);
             var a = mask != null ? mask(r.transform) : 0f;
             var idx = chevrons && r.transform.name.StartsWith("Chevron_") ? 1 + chevron / 2 : 0;
             if (idx > 0)
@@ -807,14 +954,38 @@ public static class MapArt
             {
                 v.Add(m.MultiplyPoint3x4(mv[i]));
                 n.Add(m.inverse.transpose.MultiplyVector(mn.Length > i ? mn[i] : Vector3.up).normalized);
-                // Styled meshes are already baked (BevelBoxRaw / StyledMesh); material and token colours are sRGB: bake them.
-                var k = styled ? (mc.Length > i ? mc[i] : Color.white) : Bake(col);
+                // Styled meshes are already baked (RoundBox / StyledMesh, both looks); material and token colours are sRGB: bake them per look.
+                Color k, kc;
+                var code = 2f + 8f * (stripes ? ToyMesh.RoleHazard : partRole);
+                if (styled)
+                {
+                    k = mc.Length > i ? mc[i] : Color.white;
+                    var d = mu3.Count > i ? mu3[i] : new Vector4(k.r, k.g, k.b, code);
+                    kc = new Color(d.x, d.y, d.z, 1f);
+                    code = d.w;
+                }
+                else
+                {
+                    k = Bake(col, LookId.Soft);
+                    kc = Bake(col, LookId.Candy);
+                }
+
                 if (stripes)
-                    k = Bake(matName == "HazardYellow" ? P.hazardYellow : P.hazardMagenta);
+                {
+                    var sc = matName == "HazardYellow" ? P.hazardYellow : P.hazardMagenta;
+                    k = Bake(sc, LookId.Soft);
+                    kc = Bake(sc, LookId.Candy);
+                }
+
                 if (tint.HasValue)
-                    k = Bake(tint.Value);
+                {
+                    k = Bake(tint.Value, LookId.Soft);
+                    kc = Bake(tintC.Value, LookId.Candy);
+                }
+
                 k.a = a;
                 c.Add(k);
+                u3.Add(new Vector4(kc.r, kc.g, kc.b, code));
                 u2.Add(new Vector2(idx, hit ? 4f : 0f));
             }
 
@@ -856,14 +1027,15 @@ public static class MapArt
         merged.SetNormals(n);
         merged.SetColors(c);
         merged.SetUVs(1, u2);
+        merged.SetUVs(3, u3);
         merged.SetTriangles(tris, 0);
         merged.RecalculateBounds();
         var mfr = root.gameObject.AddComponent<MeshFilter>();
         mfr.sharedMesh = merged;
         var mr = root.gameObject.AddComponent<MeshRenderer>();
         mr.sharedMaterial = vc;
-        mr.shadowCastingMode = ShadowCastingMode.Off;
-        mr.receiveShadows = false;
+        mr.shadowCastingMode = ShadowCastingMode.On; // G4.8: hazards cast the soft look's sun shadows (the candy light casts none)
+        mr.receiveShadows = true;
         mr.lightProbeUsage = LightProbeUsage.Off;
         mr.reflectionProbeUsage = ReflectionProbeUsage.Off;
         if (chevrons)
@@ -918,7 +1090,7 @@ public static class MapArt
             {
                 l.color = P.sun;      // G4.6: warm sun #FFF1DC
                 l.intensity = FallRush.Client.GraphicsQuality.SunIntensity;
-                l.shadows = LightShadows.None;
+                l.shadows = LightShadows.None; // G4.8: the client switches the soft look's shadows on (GraphicsQuality.ApplyShadows)
                 l.transform.rotation = Quaternion.Euler(48f, -35f, 0f);
                 RenderSettings.sun = l;
             }
