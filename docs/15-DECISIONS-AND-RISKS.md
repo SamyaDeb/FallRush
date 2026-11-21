@@ -120,6 +120,7 @@
 | G4.3-10 | **Round 2 median 57 s (target 90–110): shipped at the closest tuning.** Escapes 4.85–4.99 (5 in ≈ 85–99 % of rounds), margins 8.6–9.5 s, route cost PASS. Longer cycles (G4.3d) gained ≤ 10 s and broke ratios / margins (reverted); options in proof §4 | **you** | proof §4 |
 | G4.3-11 | The summit (22 m above the start corner) is outside the default spawn frame; a beacon marks it (visible looking up) | **you** | proof §8 |
 | G4.3-12 | Bot code: jump arcs in the look-ahead; Survival bots start a side at its first point; out-of-reach re-acquire; `RouteQa` for Survival; goo probe per route index. Other maps' guard QA PASS | ✅ | WaypointBot, BotBrain, RouteQa, ModeQa |
+| G4.4-0 | **Round 2 target 50–65 s (short, tense climb)**, was 90–110 s (doc 08) / 90–120 s (GDD §4.1). G4.3 proof §4 option 1, applied by default (no other choice in `docs/playtest/G4-notes.md`). Measured: normal median 56.8 s, reference 50.8 s, p90 62.8–64.8 s; longer cycles gained ≤ 10 s and broke ratios / margins. Match ≈ 6.1 min from roster lock (≈ 6.8 min lobby → receipt), under the GDD's 7–9 min line | ✅ (default; say if you want option 2 or 3) | GDD §4.1, doc 08 §5 |
 
 ## Top risks (live; update daily in PROJECT_STATUS)
 

@@ -40,11 +40,13 @@ Party-game players, streamers and their viewers, and crypto-curious gamers. No c
 | Round | Mode | Map pool (VRF picks) | Start | Qualify | Out | Target length |
 |---|---|---|---:|---:|---:|---|
 | 1 | Race | Block Party Dash. Bonk Factory joins the VRF pool if it ships (stretch, D-14). | 12 | 8 | 4 | 75–110 s |
-| 2 | Survival | Goo Tower | 8 | 5 | 3 | 90–120 s |
+| 2 | Survival | Goo Tower | 8 | 5 | 3 | 50–65 s (short, tense climb; G4.4-0) |
 | 3 | Skill | Star Scramble | 5 | 3 | 2 | 60–75 s |
 | 4 | Final | Crumble Shelf | 3 | 1 | 2 | 60–120 s |
 
 A full match takes 7–9 minutes including intermissions.
+
+- **G4.4-0 (2026-11-20):** Round 2's target is now **50–65 s** (was 90–120 s): the G4.3 Goo Tower measures a normal-bot median of 56.8 s (reference 50.8 s), and longer hazard cycles gained ≤ 10 s while breaking route ratios and goo margins (G4.3 proof §4, option 1). Match sum with bot medians: R1 ≈ 86 s + R2 ≈ 57 s + R3 60 s (timer) + R4 ≈ 73 s = **276 s of play**; + 4 × 11 s round intro / countdown / result + 3 × 8 s intermissions + ≈ 4 × 3 s loads + 8 s champion = **≈ 364 s (6.1 min) from roster lock**, ≈ 6.5 min with the 20 s lobby countdown and the 6 s deal, ≈ 6.8 min with the 20 s receipt. That is **under the 7–9 min line above** (it already was in M4: 377 s median); human round times are unmeasured and usually longer than bots'.
 
 **Thresholds** live in the versioned server ruleset (`ruleset_v1.json`) and are mirrored on-chain in `GameConfig`. They are **never hard-coded in the client**.
 

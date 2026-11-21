@@ -217,7 +217,7 @@ Code: `Editor/GooTowerBuilder.cs` (re-runnable). Proof, QA, tuning log: `docs/pr
 - **Goo:** GOO_PLANE −1.5 m, **0.17 m/s, delay 3 s** (y 0 at ≈ 12 s, summit at ≈ 141 s; timer 150 s).
 - **Variants:** mallet periods, lift periods, ball periods, sweeper period, door wave direction.
 - **Constraint (kept):** the goo never overtakes any route at reference speed — every route index escapes alone (min margin 8.6–9.5 s).
-- **QA (100 runs):** route cost **0 free routes, all ratios ≤ 1.25**; Survival QA PASS (reference 4.97–4.99 escaped, normal 4.85–4.92; median 50.8 / 56.8 s — under the 90–110 s target, open: proof §4).
+- **QA (100 runs):** route cost **0 free routes, all ratios ≤ 1.25**; Survival QA PASS (reference 4.97–4.99 escaped, normal 4.85–4.92; median 50.8 / 56.8 s — inside the revised **50–65 s** Round 2 target (short, tense climb; decision G4.4-0; was 90–110 s, proof §4).
 - **Bot rule learned here:** on lap 2, a hazard that pushes *outward* (or a bumper passed on its outer side) is an elimination once the goo covers lap 1; place pushes along the path or toward the core. A mallet swinging *along* a lane (jumps or stairs) leaves the look-ahead no window: swing it across. A climb block's top must stay below the next side's start height − 0.3 m (bots pick the side's route by height).
 
 ## 5.0 Goo Tower, 3 laps / 40 m (M4–G1) — **replaced by the G4.3 rebuild (above)**
