@@ -21,6 +21,7 @@ using UnityEngine.SceneManagement;
 /// <item>M2b hazard course along z = −28 (west of the spawn): a rotating sweeper bar (pivot x = −30, z = −31, arm 4.5 m,
 /// bar 0.3–0.6 m high, 5 s per turn) and a moving platform over the void past the −X edge (x = −46 ± 3.5 m, 6 s period)
 /// shuttling to an island at x = −56. Hazard poses are <c>HazardMath</c> functions of the tick.</item>
+/// <item>G4.1 section east of the fall-off edge at z −20: a ROLLING_BALL lane and a 7 × 7 LID_FLIP grid (<see cref="BuildG4Section"/>).</item>
 /// </list>
 /// Menu: Fall Rush/Setup/Build Map_Sandbox · batch: <c>-executeMethod SandboxBuilder.Run</c>.
 /// </summary>
@@ -128,6 +129,8 @@ public static class SandboxBuilder
         // M3a: the obstacle kit row along z = 54 (walkway north of the slab): one of each new hazard type.
         KitBuilder.Init();
         var kit = BuildKitRow(hz, geo);
+        // G4.1: one ball lane and a 7 × 7 lid grid east of the fall-off edge (bridge at z −20).
+        var (ball, lids) = BuildG4Section(hz, geo);
 
         var info = new GameObject("MapInfo").AddComponent<MapInfo>();
         info.definition = MapDefinitionAsset("Sandbox", MapPoolV1.Sandbox, "Sandbox", -20f, new[] { 0, 1, 2, 3, 4, 5 });
@@ -144,6 +147,8 @@ public static class SandboxBuilder
         info.doors = new[] { kit.door };
         info.mallets = new[] { kit.mallet };
         info.bumpers = kit.bumpers;
+        info.rollingBalls = new[] { ball };
+        info.lidGrids = new[] { lids };
 
         MapArt.Apply(scene, info, "Sandbox"); // G2 look (the sandbox is a dev map; same pass keeps it consistent)
         if (!EditorSceneManager.SaveScene(scene, ScenePath))
@@ -161,6 +166,28 @@ public static class SandboxBuilder
         var hash = info.ContentHash;
         Debug.Log($"[setup] built {ScenePath} (layer {PhysxMotorWorld.GameplayLayerName}={_layer}) mapHash={Sha256.Hex(hash)}");
         RecordMapHash("Map_Sandbox", hash);
+    }
+
+    // ------------------------------------------------------------------ G4.1 section
+
+    public static readonly Vector3 G4BallStart = new Vector3(54f, 1f, -11.5f);
+    public static readonly Vector3 G4BallEnd = new Vector3(54f, 1f, -29f);
+    public static readonly Vector3 G4LidCenter = new Vector3(54f, 0f, -36.52f);
+
+    /// <summary>
+    /// G4.1 practice section (walk east off the slab at z −20 over the bridge): a deck x [44, 64], z [−30, −10.5] crossed
+    /// by a ROLLING_BALL lane (r 1 m, 4 m/s, a ball every 2 s, rolling −Z along x = 54), and south of it, over the void, a
+    /// 7 × 7 LID_FLIP grid (1.8 m lids, waves 90 → 45 ticks, rings retire at 25 s / 50 s, looping every 90 s in free play).
+    /// </summary>
+    private static (HazardRollingBall, HazardLidGrid) BuildG4Section(Transform hz, Transform geo)
+    {
+        Box(geo, "G4Bridge", new Vector3(42f, -0.5f, -20f), new Vector3(4f, 1f, 6f), _walk);
+        Box(geo, "G4Deck", new Vector3(54f, -0.5f, -20.25f), new Vector3(20f, 1f, 19.5f), _walk);
+        var ball = KitBuilder.RollingBall(hz, geo, "sbx_ball_01", G4BallStart, G4BallEnd, 1f, 4000, 60, 45);
+        var lids = KitBuilder.LidGrid(hz, "sbx_lids_01", G4LidCenter, 7, loopTicks: 2700);
+        Label(geo, "G4 BALL LANE (dodge or jump)", new Vector3(50f, 3.2f, -12f));
+        Label(geo, "G4 LID FLIP 7×7 (lit → flips; rings retire)", new Vector3(54f, 2.6f, -30f));
+        return (ball, lids);
     }
 
     // ------------------------------------------------------------------ M3a kit row

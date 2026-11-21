@@ -301,7 +301,7 @@ namespace FallRush.Client
                             break;
                         case LidState.Retired:
                         {
-                            var since = (float)(t - d.RetireTick(i)) / 30f;
+                            var since = (float)(HazardMath.LidLocalT(in d, t0) + f - d.RetireTick(i)) / 30f;
                             pos.y -= 0.5f * 20f * since * since;
                             visible = since < 1.5f;
                             break;

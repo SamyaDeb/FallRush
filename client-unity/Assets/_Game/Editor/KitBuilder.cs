@@ -554,4 +554,104 @@ public static class KitBuilder
         bm.visual = vis;
         return bm;
     }
+
+    // ------------------------------------------------------------------ G4.1 kit
+
+    /// <summary>
+    /// <c>ROLLING_BALL</c> lane (G4.1a): balls (centres) roll from <paramref name="start"/> to <paramref name="end"/>. No
+    /// collider (a knock volume). Visuals: a pool of striped balls (one per ball that can be alive at once) and a chute
+    /// light block behind the start (telegraph), all under the hazard root, posed by the client from the pure pose.
+    /// </summary>
+    public static HazardRollingBall RollingBall(Transform hz, Transform geo, string id, Vector3 start, Vector3 end, float radius = 1f, int speedMmS = 4000, int periodTicks = 60, int periodB = 0)
+    {
+        var root = new GameObject($"RollingBall_{id}").transform;
+        root.SetParent(hz, false);
+        root.position = start;
+        var rb = root.gameObject.AddComponent<HazardRollingBall>();
+        rb.obstacleId = id;
+        rb.def = RollingBallDef.Default(Mm(start.x), Mm(start.y), Mm(start.z), Mm(end.x), Mm(end.y), Mm(end.z));
+        rb.def.RadiusMm = Mm(radius);
+        rb.def.SpeedMmS = speedMmS;
+        rb.def.PeriodTicks = periodTicks;
+        rb.variantB = rb.def;
+        if (periodB > 0 && periodB != periodTicks)
+        {
+            rb.variantB.PeriodTicks = periodB;
+            rb.hasVariantB = true;
+        }
+
+        var d = rb.def;
+        HazardMath.PrepareBall(ref d);
+        var n = Mathf.Max(HazardMath.BallMaxAlive(in d), rb.hasVariantB ? HazardMath.BallMaxAlive(in rb.variantB) : 0);
+        rb.balls = new Transform[n];
+        for (var i = 0; i < n; i++)
+        {
+            var ball = new GameObject($"Ball_{i}").transform;
+            ball.SetParent(root, false);
+            ball.position = start;
+            var body = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            body.name = "BallBody";
+            Object.DestroyImmediate(body.GetComponent<Collider>());
+            body.transform.SetParent(ball, false);
+            body.transform.localScale = Vector3.one * radius * 2f;
+            var r = body.GetComponent<MeshRenderer>();
+            r.sharedMaterial = HazardM;
+            r.shadowCastingMode = ShadowCastingMode.Off;
+            // A band so the spin reads.
+            LocalVisual(ball, "BallBand", Vector3.zero, new Vector3(radius * 2.04f, radius * 0.4f, radius * 2.04f), HazardY);
+            ball.gameObject.SetActive(false);
+        }
+
+        // Chute light behind the release point (static geometry frame + a dynamic light block for the telegraph).
+        var back = (start - end).normalized;
+        back.y = 0f;
+        if (back.sqrMagnitude < 0.01f)
+            back = Vector3.forward;
+        back.Normalize();
+        var chute = Visual(root, $"Chute_{id}", start + back * (radius + 0.4f) + Vector3.up * (radius * 0.2f), new Vector3(radius * 2.4f, radius * 2.4f + 0.4f, 0.4f), HazardY,
+            Quaternion.LookRotation(back));
+        rb.chute = chute.GetComponent<Renderer>();
+        return rb;
+    }
+
+    /// <summary>
+    /// <c>LID_FLIP</c> grid (G4.1b): N × N lid colliders (box, no renderer, Gameplay layer; switched on/off per tick by the
+    /// motor world from the pure lid state) and N × N lid visuals (dynamic, under the hazard root; flipped / lit / dropped
+    /// by the client). The grid's top is <paramref name="center"/>.y.
+    /// </summary>
+    public static HazardLidGrid LidGrid(Transform hz, string id, Vector3 center, int n, int loopTicks = 0)
+    {
+        var root = new GameObject($"LidGrid_{id}").transform;
+        root.SetParent(hz, false);
+        root.position = center;
+        var g = root.gameObject.AddComponent<HazardLidGrid>();
+        g.obstacleId = id;
+        g.def = LidGridDef.Default(Mm(center.x), Mm(center.y), Mm(center.z), n);
+        g.def.LoopTicks = loopTicks;
+        g.variantB = g.def;
+        var d = g.def;
+        g.lids = new Collider[d.Count];
+        g.visuals = new Transform[d.Count];
+        var lid = d.LidMm * 0.001f;
+        var th = d.ThicknessMm * 0.001f;
+        var colRoot = new GameObject("LidColliders").transform;
+        colRoot.SetParent(root, false);
+        for (var i = 0; i < d.Count; i++)
+        {
+            d.LidCenterMm(i, out var x, out var y, out var z);
+            var c = new Vector3(x * 0.001f, y * 0.001f, z * 0.001f);
+            var col = Box(colRoot, $"LidCol_{i}", c, new Vector3(lid, th, lid), Walk);
+            Object.DestroyImmediate(col.GetComponent<MeshRenderer>());
+            Object.DestroyImmediate(col.GetComponent<MeshFilter>());
+            g.lids[i] = col.GetComponent<Collider>();
+            var v = new GameObject($"Lid_{i}").transform;
+            v.SetParent(root, false);
+            v.position = c;
+            var ring = d.Ring(i);
+            LocalVisual(v, "LidBody", Vector3.zero, new Vector3(lid, th, lid), ring <= 1 ? Mint : ring % 2 == 0 ? Feature : Walk);
+            g.visuals[i] = v;
+        }
+
+        return g;
+    }
 }

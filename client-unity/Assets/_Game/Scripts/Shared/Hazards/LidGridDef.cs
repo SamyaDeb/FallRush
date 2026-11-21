@@ -35,6 +35,8 @@ namespace FallRush.Shared
         public int[] RingRetireTicks;      // ring m, m−1, … retire at these hazard times (increasing)
         public int RetireWarnTicks;
         public int MinInnerSolid;          // ≥ this many of the inner 3 × 3 are solid at every tick
+        /// <summary>0 = the schedule runs once (rounds). &gt; 0: it repeats every LoopTicks (free-play sandbox, so the rings come back).</summary>
+        public int LoopTicks;
 
         /// <summary>Per-obstacle seed (<c>ObstaclePhase.Hash(hazardSeed, obstacleId)</c>), set at resolve; not authored, not hashed.</summary>
         [NonSerialized] public uint Seed;
@@ -94,6 +96,9 @@ namespace FallRush.Shared
     public static partial class HazardMath
     {
         // ------------------------------------------------------------------ lid flip: wave schedule (closed form)
+
+        /// <summary>Schedule time: <paramref name="t"/>, or t mod <see cref="LidGridDef.LoopTicks"/> for a looping (sandbox) grid.</summary>
+        public static int LidLocalT(in LidGridDef d, int t) => d.LoopTicks > 0 ? Mod(t, d.LoopTicks) : t;
 
         private static int Interval(in LidGridDef d, int stage) => d.WaveIntervals == null || d.WaveIntervals.Length == 0 ? 60 : Math.Max(1, d.WaveIntervals[Math.Min(stage, d.WaveIntervals.Length - 1)]);
 
@@ -215,6 +220,7 @@ namespace FallRush.Shared
         /// </summary>
         public static LidState LidStateAt(in LidGridDef d, int lid, int t, int[] scratch)
         {
+            t = LidLocalT(in d, t);
             var rs = RingState(in d, lid, t);
             if (rs != LidState.Idle)
                 return rs;
@@ -243,6 +249,7 @@ namespace FallRush.Shared
         /// <summary>Every lid's state at <paramref name="t"/> into <paramref name="states"/> (N²); each covering wave is drawn once. No allocation.</summary>
         public static void LidStates(in LidGridDef d, int t, LidState[] states, int[] scratch)
         {
+            t = LidLocalT(in d, t);
             for (var lid = 0; lid < d.Count; lid++)
                 states[lid] = RingState(in d, lid, t);
             var window = d.LitTicks + d.FlippedTicks;
@@ -269,6 +276,7 @@ namespace FallRush.Shared
         /// <summary>Ticks into the current Flipped window (for the 6-tick flip animation), or −1 when the lid is not flipped. Visual helper.</summary>
         public static int LidFlippedFor(in LidGridDef d, int lid, int t, int[] scratch)
         {
+            t = LidLocalT(in d, t);
             var window = d.LitTicks + d.FlippedTicks;
             for (var w = LidLastWave(in d, t); w >= 0; w--)
             {

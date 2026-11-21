@@ -193,6 +193,8 @@ namespace FallRush.Shared
                 foreach (var pm in d.FlipPermille)
                     Range(e, who, "flipPermille", pm, 0, 500);
             var rings = d.RingRetireTicks ?? Array.Empty<int>();
+            if (d.LoopTicks != 0)
+                Range(e, who, "loopTicks", d.LoopTicks, (rings.Length > 0 ? rings[rings.Length - 1] : 0) + 300, 36000);
             if (rings.Length > Math.Max(0, d.Mid - 1))
                 e.Add($"{who}: {rings.Length} ring retire ticks for n={d.N}: the inner 3 × 3 never retires (at most {Math.Max(0, d.Mid - 1)})");
             for (var i = 0; i < rings.Length; i++)

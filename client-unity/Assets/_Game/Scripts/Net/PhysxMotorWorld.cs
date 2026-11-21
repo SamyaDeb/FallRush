@@ -23,7 +23,6 @@ namespace FallRush.Net
         private readonly Collider[] _tiles;
         private readonly Collider[] _blocks;
         private readonly Collider[] _lids;
-        private bool[] _lidOn;
         private bool[] _tileOn, _blockOn;
         private readonly System.Collections.Generic.Dictionary<int, int> _surfaceOf = new System.Collections.Generic.Dictionary<int, int>();
         private uint _tick;
@@ -49,9 +48,6 @@ namespace FallRush.Net
             _tiles = cols.Tiles ?? System.Array.Empty<Collider>();
             _blocks = cols.Blocks ?? System.Array.Empty<Collider>();
             _lids = cols.Lids ?? System.Array.Empty<Collider>();
-            _lidOn = new bool[_lids.Length];
-            for (var i = 0; i < _lids.Length; i++)
-                _lidOn[i] = _lids[i] != null && _lids[i].enabled;
             _hazards.InitLids();
             _tileOn = new bool[_tiles.Length];
             _blockOn = new bool[_blocks.Length];
@@ -132,11 +128,8 @@ namespace FallRush.Net
                 for (var i = 0; i < _lids.Length; i++)
                 {
                     var on = HazardMath.LidSolid(ls[i]);
-                    if (on != _lidOn[i])
-                    {
-                        _lidOn[i] = on;
-                        _lids[i].enabled = on;
-                    }
+                    if (_lids[i] != null && _lids[i].enabled != on)
+                        _lids[i].enabled = on; // compared with the collider itself: stays right even if another world shares it
                 }
             }
 
