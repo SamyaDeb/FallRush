@@ -60,6 +60,9 @@ namespace FallRush.Client
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             var dev = UiKit.Button(panel, "Practice / tuning (dev)", UiKit.Grey, () => NetBootstrap.StartPractice("BlockPartyDash"));
             dev.GetComponent<LayoutElement>().minHeight = 44;
+            // G4.1: the sandbox's G4 section (ball lane + 7 × 7 lid grid, east of the spawn: walk to the edge, bridge at z −20).
+            var g4 = UiKit.Button(panel, "Practice: G4 hazards sandbox (dev)", UiKit.Grey, () => NetBootstrap.StartPractice("Sandbox"));
+            g4.GetComponent<LayoutElement>().minHeight = 44;
 #endif
             _wallet = UiKit.Label(panel, string.Empty, 14, UiKit.Ink, FontStyle.Normal, 20);
             _target = UiKit.Label(panel, string.Empty, 13, UiKit.Grey, FontStyle.Normal, 18);

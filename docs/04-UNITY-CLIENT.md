@@ -152,6 +152,10 @@ No NGO scene management. The director asks for a map (`ServerMatch.LoadMap`): th
 - **Prediction:** `PhysxMotorWorld.BeginTick(t)` (and the analytic test world) switches tile / block colliders from the same lookup on both sides; client replays across a drop are exact once the contact is known. A drop is 18 ticks (600 ms) after the contact, longer than RTT + lead, so the client normally knows it first. `ClientSim.RxLate` counts changes that arrived after their effective tick in the predicted timeline.
 - **Stars** move with their anchors (pure); pickups are server-validated (no client claims exist: inputs only).
 
+### 4.1.4a G4 lids: posed, not replicated (G4.1b, as built)
+
+`LID_FLIP` lids are **not** reactive: each lid's state is a pure function of `(def, per-obstacle seed, lid, t)` (doc 08 §2.3). `PhysxMotorWorld.BeginTick(t)` switches each lid collider on (Idle / Lit / RetireWarn) or off (Flipped / Retired) from `HazardSet.LidStatesAt(t)`, exactly like a gate door is posed: on the server, in client prediction and in every rewind / replay tick, so a re-simulation sees the same floor. The toggle compares against `collider.enabled` itself (correct even if two worlds shared colliders). No new message, no `rx` entries; the `CRUMBLE_TILE` reactive path stays for the fallback. Practice mode runs the lids too (pure, no server). Prediction twin through the sandbox's 7 × 7 grid and ball lane: 0 corrections, 0 hazard mismatches (`G4PredictionTests`).
+
 ### 4.1.5 Reconnect (M4-6, as built)
 
 The server issues a 16-byte token at join (`match`); WebGL keeps it in `sessionStorage` (`Plugins/WebGL/FallRushSession.jslib`), desktop in memory (`-fallrushTokenFile` for the probe). On an unexpected drop the client shows "Reconnecting… N s" and retries every 2 s for 20 s (`NetBootstrap.AutoReconnect`); `hello` carries the token; the server re-attaches the same slot (`SimCore.Attach`, fresh input buffer) and sends the full state. The Rushling stayed in the world on neutral input meanwhile. TODO(M5): the Relay's signed guest token replaces it.
@@ -211,6 +215,8 @@ long stall (> 64 ticks without sampling): drop the prediction and adopt the next
 **`LocalWorld(tick)`** is the same PhysX scene with the platform colliders posed for the predicted tick (`PhysxMotorWorld.BeginTick` → `Physics.SyncTransforms`). The sweeper is analytic (`HazardMath.SweeperContact`). Hazard **visuals** are drawn on the local predicted timeline (`ClientSim.HazardRenderTick`), so what you collide with is where it is drawn. Remote players near a hazard are drawn ≈ RTT/2 + 100 ms in the past relative to it (standard trade-off, visible only at high RTT).
 
 **Not predicted:** pushes from other players (server-only soft separation). **Predicted:** sweeper knockback + stun, platform carry, falling out (the respawn teleport arrives from the server).
+
+**G4 step order (as built, `PlayerStep.Run`, identical on both sides):** `world.BeginTick(T)` (platforms, doors, **lid colliders**) → door push-out → motor step → knock hazards in this order: spinner bars → mallets → **rolling balls** → bumpers (at most one hit per tick; none while immune) → spring pads → fall volume / goo. Then, server only: player–player soft separation in slot-ordered pairs, and inside it the **bump stagger** (G4.1c, flag `movement_v3.bump.enabled`, default **off**): an overlapping pair closing at ≥ 4 m/s along the contact normal → the slower player (a tie: both) gets the G1 stumble (`Stumbling` + `LandTicks = 8`, input live, speed capped at 55 %) unless stunned, stumbling, diving / dive-landing, respawning or immune. With push prediction on (`ClientSim.DefaultPredictPushes`), the client applies the same rule to itself against remotes extrapolated from the newest snapshot, using their snapshot velocity (`ClientPrediction.RemoteMotion`). With the flag off nothing changes: a crowd run recorded on the movement_v2 build is reproduced bit for bit (`BumpStaggerTests`). DEV override for measurements: `-fallrushBump 1` / `?bump=1` on both sides.
 
 **Measured (M2b gate, `docs/proof/M2-netcode.md` Part B):**
 - **Bit-identical across 1,800-tick server twins** (EditMode, analytic world) at lead 1/3/6 and downlink delay 2/5 ticks, including sweeper hits and platform rides.
@@ -304,6 +310,9 @@ Snapshot interpolation at `renderTime = serverTimeEstimate − interpDelay` (`Ne
 **State struct:** `MotorState` holds `pos i32×3 mm, vel i16×3 cm/s, yaw u8, flags u8, stunTicks u8, coyote, jumpBuffer, diveCooldown, landTicks, immunity, surface` (all u8). It is blittable and compared bit-for-bit in the determinism tests. `lastCheckpoint` lives in round rules (M3), not in the motor.
 
 **Chaos modifiers (M5):** applied as multipliers on a `MovementConfig` instance.
+
+### 5.y Movement v3 (G4.1c, as built)
+- The game loads **`movement_v3.json`** = `movement_v2.json` + `"bump": { "enabled": false, "minClosingSpeed": 4000, "staggerMs": 250 }` and `version` 3 (sha256 `5ed0cefd…`; v2 `696ebf9f…` and v1 unchanged on disk, both hashes asserted). `pnpm gen:movement` now reads v3 (the generator learned booleans). `MovementConfigTests.MovementV3_MinusBump_EqualsV2_FieldForField`. The bump block is a **ruleset-v2 field for M6** (PROJECT_STATUS "Notes for M6"). Snapshot layout unchanged (the stagger reuses `Stumbling` + `LandTicks`); protocol unchanged.
 
 ### 5.x Movement v2 and new motor states (G1, as built)
 - The game uses **`movement_v2.json`** (sha256 in `MovementConfigData.g.cs`, regenerated by `pnpm gen:movement`; hash test reads the file on disk; `movement_v1.json` unchanged, its hash is asserted too). Values: GDD §7. `MovementTuning` holds the tunable integers (dev practice mode only; `MovementConfig.FromTuning`).

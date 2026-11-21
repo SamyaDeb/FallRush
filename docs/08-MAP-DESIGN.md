@@ -106,6 +106,19 @@ Code: `client-unity/Assets/_Game/Scripts/Shared/Hazards/`. Hazard time `t = serv
 
 Allowlists unchanged (the new kit has no tunable speed beyond the goo, checked by the QA). The map content hash covers the new defs in an `m4` block that is only written when a map has them, so the M3 maps' hashes did not change (Block Party Dash `ffc099ad…`, Sandbox `2ae7d388…`). New pure functions are in `hazard_vectors_v2.json` (v1 unchanged).
 
+### 2.3 G4 kit types (as built, 2026-11-19; `Shared/Hazards/RollingBallDef.cs`, `Shared/Hazards/LidGridDef.cs`)
+
+| Type | Def fields (units) | Pose / state | Collision / effect | Telegraph (client) |
+|---|---|---|---|---|
+| `ROLLING_BALL` (type 13) | start / end centre mm, radius 600–1200 mm, speed 2–7 m/s, release period 30–300 ticks, phase16 (seeded), telegraph ticks (15), knock fields (`knock_hard`); `LenMm` derived at load (integer √) | ball k released at `t_k = k·P − ⌊phase16·P / 2¹⁶⌋`; position = integer lerp start → end by `(t − t_k)·speed / (30·len)`; despawns after `⌈len·30 / speed⌉` ticks; `⌈travel / P⌉` balls alive at most, only those evaluated | **no collider** (a knock volume, never a surface). Sphere vs the player capsule in integer mm, newest ball first; push = roll direction + ½ × the lateral offset (normalised, float only there): 9 m/s + 5 m/s up, stun 18, immunity 33 (the mallet's). In `ApplyKnocks` after spinners and mallets, before bumpers | chute light rises over the 15 ticks before each release (`RollingBallTelegraph1000`); balls spin by the distance rolled |
+| `LID_FLIP` (type 14, one grid component) | grid centre x/z mm, top mm, N (odd 5–11), lid 1.2–2.2 m, gap, thickness, lit 30 / flipped 45 ticks, first wave tick, wave intervals per stage (90 / 75 / 60 / 45), waves per stage (8), flip share per stage (‰ of the alive lids: 200 / 250 / 300 / 350), ring retire ticks (750 / 1500 / 2250, outermost first), retire warn (90), min inner solid (5 of the inner 3 × 3), loop ticks (0; the sandbox loops); per-obstacle seed at resolve | **pure** `LidState(def, seed, lid, t)` → Idle / Lit / Flipped / Retired / RetireWarn. Wave starts are a closed-form sum over the stages; wave w lights the first ⌊alive·‰⌋ lids of a SplitMix64 partial Fisher–Yates of the lids alive for the whole wave window (so a lid never lights while its ring is warned or retired); **fairness** in the function: each wave keeps at most ⌊(9 − min) / ⌈flipped / min interval⌉⌋ inner lids (later inner picks dropped), so ≥ 5 inner lids are solid at every tick. All lids at a tick in O(waves · N²) with a scratch buffer of N² (no allocation) | each lid's box collider is on in Idle / Lit / RetireWarn and off in Flipped / Retired, **posed from the tick** in the motor world (server, prediction, rewind alike; no replication, no new messages) | lit = yellow pulse; flipped = 180° flip over 6 ticks (and back); retire warn = blinking; retired = drops away |
+
+- **Seeds:** the ball's phase is the usual `ObstaclePhase.Phase16(seed, obstacleId)`; the lid grid takes `ObstaclePhase.Hash(seed, obstacleId)` (FNV-1a32) as its seed, mixed per wave with SplitMix64. In M6 that per-obstacle seed comes from `H(vrf_seed ‖ round ‖ obstacleId)`: the Final's floor pattern is then derived from MagicBlock VRF with no change in the grid code.
+- **Allowlists:** ball radius 0.6–1.2 m, speed 2–7 m/s, period 30–300, telegraph 9–90, path 2–250 m, spacing (speed × period) ≥ one diameter, the path must not start inside a spawn volume (0.5 m margin), knock rules; lid grid N odd 5–11, lid 1.2–2.2 m, lit 15–90, flipped 15–150, intervals 30–300, ≤ 500 ‰ per wave, rings increasing and never the inner 3 × 3, min inner solid 5–9, loop ≥ last retire + 300.
+- **Hash:** a `g4` block in the map content hash, written only when a map has G4 defs (so every existing map keeps its hash; tested). New pure functions are in `hazard_vectors_v3.json` (v1 / v2 unchanged).
+- **Fallback:** `CRUMBLE_TILE` / `ReactiveSet` stay in the code untouched (G4 prompt §2.4 cut order).
+- **Sandbox:** `Map_Sandbox` has a G4 section east of the fall-off edge (bridge at z −20): one ball lane and a 7 × 7 lid grid that loops every 90 s in free play.
+
 ## 3. Map 1A — **Block Party Dash** (Race)
 
 **Layout:** a sunny toy-block sky course.
@@ -266,6 +279,10 @@ Colour-blind: the stripe pattern rule (every hazard striped; stripe colours diff
 
 ### 9.3 G1 (movement v2)
 `scripts/g1-qa.sh [runs] [maps…]` (same harness as M4; writes `docs/proof/g1-map-qa.md`). Block Party Dash was also run with reference bots (M4 ran it with normal bots only). Results and durations: `docs/proof/G1-polish.md` §D. `ModeQa` gained `-fallrushQaTrace` (per-tick state of the survival route probe on a section) and logs the last alive state of a failed route probe.
+
+### 9.4 G4 route cost (`-fallrushQaRoutes`)
+`scripts/g4-route-qa.sh [runs=100] [map=BlockPartyDash] [out]` → `FallRushDevServer -batchmode -nographics -fallrushQA <runs> -fallrushQaRoutes -fallrushMap <key> -fallrushQAOut <md>` (`Net/RouteQa.cs`, race maps). Per variant, modifier None: **timing** with 12 reference-tier bots (median ticks from section entry to exit for each route index, ratio to the section's fastest route; target 1.0–1.25×) and **contacts** with 12 normal-tier bots (hazard hits / door push-outs / falls per 100 traversals; a route with no hazard contact is flagged **FREE ROUTE**; falls alone do not count). Output: `map · variant · section · route · median s · ratio` markdown. Baseline on today's Block Party Dash: `docs/proof/g4/route-cost-before.md` (36 free routes incl. the S2 / S5 / S6 edge beams at 1.00–1.08×).
+Bump stagger measurement flag (DEV): `-fallrushBump 1` (server / QA) and `?bump=1` (client) force the movement_v3 bump flag; both sides must agree.
 
 ### 9.2 As built (M4)
 
