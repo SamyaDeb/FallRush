@@ -102,8 +102,15 @@ namespace FallRush.Shared
             foreach (var d in h.Bumpers)
                 w.I32(d.CenterXMm).I32(d.CenterYMm).I32(d.CenterZMm).I32(d.RadiusMm).I32(d.HeightMm).I32(d.ContactMarginMm)
                     .I32(d.KnockbackCms).I32(d.KnockUpCms).I32(d.StunTicks).I32(d.ImmunityTicks);
-            if (!h.HasM4)
-                return; // M3 maps hash exactly as before
+            if (h.HasM4)
+                WriteM4(w, h); // M3 maps hash exactly as before
+            if (!h.HasG4)
+                return; // M3/M4 maps hash exactly as before
+            WriteG4(w, h, zeroPhase);
+        }
+
+        private static void WriteM4(CanonicalWriter w, HazardSet h)
+        {
             // M4 kit (goo, crumble grid, falling blocks, star field, spinner start).
             w.Str("m4").I32(h.SweeperStartT).I32(h.Goo.Length);
             foreach (var d in h.Goo)
@@ -118,6 +125,15 @@ namespace FallRush.Shared
             foreach (var d in h.StarFields)
                 w.Ints(d.AnchorsMm).Ints(d.Attach).Ints(d.Golden).I32(d.WaveEveryTicks).I32(d.WaveSize).I32(d.WaveLifeTicks).I32(d.GoldenEveryTicks)
                     .I32(d.GoldenLifeTicks).I32(d.GoldenValue).I32(d.PickupRadiusMm).I32(d.DropPopTicks).I32(d.DropLifeTicks).I32(d.DropDistanceMm);
+        }
+
+        /// <summary>G4 kit, appended only when present. Seeded fields (phase, lid seed) are excluded like the other kits' phases.</summary>
+        private static void WriteG4(CanonicalWriter w, HazardSet h, bool zeroPhase)
+        {
+            w.Str("g4").I32(h.RollingBalls.Length);
+            foreach (var d in h.RollingBalls)
+                w.I32(d.StartXMm).I32(d.StartYMm).I32(d.StartZMm).I32(d.EndXMm).I32(d.EndYMm).I32(d.EndZMm).I32(d.RadiusMm).I32(d.SpeedMmS)
+                    .I32(d.PeriodTicks).I32(zeroPhase ? 0 : d.Phase16).I32(d.TelegraphTicks).I32(d.KnockbackCms).I32(d.KnockUpCms).I32(d.StunTicks).I32(d.ImmunityTicks);
         }
     }
 }

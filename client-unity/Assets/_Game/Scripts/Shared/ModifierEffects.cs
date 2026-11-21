@@ -164,5 +164,16 @@ namespace FallRush.Shared
         }
 
         public static void Apply(ref BumperDef d, in ModifierEffects m) => d.KnockbackCms = ScaleValue(d.KnockbackCms, m.KnockbackPermille);
+
+        /// <summary>G4.1a: TurboToys rolls faster and releases more often; BigBonk hits harder; the telegraph scales like the mallet's.</summary>
+        public static void Apply(ref RollingBallDef d, in ModifierEffects m)
+        {
+            d.SpeedMmS = ScaleValue(d.SpeedMmS, m.HazardSpeedPermille);
+            d.PeriodTicks = ScalePeriod(d.PeriodTicks, m.HazardSpeedPermille);
+            d.TelegraphTicks = ScaleValue(d.TelegraphTicks, m.TelegraphPermille);
+            d.KnockbackCms = ScaleValue(d.KnockbackCms, m.KnockbackPermille);
+            d.LenMm = 0;
+            HazardMath.PrepareBall(ref d);
+        }
     }
 }

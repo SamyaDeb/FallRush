@@ -105,7 +105,7 @@ namespace FallRush.Net
             }
 
             Round = p;
-            var problems = HazardAllowlist.Validate(hazards);
+            var problems = HazardAllowlist.Validate(hazards, map.SpawnsMm());
             if (problems.Count > 0)
             {
                 Refused = string.Join("; ", problems);
@@ -174,7 +174,7 @@ namespace FallRush.Net
             p.RoundStartTick = roundStartTick;
             var cfg = MovementConfig.For(p.Modifier);
             _world = Map.CreateWorld(_probe, cfg, in p, out var hazards);
-            var problems = HazardAllowlist.Validate(hazards);
+            var problems = HazardAllowlist.Validate(hazards, Map.SpawnsMm());
             if (problems.Count > 0)
             {
                 Refused = string.Join("; ", problems);
@@ -201,7 +201,7 @@ namespace FallRush.Net
             var cfg = MovementConfig.For(p.Modifier);
             _world = map.CreateWorld(_probe, cfg, in p, out var hazards);
             Refused = null;
-            var problems = HazardAllowlist.Validate(hazards);
+            var problems = HazardAllowlist.Validate(hazards, map.SpawnsMm());
             if (problems.Count > 0)
             {
                 Refused = string.Join("; ", problems);

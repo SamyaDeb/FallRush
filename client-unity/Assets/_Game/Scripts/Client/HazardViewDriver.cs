@@ -14,6 +14,7 @@ namespace FallRush.Client
     /// <item>Doors flash magenta for <see cref="GateDoorDef.TelegraphTicks"/> before they start closing, and while closing.</item>
     /// <item>Mallet heads glow during their wind-up (<see cref="HazardMath.MalletWindup"/>), before each pass through the bottom.</item>
     /// <item>Conveyor chevrons light up in a travelling wave in the belt direction (speed-true).</item>
+    /// <item>G4.1a rolling balls are placed and spun from the pure lane pose; the chute light flashes before each release.</item>
     /// </list>
     /// No colliders are touched here: only visual transforms and material property blocks.
     /// </summary>
@@ -171,6 +172,8 @@ namespace FallRush.Client
                 }
             }
 
+            UpdateBalls(hz, t);
+
             for (var i = 0; i < _map.conveyors.Length && i < hz.Conveyors.Length; i++)
             {
                 var ch = _chevrons[i];
@@ -185,6 +188,46 @@ namespace FallRush.Client
                 _mpb.SetFloat(ScrollId, (float)(wave % pairs));
                 _mpb.SetFloat(ChevronCountId, pairs);
                 ch.SetPropertyBlock(_mpb);
+            }
+        }
+
+        /// <summary>G4.1a: ball visuals at the lane pose (fractional ticks), rolled by the distance travelled; unused visuals hidden.</summary>
+        private void UpdateBalls(HazardSet hz, double t)
+        {
+            var lanes = _map.rollingBalls;
+            if (lanes == null)
+                return;
+            for (var i = 0; i < lanes.Length && i < hz.RollingBalls.Length; i++)
+            {
+                var lane = lanes[i];
+                if (lane == null)
+                    continue;
+                ref readonly var d = ref hz.RollingBalls[i];
+                var axis = Vector3.Cross(Vector3.up, new Vector3(d.EndXMm - d.StartXMm, 0f, d.EndZMm - d.StartZMm)).normalized;
+                if (axis.sqrMagnitude < 0.5f)
+                    axis = Vector3.right;
+                var r = Mathf.Max(0.1f, d.RadiusMm * 0.001f);
+                for (var j = 0; j < lane.balls.Length; j++)
+                {
+                    var b = lane.balls[j];
+                    if (b == null)
+                        continue;
+                    var alive = HazardMath.BallRenderPos(in d, t, j, out var x, out var y, out var z, out var rolled);
+                    if (b.gameObject.activeSelf != alive)
+                        b.gameObject.SetActive(alive);
+                    if (!alive)
+                        continue;
+                    b.position = new Vector3((float)x, (float)y, (float)z);
+                    b.rotation = Quaternion.AngleAxis((float)(rolled / r * Mathf.Rad2Deg), axis);
+                }
+
+                if (lane.chute != null)
+                {
+                    var w = HazardMath.RollingBallTelegraph(in d, t);
+                    _mpb.Clear();
+                    _mpb.SetColor(FlashId, new Color(Glow.r, Glow.g, Glow.b, w));
+                    lane.chute.SetPropertyBlock(_mpb);
+                }
             }
         }
 

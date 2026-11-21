@@ -17,6 +17,8 @@ namespace FallRush.Shared
         CrumbleTile = 10, // M4 (a grid of tiles)
         StarPickup = 11,  // M4 (a star field)
         FallingBlock = 12, // M4
+        RollingBall = 13, // G4.1a
+        LidFlip = 14,     // G4.1b (a grid of lids)
     }
 
     /// <summary>

@@ -132,8 +132,39 @@ namespace FallRush.Shared
             Knock(e, who, d.KnockbackCms, d.KnockUpCms, d.StunTicks, d.ImmunityTicks);
         }
 
-        /// <summary>Every def of a resolved set; returns the problems (empty = valid).</summary>
-        public static List<string> Validate(HazardSet h)
+        /// <summary>
+        /// G4.1a <c>ROLLING_BALL</c>: r 0.6–1.2 m, 2–7 m/s, a release every 1–10 s, balls never overlapping in a lane, a real
+        /// telegraph, the knock rules; and the path must not start inside a spawn volume (feet mm triplets in
+        /// <paramref name="spawnsMm"/>, a 0.5 m margin around the standing capsule).
+        /// </summary>
+        public static void Check(in RollingBallDef d, string who, List<string> e, int[] spawnsMm = null)
+        {
+            Range(e, who, "radiusMm", d.RadiusMm, 600, 1200);
+            Range(e, who, "speedMmS", d.SpeedMmS, 2000, 7000);
+            Range(e, who, "periodTicks", d.PeriodTicks, 30, 300);
+            Range(e, who, "telegraphTicks", d.TelegraphTicks, 9, 90);
+            var len = HazardMath.BallLenMm(in d);
+            Range(e, who, "pathLenMm", len, 2000, 250000);
+            // Spacing between consecutive balls (speed × period) ≥ one diameter: balls of a lane never overlap.
+            Range(e, who, "spacingMm", (long)d.SpeedMmS * Math.Max(1, d.PeriodTicks) / HazardMath.TickRate, 2L * d.RadiusMm, long.MaxValue);
+            if (spawnsMm != null)
+            {
+                const int capsuleR = 310, capsuleH = 1000, margin = 500;
+                for (var i = 0; i + 2 < spawnsMm.Length; i += 3)
+                {
+                    long dx = d.StartXMm - spawnsMm[i], dz = d.StartZMm - spawnsMm[i + 2];
+                    long reach = d.RadiusMm + capsuleR + margin;
+                    var dy = d.StartYMm - spawnsMm[i + 1];
+                    if (dx * dx + dz * dz < reach * reach && dy > -d.RadiusMm - margin && dy < capsuleH + d.RadiusMm + margin)
+                        e.Add($"{who}: the path starts inside spawn volume {i / 3} (ball r {d.RadiusMm} mm at ({d.StartXMm},{d.StartYMm},{d.StartZMm}))");
+                }
+            }
+
+            Knock(e, who, d.KnockbackCms, d.KnockUpCms, d.StunTicks, d.ImmunityTicks);
+        }
+
+        /// <summary>Every def of a resolved set; returns the problems (empty = valid). <paramref name="spawnsMm"/>: x,y,z feet triplets (G4 spawn checks).</summary>
+        public static List<string> Validate(HazardSet h, int[] spawnsMm)
         {
             var e = new List<string>();
             for (var i = 0; i < h.Sweepers.Length; i++) Check(in h.Sweepers[i], $"SPINNER_BAR[{i}]", e);
@@ -144,7 +175,11 @@ namespace FallRush.Shared
             for (var i = 0; i < h.Doors.Length; i++) Check(in h.Doors[i], $"GATE_DOOR[{i}]", e);
             for (var i = 0; i < h.Mallets.Length; i++) Check(in h.Mallets[i], $"MALLET_SWING[{i}]", e);
             for (var i = 0; i < h.Bumpers.Length; i++) Check(in h.Bumpers[i], $"BUMPER[{i}]", e);
+            for (var i = 0; i < h.RollingBalls.Length; i++) Check(in h.RollingBalls[i], $"ROLLING_BALL[{i}]", e, spawnsMm);
             return e;
         }
+
+        /// <summary>Every def of a resolved set; returns the problems (empty = valid). G4 kit included, without the spawn checks.</summary>
+        public static List<string> Validate(HazardSet h) => Validate(h, null);
     }
 }

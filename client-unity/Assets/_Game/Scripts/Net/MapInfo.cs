@@ -35,6 +35,8 @@ namespace FallRush.Net
         public HazardCrumbleGrid[] grids = new HazardCrumbleGrid[0];
         public HazardFallingBlock[] fallingBlocks = new HazardFallingBlock[0];
         public HazardStarField[] starFields = new HazardStarField[0];
+        // G4 kit
+        public HazardRollingBall[] rollingBalls = new HazardRollingBall[0];
 
         [Tooltip("Ordered checkpoints (race maps); the last is the finish.")]
         public RaceCheckpoint[] checkpoints = new RaceCheckpoint[0];
@@ -155,6 +157,11 @@ namespace FallRush.Net
             }
 
             h.Blocks = fb;
+            // G4 kit (variant-resolved, seeded, modifier-tuned like the M3 kit).
+            var rb = new RollingBallDef[Len(rollingBalls)];
+            for (var i = 0; i < rb.Length; i++)
+                rb[i] = rollingBalls[i].Resolve(in q, zeroPhase);
+            h.RollingBalls = rb;
             if (Len(starFields) > 0)
                 h.StarFields = new[] { starFields[0].Resolve(in q) };
             h.InitReactive();
@@ -280,6 +287,7 @@ namespace FallRush.Net
             foreach (var a in grids) yield return a;
             foreach (var a in fallingBlocks) yield return a;
             foreach (var a in starFields) yield return a;
+            foreach (var a in rollingBalls) yield return a; // G4: appended, so older maps keep their obstacle id list
         }
 
         private byte[] _hash;
@@ -288,6 +296,21 @@ namespace FallRush.Net
         public byte[] ContentHash => _hash ??= BuildContent().Hash();
 
         /// <summary>The allowlist problems of the defs resolved for <paramref name="p"/> (empty = valid).</summary>
-        public List<string> Validate(in RoundParams p) => HazardAllowlist.Validate(BuildHazards(in p, out _));
+        public List<string> Validate(in RoundParams p) => HazardAllowlist.Validate(BuildHazards(in p, out _), SpawnsMm());
+
+        /// <summary>Spawn feet as x,y,z mm triplets (allowlist spawn-volume checks).</summary>
+        public int[] SpawnsMm()
+        {
+            var sp = SpawnPoints();
+            var r = new int[sp.Length * 3];
+            for (var i = 0; i < sp.Length; i++)
+            {
+                r[i * 3] = MotorState.QuantizeMm(sp[i].X);
+                r[i * 3 + 1] = MotorState.QuantizeMm(sp[i].Y);
+                r[i * 3 + 2] = MotorState.QuantizeMm(sp[i].Z);
+            }
+
+            return r;
+        }
     }
 }

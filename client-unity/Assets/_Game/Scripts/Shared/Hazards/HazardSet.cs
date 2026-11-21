@@ -75,6 +75,14 @@ namespace FallRush.Shared
 
         public bool HasM4 => Goo.Length + Grids.Length + Blocks.Length + StarFields.Length > 0 || SweeperStartT != int.MinValue;
 
+        // ------------------------------------------------------------------ G4 kit (rolling balls, lid grids)
+
+        /// <summary>G4.1a <c>ROLLING_BALL</c> lanes (knock volumes, no collider), checked in <see cref="ApplyKnocks"/> after the mallets.</summary>
+        public RollingBallDef[] RollingBalls = Array.Empty<RollingBallDef>();
+
+        /// <summary>True when the set has G4 kit defs (they are hashed only then, so older maps keep their content hash).</summary>
+        public bool HasG4 => RollingBalls.Length > 0;
+
         /// <summary>M4: number of reactive elements (tiles, falling blocks, star anchors).</summary>
         public int ReactiveCount => (Grids.Length > 0 ? Grids[0].Count : 0) + Blocks.Length + (StarFields.Length > 0 ? StarFields[0].AnchorCount : 0);
 
@@ -89,7 +97,7 @@ namespace FallRush.Shared
         /// <summary>Goo surface (mm) at <paramref name="tick"/>, or <see cref="int.MinValue"/> without goo.</summary>
         public int GooYMm(uint tick) => Goo.Length > 0 ? HazardMath.GooYMm(in Goo[0], Time(tick)) : int.MinValue;
 
-        public int Count => Sweepers.Length + Platforms.Length + Conveyors.Length + Pads.Length + TurnTables.Length + Doors.Length + Mallets.Length + Bumpers.Length;
+        public int Count => Sweepers.Length + Platforms.Length + Conveyors.Length + Pads.Length + TurnTables.Length + Doors.Length + Mallets.Length + Bumpers.Length + RollingBalls.Length;
 
         /// <summary>Round-relative hazard time of server tick <paramref name="tick"/> (negative before the round starts).</summary>
         public int Time(uint tick) => unchecked((int)(tick - RoundStartTick));
@@ -226,7 +234,7 @@ namespace FallRush.Shared
         }
 
         /// <summary>
-        /// Every knock hazard (spinner bars, mallets, bumpers) after the motor step of <paramref name="tick"/>. At most one
+        /// Every knock hazard (spinner bars, mallets, rolling balls, bumpers) after the motor step of <paramref name="tick"/>. At most one
         /// hit per tick; none while immune (the 0.5 s after a stun), so two adjacent hazards cannot stun-lock a player.
         /// </summary>
         public bool ApplyKnocks(ref MotorState s, uint tick, MovementConfig cfg)
@@ -242,6 +250,15 @@ namespace FallRush.Shared
             {
                 ref readonly var d = ref Mallets[i];
                 if (!HazardMath.MalletContactMm(in d, t, s.PosX, s.PosY, s.PosZ, r, h, out var nx, out var nz))
+                    continue;
+                Knock(ref s, nx, nz, d.KnockbackCms, d.KnockUpCms, d.StunTicks, d.ImmunityTicks);
+                return true;
+            }
+
+            for (var i = 0; i < RollingBalls.Length; i++)
+            {
+                ref readonly var d = ref RollingBalls[i];
+                if (!HazardMath.RollingBallContactMm(in d, t, s.PosX, s.PosY, s.PosZ, r, h, out var nx, out var nz))
                     continue;
                 Knock(ref s, nx, nz, d.KnockbackCms, d.KnockUpCms, d.StunTicks, d.ImmunityTicks);
                 return true;
@@ -334,8 +351,8 @@ namespace FallRush.Shared
 
     /// <summary>
     /// One simulated tick of one player, identical on the server and in client prediction (doc 04 §4.2/§4.3). The caller
-    /// poses the world first (<c>world.BeginTick(tick)</c>, once per tick). Then: door push-out → motor step (carried by
-    /// moving surfaces through <see cref="IMotorWorld.SurfaceDelta"/>, conveyor push included) → knock hazards → spring
+    /// poses the world first (<c>world.BeginTick(tick)</c>, once per tick: platforms, doors, G4 lids). Then: door push-out → motor step (carried by
+    /// moving surfaces through <see cref="IMotorWorld.SurfaceDelta"/>, conveyor push included) → knock hazards (spinners, mallets, rolling balls, bumpers) → spring
     /// pads → fall volume. Player–player separation is server-only and not part of this.
     /// </summary>
     public static class PlayerStep
