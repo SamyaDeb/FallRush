@@ -1,6 +1,6 @@
 # Fall Rush — Project Status
 
-_Last updated: 2026-11-19 (G2 look + G3 juice built; **game freeze declared**; 287/287 EditMode, soak 20/20, QA guard PASS, WebGL 19.03 MB; see the G2 + G3 section)_
+_Last updated: 2026-11-19 (**G4.0 + G4.1 done**: design rules, display names, route-cost QA, ROLLING_BALL + LID_FLIP + bump flag (off); 323/323 EditMode, vectors v3, guard QA + soak 20/20 PASS; next G4.2 Capsule Run. Earlier: G2/G3 game freeze, see below)_
 
 **Hackathon:** MagicBlock Blitz V10, running Nov 20 to Nov 27, 2026.
 - **Submission deadline:** Nov 27, 14:00 UTC (19:30 IST).
@@ -253,6 +253,31 @@ Proof: [`docs/proof/G1-polish.md`](docs/proof/G1-polish.md) · QA [`docs/proof/g
 - **WebGL font:** the built-in font has no "●", "▼", "–" glyphs in WebGL (M4's ping / lobby dots are invisible there): pick a real font in G3's UI kit.
 - Map signs kept: map titles (except BPD's, which sat on the start gate), CHECKPOINT n, FINISH, ESCAPE!. G2 makes them pretty.
 
+## G4 map redesign + candy look — in progress (plan https://claude.ai/artifact/HbkjmVdp4PBpv13GBVFrPw, prompt `docs/prompts/G4-PROMPT.md`)
+The G2/G3 "game freeze" is reopened for G4 by your decision: **gameplay freeze Sun Nov 22 23:59 UTC, art freeze Mon Nov 23 23:59 UTC** (G4-4, doc 14).
+
+| Phase | State |
+|---|---|
+| **G4.0** rules (doc 08 rules 4.1–4.7 + route-cost check), decisions G4-1…G4-5 (doc 15), two-part freeze (doc 14) | ✅ |
+| **G4.0b** display names (Capsule Run / Goo Tower / Star Fountain / Lid Flip) separate from keys; map-pool hash = program's `MAP_POOL_V1_HASH` (test) | ✅ |
+| **G4.0c** `-fallrushQaRoutes` route cost + FREE ROUTE report; baseline `docs/proof/g4/route-cost-before.md` (36 free routes, S2/S5/S6 edge beams at 1.00–1.08×) | ✅ |
+| **G4.1a** `ROLLING_BALL` (pure pose, contact, telegraph, allowlist, view) | ✅ |
+| **G4.1b** `LID_FLIP` (pure state, ring retire, fairness, colliders posed from the tick); crumble grid kept as the fallback | ✅ |
+| **G4.1c** bump stagger behind `movement_v3.json` `bump.enabled` (**off**), measured on/off | ✅ (your call: §5 of the proof) |
+| Vectors v3 `e158996b…` (v1/v2 unchanged), sandbox G4 section, prediction twin 0 corrections | ✅ |
+| Guard on today's maps: g1-qa BPD PASS (identical numbers), m4-qa 20 ×4 PASS, soak 20/20 | ✅ |
+| **G4.2** Capsule Run rebuild → G4.3 Goo Tower → G4.4 Star Fountain → G4.5 Lid Flip → G4.6 palette → G4.7 QA + freeze | next |
+
+Proof: `docs/proof/G4.0-G4.1.md`. Try the new hazards: menu "Practice: G4 hazards sandbox (dev)" in the Editor.
+
+### For you (G4.0/G4.1)
+- **Bump stagger (D2):** shipped off. To try it: server `-fallrushBump 1` + client `?bump=1`. Measured: localhost unchanged, 150 ms one client 1.67 corrections+pushes per 5 s (proof §5). Say yes/no after playing.
+
+### Notes for M6 (from G4.0/G4.1)
+- **Ruleset v2 field:** the `movement_v3.json` `bump` block (`enabled`, `minClosingSpeed`, `staggerMs`); movement_v3 sha256 `5ed0cefd…` (movement_v2 `696ebf9f…` unchanged).
+- **VRF → the Final's floor:** the `LID_FLIP` pattern seed is the per-obstacle seed (`ObstaclePhase.Hash(hazardSeed, obstacleId)` today). With `H(vrf_seed ‖ round ‖ obstacleId)` in M6 the Lid Flip floor pattern is derived from MagicBlock VRF with no change in the grid code; the receipt can show it (wave ↔ lid set is reproducible from the seed: `HazardMath.LidWaveSet`).
+- **Map content hashes:** unchanged for every pool map in G4.0/G4.1 (G4 defs are hashed in a `g4` block only when present). New hashes arrive with the G4.2–G4.5 rebuilds and go into ruleset / map-pool v2. `map_pool_v1.json` is unchanged (keys, ids, modes, variants).
+
 ## G2 look + G3 juice — ✅ built 2026-11-19 (proof `docs/proof/G2G3-look-juice.md`)
 | Item | State |
 |---|---|
@@ -282,6 +307,7 @@ From here only bug fixes and integration changes in game code. Open items you ma
 - Still yours: play G1 and judge the feel; the real hidden-tab / tab-reopen steps (G1 proof §I); the pre-kickoff code rule.
 
 ## Next milestones
+- **G4.2–G4.7** (gameplay, freeze Sun Nov 22 23:59 UTC), then G4-B art alongside M5.
 - **M5:** Rush Relay (identity, directory, outbox from the M4 jsonl log). **M6:** chain integration (VRF seed swap, ER events, finalize) + the VPS deploy (`docs/14`).
 
 ## M2 kickoff notes (done; kept for history)
