@@ -139,6 +139,21 @@ namespace FallRush.Net
 
             st.Duration = (res.EndTick - res.StartTick) / 30f;
             st.TimerExpired = res.TimerExpired;
+            if (res.TimerExpired && rules is RaceRules rr)
+            {
+                // G4.2: where the racers that had not finished were when the timer ran out (route, waypoint, last stuck reason).
+                var sb = new System.Text.StringBuilder();
+                for (var i = 0; i < SimCore.MaxSlots; i++)
+                {
+                    if (!core.Slots[i].Active || set[i]?.Waypoints == null || rr.Racers[i].Checkpoint >= map.checkpoints.Length)
+                        continue;
+                    ref readonly var s0 = ref core.Slots[i].State;
+                    var w = set[i].Waypoints;
+                    sb.Append($" slot{i}@cp{rr.Racers[i].Checkpoint} {w.CurrentRouteName}#{w.Waypoint} at ({s0.PosX / 1000},{s0.PosY / 1000},{s0.PosZ / 1000}) stuck={w.Stuck} timeouts={w.WaitTimeouts} last={w.LastStuckReason};");
+                }
+
+                Debug.Log($"[qa-timer] tier={tier} v={variant} mod={modifier} run={run}:{sb}");
+            }
             st.Qualified = res.QualifiedCount;
             st.Order = res.Order.Length;
             st.Result = res.ToString();
@@ -211,6 +226,11 @@ namespace FallRush.Net
             var sw = Stopwatch.StartNew();
             var probe = PhysxMotorWorld.CreateProbe(map.transform, MovementConfig.Default.Radius, MovementConfig.Default.Height);
             var mods = map.definition.allowedModifiers;
+            // G4.2: -fallrushQAMod <id> limits the run to one modifier (tuning aid).
+            var cl = Environment.GetCommandLineArgs();
+            var mi = Array.IndexOf(cl, "-fallrushQAMod");
+            if (mi >= 0 && mi + 1 < cl.Length && int.TryParse(cl[mi + 1], out var only))
+                mods = new[] { only };
             var mode = map.definition.mode;
             var tiers = TierArg() switch { "reference" => new[] { BotTier.Reference }, "normal" => new[] { BotTier.Normal }, _ => new[] { BotTier.Reference, BotTier.Normal } };
             var target = map.definition.targetDuration;
