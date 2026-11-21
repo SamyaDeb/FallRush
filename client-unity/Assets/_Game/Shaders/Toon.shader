@@ -3,7 +3,8 @@
 // inverted-hull outline as a second pass, which Shader Graph cannot do in URP without a renderer feature).
 //
 //  * 3-band cel ramp on half-Lambert from the one directional "sun" (no realtime shadows), shade colour tint
-//  * rim light, palette tint (_BaseColor x vertex colour), fake AO from vertex colour (code-built meshes bake it)
+//  * rim light (sun side) + G4.6 view rim on hazards / Rushlings (_ViewRim, gated by _RimAll or uv2.y = 4; off on
+//    up-facing faces), palette tint (_BaseColor x vertex colour), fake AO from vertex colour (code-built meshes bake it)
 //  * gradient ambient (globals _FR_AmbSky / _FR_AmbGround set by the client; falls back to the SH ambient probe)
 //  * flash / glow mask (vertex alpha) for telegraphs: lerp to _FlashColor.rgb by _FlashColor.a (per renderer, MPB)
 //  * travelling chevron light for conveyor belts (uv2.x = chevron index, _Scroll = wave position, MPB)
@@ -27,6 +28,8 @@ Shader "FallRush/Toon"
         _RimColor("Rim colour", Color) = (1,1,1,1)
         _RimStrength("Rim strength", Range(0,1)) = 0.35
         _RimPower("Rim power", Range(0.5,8)) = 3
+        _ViewRim("View rim strength (any side of the sun)", Range(0,1)) = 0
+        _RimAll("View rim on the whole material (else uv2.y = 4 parts only)", Range(0,1)) = 0
         _Gloss("Gloss highlight", Range(0,1)) = 0
         _Emission("Emission", Color) = (0,0,0,0)
         _Unlit("Unlit amount", Range(0,1)) = 0
@@ -70,6 +73,7 @@ Shader "FallRush/Toon"
             half _MidLevel, _BandA, _BandB, _BandSoft;
             half4 _RimColor;
             half _RimStrength, _RimPower, _Gloss;
+            half _ViewRim, _RimAll;
             half4 _Emission;
             half _Unlit;
             half _Desat;
@@ -245,8 +249,14 @@ Shader "FallRush/Toon"
                 half3 lit = albedo * (shade * sun.color * 0.58h + amb * 0.34h);
 
                 float3 viewDir = normalize(GetWorldSpaceViewDir(i.positionWS));
-                half rim = pow(1.0h - saturate(dot(n, viewDir)), _RimPower) * _RimStrength;
-                rim *= smoothstep(0.2h, 0.6h, ndl);                            // rim on the lit side only
+                half fres = pow(1.0h - saturate(dot(n, viewDir)), _RimPower);
+                // G4.6: no rim on up-facing faces (walkable tops stay their colour at grazing angles instead of washing white).
+                half notTop = 1.0h - smoothstep(0.55h, 0.85h, n.y);
+                half rim = fres * _RimStrength * smoothstep(0.2h, 0.6h, ndl) * notTop; // sun rim: the lit side only
+                // G4.6 view rim (hazards and Rushlings): independent of the sun, so a hazard's silhouette reads in shade too.
+                // Gated per material (_RimAll: Rushlings, stripe posts) or per vertex (uv2.y = 4: merged hazard parts).
+                half gate = max(_RimAll, step(abs(i.uv2.y - 4.0), 0.5h));
+                rim = max(rim, fres * _ViewRim * gate * notTop);
                 lit += _RimColor.rgb * rim;
                 if (_Gloss > 0.0h)
                 {
