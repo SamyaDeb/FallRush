@@ -133,11 +133,17 @@ namespace FallRush.Client
                 urp.colorGradingMode = ColorGradingMode.HighDynamicRange; // Neutral tonemapping is HDR-grading only
             }
 
+            // G4.7 measurement override (dev A/B of the grade's cost): ?post=0 / -fallrushPost 0 turns the post pass off.
+            var post = (FallRush.Shared.NetTargets.GetQueryParam(Application.absoluteURL, "post") ?? Arg("-fallrushPost")) != "0";
             if (cam != null)
-                cam.GetUniversalAdditionalCameraData().renderPostProcessing = true; // both levels keep the grade
+                cam.GetUniversalAdditionalCameraData().renderPostProcessing = post; // both levels keep the grade
             EnsureVolume();
             SetLevel(s_Volume, high);
             FallRush.Net.GateLogger.Gfx = high ? "high" : "low";
+            // G4.7: one line per apply so a WebGL run shows whether the HDR grade (Neutral tonemapping) can run there.
+            Debug.Log($"[gfx] level={(high ? "high" : "low")} {Describe()} cameraHDR={(cam != null && cam.allowHDR)} " +
+                      $"rtRGB111110={SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.RGB111110Float)} rtHalf={SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.ARGBHalf)} " +
+                      $"post={(cam != null && cam.GetUniversalAdditionalCameraData().renderPostProcessing)} device={SystemInfo.graphicsDeviceType}");
         }
 
         private static string Arg(string name)

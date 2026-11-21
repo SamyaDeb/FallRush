@@ -59,8 +59,9 @@ guard() { # one heavy job at a time: no Unity, no other dev server / QA binary; 
   if [[ "${1:-}" != docker-ok ]] && docker_up; then say "ABORT: Docker is running. Quit Docker Desktop first (this script starts it for the 150 ms legs only)."; exit 3; fi
 }
 
-step() { # <name> <command...>: runs one step, records its wall time
+step() { # <name> <command...>: runs one step, records its wall time; G47_RESUME=1 skips steps already in $LOGS/done
   local name="$1"; shift
+  if [[ -n "${G47_RESUME:-}" ]] && grep -qx "$name" "$LOGS/done" 2>/dev/null; then say "step $name: done earlier, skipped (G47_RESUME)"; return 0; fi
   guard "${DOCKER_OK:-}"
   local s=$(date +%s) at=$(date -u +%H:%M:%SZ)
   say "step $name: start"
@@ -68,6 +69,7 @@ step() { # <name> <command...>: runs one step, records its wall time
   local w=$(( $(date +%s) - s ))
   say "step $name: exit $code in ${w} s"
   row "$name" "$at" "${w} s" "exit $code"
+  echo "$name" >> "$LOGS/done"
 }
 
 fence() { echo '```text'; cat; echo '```'; }
@@ -75,6 +77,8 @@ fence() { echo '```text'; cat; echo '```'; }
 # ------------------------------------------------------------------ preflight
 [[ -x "$BIN" ]] || { echo "build the Mac dev server first (Editor closed): pnpm m1:build:macserver"; exit 2; }
 guard
+[[ -n "${G47_RESUME:-}" ]] || : > "$LOGS/done"
+[[ -f "$RUNMD" && -n "${G47_RESUME:-}" ]] || : > "$RUNMD"
 {
   echo "# G4.7 QA run (scripts/g47-qa-all.sh)"
   echo
@@ -84,7 +88,7 @@ guard
   echo
   echo "| Step | Started (UTC) | Wall | Result |"
   echo "|---|---|---|---|"
-} > "$RUNMD"
+} >> "$RUNMD"
 
 # ------------------------------------------------------------------ steps
 routes() {
@@ -153,8 +157,10 @@ probe_150() {
   done
   bash scripts/m2-netem.sh stop
   if [[ "$STARTED_DOCKER" == 1 && -z "${G47_KEEP_DOCKER:-}" ]]; then
-    say "quitting Docker Desktop"; osascript -e 'quit app "Docker"' >/dev/null 2>&1 || true
-    for _ in $(seq 1 30); do docker_up || break; sleep 2; done
+    say "quitting Docker Desktop"
+    osascript -e 'quit app "Docker Desktop"' >/dev/null 2>&1 || osascript -e 'quit app "Docker"' >/dev/null 2>&1 || true
+    for _ in $(seq 1 45); do docker_up || break; sleep 2; done
+    docker_up && say "WARNING: Docker is still up after the quit request; quit Docker Desktop by hand"
   fi
 }
 

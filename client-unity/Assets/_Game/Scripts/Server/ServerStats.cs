@@ -121,13 +121,21 @@ namespace FallRush.Server
             for (var i = 0; i < SimCore.MaxSlots; i++)
                 if (core.Slots[i].Active)
                     where.Append($"{core.Slots[i].State.PosX / 1000},{core.Slots[i].State.PosZ / 1000} ");
+            // G4.7 (C3 / C4): per human slot, cumulative late / repeated / neutral ticks, to tie a client's corrections to its own filled input.
+            var fills = new System.Text.StringBuilder();
+            for (var i = 0; i < SimCore.MaxSlots; i++)
+                if (core.Slots[i].Active && !core.Slots[i].Bot)
+                {
+                    var c = core.Input(i).Counters;
+                    fills.Append($"{i}:{c.Late}/{c.Repeated}/{c.Neutral} ");
+                }
             var humans = core.HumanCount;
             var perClientBps = humans > 0 ? (sim.SnapBytesSent - _snapBytes) / elapsed / humans : 0f;
             Debug.Log($"[gs] sim tick={core.Tick} humans={humans} bots={core.BotCount} step p50={s50:F3}ms p95={s95:F3}ms " +
                       $"snapHz={30 / sim.SnapshotEveryTicks} snaps={sim.SnapshotsSent - _snaps} snapPayload/client={perClientBps:F0}B/s " +
                       $"inMsgs={sim.InputMessages - _inMsgs} inPayload={(sim.InputBytes - _inBytes) / elapsed:F0}B/s " +
                       $"accepted={totals.Accepted - _inputs.Accepted} late={totals.Late - _inputs.Late} repeated={totals.Repeated - _inputs.Repeated} neutral={totals.Neutral - _inputs.Neutral} " +
-                      $"burst={totals.Burst - _inputs.Burst} early={totals.Early - _inputs.Early} backlog={totals.Backlog - _inputs.Backlog} violations(far/flood/malformed)={totals.FarFuture - _inputs.FarFuture}/{totals.Flood - _inputs.Flood}/{totals.Malformed - _inputs.Malformed} kicks={sim.Kicks} snapsPausedIdleTotal={sim.SnapshotsPausedIdle} pushesTotal={core.PushEvents} bumpsTotal={core.BumpEvents} bumpFlag={(core.Cfg.BumpEnabled ? 1 : 0)} hazardHitsTotal={core.HazardHits} launchesTotal={core.Hazards.Launches} doorPushesTotal={core.Hazards.DoorPushes} mapHash={MapContent.Short(sim.MapHash)} snapBytes12={SnapHeader.Size + 12 * PlayerState.Size} at={where}");
+                      $"burst={totals.Burst - _inputs.Burst} early={totals.Early - _inputs.Early} backlog={totals.Backlog - _inputs.Backlog} violations(far/flood/malformed)={totals.FarFuture - _inputs.FarFuture}/{totals.Flood - _inputs.Flood}/{totals.Malformed - _inputs.Malformed} kicks={sim.Kicks} snapsPausedIdleTotal={sim.SnapshotsPausedIdle} pushesTotal={core.PushEvents} bumpsTotal={core.BumpEvents} bumpFlag={(core.Cfg.BumpEnabled ? 1 : 0)} hazardHitsTotal={core.HazardHits} launchesTotal={core.Hazards.Launches} doorPushesTotal={core.Hazards.DoorPushes} mapHash={MapContent.Short(sim.MapHash)} snapBytes12={SnapHeader.Size + 12 * PlayerState.Size} fillsBySlot={fills}at={where}");
             _snaps = sim.SnapshotsSent;
             _snapBytes = sim.SnapBytesSent;
             _inMsgs = sim.InputMessages;
