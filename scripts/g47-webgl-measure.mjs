@@ -12,6 +12,9 @@ import { join } from "node:path";
 
 const [url, outDir, maxS = "600", shotS = "5"] = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const uncapped = process.argv.includes("--uncapped");
+// G4.12: the build opens on the menu (G3); autoplay only acts in the lobby. --play=x,y clicks PLAY (CSS px of the 1440 × 900
+// viewport) once the menu is up (default 585,492: the xNFT template's 960 × 600 canvas). --play=off skips the click.
+const playArg = (process.argv.find((a) => a.startsWith("--play=")) ?? "--play=585,492").slice(7);
 if (!url || !outDir) { console.error("usage: g47-webgl-measure.mjs <url> <outDir> [maxS] [shotS] [--uncapped]"); process.exit(2); }
 mkdirSync(join(outDir, "shots"), { recursive: true });
 const log = join(outDir, "console.log");
@@ -52,8 +55,16 @@ await send("Page.enable");
 await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 await send("Page.navigate", { url });
 let n = 0;
+let clicked = playArg === "off";
 while (!done && (Date.now() - t0) / 1000 < Number(maxS)) {
   await sleep(Number(shotS) * 1000);
+  if (!clicked && (Date.now() - t0) / 1000 > 14) {
+    const [x, y] = playArg.split(",").map(Number);
+    for (const type of ["mouseMoved", "mousePressed", "mouseReleased"])
+      await send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 });
+    appendFileSync(log, `${((Date.now() - t0) / 1000).toFixed(1)}	click	PLAY at ${x},${y}\n`);
+    clicked = true;
+  }
   const r = await send("Page.captureScreenshot", { format: "jpeg", quality: 80 });
   if (r?.data) writeFileSync(join(outDir, "shots", `${String(++n).padStart(3, "0")}-${Math.round((Date.now() - t0) / 1000)}s.jpg`), Buffer.from(r.data, "base64"));
 }

@@ -365,7 +365,7 @@ namespace FallRush.Client
             restore = () =>
             {
                 if (urp != null)
-                    urp.colorGradingMode = mode; // the asset on disk stays LDR; only the runtime switches
+                    urp.colorGradingMode = mode; // G4.12: the assets on disk are HDR too (a player strips the HDR grading variants of an LDR asset)
                 QualitySettings.SetQualityLevel(level, true);
             };
         }
