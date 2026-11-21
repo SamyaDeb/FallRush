@@ -17,14 +17,14 @@ bash scripts/m1-macserver.sh start      # 127.0.0.1:7777
 Then Unity Editor → `Boot.unity` → **Play** → type your name → **Play (Quick Play)**. Round 1 is Capsule Run. Stop the server with `bash scripts/m1-macserver.sh stop`.
 - Force a variant / modifier (dev): `bash scripts/m1-macserver.sh start -fallrushVariant 1 -fallrushModifier MoonBounce`; otherwise the deal picks them.
 
-## Play all four maps (G4.7, before the gameplay freeze Sun Nov 22 23:59 UTC)
+## Play all four maps (G4.7; the gameplay freeze was declared 2026-11-20 18:54 UTC: your notes now steer bug fixes and G4-B)
 One full match plays all four in order. Write one line per map under "Your notes" of its section below (or here): **where** (beat / side / ring), **what happened**, **what you expected**. A number helps ("hit 4 times on the slope", "round felt ~2 min").
 - **Capsule Run (R1):** try both slope lines and both belt / spring routes. Write: was any line clearly the easy one? Could you see the finish arch at the start?
 - **Goo Tower (R2):** climb fast once, then lag behind on purpose once. Write: did the goo feel fair (time to react), and was the round too short (~57 s with bots)?
 - **Star Fountain (R3):** rush the burst, then try one golden-star spring. Write: did you see the burst coming, and did a sweeper drop feel fair?
 - **Lid Flip (R4):** stand still on the top shelf and step off only on yellow. Write: was 1 s of yellow enough, could you read the magenta ring warning, and did the lower shelf save you? If a round goes to the 120 s timer, note who won (tiebreak, G4.5-8).
 
-**The WebGL build in Chrome against the Mac dev server** (after G4.7 makes build #1; Editor closed, nothing else heavy running):
+**The WebGL build in Chrome against the Mac dev server** (build #1 is saved at `client-unity/Builds/WebGL-g47-build1/`; copy it to `client-unity/Builds/WebGL/` first if a newer build replaced it; Editor closed, nothing else heavy running):
 ```bash
 pnpm m1:up:mac        # Mac dev server on 127.0.0.1:7777 + the local nginx container on :8080 (Docker Desktop must be running)
 ```

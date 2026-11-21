@@ -158,6 +158,17 @@
 | G4.6-9 | Sweep Pad stays Bubblegum with the pink / yellow sweepers: the stripe's yellow band reads (0.29 luma vs the floor) but the pink half merges with the floor | 🟡 your call | proof §5 |
 | G4.6-10 | Goo Tower falling blocks stay hazard-striped (outside the hue rule); the Lobby tile parity rule lives in `MapArt` (LobbyBuilder untouched) | ✅ | `MapArt` |
 
+### G4.7 decisions (2026-11-20; QA + freeze, recorded in docs/proof/G4.7-qa-freeze.md — say if you want any changed)
+| # | Decision | By | Where |
+|---|---|---|---|
+| G4.7-1 | **C1 = (a)**: `FinalRules` unchanged; on a lid map a timer ending goes by slot, documented in doc 08 §7 and the Final HUD tip; (b) designed, not applied | ✅ (lead's default) / ❓ yours | proof §1.1, §6 |
+| G4.7-2 | **C2**: the round-end hazard mismatch was a push-explained count; `HazardMismatches` now counts only without a server-only cause (`ExplainedHazardMismatches` apart). Dev statistic, no gameplay change | ✅ | `ClientPrediction`, proof §1.2 |
+| G4.7-3 | **C3**: no lid tick mismatch; rare large 150 ms corrections documented as expected under 150 ms + loss (did not reproduce: max 29 cm, then 0) | ✅ | proof §1.3, §6 |
+| G4.7-4 | **C4**: Capsule Run 150 ms FAIL (1.42) in the QA run, PASS on re-run (0.20); evidence = filled input under TCP stalls; recorded, not accepted; re-measure in M6 | ✅ | proof §6 |
+| G4.7-5 | **WebGL browser measurements deferred** (user: other projects loading the CPU); build #1 saved at `client-unity/Builds/WebGL-g47-build1/` (18.98 MB) | user | proof §5 |
+| G4.7-6 | Measurement hooks (dev only): `[gfx]` log + `?post=0` (GraphicsQuality), per-slot input counters in the server log | ✅ | `e84d386` |
+| G4.7-7 | **Gameplay freeze declared 2026-11-20 18:54 UTC** | ✅ | PROJECT_STATUS |
+
 ## Top risks (live; update daily in PROJECT_STATUS)
 
 | # | Risk | Likelihood | Impact | Mitigation |
