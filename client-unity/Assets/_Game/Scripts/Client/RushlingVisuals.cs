@@ -184,6 +184,31 @@ namespace FallRush.Client
         private int _mittOff0, _footOff0;
         private const float MittRadius = 0.052f;
 
+        // G2.4 outline LOD: the hull pass only on Rushlings near the camera; the thin limbs never get one.
+        private static Material s_NoHull;
+        private Material _hullMat;
+        private bool _outline = true;
+
+        private Material NoHull()
+        {
+            if (s_NoHull != null)
+                return s_NoHull;
+            var src = _lit != null ? _lit : MatFor(Color.white, false);
+            s_NoHull = new Material(src) { name = src.name + " (no outline)" };
+            s_NoHull.SetShaderPassEnabled("SRPDefaultUnlit", false);
+            return s_NoHull;
+        }
+
+        /// <summary>Turns the outline hull on / off (the map view does it by camera distance: draw calls).</summary>
+        public void SetOutline(bool on)
+        {
+            if (on == _outline || _bodyR == null)
+                return;
+            _outline = on;
+            _hullMat ??= _bodyR.sharedMaterial;
+            _bodyR.sharedMaterial = on ? _hullMat : NoHull();
+        }
+
         private void BuildLimbs()
         {
             var go = new GameObject("Limbs");
@@ -226,7 +251,7 @@ namespace FallRush.Client
             _limbMesh.SetTriangles(tris, 0);
             go.AddComponent<MeshFilter>().sharedMesh = _limbMesh;
             var mr = go.AddComponent<MeshRenderer>();
-            mr.sharedMaterial = _lit != null ? _lit : MatFor(Color.white, false);
+            mr.sharedMaterial = NoHull();
             mr.shadowCastingMode = ShadowCastingMode.Off;
             mr.receiveShadows = false;
             mr.lightProbeUsage = LightProbeUsage.Off;
@@ -335,7 +360,7 @@ namespace FallRush.Client
             _plainMpb.Clear();
             _plainMpb.SetFloat(OutlineWidthId, LimbOutline);
             if (on)
-                _plainMpb.SetColor(BaseColorId, new Color(0.62f, 0.6f, 0.68f));
+                _plainMpb.SetFloat("_Desat", 1f);
             _limbsR.SetPropertyBlock(_plainMpb);
             ApplyBody();
         }
@@ -1038,7 +1063,8 @@ namespace FallRush.Client
             }
             else if (_grey)
             {
-                _bodyMpb.SetColor(BaseColorId, new Color(0.62f, 0.6f, 0.68f));
+                _bodyMpb.SetFloat("_Desat", 1f); // a grey capsule (the claw moment)
+                _bodyMpb.SetColor(BaseColorId, new Color(0.82f, 0.82f, 0.86f));
                 _bodyMpb.SetColor(FaceTintId, new Color(0.7f, 0.7f, 0.75f));
             }
 

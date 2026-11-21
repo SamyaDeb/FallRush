@@ -33,6 +33,7 @@ namespace FallRush.Client
             EnsureVolume();
             if (s_Volume != null)
                 s_Volume.enabled = high;
+            FallRush.Net.GateLogger.Gfx = high ? "high" : "low";
         }
 
         private static string Arg(string name)

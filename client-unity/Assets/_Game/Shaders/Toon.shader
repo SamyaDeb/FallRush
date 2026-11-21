@@ -30,6 +30,7 @@ Shader "FallRush/Toon"
         _Gloss("Gloss highlight", Range(0,1)) = 0
         _Emission("Emission", Color) = (0,0,0,0)
         _Unlit("Unlit amount", Range(0,1)) = 0
+        _Desat("Desaturate", Range(0,1)) = 0
         _FlashColor("Flash colour (a = amount)", Color) = (1,1,1,0)
         _Scroll("Chevron wave", Float) = -1000
         _ChevronCount("Chevron count", Float) = 1
@@ -71,6 +72,7 @@ Shader "FallRush/Toon"
             half _RimStrength, _RimPower, _Gloss;
             half4 _Emission;
             half _Unlit;
+            half _Desat;
             half4 _FlashColor;
             float _Scroll, _ChevronCount;
             half4 _ChevronLit;
@@ -205,6 +207,7 @@ Shader "FallRush/Toon"
                 UNITY_SETUP_INSTANCE_ID(i);
                 half4 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv);
                 half3 albedo = tex.rgb * _BaseColor.rgb * i.color.rgb;
+                albedo = lerp(albedo, dot(albedo, half3(0.3h, 0.59h, 0.11h)).xxx, _Desat);
 
                 // Travelling chevron light (conveyors): the chevron whose index matches the wave is lit.
                 if (_Scroll > -999.0 && i.uv2.x > 0.5 && _RushlingMesh < 0.5)

@@ -24,6 +24,38 @@ namespace FallRush.Net
         // remote stutter: |rendered speed − interpolated server speed| for one moving remote player, per frame
         private readonly RollingSamples _stutter = new RollingSamples(4096);
         private readonly RollingSamples _frameMs = new RollingSamples(4096);
+        private readonly RollingSamples _dcFrame = new RollingSamples(4096);
+        private long _trisMax;
+        private float _texAt;
+        private float _texMb = -1f;
+
+        /// <summary>G2.4: estimated texture memory of every loaded texture (width × height × format bytes, × 4/3 with mips).</summary>
+        private static float TextureMb()
+        {
+            double bytes = 0;
+            foreach (var t in Resources.FindObjectsOfTypeAll<Texture>())
+            {
+                if (t == null || t.width <= 0)
+                    continue;
+                var bpp = 4.0;
+                if (t is Texture2D t2)
+                    bpp = t2.format switch
+                    {
+                        TextureFormat.Alpha8 or TextureFormat.R8 => 1.0,
+                        TextureFormat.RGB24 => 3.0,
+                        TextureFormat.DXT1 or TextureFormat.ETC_RGB4 or TextureFormat.ETC2_RGB => 0.5,
+                        TextureFormat.DXT5 or TextureFormat.BC7 or TextureFormat.ETC2_RGBA8 or TextureFormat.ASTC_4x4 => 1.0,
+                        TextureFormat.RGBAHalf => 8.0,
+                        _ => 4.0,
+                    };
+                else if (t is RenderTexture rt)
+                    bpp = rt.format == RenderTextureFormat.ARGBHalf || rt.format == RenderTextureFormat.DefaultHDR ? 8.0 : 4.0;
+                var mips = t.mipmapCount > 1 ? 4.0 / 3.0 : 1.0;
+                bytes += t.width * (double)t.height * bpp * mips;
+            }
+
+            return (float)(bytes / (1024.0 * 1024.0));
+        }
         private Vec3 _lastRemotePos;
         private int _remoteSlot = -1;
         private float _next;
@@ -53,12 +85,24 @@ namespace FallRush.Net
             var cs = ClientSim.Instance;
             SampleRemoteStutter(cs);
             _frameMs.Add(Time.unscaledDeltaTime * 1000f);
+            if (_drawCalls.Valid)
+                _dcFrame.Add(_drawCalls.LastValue);
+            if (_tris.Valid && _tris.LastValue > _trisMax)
+                _trisMax = _tris.LastValue;
+            if (Time.realtimeSinceStartup >= _texAt)
+            {
+                _texAt = Time.realtimeSinceStartup + 10f;
+                _texMb = TextureMb();
+            }
             if (AutoLog && Time.realtimeSinceStartup >= _next)
             {
                 _next = Time.realtimeSinceStartup + 10f;
                 Log(10f);
             }
         }
+
+        /// <summary>Graphics level label for the budget line (set by the client, which owns the setting).</summary>
+        public static string Gfx = "-";
 
         public void Log(float span)
         {
@@ -113,6 +157,13 @@ namespace FallRush.Net
             _lastFrozen = r.FrozenFrames;
             _stutter.Clear();
             _frameMs.Percentiles(0.5f, 0.95f, out var f50, out var f95);
+            _frameMs.Percentiles(0.99f, 0.999f, out var f99, out _);
+            float dc50 = -1f, dcMax = -1f;
+            if (_dcFrame.Count > 0)
+                _dcFrame.Percentiles(0.5f, 1f, out dc50, out dcMax);
+            Debug.Log($"[{Tag}] budget map={(cs.Round.HasValue ? MapPoolV1.KeyOf(cs.Round.Value.MapId) : "-")} gfx={Gfx} fpsMedian={1000f / Mathf.Max(0.1f, f50):F0} fps1pcLow={1000f / Mathf.Max(0.1f, f99):F0} drawCallsMedian={dc50:F0} drawCallsMax={dcMax:F0} trisMax={_trisMax} texMB={_texMb:F1} screen={Screen.width}x{Screen.height}");
+            _dcFrame.Clear();
+            _trisMax = 0;
             Debug.Log($"[{Tag}] render map={(cs.Round.HasValue ? MapPoolV1.KeyOf(cs.Round.Value.MapId) : "-")} drawCalls={(_drawCalls.Valid ? _drawCalls.LastValue : -1)} batches={(_batches.Valid ? _batches.LastValue : -1)} setPass={(_setPass.Valid ? _setPass.LastValue : -1)} tris={(_tris.Valid ? _tris.LastValue : -1)} visible={Rushlings()}");
             Debug.Log($"[{Tag}] frame p50={f50:F1}ms p95={f95:F1}ms fps={1000f / Mathf.Max(0.1f, f50):F0} ping p50={(PingService.Instance != null ? PingService.Instance.P50Ms : float.NaN):F0} p95={(PingService.Instance != null ? PingService.Instance.P95Ms : float.NaN):F0}ms lead={cs.Clock.LastReportedLead}/{cs.Clock.TargetLead} resyncs={cs.Clock.Resyncs}");
             _frameMs.Clear();

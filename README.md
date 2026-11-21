@@ -122,6 +122,15 @@ bash scripts/m1-unity.sh maps -executeMethod AllMapsBuilder.Run   # rebuild ever
 bash scripts/g1-qa.sh 100                         # map QA → docs/proof/g1-map-qa.md
 ```
 
+## G2/G3: run it (look + juice)
+Same commands as M4 / G1 (`pnpm m1:build:macserver`, `pnpm m1:build:webgl:release`, `pnpm m1:up:mac`, open `http://localhost:8080/`).
+- **Graphics: High / Low** in Settings (Esc in game, or the menu). High = post-processing (bloom, colour adjustments, vignette) at full render scale; Low = no post at 0.8 render scale. URL override for measurements: `?gfx=low` / `?gfx=high` (desktop: `-fallrushGfx low|high`).
+- **My Rushling**: ◀ / ▶ on the menu picks one of 12 cosmetic presets (live preview, saved locally, sent in `hello`, shown to everyone). URL / CLI override: `?preset=N` / `-fallrushPreset N`.
+- **Chain chip (dev)**: F9 in the Editor or a development build cycles `● Server` → `◆ Rollup ✓` → `⬢ Solana ✓` → `! Pending`; `?chain=cycle` (`-fallrushChain cycle`) cycles them every 2.5 s in any build (display only).
+- **Audio** starts on your first click / key press (browser rule). Music / SFX volume sliders in Settings.
+- **Proof tools**: `scripts/g2-shots.sh <dir> [secs] [w] [h] [args]` (a windowed probe saves a PNG of every screen and map; add `-fallrushPhoto closeup|silhouette|presets` for the Bolt photos); menu shot: `FallRushDevServer -fallrushMenuShot <png> [-fallrushMenuSettings]`.
+- Regenerate the audio: `python3 tools/audio/synth.py <dir>` (needs numpy + ffmpeg); re-bake the fonts: `Unity -batchmode -executeMethod FontBaker.Run -quit` (not `-nographics`).
+
 ## M4: run it (a full match: lobby → deal → 4 rounds → champion → receipt → lobby)
 Status: **M4 built locally** (no VPS: deferred to M6). Proof: [`docs/proof/M4-match.md`](docs/proof/M4-match.md), map QA [`docs/proof/m4-map-qa.md`](docs/proof/m4-map-qa.md).
 

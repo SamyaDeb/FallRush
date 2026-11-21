@@ -39,6 +39,7 @@ Material:
     - _BandSoft: 0.03
     - _ChevronCount: 1
     - _Cull: 2
+    - _Desat: 0
     - _DstBlend: 0
     - _FaceOn: 0
     - _Gloss: 0

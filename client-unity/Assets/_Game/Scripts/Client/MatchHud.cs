@@ -96,10 +96,10 @@ namespace FallRush.Client
             crt.sizeDelta = new Vector2(1100f, 200f);
             _banner = ResultBanner.Create(canvas, new Vector2(110f, 205f));
             _banner.transform.localScale = Vector3.one * 0.85f;
-            _countdown = CapsuleMachineWidget.Create(canvas, new Vector2(220f, 250f));
+            _countdown = CapsuleMachineWidget.Create(canvas, new Vector2(150f, 170f));
             var cdr = (RectTransform)_countdown.transform;
             cdr.anchorMin = cdr.anchorMax = new Vector2(0.5f, 0.5f);
-            cdr.anchoredPosition = new Vector2(0f, 60f);
+            cdr.anchoredPosition = new Vector2(0f, 150f);
             _countdown.gameObject.SetActive(false);
 
             BuildLobby(canvas);
@@ -365,10 +365,25 @@ namespace FallRush.Client
             Refresh(cs);
         }
 
+        private static readonly string[] ChipText = { ChainChipStyle.Text(ChainState.Server), ChainChipStyle.Text(ChainState.RollupConfirmed), ChainChipStyle.Text(ChainState.SolanaConfirmed), ChainChipStyle.Text(ChainState.Pending) };
+        private RectTransform[] _panels;
+        private RectTransform _want;
+
+        /// <summary>Shows only the wanted panel; touches SetActive only on a change (no layout rebuild every refresh).</summary>
+        private void ApplyPanels()
+        {
+            foreach (var p in _panels)
+            {
+                var on = p == _want;
+                if (p.gameObject.activeSelf != on)
+                    p.gameObject.SetActive(on);
+            }
+        }
+
         private void Chain()
         {
             var st = _chain.State;
-            SetPill(_chainPill, _chainText, ChainChipStyle.Text(st));
+            SetPill(_chainPill, _chainText, ChipText[(int)st]); // cached strings: no per-frame allocation
             _chainFill.color = ChainChipStyle.Color(st);
             _chainText.color = st == ChainState.Server ? Color.white : UiKit.Ink;
         }
@@ -578,9 +593,10 @@ namespace FallRush.Client
                 conn = $"<color=#5BE3B5>●</color> {(ping != null && ping.SampleCount > 0 ? ping.P50Ms.ToString("F0") : "…")} ms{(cs.Remote.Lagging ? "  <color=#FFA51F>LAGGING</color>" : "")}";
             SetPill(_connPill, _conn, conn);
 
-            foreach (var p in new[] { _lobby, _deal, _results, _inter, _receipt })
-                p.gameObject.SetActive(false);
-            _center.text = string.Empty;
+            _panels ??= new[] { _lobby, _deal, _results, _inter, _receipt };
+            _want = null;
+            if (_center.text.Length > 0)
+                _center.text = string.Empty;
             var sub = string.Empty;
             var counter = string.Empty;
             var timer = string.Empty;
@@ -594,6 +610,7 @@ namespace FallRush.Client
                 SetPill(_timerBadge, _timer, string.Empty);
                 SetPill(_subPill, _sub, string.Empty);
                 SetPill(_spectatePill, _spectate, string.Empty);
+                ApplyPanels();
                 return;
             }
 
@@ -619,7 +636,6 @@ namespace FallRush.Client
                 case MatchPhase.LobbyOpen:
                 case MatchPhase.Countdown:
                     ShowLobby(cs, m, now);
-                    counter = "Run, jump and bump while you wait";
                     break;
                 case MatchPhase.RosterLocked:
                 case MatchPhase.Dealing:
@@ -662,6 +678,7 @@ namespace FallRush.Client
                 spect = $"SPECTATING {(_spectateSlot >= 0 ? Name(cs, _spectateSlot) : "…")} · Tab: next · {why}";
             }
 
+            ApplyPanels();
             SetPill(_counterPill, _counter, counter);
             SetPill(_timerBadge, _timer, timer);
             SetPill(_subPill, _sub, sub);
@@ -673,7 +690,7 @@ namespace FallRush.Client
 
         private void ShowLobby(ClientSim cs, MatchStateMessage m, uint now)
         {
-            _lobby.gameObject.SetActive(true);
+            _want = _lobby;
             var humans = 0;
             var k = 0;
             for (var i = 0; i < _lobbyRows.Length; i++)
@@ -706,7 +723,7 @@ namespace FallRush.Client
         /// <summary>G3.4 #2 / G3.6: the Chaos Capsule machine spins while the deal is pending, then pops one capsule per round.</summary>
         private void ShowDeal(ClientSim cs, MatchStateMessage m)
         {
-            _deal.gameObject.SetActive(true);
+            _want = _deal;
             var deal = _chain.Deal;
             var dealt = m.Phase == MatchPhase.Dealt;
             _dealMachine.Spin(!dealt);
@@ -818,7 +835,7 @@ namespace FallRush.Client
 
         private void ShowResults(ClientSim cs, MatchStateMessage m)
         {
-            _results.gameObject.SetActive(true);
+            _want = _results;
             var k = 0;
             foreach (var e in cs.MatchEvents)
             {
@@ -889,7 +906,7 @@ namespace FallRush.Client
 
         private void ShowIntermission(ClientSim cs, MatchStateMessage m, uint now)
         {
-            _inter.gameObject.SetActive(true);
+            _want = _inter;
             Leaderboard(cs, m, _interRows);
             var next = m.Round;
             _interNext.text = next < m.RoundCount
@@ -900,7 +917,7 @@ namespace FallRush.Client
         /// <summary>G3.6: the receipt is laid out for explorer links (Rollup tx, Solana tx, Match account); practice shows placeholders.</summary>
         private void ShowReceipt(ClientSim cs, MatchStateMessage m, uint now)
         {
-            _receipt.gameObject.SetActive(true);
+            _want = _receipt;
             _receiptHead.text = $"♛ Champion: {Name(cs, m.Champion)}";
             Leaderboard(cs, m, _receiptRows);
             _receiptIds.text = $"match {Sha256.Hex(m.MatchId).Substring(0, 16)}…   seed {Sha256.Hex(m.Seed).Substring(0, 16)}…\ntranscript {Sha256.Hex(m.Transcript).Substring(0, 16)}… ({m.EventCount} events)";

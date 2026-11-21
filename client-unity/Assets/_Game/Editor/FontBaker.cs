@@ -28,7 +28,7 @@ public static class FontBaker
         var sb = new StringBuilder();
         for (var c = 32; c < 127; c++)
             sb.Append((char)c);
-        sb.Append("éèêëáàâäíìîïóòôöúùûüçñ¡¿€£§©®™«»“”‘’");
+        sb.Append("éèêëáàâäíìîïóòôöúùûüçñ¡¿€£§©®™«»“”‘’…–—·•×°");
         return sb.ToString();
     }
 

@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d0d7ec4a4ae7b4e78af8b71aac65d456, type: 3}
-  m_Name: Palette
+  m_Name: 
   m_EditorClassIdentifier: FallRush.Net::FallRush.Net.PaletteTokens
   skyTop: {r: 0.24705882, g: 0.6627451, b: 0.9607843, a: 1}
   skyHorizon: {r: 0.7490196, g: 0.9019608, b: 1, a: 1}
@@ -24,7 +24,7 @@ MonoBehaviour:
   goo: {r: 0.60784316, g: 0.36078432, b: 1, a: 1}
   ink: {r: 0.16470589, g: 0.07058824, b: 0.3137255, a: 1}
   amber: {r: 1, g: 0.64705884, b: 0.12156863, a: 1}
-  walkTop: {r: 0.96862745, g: 0.9647059, b: 1, a: 1}
+  walkTop: {r: 0.9490196, g: 0.9411765, b: 1, a: 1}
   walkBand: {r: 1, g: 1, b: 1, a: 1}
   walkSide: {r: 0.8509804, g: 0.8666667, b: 0.96862745, a: 1}
   wallSide: {r: 0.79607844, g: 0.7529412, b: 0.9607843, a: 1}

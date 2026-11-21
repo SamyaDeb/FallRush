@@ -73,10 +73,15 @@ namespace FallRush.Client
             if (cam == null)
                 return;
             var cp = cam.transform.position;
+            var cs = ClientSim.Instance;
+            var intro = cs != null && cs.Phase == RoundPhase.Intro;
             foreach (var r in _signs)
                 if (r != null)
                 {
-                    var on = (r.bounds.ClosestPoint(cp) - cp).sqrMagnitude > 8f * 8f;
+                    // Step 0: a map's title sign shows during the intro fly-through only, so it never sits behind the
+                    // HUD's top-centre counter during play.
+                    var title = r.name == "Label_STAR SCRAMBLE" || r.name == "Label_GOO TOWER" || r.name == "Label_CRUMBLE SHELF" || r.name == "Label_BLOCK PARTY DASH";
+                    var on = (r.bounds.ClosestPoint(cp) - cp).sqrMagnitude > 8f * 8f && (!title || intro);
                     if (r.enabled != on)
                         r.enabled = on;
                 }
@@ -295,6 +300,9 @@ namespace FallRush.Client
                     feet = held; // the claw carries it (visual only)
                 if (Time.unscaledTime >= _hitStopUntil[i])
                     vis.Drive(feet, vel, flags, yaw, stun, dt);
+                var camT = Camera.main != null ? Camera.main.transform.position : feet;
+                var d2 = (camT - feet).sqrMagnitude;
+                vis.SetOutline(i == own || d2 < (vis.Preset >= 0 ? 22f * 22f : 0f)); // G2.4: hull only near the camera
                 Juice(i, vis, feet, vel, i == own, cs);
                 _wasVisible[i] = true;
                 _lastFeet[i] = feet;

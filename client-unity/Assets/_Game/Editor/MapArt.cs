@@ -66,7 +66,62 @@ public static class MapArt
 
         Look(scene, mapKey);
         MapDressing.Dress(scene, info, mapKey, vc);
+        if (System.Environment.GetEnvironmentVariable("FALLRUSH_NO_MERGE") != "1")
+            MergeStatic(scene);
         AssetDatabase.SaveAssets();
+    }
+
+    /// <summary>
+    /// G2.4: merges every static, enabled renderer under Geometry / Hazards into one mesh per (material, 32 m cell), so a
+    /// map draws as a handful of chunks instead of many static-batch ranges. The originals keep their colliders and
+    /// transforms; only their renderers are switched off (render-only boxes keep the GameObject, nothing moves).
+    /// </summary>
+    private static void MergeStatic(Scene scene)
+    {
+        const float cell = 32f;
+        var groups = new Dictionary<(Material, int, int, int), List<MeshRenderer>>();
+        foreach (var root in scene.GetRootGameObjects())
+        {
+            if (root.name != "Geometry" && root.name != "Hazards")
+                continue;
+            foreach (var r in root.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                var mf = r.GetComponent<MeshFilter>();
+                if (!r.enabled || !r.gameObject.isStatic || mf == null || mf.sharedMesh == null || r.sharedMaterial == null || r.sharedMaterials.Length != 1)
+                    continue;
+                if (r.GetComponent<TMPro.TextMeshPro>() != null || r.sharedMaterial.renderQueue >= (int)RenderQueue.Transparent)
+                    continue;
+                var c = r.bounds.center;
+                var key = (r.sharedMaterial, Mathf.FloorToInt(c.x / cell), Mathf.FloorToInt(c.y / cell), Mathf.FloorToInt(c.z / cell));
+                if (!groups.TryGetValue(key, out var list))
+                    groups[key] = list = new List<MeshRenderer>();
+                list.Add(r);
+            }
+        }
+
+        var parent = new GameObject("MergedStatic").transform;
+        parent.gameObject.isStatic = true;
+        var n = 0;
+        foreach (var kv in groups)
+        {
+            if (kv.Value.Count < 2)
+                continue;
+            var mb = new MapDressing.MeshBuilder();
+            foreach (var r in kv.Value)
+            {
+                var mesh = r.GetComponent<MeshFilter>().sharedMesh;
+                if (!mesh.isReadable)
+                    continue;
+                mb.Add(mesh, r.transform.localToWorldMatrix);
+                r.enabled = false;
+            }
+
+            var go = mb.Emit(parent, $"Chunk_{kv.Key.Item1.name}_{kv.Key.Item2}_{kv.Key.Item3}_{kv.Key.Item4}", kv.Key.Item1);
+            go.isStatic = true;
+            n++;
+        }
+
+        Debug.Log($"[setup] merged static renderers into {n} chunks");
     }
 
     private static Transform Find(Scene scene, string name)
