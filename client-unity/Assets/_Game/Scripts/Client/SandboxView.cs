@@ -212,6 +212,9 @@ namespace FallRush.Client
             var mouse = Mouse.current;
             if (kb != null && kb.f3Key.wasPressedThisFrame)
                 _hud.SetActive(!_hud.activeSelf);
+            // G4.8: F7 toggles the map look (soft / candy) so the user can A/B it in play; render only.
+            if (kb != null && kb.f7Key.wasPressedThisFrame)
+                LookState.Toggle();
             // G1: the controls bar shows for a few seconds after a map loads, then on F1.
             if (kb != null && kb.f1Key.wasPressedThisFrame)
                 _hintUntil = _hint.activeSelf ? 0f : float.MaxValue;

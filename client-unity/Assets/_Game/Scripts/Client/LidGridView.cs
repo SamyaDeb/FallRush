@@ -50,11 +50,30 @@ namespace FallRush.Client
         public static readonly Color WarnLight = new Color(1f, 0.62f, 0.85f);
         public static readonly Color Open = new Color(0.32f, 0.24f, 0.5f);
 
-        /// <summary>The calm colour of a top-shelf lid in ring <paramref name="ring"/>.</summary>
+        /// <summary>The calm colour of a top-shelf lid in ring <paramref name="ring"/> (candy, G4.6).</summary>
         public static Color TopRingColour(int ring) => ring >= 4 ? TopRing4 : ring == 3 ? TopRing3 : ring == 2 ? TopRing2 : TopRing10;
 
-        /// <summary>Every solid (calm) lid colour: top rings 4 / 3 / 2 / 1–0, lower shelf, lower edge (tests).</summary>
+        /// <summary>Every solid (calm) lid colour: top rings 4 / 3 / 2 / 1–0, lower shelf, lower edge (candy, tests).</summary>
         public static Color[] SolidColours => new[] { TopRing4, TopRing3, TopRing2, TopRing10, LowCalm, LowEdge };
+
+        /// <summary>G4.8: the calm lid colours of a look (same ring hues; soft = the pastel tops, the lower edge its mid-tone side).</summary>
+        public static Color TopRingColour(int ring, LookId look) => PaletteTokens.DefaultTop(PaletteTokens.HueOf("CrumbleShelf", ring >= 4 ? "ring4" : ring == 3 ? "ring3" : ring == 2 ? "ring2" : ring == 1 ? "ring1" : "ring0"), look);
+
+        public static Color LowCalmFor(LookId look) => PaletteTokens.DefaultTop(SurfaceHue.GrapeFizz, look);
+
+        /// <summary>The lower shelf's outer ring: candy the Grape fizz side; soft its mid tone deepened 30 % toward ink (luma gap to the lit amber).</summary>
+        public static Color LowEdgeFor(LookId look) => look == LookId.Candy
+            ? PaletteTokens.DefaultSide(SurfaceHue.GrapeFizz, look)
+            : Color.Lerp(PaletteTokens.DefaultSide(SurfaceHue.GrapeFizz, look), PaletteTokens.Hex(0x2A1250), 0.3f);
+
+        public static Color[] SolidColoursFor(LookId look) => look == LookId.Candy
+            ? SolidColours
+            : new[] { TopRingColour(4, look), TopRingColour(3, look), TopRingColour(2, look), TopRingColour(1, look), LowCalmFor(look), LowEdgeFor(look) };
+
+        /// <summary>The lit telegraph: candy sun yellow; soft a deeper amber (pale lids are lighter than the G4.6 yellow).</summary>
+        public static Color LitFor(LookId look) => look == LookId.Candy ? LitYellow : PaletteTokens.Get().softLit;
+
+        private LookId _look;
 
         public static string BatchName(int b) => ((B)b).ToString();
 
@@ -63,15 +82,35 @@ namespace FallRush.Client
             _map = map;
             _mesh = LidMesh();
             var src = map != null ? map.playerMaterial : null;
-            var cols = new[] { TopRing4, TopRing3, TopRing2, LowCalm, LowEdge, LitYellow, WarnMagenta, WarnLight, Open }; // rings 4 and 1–0 share Bubblegum: one batch
-            for (var i = 0; i < cols.Length; i++)
+            for (var i = 0; i < (int)B.Count; i++)
             {
-                _mats[i] = Tinted(src, cols[i]);
+                _mats[i] = Tinted(src, Color.white);
                 _batches[i] = new List<Matrix4x4>(96);
             }
 
+            Recolour(LookState.Current);
+        }
+
+        /// <summary>The batch colours of a look (rings 4 and 1–0 share Bubblegum: one batch).</summary>
+        public static Color[] BatchColours(LookId look) => new[]
+        {
+            TopRingColour(4, look), TopRingColour(3, look), TopRingColour(2, look), LowCalmFor(look), LowEdgeFor(look), LitFor(look), WarnMagenta, WarnLight, Open,
+        };
+
+        /// <summary>G4.8: recolours the batches for a look (the colours are on-screen colours: baked through that look's grade).</summary>
+        private void Recolour(LookId look)
+        {
+            _look = look;
+            var cols = BatchColours(look);
+            for (var i = 0; i < cols.Length; i++)
+            {
+                var a = GraphicsQuality.AlbedoFor(cols[i], look);
+                _mats[i].SetColor("_BaseColor", new Color(Mathf.LinearToGammaSpace(a.r), Mathf.LinearToGammaSpace(a.g), Mathf.LinearToGammaSpace(a.b), 1f));
+                // Soft look: the foam sheen on lid tops is off (walkable), the soft ramp and shadows come from the globals.
+            }
+
             // The telegraph colours glow a little so they read in shade too.
-            _mats[(int)B.Lit].SetColor("_Emission", new Color(0.28f, 0.2f, 0.02f));
+            _mats[(int)B.Lit].SetColor("_Emission", look == LookId.Candy ? new Color(0.28f, 0.2f, 0.02f) : new Color(0.3f, 0.15f, 0.01f));
             _mats[(int)B.Warn].SetColor("_Emission", new Color(0.25f, 0.04f, 0.14f));
         }
 
@@ -81,10 +120,8 @@ namespace FallRush.Client
         private static Material Tinted(Material src, Color c)
         {
             var m = src != null ? new Material(src) : new Material(Shader.Find("FallRush/Toon"));
-            // G4.6-3: the colours are on-screen (graded) colours; the material gets the albedo that shows them on a lit top.
-            var p = PaletteTokens.Get();
-            var a = GraphicsQuality.AlbedoFor(c, GraphicsQuality.TopLight(p.sun, p.ambientSky));
-            m.SetColor("_BaseColor", new Color(Mathf.LinearToGammaSpace(a.r), Mathf.LinearToGammaSpace(a.g), Mathf.LinearToGammaSpace(a.b), 1f));
+            // G4.6-3: the colours are on-screen (graded) colours; the material gets the albedo that shows them on a lit top (Recolour).
+            m.SetColor("_BaseColor", c);
             m.SetShaderPassEnabled("SRPDefaultUnlit", false);
             m.SetFloat("_RushlingMesh", 0f);
             m.SetFloat("_RimAll", 0f); // lid tops are walkable: no view rim
@@ -213,6 +250,9 @@ namespace FallRush.Client
 
         public void Draw()
         {
+            if (_look != LookState.Current)
+                Recolour(LookState.Current);
+            var soft = _look == LookId.Soft;
             for (var b = 0; b < _batches.Length; b++)
             {
                 var list = _batches[b];
@@ -221,7 +261,8 @@ namespace FallRush.Client
                 if (_scratch.Length < list.Count)
                     _scratch = new Matrix4x4[list.Count];
                 list.CopyTo(_scratch);
-                var rp = new RenderParams(_mats[b]) { shadowCastingMode = ShadowCastingMode.Off, receiveShadows = false };
+                // G4.8: soft look: the lids cast onto the lower shelf and receive the sun shadows.
+                var rp = new RenderParams(_mats[b]) { shadowCastingMode = soft ? ShadowCastingMode.On : ShadowCastingMode.Off, receiveShadows = soft };
                 Graphics.RenderMeshInstanced(rp, _mesh, 0, _scratch, list.Count);
             }
         }

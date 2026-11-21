@@ -1,4 +1,3 @@
-using FallRush.Net;
 using UnityEngine;
 
 namespace FallRush.Client
@@ -9,8 +8,6 @@ namespace FallRush.Client
     /// </summary>
     public static class WorldLook
     {
-        private static readonly int AmbSky = Shader.PropertyToID("_FR_AmbSky");
-        private static readonly int AmbGround = Shader.PropertyToID("_FR_AmbGround");
         private static bool s_Captured;
         private static FogMode s_Mode;
         private static float s_Start, s_End, s_Density;
@@ -21,9 +18,8 @@ namespace FallRush.Client
         /// <summary>Call when a map's client view starts.</summary>
         public static void OnMapLoaded()
         {
-            var p = PaletteTokens.Get();
-            Shader.SetGlobalColor(AmbSky, new Color(p.ambientSky.r, p.ambientSky.g, p.ambientSky.b, 1f));
-            Shader.SetGlobalColor(AmbGround, new Color(p.ambientGround.r, p.ambientGround.g, p.ambientGround.b, 1f));
+            // G4.8: the look sets the ambient globals, the sun, the fog colour and the sky (soft or candy).
+            LookState.ApplyScene();
             s_Fog = RenderSettings.fog;
             s_Mode = RenderSettings.fogMode;
             s_Start = RenderSettings.fogStartDistance;
@@ -32,6 +28,13 @@ namespace FallRush.Client
             s_Color = RenderSettings.fogColor;
             s_Captured = true;
             s_Applied = -1;
+        }
+
+        /// <summary>G4.8: the look switched: the base fog colour to restore follows it.</summary>
+        public static void OnLookChanged(Color fog)
+        {
+            if (s_Captured)
+                s_Color = fog;
         }
 
         /// <summary>TinyTilt (visual-only modifier): exponential fog of <paramref name="permille"/>/1000; 0 = the map's base fog.</summary>

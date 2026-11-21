@@ -54,25 +54,63 @@ namespace FallRush.Client
 
         private static float Luma(Color c) => 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
 
-        /// <summary>The grade of a linear scene colour → the sRGB colour on screen.</summary>
-        public static Color Grade(Color lin)
+        /// <summary>
+        /// G4.8: one grade per look. Candy = the G4.6 grade (Neutral tonemapping + the 1.6 gain). Soft = back toward natural:
+        /// saturation +6, contrast +8, exposure 0 and no tonemapper (decision G4.8-2: Neutral cannot reach the pastel tops'
+        /// V 0.93–0.98 without a ≥ 2.4× gain, which would wash every unbaked colour out, e.g. the Rushlings; without it the
+        /// mid tones match the candy grade within 0.05 and highlights clip at white, measured on the CPU model).
+        /// </summary>
+        public readonly struct GradeParams
         {
-            var k = 1f + Contrast / 100f;
-            var ex = Mathf.Pow(2f, PostExposure);
-            float Pre(float v) => Mathf.Max(0f, FromLogC((ToLogC(Mathf.Max(v * ex, 1e-6f)) - MidGrey) * k + MidGrey) * PreTonemapGain);
+            public readonly float Saturation, Contrast, PostExposure, Gain, BloomThreshold;
+            public readonly bool Neutral;
+
+            public GradeParams(float saturation, float contrast, float postExposure, float gain, bool neutral, float bloomThreshold)
+            {
+                Saturation = saturation;
+                Contrast = contrast;
+                PostExposure = postExposure;
+                Gain = gain;
+                Neutral = neutral;
+                BloomThreshold = bloomThreshold;
+            }
+        }
+
+        public static readonly GradeParams CandyGrade = new GradeParams(Saturation, Contrast, PostExposure, PreTonemapGain, true, BloomThreshold);
+        public static readonly GradeParams SoftGrade = new GradeParams(6f, 8f, 0f, 1f, false, 1.25f);
+
+        public static GradeParams GradeOf(FallRush.Net.LookId look) => look == FallRush.Net.LookId.Soft ? SoftGrade : CandyGrade;
+
+        private static float Tone(float x, in GradeParams g) => g.Neutral ? Neutral(x) : Mathf.Clamp01(x);
+
+        /// <summary>The grade of a linear scene colour → the sRGB colour on screen (the look in use).</summary>
+        public static Color Grade(Color lin) => Grade(lin, LookState.Current);
+
+        public static Color Grade(Color lin, FallRush.Net.LookId look)
+        {
+            var g = GradeOf(look);
+            var k = 1f + g.Contrast / 100f;
+            var ex = Mathf.Pow(2f, g.PostExposure);
+            var gain = g.Gain;
+            float Pre(float v) => Mathf.Max(0f, FromLogC((ToLogC(Mathf.Max(v * ex, 1e-6f)) - MidGrey) * k + MidGrey) * gain);
             var x = new Color(Pre(lin.r), Pre(lin.g), Pre(lin.b));
             var l = Luma(x);
-            var s = 1f + Saturation / 100f;
+            var s = 1f + g.Saturation / 100f;
             float Sat(float v) => Mathf.Max(0f, l + (v - l) * s);
-            return new Color(Mathf.LinearToGammaSpace(Mathf.Clamp01(Neutral(Sat(x.r)))), Mathf.LinearToGammaSpace(Mathf.Clamp01(Neutral(Sat(x.g)))),
-                Mathf.LinearToGammaSpace(Mathf.Clamp01(Neutral(Sat(x.b)))));
+            return new Color(Mathf.LinearToGammaSpace(Mathf.Clamp01(Tone(Sat(x.r), g))), Mathf.LinearToGammaSpace(Mathf.Clamp01(Tone(Sat(x.g), g))),
+                Mathf.LinearToGammaSpace(Mathf.Clamp01(Tone(Sat(x.b), g))));
         }
 
         /// <summary>The linear scene colour the grade turns into <paramref name="srgb"/> (exact inverse where it exists).</summary>
-        public static Color InverseGrade(Color srgb)
+        public static Color InverseGrade(Color srgb) => InverseGrade(srgb, LookState.Current);
+
+        public static Color InverseGrade(Color srgb, FallRush.Net.LookId look)
         {
+            var g = GradeOf(look);
             float ITm(float t)
             {
+                if (!g.Neutral)
+                    return t;
                 float lo = 0f, hi = 5.3f;
                 for (var i = 0; i < 48; i++)
                 {
@@ -89,12 +127,13 @@ namespace FallRush.Client
             var y = new Color(ITm(Mathf.Min(0.995f, Mathf.GammaToLinearSpace(srgb.r))), ITm(Mathf.Min(0.995f, Mathf.GammaToLinearSpace(srgb.g))),
                 ITm(Mathf.Min(0.995f, Mathf.GammaToLinearSpace(srgb.b))));
             var l = Luma(y);
-            var s = 1f + Saturation / 100f;
-            var k = 1f + Contrast / 100f;
-            var ex = Mathf.Pow(2f, PostExposure);
+            var s = 1f + g.Saturation / 100f;
+            var k = 1f + g.Contrast / 100f;
+            var ex = Mathf.Pow(2f, g.PostExposure);
+            var gain = g.Gain;
             float Back(float v)
             {
-                var x = Mathf.Max(1e-6f, l + (v - l) / s) / PreTonemapGain;
+                var x = Mathf.Max(1e-6f, l + (v - l) / s) / gain;
                 return FromLogC((ToLogC(x) - MidGrey) / k + MidGrey) / ex;
             }
 
@@ -104,15 +143,27 @@ namespace FallRush.Client
         /// <summary>Linear light on a sun-facing top under the map light (toon shader: sun × 0.58 + sky ambient × 0.34).</summary>
         public static Color TopLight(Color sunSrgb, Color ambientSkySrgb) => sunSrgb.linear * (SunIntensity * 0.58f) + ambientSkySrgb.linear * 0.34f;
 
+        /// <summary>The map light on a top in <paramref name="look"/> (its sun and sky ambient).</summary>
+        public static Color TopLight(FallRush.Net.LookId look)
+        {
+            var p = FallRush.Net.PaletteTokens.Get();
+            return TopLight(p.Sun(look), p.AmbientSky(look));
+        }
+
         /// <summary>
         /// G4.6-3: the linear albedo (vertex colour, or the linearised material colour) that shows <paramref name="srgb"/> on a
         /// lit top after the grade: the palette is authored as on-screen colours, the bake undoes the grade and the light.
         /// </summary>
-        public static Color AlbedoFor(Color srgb, Color light)
+        public static Color AlbedoFor(Color srgb, Color light) => AlbedoFor(srgb, light, LookState.Current);
+
+        public static Color AlbedoFor(Color srgb, Color light, FallRush.Net.LookId look)
         {
-            var g = InverseGrade(srgb);
+            var g = InverseGrade(srgb, look);
             return new Color(Mathf.Min(MaxAlbedo, g.r / light.r), Mathf.Min(MaxAlbedo, g.g / light.g), Mathf.Min(MaxAlbedo, g.b / light.b), srgb.a);
         }
+
+        /// <summary>The albedo that shows <paramref name="srgb"/> on a lit top in <paramref name="look"/> (its light and grade).</summary>
+        public static Color AlbedoFor(Color srgb, FallRush.Net.LookId look) => AlbedoFor(srgb, TopLight(look), look);
 
         private static Volume s_Volume;
         private static float s_BaseScale = -1f;
@@ -139,6 +190,7 @@ namespace FallRush.Client
                 cam.GetUniversalAdditionalCameraData().renderPostProcessing = post; // both levels keep the grade
             EnsureVolume();
             SetLevel(s_Volume, high);
+            ApplyShadows(LookState.Current, high);
             FallRush.Net.GateLogger.Gfx = high ? "high" : "low";
             // G4.7: one line per apply so a WebGL run shows whether the HDR grade (Neutral tonemapping) can run there.
             Debug.Log($"[gfx] level={(high ? "high" : "low")} {Describe()} cameraHDR={(cam != null && cam.allowHDR)} " +
@@ -189,6 +241,84 @@ namespace FallRush.Client
                 bloom.active = high;
             if (v.sharedProfile.TryGet<Vignette>(out var vig))
                 vig.active = high;
+            SetGrade(v.sharedProfile, LookState.Current);
+        }
+
+        /// <summary>G4.8: the volume's grade for a look (the toggle re-runs it).</summary>
+        public static void SetGrade(VolumeProfile profile, FallRush.Net.LookId look)
+        {
+            var g = GradeOf(look);
+            if (profile.TryGet<Tonemapping>(out var tone))
+                tone.mode.value = g.Neutral ? TonemappingMode.Neutral : TonemappingMode.None;
+            if (profile.TryGet<Bloom>(out var bloom))
+                bloom.threshold.value = g.BloomThreshold;
+            if (profile.TryGet<ColorAdjustments>(out var ca))
+            {
+                ca.saturation.value = g.Saturation;
+                ca.contrast.value = g.Contrast;
+                ca.postExposure.value = g.PostExposure;
+                var gg = Mathf.LinearToGammaSpace(g.Gain); // the filter is given in gamma space (URP linearises it)
+                ca.colorFilter.value = new Color(gg, gg, gg, 1f);
+            }
+        }
+
+        /// <summary>G4.8: re-applies the grade and the shadows after a look switch.</summary>
+        public static void ApplyLook()
+        {
+            if (s_Volume != null)
+                SetGrade(s_Volume.sharedProfile, LookState.Current);
+            ApplyShadows(LookState.Current, s_High);
+        }
+
+        /// <summary>
+        /// G4.8 real sun shadows (soft look only): one cascade, 60 m, soft, 2048 on High / 1024 on Low; the candy look and the
+        /// blob shadows stay as G4.6. Casters: players, hazards, props, platforms (the map chunks cast and receive).
+        /// </summary>
+        public const float ShadowDistance = 60f, ShadowStrength = 0.6f;
+
+        /// <summary>The active pipeline asset's main-light shadow map size (Editor cost proxy; the player sets it per level).</summary>
+        public static int ShadowMapResolution
+        {
+            get => GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset u ? u.mainLightShadowmapResolution : 0;
+            set
+            {
+                if (GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset u)
+                    u.mainLightShadowmapResolution = value;
+            }
+        }
+
+        public static bool ShadowsOn(FallRush.Net.LookId look, bool high) => look == FallRush.Net.LookId.Soft && (high || SoftShadowsOnLow);
+
+        /// <summary>Low keeps the shadows unless the WebGL measurement says otherwise (G4.8 proof).</summary>
+        public static bool SoftShadowsOnLow = true;
+
+        public static void ApplyShadows(FallRush.Net.LookId look, bool high)
+        {
+            var on = ShadowsOn(look, high);
+            // The pipeline asset carries 60 m / 1 cascade / 2048 / soft; the player drops Low to 1024 (the Editor never edits the asset).
+            if (Application.isPlaying && GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset urp)
+            {
+                urp.shadowDistance = ShadowDistance;
+                urp.shadowCascadeCount = 1;
+                urp.mainLightShadowmapResolution = high ? 2048 : 1024;
+            }
+
+            var sun = RenderSettings.sun;
+            if (sun == null)
+                foreach (var l in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
+                    if (l.type == LightType.Directional)
+                    {
+                        sun = l;
+                        break;
+                    }
+
+            if (sun != null)
+            {
+                sun.shadows = on ? LightShadows.Soft : LightShadows.None;
+                sun.shadowStrength = ShadowStrength;
+                sun.shadowBias = 0.6f;
+                sun.shadowNormalBias = 0.6f;
+            }
         }
 
         /// <summary>Editor proof shots: the runtime post volume at a level (not persistent).</summary>
@@ -244,7 +374,7 @@ namespace FallRush.Client
         {
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
             var tone = profile.Add<Tonemapping>(true);
-            tone.mode.value = TonemappingMode.Neutral;
+            tone.mode.value = TonemappingMode.Neutral; // SetGrade below picks the look's mode
             var bloom = profile.Add<Bloom>(true);
             bloom.threshold.value = BloomThreshold;
             bloom.intensity.value = 0.35f;
@@ -258,6 +388,7 @@ namespace FallRush.Client
             var vig = profile.Add<Vignette>(true);
             vig.intensity.value = 0.16f;
             vig.smoothness.value = 0.45f;
+            SetGrade(profile, LookState.Current);
             return profile;
         }
     }

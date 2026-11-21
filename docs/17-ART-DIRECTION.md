@@ -130,7 +130,43 @@ A floating toy factory above the clouds:
 - foam mallets
 - marble-run tubes
 
-### 3.1 Palette (G4.6 candy palette, 2026-11-20; tokens in `Scripts/Net/PaletteTokens.cs`, tested by `LookTests` / `PaletteTests`)
+### 3.0 The look (G4.8 soft toy look = the art direction, 2026-11-20)
+
+The user played the G4.6 candy build and called it "too much colourful and unnatural"; G2/G3 before it was washed out (near-white). The direction is between the two, and the difference is **materiality, not hue**:
+
+- **Big walkable surfaces are calm:** warm pastel tops (HSV S 0.12–0.28, V 0.93–0.98; never white, never grey) with a tone-on-tone pattern per section (±5 % value).
+- **Strong colour lives on edges and objects:** padded rims, trim, props, hazards and Rushlings.
+- **Chunky soft shapes:** rounded edges (radius 0.15–0.25 m), platforms ≥ 0.6 m thick, padded bumper rims.
+- **Soft real light:** sun shadows, corner AO, a foam / vinyl sheen with broad highlights, a natural grade.
+- **A soft bright sky:** hazy horizon, big cloud banks, a far stadium silhouette.
+
+The **candy** look (G4.6 colours, light and grade) stays behind a dev switch: `?look=candy` (WebGL), `-fallrushLook candy` (desktop), **F7** in game. Both looks share one geometry set (decision G4.8-1). Proof: `docs/proof/G4.8-soft-look.md`.
+
+**Soft look tokens** (`PaletteTokens`; on-screen colours, baked through the soft grade like G4.6-3):
+
+| Hue | Top (pastel) | Side (mid tone, S 0.45 V 0.86) | Rim / trim (the saturated hue) | Top pattern |
+|---|---|---|---|---|
+| Bubblegum | `#F9D1E2` blush | `#DB79A4` | `#FF6FAE` | chevrons |
+| Lemon drop | `#F9EDC2` vanilla | `#DBC679` | `#FFD43B` | stripes |
+| Soda blue | `#D6EDF9` baby blue | `#79BADB` | `#4CC2FF` | wide soft stripes |
+| Sour apple | `#E0F9D1` pistachio | `#9EDB79` | `#86E04E` | checks |
+| Grape fizz | `#DED1F9` lavender | `#9879DB` | `#A77DFF` | polka dots |
+| Tangerine | `#F9E4D1` peach cream | `#DBA879` | `#FF9A3D` | polka dots |
+
+- **Hazards** keep hit pink + the stripe, saturated, with a gloss highlight: the loudest thing on screen. Hit pink stands ΔE ≥ 70 and Δluma ≥ 0.46 off every pastel floor. The stripe's yellow band is close to the floors in luma (≤ 0.12), so the pink band carries the read.
+- **Goals, springs and spawns** stay mint + checker; **goo** stays purple + glitter.
+- **Sky:** soft `#66B5F2` → `#9CD2F5` with a `#DDEFFB` haze band on the horizon. The fog is the horizon colour.
+- **Light and grade:**
+  - sun `#FFF3E0`, cool sky ambient `#C6DCFA`;
+  - grade saturation +6, contrast +8, exposure 0, no tonemapper (decision G4.8-2);
+  - bloom threshold 1.25, so only gloss highlights bloom.
+- **Lid Flip:**
+  - lids take the ring hues as pastels;
+  - lit = a deeper amber `#FF8A00` (≥ 0.15 luma from every pastel lid, also for deuteranopia and protanopia);
+  - the lower shelf's edge is its mid tone deepened 30 % toward ink.
+- **Saturation budget:** pixels with S > 0.6 stay at or below 30 % of every spawn and action shot (`scripts/g48-satbudget.py`).
+
+### 3.1 Palette (G4.6 candy palette, 2026-11-20 — now the **candy** alternative behind the look switch; tokens in `Scripts/Net/PaletteTokens.cs`, tested by `LookTests` / `PaletteTests`)
 
 Colours below are **on-screen** colours: the map bake divides out the light and the grade (decision G4.6-3), so a lit top shows its token after the grade (measured on Editor shots, proof `docs/proof/G4.6-candy-palette.md` §3).
 
@@ -172,6 +208,10 @@ Tops sit at S 0.45–0.75, V 0.85–0.95 (the plan hues brought to V 0.92 and S 
 
 - **URP Forward**, one directional light, **baked indirect**, light probes for characters.
 - No realtime shadows except a **blob shadow decal** under each Rushling. This is a gameplay aid for judging jumps.
+  - **G4.8 soft look:** URP main-light shadows: one cascade, 60 m, soft, 2048 (High) / 1024 (Low), strength 0.6.
+  - Casters: map chunks, hazards, props, Rushlings, lids. Never: clouds, glass, backdrop.
+  - The blob shadow stays, because it reads the landing spot.
+  - The candy look casts none.
 - Toon shader: a single **Shader Graph** cel ramp (2–3 bands) plus rim light plus an optional inverted-hull outline on characters only.
 - Environment: vertex colors or a 256×256 gradient atlas. One material per map where possible. GPU instancing on repeated props.
 - Post: Bloom (low), Color Adjustments, Vignette (subtle). No SSAO, SSR or volumetrics.

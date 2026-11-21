@@ -169,6 +169,22 @@
 | G4.7-6 | Measurement hooks (dev only): `[gfx]` log + `?post=0` (GraphicsQuality), per-slot input counters in the server log | ✅ | `e84d386` |
 | G4.7-7 | **Gameplay freeze declared 2026-11-20 18:54 UTC** | ✅ | PROJECT_STATUS |
 
+### G4.8 decisions (2026-11-20; soft toy look, recorded in docs/proof/G4.8-soft-look.md — say if you want any changed)
+| # | Decision | By | Where |
+|---|---|---|---|
+| G4.8-1 | Look switch = **two colour channels** on one geometry set: COLOR = soft albedo, uv3 = (candy albedo, 2 + pattern + 8 × role); the toon shader picks by the global `_FR_Look`. **Candy = the G4.6 colours, light, grade, sky and clouds**, drawn on the new chunky geometry (rounded edges, rims, thickness are shared): two geometry sets would double the map meshes in the build | ✅ | `LookState`, `Toon.shader`, `ToyMesh` |
+| G4.8-2 | Soft grade: **no tonemapper**, saturation +6, contrast +8, exposure 0, no gain. Neutral cannot show the pastel tops (V 0.93–0.98) within the albedo cap without a ≥ 2.4× gain, which washes every unbaked colour (Rushlings) out. Without it, mid tones match the candy grade within 0.05 (CPU model) | ✅ | `GraphicsQuality.SoftGrade` |
+| G4.8-3 | Soft tokens: pastel tops at V 0.975 (S 0.16; Lemon 0.22; **Soda blue 0.14**, so it stays ΔE ≥ 15 off the soft sky horizon); sides S 0.45 V 0.86; rims = the plan hues | ✅ | `PaletteTokens`, doc 17 §3.0 |
+| G4.8-4 | Soft sky `#66B5F2` → `#9CD2F5` + a `#DDEFFB` haze band (sky S 0.58, under the 0.6 budget line); fog = horizon | ✅ | `SkyGradient.shader` globals |
+| G4.8-5 | Lid Flip soft: lit = deeper amber **`#FF8A00`** (the G4.6 yellow is only 0.08 luma from pastel lids); the lower edge is its mid tone deepened 30 % toward ink. Both are ≥ 0.15 luma for normal, deutan and protan vision (tested) | ✅ | `LidGridView` |
+| G4.8-6 | Padded rim = a tube (r 0.12) centred 0.03 m inside the edge and 0.04 m under the top: crown + 0.08 m, outer + 0.09 m (≤ 0.15). Only on walkable blocks ≥ 0.9 m wide. Only on **exposed** edge runs: probes 0.25 m outside every 0.4 m; a side mostly abutting a neighbour at about the same height (or higher) gets no rim and a tight 0.03 m radius (no groove) | ✅ | `MapArt.BlockShape`, `ToyMesh` |
+| G4.8-7 | Chunky: a walkable static block or prism under 0.6 m is drawn down to 0.6 m **only if a 2 m box under it is empty** (no walk volume filled); never above or beyond the collider top | ✅ | `MapArt` |
+| G4.8-8 | Sun shadows in the soft look only: 1 cascade, 60 m, soft, 2048 High / 1024 Low, strength 0.6; in full shadow the sun term drops to 0.25 (a soft lavender patch). Low keeps them unless the WebGL measurement says otherwise | 🟡 WebGL check | `GraphicsQuality.ApplyShadows`; proof §6 |
+| G4.8-9 | One pattern per hue (so per section): Soda blue / Lemon stripes, Tangerine / Grape dots, Sour apple checks, Bubblegum chevrons; ±5 % value, world space, fwidth AA; never on belts, movers or hazards | ✅ | `MapArt.PatternFor`, `Toon.shader` |
+| G4.8-10 | **F7 is live in every build** (release too) until you pick a look; then the other look stays behind `?look=` only. In practice mode F7 also prints the tuning JSON (dev only) | 🟡 your pick | `SandboxView` |
+| G4.8-11 | Palette tests skip role 3 (rim crowns / rounded edges: trim) and role 4 (hazard-coded parts) as "walkable tops"; moving-platform / turntable stripes in soft = the hue's mid tone deepened 30 % toward ink (the G4.6 rule gave grey on pastel; at 15 % the Soda blue stripe sat ΔE 15.0 from the soft sky top) | ✅ | `PaletteTests`, `MapArt` |
+| G4.8-12 | Soft clouds and the stadium backdrop use their own seed (the G4.6 dressing layout is unchanged); the backdrop sits 260 m beyond the course rectangle, at the horizon band | ✅ | `MapDressing` |
+
 ## Top risks (live; update daily in PROJECT_STATUS)
 
 | # | Risk | Likelihood | Impact | Mitigation |
