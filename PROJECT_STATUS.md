@@ -253,6 +253,11 @@ Proof: [`docs/proof/G1-polish.md`](docs/proof/G1-polish.md) · QA [`docs/proof/g
 - **WebGL font:** the built-in font has no "●", "▼", "–" glyphs in WebGL (M4's ping / lobby dots are invisible there): pick a real font in G3's UI kit.
 - Map signs kept: map titles (except BPD's, which sat on the start gate), CHECKPOINT n, FINISH, ESCAPE!. G2 makes them pretty.
 
+## Next: G2 look + G3 juice (Phase A, ends with the game freeze), prompt `docs/prompts/G2G3-PROMPT.md`
+- G1 verified independently 2026-11-19: EditMode **275/275** re-run, a G1 match log re-verified (`scripts/m4-verify-log.py`), git clean (no remote, no VPS identifiers).
+- Carried into G2+G3 step 0: HUD banner vs the in-world BPD title/start-gate sign overlap; leaderboard alignment and WebGL glyphs (font); the MagicBlock-ready UI (`IChainAdapter`, chain chip states, deal/receipt slots) that `docs/14` G1 listed but the G1 prompt left out.
+- Still yours: play G1 and judge the feel; the real hidden-tab / tab-reopen steps (G1 proof §I); the pre-kickoff code rule.
+
 ## Next milestones
 - **M5:** Rush Relay (identity, directory, outbox from the M4 jsonl log). **M6:** chain integration (VRF seed swap, ER events, finalize) + the VPS deploy (`docs/14`).
 
