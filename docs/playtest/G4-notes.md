@@ -65,3 +65,21 @@ What to look at (proof `docs/proof/G4.4-star-fountain.md`):
 
 Your notes:
 -
+
+## Lid Flip (G4.5, 2026-11-20)
+How to play it:
+- **Practice (no server):** a desktop dev build `FallRushDevServer -fallrushPractice CrumbleShelf` (or WebGL dev `?practice=CrumbleShelf`). R = respawn, F6 = tuning, F3 = netcode HUD.
+- **Local match on Lid Flip only:** `bash scripts/m1-macserver.sh start -fallrushMap CrumbleShelf` (a one-round dev match: you + 11 bots — 12 on the shelf, more crowded than a real Final), then Editor → `Boot.unity` → Play → Quick Play. Variant B: add `-fallrushVariant 1`; a modifier: `-fallrushModifier MoonBounce` (or ButterFloors). Stop: `bash scripts/m1-macserver.sh stop`.
+- **Full match:** `bash scripts/m1-macserver.sh start` → Quick Play; Lid Flip is Round 4 (3 players, last one standing, 120 s).
+
+What to look at (proof `docs/proof/G4.5-lid-flip.md`):
+- **Yellow = move.** A lid lights yellow for 1 s, then swings open for 1 s. Is 1 s enough to step off, and can you read it while running?
+- **Magenta = the ring is going.** The outer ring pulses magenta 3 s before it drops (at 25, 50 and 75 s). Clear?
+- **The sweeper** arrives at 20 s (it lowers from above). Jump it; near the middle it is too slow to jump — stay off the hub.
+- **The lower shelf** (purple, 5 × 5) is your one more chance. Falls from the outer two rings of the top miss it. Can you see its edge from above?
+- **Round length:** bots end it in ≈ 80 s. Does it feel decided, or does it drag?
+- **Your call (G4.5-8):** at the 120 s timer the tiebreak is currently by slot on this map (the old "deepest shelf" rule only knew crumble tiles). Leave it, or let "still on the top shelf" win?
+
+Your notes:
+-
+

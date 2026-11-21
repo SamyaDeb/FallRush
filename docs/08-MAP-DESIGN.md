@@ -274,7 +274,22 @@ Code: `Editor/StarScrambleBuilder.cs` (re-runnable: `Fall Rush/Setup/Build Map_S
 
 Ø 36 m arena (floor top y 0), central turn table r 5 m (20 s per turn; B the other way), four 4 × 4 m islands at r 22 m (top 1.0 m, just beyond the rim; A slide ±3 m along the rim in 12 s, B ±1.5 m in / out in 10 s), two spring pads at r 15.5 m toward islands 1 and 3 (launch 6.5 m/s out, 10 m/s up), six bumpers (r 8 / 13 m). Stars: 24 floor anchors (rings r 7 / 12 / 16), 4 on the turn table, 4 on the islands (golden only); waves of 8 every 8 s (life 16 s), golden +3 every 15 s (life 10 s). Timer 60 s. Spawns: a ring r 10 m.
 
-## 7. Map 4 — **Crumble Shelf** (Final)
+## 7. Map 4 — **Lid Flip** (Final, key `CrumbleShelf`) — G4.5 rebuild, 2026-11-20
+
+Code: `Editor/CrumbleShelfBuilder.cs` (re-runnable: `Fall Rush/Setup/Build Map_CrumbleShelf`, batch `-executeMethod CrumbleShelfBuilder.Run`). Proof, QA, tuning log: `docs/proof/G4.5-lid-flip.md`. Map hash `b0684a98…`. Map id 3, key, mode Final, variants, modifiers (None, MoonBounce, ButterFloors), the 120 s timer, kill-Y −6 m and the scene name unchanged.
+
+- **Top shelf (`cs_lids_top`):** `LID_FLIP` 9 × 9 capsule lids of 1.8 m (gap 6 cm, 16.7 m square, 0.4 m thick), tops y 6. Waves light a seeded share of the alive lids **yellow for 1 s**, then they **swing open on a hinge for 1 s** (no collider); A intervals 90 → 75 → 66 → 60 ticks, 16 → 24 → 38 → 50 %; B 84 → 72 → 63 → 60, 18 → 26 → 40 → 50 %; 8 waves a stage, first at 3 s. Rings retire outside-in at **25 / 50 / 75 s** (magenta pulse 3 s before) down to the inner 3 × 3; ≥ 5 of the inner 3 × 3 solid at every tick. Lit + open ≤ the shortest interval, so **every flip follows a full second of yellow**.
+- **Sweeper (`cs_sweep_top`):** one low bar (0.35 m, jump it) hung from the claw over the centre, arm 8.4 m, 134 ticks a turn (tip 11.8 m/s), from **20 s** (raised until then); B the other way. Near the hub it passes too slowly to hop.
+- **Lower shelf (`cs_lids_low`):** 5 × 5 of 1.8 m at y 0, centred under the top (its grape outer ring marks its edge from above); waves from 20 s (A; B 18 s), 66 → 60 ticks, 35 → 50 %; ring 2 retires at 75 s. A fall from the top lands here — **one more chance**; a fall from here passes the kill-Y. Falls from the top's rings 3–4 miss it (the risky rings).
+- **Spawns:** 12 on ring 2 (its edge lids), facing the centre; slots 0–2 at 120°.
+- **Frame:** claw machine (posts ± 10.6 m, glass above y 10, header ring, dark cabinet below the kill-Y); dressing only. No in-world text.
+- **QA (100 runs per tier × variant × modifier, 3 bots):** QA PASS; normal tier **every G4.5 target met** in all 6 cells — median 76.5–83.4 s (overall 79.5), p90 94.5–105.3, timer 0–3 %, last pair same tick ≤ 2 %, every lid fall after ≥ 1 s of yellow (1 696 / 1 696), second chance 73–85 %, lower-shelf stay 22–25 s, inner floor held. Reference (flawless) bots reach the timer in 29–57 % (see the timer tiebreak note, doc 15 G4.5-8).
+- **The VRF link:** each grid's pattern is a pure function of `ObstaclePhase.Hash(hazardSeed, "cs_lids_top" | "cs_lids_low")` — in M6 the VRF decides the Final.
+- **Originality:** no contact-triggered tiles (the old reactive rule is gone), capsule lids with a hinge swing, not hexes, not falling tiles; pass (proof §8).
+
+## 7.0 Crumble Shelf (M4–G4.4) — **replaced by Lid Flip (above)**
+
+The reactive crumble-grid code (`HazardCrumbleGrid`, `CRUMBLE_TILE`, `ReactiveSet` tiles) is **kept as the fallback** (G4-2), unused by any scene.
 
 - **Layout:** three stacked shelves (y = 12, 6, 0) of toy-block tiles, 1.6 m hexagonal-free *square* tiles in a 9×9 grid per shelf, with rounded corners and alternating colors.
 - **Crumble rule:** first contact starts a 0.6 s wobble, then the tile drops. The **server** owns tile state and broadcasts `TILE_DROP {tileId, seq, tick}`.
@@ -283,7 +298,7 @@ Code: `Editor/StarScrambleBuilder.cs` (re-runnable: `Fall Rush/Setup/Build Map_S
 - **Variant:** spinner timing.
 - **Originality note:** square block shelves with spinners and the claw-machine overhead are distinct from hex-tile designs.
 
-### 7.1 As built (M4, `Editor/CrumbleShelfBuilder.cs`)
+### 7.1 As built (M4, replaced in G4.5)
 
 **G1 retune:** wobble 18 → **30 ticks (1.0 s)**; **top-shelf tiles return 240 ticks (8 s) after they drop** (`TileGridDef.RespawnTicks = 240, RespawnShelves = 1`), blinking for the last 1.5 s; a new contact starts a new cycle (`ReactiveSet.TileContactAt`). Bot QA median **≈ 73 s** (M4: 27–32 s), inside 60–120 s. Dropping a shelf (6 m) now stumbles you on landing.
 
