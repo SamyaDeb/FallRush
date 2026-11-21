@@ -119,7 +119,32 @@ Allowlists unchanged (the new kit has no tunable speed beyond the goo, checked b
 - **Fallback:** `CRUMBLE_TILE` / `ReactiveSet` stay in the code untouched (G4 prompt §2.4 cut order).
 - **Sandbox:** `Map_Sandbox` has a G4 section east of the fall-off edge (bridge at z −20): one ball lane and a 7 × 7 lid grid that loops every 90 s in free play.
 
-## 3. Map 1A — **Block Party Dash** (Race)
+## 3. Map 1A — **Capsule Run** (Race, key `BlockPartyDash`) — G4.2 rebuild, 2026-11-20
+
+> **The Block Party Dash text below (§3 table, §3.1) is replaced by this section** (kept for history). Proof: `docs/proof/G4.2-capsule-run.md`. Builder: `Editor/BlockPartyDashBuilder.cs`. Map id 0, key, mode, 2 variants and modifiers 0/1/2/3/5 unchanged; content hash `50125d89…`.
+
+| Beat | z (m) | Build | Variant A / B |
+|---|---|---|---|
+| Start funnel | 0–14 | 20 m deck, 12 spawns, start gate z 10, angled rails to 12 m | — |
+| S1 Gumball Slope | 14–50 (+5 m, 7.9°) | 12 m ramp, 0.6 m rails, 5 ROLLING_BALL lanes (x 0, ±2.4, ±4.8; r 1 m) rolling down; release hatches light at the top | periods A 112/126/104/134/118, B 122/108/130/114/138 ticks; speeds 3.6–4.4 m/s |
+| CP1 | 50–54 | 12 m | — |
+| Wave Gates (choke 10 m) | 54–62 | five 1.8 m grille GATE_DOORs, cycle 240 / open 54 / offsets 48 (≥ 1 open always); cross ROLLING_BALL at z 55.5 | wave L→R / R→L; cross ball 4.0 @ 60 / 4.6 m/s @ 54 ticks |
+| S2 Hop Field (void) | 62–120 | centre 15 bobbing blocks (3 × 2.2 m, gaps 1.56 m); outer 13 static blocks at x ±4.6 (gaps 2.2 m, rises ≤ 0.3 m); gantry z 91, one MALLET per column swinging across | bob vertical ±0.25 / lateral ±0.8 m; mallets A 122/120/124, B 128/122/124 |
+| CP2 | 120–124 | 12 m | — |
+| S3 Sweep Pad | 124–148 | disc r 9.3 m, hub r 0.6 m, two SWEEPERs (arm 9 m): low 0.35 m, high 0.95 m, opposite directions | A low +192 / high −216 ticks, B reversed |
+| CP3 | 148–152 | 12 m | — |
+| Mallet Run (choke 7 m) | 152–182 | 7 m bridge, 0.4 m rails, three MALLETs along it (z 158/167/176, head 5 m) | periods A 180/190/200, B 190/200/180 |
+| CP4 | 182–186 | 15.6 m | — |
+| S4 Belt Climb | 186–216 (+6 m) | 10 m CONVEYOR 0.7 m/s against you, 3 BUMPERs r 1.7 m (x −3.3/0/3.3); edge walls; side ledges x ±5…7.8 with a ball lane each and a SPRING_PAD to the finish | ledge ball 5.2 @ 232 / 5.6 m/s @ 222 ticks |
+| Finish | 216–229 | mint deck, backboard, tall arch z 222 | — |
+
+- **QA (measured, 100 runs/cell):** route cost PASS (36 free routes → **0**; every section ≤ 1.18×); race QA PASS (8 of 12 every run, 0 soft-locks, deterministic); normal-bot median 86.7 s overall, **per cell 77–109 s (three variant-A cells under 85 s; accepted, proof §4.2)**; reference bots ≤ 3.6 falls per race.
+- **Tuning table:** proof §4. **Route-cost table:** `docs/proof/g4/route-cost-after.md`.
+- **Readability:** no in-world text (tested); hazards striped magenta/yellow, finish mint/checker, belt chevrons and bobbing blocks move; the finish arch is at the top edge of the spawn framing.
+- **Originality check (self):** genre vocabulary in our own order and dimensions, capsule theme, no traced layout (proof §11). Two-person check: yours.
+- **Draw calls (Editor):** 91 at the spawn view without Rushlings (≈ 115 with 12) ≤ 150.
+
+## 3.0 Map 1A — Block Party Dash (Race) — **replaced by Capsule Run (above)**
 
 **Layout:** a sunny toy-block sky course.
 

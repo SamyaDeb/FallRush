@@ -93,6 +93,21 @@
 | G4-4 | **Two-part freeze:** gameplay freeze Sun Nov 22 23:59 UTC (maps, hazards, rules, palette); art freeze Mon Nov 23 23:59 UTC (at the latest Tue Nov 24 12:00 UTC), render meshes/materials only. M5/M6 dates unchanged | ✅ | doc 14 §1 |
 | G4-5 | **Bump stagger behind a flag, default off** (D2): `movement_v3.json` `bump.enabled=false`; closing speed ≥ 4 m/s → the slower player stumbles 0.25 s (no stun, input live). Server-authoritative, predicted against remotes like the push | 🟡 | your call after playing; on/off numbers next to R14 |
 
+### G4.2 decisions (2026-11-20; Capsule Run, recorded in docs/proof/G4.2-capsule-run.md §7 — say if you want any changed)
+| # | Decision | By | Where |
+|---|---|---|---|
+| G4.2-1 | Sweep Pad disc r 9.3 m, arms 9 m (spec 12 / 11.4 m): the allowlist caps arms at 9 m and was not widened | ✅ | builder |
+| G4.2-2 | Slope release periods 104–138 ticks (spec 50–80: a wall for every bot) | ✅ | builder, proof §4 |
+| G4.2-3 | Hop Field 42 → 58 m (prompt §6 lever for a short median); course ≈ 229 m; outer gaps 2.2 m, centre blocks 3 × 2.2 m | ✅ | builder |
+| G4.2-4 | Grille gate doors (see-through; collider = doorway) so the finish arch stays visible from the spawn | ✅ | builder, MapArt |
+| G4.2-5 | Cross-ball variant = speed / period (the release light is on one wall) | ✅ | builder |
+| G4.2-6 | Slope release telegraph = flush hatches (no overhead dispenser in the spawn view) | ✅ | builder |
+| G4.2-7 | CP4 deck 15.6 m (spec 7 m) so the ledges connect; ledge ball lanes + belt edge walls (no free spring route) | ✅ | builder |
+| G4.2-8 | 11 gate × column routes (columns within 4.6 m of the door) | ✅ | builder |
+| G4.2-9 | Bot additions: look-ahead `WaitClear` (Arg n), ball reflex, take-off points ride the block, run-up after a wait, 8 s wait timeout, tier timing slop / "go" hesitation; other maps' QA unchanged cell for cell | ✅ | WaypointBot, BotBrain |
+| G4.2-10 | **Per-cell 85–110 s and outer-slope-line hits ≤ 300 / 100 not met; ship the committed layout and document** (QA review 2026-11-20: slope hits carry the time, MoonBounce / TurboToys scale it ≈ 1.25–1.4×) | **you** | proof §4.2 |
+| G4.2-11 | Fixed G4.1's ROLLING_BALL pool (never stored: no client drew a ball) | ✅ | KitBuilder |
+
 ## Top risks (live; update daily in PROJECT_STATUS)
 
 | # | Risk | Likelihood | Impact | Mitigation |
@@ -116,6 +131,6 @@
 | R18 | Round durations with bots differ from the GDD §4.1 targets (Survival ~65 s, Final ~30 s with normal bots; humans UNVERIFIED) | Med | Med | Playtest decides; knobs: Goo Tower length / goo speed, Crumble wobble time (GDD 0.6 s) or tile count. M4 QA tables record the bot numbers |
 | R20 | WebGL release halted once (exception support None) at a map load; fixed by "Explicitly Thrown Exceptions Only", root cause unknown | Low | High | M4 §H; keep the setting; watch the console in playtests |
 | R21 | Draw calls 490 (Block Party Dash) / 282 (Goo Tower) vs a 150 budget; 59 FPS on the M2 now | Med | Low | static batching / merged greybox meshes in M7 |
-| R22 | At 150 ms + 2 % loss one of three clients failed the initial connect (10 × 1 s attempts) | Med | Med | more attempts / a longer timeout for WebGL in M5–M6; the Reconnect button works |
+| R22 | At 150 ms + 2 % loss one of three clients failed the initial connect (10 × 1 s attempts); **G4.2 (2026-11-20): 2 of 3, then 3 of 3 in two reruns through the local Docker netem relay** | Med | Med | more attempts / a longer timeout for WebGL in M5–M6; the Reconnect button works |
 | R19 | Our own scene flow: a slow WebGL load past 10 s spectates a round (protected unless it is the final) | Low | Med | measured load times in the WebGL run; raise the timeout if needed |
 | R12 | Hidden browser tab freezes Unity WebGL (no `requestAnimationFrame`) → UTP 30 s timeout → player dropped | Med | Med | **Fixed for 10/30/60 s on the desktop path (M2b, measured with a main-thread stall):** the drop was not the timeout but NGO's reliable pipeline re-sending its window every 500 ms into the stalled client (16.7 KB/s), which overflowed UTP's receive queue on wake-up (`ProtocolError`). Fix: our `WebSocketDriverConstructor` (NGO's driver, reliable resend 10–30 s; TCP already guarantees delivery), server pauses snapshots after 1 s without input, server disconnect timeout 90 s, client queue 1024. **A real hidden Chrome tab is UNVERIFIED** (Playwright keeps pages visible); steps in the proof file |

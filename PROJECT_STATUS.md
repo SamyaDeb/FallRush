@@ -1,6 +1,6 @@
 # Fall Rush — Project Status
 
-_Last updated: 2026-11-19 (**G4.0 + G4.1 done**: design rules, display names, route-cost QA, ROLLING_BALL + LID_FLIP + bump flag (off); 323/323 EditMode, vectors v3, guard QA + soak 20/20 PASS; next G4.2 Capsule Run. Earlier: G2/G3 game freeze, see below)_
+_Last updated: 2026-11-20 (**G4.2 Capsule Run done**: 0 free routes, race QA PASS, tests 329/329; next G4.3 Goo Tower. Before: **G4.0 + G4.1 done**: design rules, display names, route-cost QA, ROLLING_BALL + LID_FLIP + bump flag (off); 323/323 EditMode, vectors v3, guard QA + soak 20/20 PASS; next G4.2 Capsule Run. Earlier: G2/G3 game freeze, see below)_
 
 **Hackathon:** MagicBlock Blitz V10, running Nov 20 to Nov 27, 2026.
 - **Submission deadline:** Nov 27, 14:00 UTC (19:30 IST).
@@ -266,12 +266,19 @@ The G2/G3 "game freeze" is reopened for G4 by your decision: **gameplay freeze S
 | **G4.1c** bump stagger behind `movement_v3.json` `bump.enabled` (**off**), measured on/off | ✅ (your call: §5 of the proof) |
 | Vectors v3 `e158996b…` (v1/v2 unchanged), sandbox G4 section, prediction twin 0 corrections | ✅ |
 | Guard on today's maps: g1-qa BPD PASS (identical numbers), m4-qa 20 ×4 PASS, soak 20/20 | ✅ |
-| **G4.2** Capsule Run rebuild → G4.3 Goo Tower → G4.4 Star Fountain → G4.5 Lid Flip → G4.6 palette → G4.7 QA + freeze | next |
+| **G4.2** Capsule Run rebuilt (key `BlockPartyDash`): 7 beats, no in-world text, route cost 36 → **0 free routes**, race QA PASS (8/12 every run, normal median 86.7 s; three variant-A cells under 85 s, accepted), tests 329/329, guard + soak; proof `docs/proof/G4.2-capsule-run.md` | ✅ |
+| **G4.3** Goo Tower → G4.4 Star Fountain → G4.5 Lid Flip → G4.6 palette → G4.7 QA + freeze | next |
 
 Proof: `docs/proof/G4.0-G4.1.md`. Try the new hazards: menu "Practice: G4 hazards sandbox (dev)" in the Editor.
 
 ### For you (G4.0/G4.1)
 - **Bump stagger (D2):** shipped off. To try it: server `-fallrushBump 1` + client `?bump=1`. Measured: localhost unchanged, 150 ms one client 1.67 corrections+pushes per 5 s (proof §5). Say yes/no after playing.
+
+### For you (G4.2)
+- Play Capsule Run and write notes in `docs/playtest/G4-notes.md` (steps there). Open: per-cell durations (A None / ButterFloors / TinyTilt 77–80 s with normal bots), outer slope lines hit more than inner ones, the finish arch at the top edge of the spawn view.
+
+### Notes for M6 (from G4.2)
+- **New `BlockPartyDash` content hash `50125d891a5394c76e2b44e9179c21deb02347c6d13f986c8447218a70b6a754`** (was `965b8ccf…`) → map-pool / ruleset v2. Key, id 0, mode, 2 variants, modifier weights and `map_pool_v1.json` unchanged.
 
 ### Notes for M6 (from G4.0/G4.1)
 - **Ruleset v2 field:** the `movement_v3.json` `bump` block (`enabled`, `minClosingSpeed`, `staggerMs`); movement_v3 sha256 `5ed0cefd…` (movement_v2 `696ebf9f…` unchanged).
