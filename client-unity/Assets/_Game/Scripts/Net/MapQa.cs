@@ -22,7 +22,7 @@ namespace FallRush.Net
     {
         public const string Arg = "-fallrushQA";
         /// <summary>Log every fall (where, which route / waypoint) — tuning aid.</summary>
-        public static bool Trace;
+        public static bool Trace = Array.IndexOf(Environment.GetCommandLineArgs(), "-fallrushQaFalls") >= 0; // G4.2: from the command line too
 
         public struct RunStats
         {
@@ -97,7 +97,7 @@ namespace FallRush.Net
             var lastProgress = new uint[SimCore.MaxSlots];
             var prev = new MotorState[SimCore.MaxSlots];
             var lastGround = new MotorState[SimCore.MaxSlots];
-            var hist = new MotorState[SimCore.MaxSlots, 12];
+            var hist = new MotorState[SimCore.MaxSlots, 90];
             while (!rules.IsOver && core.Tick < cap)
             {
                 for (var i = 0; i < SimCore.MaxSlots; i++)
@@ -106,7 +106,7 @@ namespace FallRush.Net
                 if (Trace)
                     for (var i = 0; i < SimCore.MaxSlots; i++)
                         if (core.Slots[i].State.Has(MotorState.Respawning) && !prev[i].Has(MotorState.Respawning))
-                            Debug.Log($"[qa-trace] t={(int)(core.Tick - rush)} slot{i} fell; {bots[i].CurrentRouteName}#{bots[i].Waypoint} cp={rules.Racers[i].Checkpoint}");
+                            Debug.Log($"[qa-trace] v={variant} t={(int)(core.Tick - rush)} slot{i} fell; {bots[i].CurrentRouteName}#{bots[i].Waypoint} cp={rules.Racers[i].Checkpoint}");
                 if (Trace)
                     for (var i = 0; i < SimCore.MaxSlots; i++)
                     {
@@ -114,8 +114,20 @@ namespace FallRush.Net
                         if (cur.Has(MotorState.Grounded))
                             lastGround[i] = cur;
                         if (cur.Has(MotorState.Respawning) && !prev[i].Has(MotorState.Respawning))
-                            Debug.Log($"[qa-trace]   slot{i} last grounded at ({lastGround[i].PosX},{lastGround[i].PosY},{lastGround[i].PosZ}) v=({lastGround[i].VelX},{lastGround[i].VelY},{lastGround[i].VelZ}) surf={lastGround[i].Surface}; 10 ticks before fall-out at ({hist[i, (core.Tick + 1) % 12].PosX},{hist[i, (core.Tick + 1) % 12].PosY},{hist[i, (core.Tick + 1) % 12].PosZ})");
-                        hist[i, core.Tick % 12] = cur;
+                            Debug.Log($"[qa-trace]   slot{i} last grounded at ({lastGround[i].PosX},{lastGround[i].PosY},{lastGround[i].PosZ}) v=({lastGround[i].VelX},{lastGround[i].VelY},{lastGround[i].VelZ}) surf={lastGround[i].Surface}; 10 ticks before fall-out at ({hist[i, (core.Tick + 80) % 90].PosX},{hist[i, (core.Tick + 80) % 90].PosY},{hist[i, (core.Tick + 80) % 90].PosZ})");
+                        if (cur.Has(MotorState.Respawning) && !prev[i].Has(MotorState.Respawning) && Environment.GetCommandLineArgs().Length > 0 && Array.IndexOf(Environment.GetCommandLineArgs(), "-fallrushQaFallsDeep") >= 0)
+                        {
+                            var sb = new StringBuilder();
+                            for (var k = 1; k <= 90; k += 5)
+                            {
+                                var hs = hist[i, (core.Tick + (uint)k) % 90];
+                                sb.Append($" ({hs.PosX},{hs.PosY},{hs.PosZ}|{hs.VelX},{hs.VelY},{hs.VelZ}|g{(hs.Has(MotorState.Grounded) ? 1 : 0)}s{hs.Surface}st{hs.StunTicks})");
+                            }
+
+                            Debug.Log($"[qa-trace]   slot{i} hist:{sb}");
+                        }
+
+                        hist[i, core.Tick % 90] = cur;
                     }
                 for (var i = 0; i < SimCore.MaxSlots; i++)
                 {
@@ -186,10 +198,15 @@ namespace FallRush.Net
             var sw = Stopwatch.StartNew();
             var probe = PhysxMotorWorld.CreateProbe(map.transform, MovementConfig.Default.Radius, MovementConfig.Default.Height);
             var mods = map.definition.allowedModifiers;
+            // G4.2: -fallrushQAMod <id> limits the run to one modifier (tuning aid).
+            var cl = Environment.GetCommandLineArgs();
+            var mi = Array.IndexOf(cl, "-fallrushQAMod");
+            if (mi >= 0 && mi + 1 < cl.Length && int.TryParse(cl[mi + 1], out var only))
+                mods = new[] { only };
             var sb = new StringBuilder();
             var allOk = true;
-            var sections = 4;
-            var maxRoutes = 6;
+            var sections = 8; // G4.2: was 4 (Capsule Run has five sections; the M3 map's last two were left out of the table)
+            var maxRoutes = 16;
             var starts = new int[sections, maxRoutes];
             var finishes = new int[sections, maxRoutes];
             sb.Append($"| Variant | Modifier | Runs | Finish rate | Qualified = N | Median / p90 duration (s) | Best line median (s) | Timer expiries | Falls / run | Hits / run | Bot stuck re-acquires / run | Soft-locks |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n");

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace FallRush.Shared
 {
@@ -6,7 +7,8 @@ namespace FallRush.Shared
     {
         Run = 0,          // steer to the point
         Jump = 1,         // on arrival press jump (the next point is across a gap)
-        WaitClear = 2,    // on arrival wait until the straight path to the next point is clear of spinner bars and mallets
+        WaitClear = 2,    // on arrival wait until the path ahead is clear of spinner bars, mallets and rolling balls (Arg 0: the straight
+                          // run to the next point, as in M3; Arg n ≥ 1: the next n points at the configured run speed, G4.2)
         Door = 3,         // on arrival wait until gate door Arg stays open long enough to pass
         JumpToPlatform = 4, // on arrival wait until platform Arg is within reach, then jump toward it
         Platform = 5,     // target = platform Arg's live centre; reached when standing on it
@@ -155,13 +157,52 @@ namespace FallRush.Shared
             {
                 HazardMath.PlatformCenterMm(in _hz.Platforms[p.Arg], _hz.Time(tick), out tx, out _, out tz);
             }
+            else
+            {
+                Ride(pts, _wp, tick, ref tx, ref tz);
+            }
+
+            // G4.2: run-up before a jump that follows a look-ahead wait (a standing hop falls short; on ButterFloors the
+            // bot also slid to the very edge while stopping).
+            var runningUp = false;
+            if (_runUpWp == _wp)
+            {
+                long rx = _runUpX - s.PosX, rz = _runUpZ - s.PosZ;
+                if (rx * rx + rz * rz < 350L * 350L || tick > _runUpUntil)
+                    _runUpWp = -2 - _wp; // done for this point
+                else
+                {
+                    tx = _runUpX;
+                    tz = _runUpZ;
+                    runningUp = true;
+                }
+            }
+            else if (_runUpWp != -2 - _wp && (p.Action == WaypointAction.Jump || p.Action == WaypointAction.JumpToPlatform) && _wp > 0 && _wp + 1 < pts.Length
+                     && pts[_wp - 1].Action == WaypointAction.WaitClear && pts[_wp - 1].Arg > 0 && s.Has(MotorState.Grounded))
+            {
+                long ux = pts[_wp + 1].XMm - tx, uz = pts[_wp + 1].ZMm - tz;
+                var ul = Math.Sqrt((double)ux * ux + (double)uz * uz);
+                long ox = tx - s.PosX, oz = tz - s.PosZ;
+                var along = ul > 1 ? (s.VelX * 10.0 * ux + s.VelZ * 10.0 * uz) / ul : 0; // mm/s toward the landing
+                if (ul > 1 && along < 2500 && ox * ox + oz * oz < 1200L * 1200L)
+                {
+                    _runUpWp = _wp;
+                    _runUpX = (int)(tx - ux / ul * 1300);
+                    _runUpZ = (int)(tz - uz / ul * 1300);
+                    _runUpUntil = tick + 30;
+                    tx = _runUpX;
+                    tz = _runUpZ;
+                    runningUp = true;
+                    RunUps++;
+                }
+            }
 
             long dx = tx - s.PosX, dz = tz - s.PosZ;
             var d2 = dx * dx + dz * dz;
             var grounded = s.Has(MotorState.Grounded);
-            var arrived = d2 <= (long)p.RadiusMm * p.RadiusMm && Math.Abs(s.PosY - p.YMm) < 1500;
+            var arrived = !runningUp && d2 <= (long)p.RadiusMm * p.RadiusMm && Math.Abs(s.PosY - p.YMm) < 1500;
             // Run / Jump points also count once passed (overshooting a jump point must not turn us back toward the gap).
-            if (!arrived && (p.Action == WaypointAction.Run || p.Action == WaypointAction.Jump) && _wp > 0 && Math.Abs(s.PosY - p.YMm) < 1500)
+            if (!arrived && !runningUp && (p.Action == WaypointAction.Run || p.Action == WaypointAction.Jump) && _wp > 0 && Math.Abs(s.PosY - p.YMm) < 1500)
             {
                 var q = pts[_wp - 1];
                 long ax = p.XMm - q.XMm, az = p.ZMm - q.ZMm;
@@ -199,10 +240,31 @@ namespace FallRush.Shared
                         Advance(tick);
                         break;
                     case WaypointAction.WaitClear:
-                        if (PathClear(in s, tick, pts, _wp))
+                        if (_waitSince == 0 || _waitWp != _wp)
+                        {
+                            _waitSince = tick;
+                            _waitWp = _wp;
+                        }
+
+                        if (p.Arg > 0 ? PathClearAhead(in s, tick, pts, _wp, p.Arg) : PathClear(in s, tick, pts, _wp))
+                        {
+                            _waitSince = 0;
+                            if (p.Arg > 0)
+                                LookAheadGoTick = tick;
                             Advance(tick);
+                        }
+                        else if (p.Arg > 0 && tick - _waitSince > WaitTimeoutTicks)
+                        {
+                            // G4.2: no clear window for 8 s (a player would go): go anyway.
+                            WaitTimeouts++;
+                            _waitSince = 0;
+                            Advance(tick);
+                        }
                         else
+                        {
                             move = false;
+                        }
+
                         break;
                     case WaypointAction.Door:
                         if (DoorPassable(p.Arg, in s, tick, pts, _wp))
@@ -235,6 +297,8 @@ namespace FallRush.Shared
                     tz = n.ZMm;
                     if (n.Action == WaypointAction.Platform && (uint)n.Arg < (uint)_hz.Platforms.Length)
                         HazardMath.PlatformCenterMm(in _hz.Platforms[n.Arg], _hz.Time(tick), out tx, out _, out tz);
+                    else
+                        Ride(pts, _wp, tick, ref tx, ref tz);
                     dx = tx - s.PosX;
                     dz = tz - s.PosZ;
                 }
@@ -268,6 +332,16 @@ namespace FallRush.Shared
             if (move && !jump && !dive && grounded && s.LandTicks == 0 && !s.Has(MotorState.Diving))
                 ReactToBars(in s, tick, cmd.MoveX, cmd.MoveY, ref jump, ref dive);
 
+            // G4.2: a rolling ball about to hit us (moving or waiting) → step out of its line.
+            if (!jump && !dive && grounded && _hz.RollingBalls.Length > 0 && DodgeBalls(in s, tick, move ? cmd.MoveX : 0, move ? cmd.MoveY : 0, out var ddx, out var ddz))
+            {
+                cmd.MoveX = (sbyte)ddx;
+                cmd.MoveY = (sbyte)ddz;
+                if (ddx != 0 || ddz != 0)
+                    cmd.CamYaw = (ushort)(Yaw256.FromVector(ddx, ddz, s.Yaw) << 8);
+                Dodges++;
+            }
+
             if (jump)
             {
                 cmd.Buttons |= InputCmd.JumpPressed | InputCmd.JumpHeld;
@@ -284,8 +358,35 @@ namespace FallRush.Shared
             return cmd;
         }
 
+        /// <summary>
+        /// G4.2: a wait / take-off point right after a Platform point (we stand on that block) rides with the block's
+        /// horizontal displacement: on a block bobbing sideways a fixed point made us run sideways and jump sideways.
+        /// </summary>
+        private void Ride(Waypoint[] pts, int wp, uint tick, ref int tx, ref int tz)
+        {
+            var a = pts[wp].Action;
+            if (a != WaypointAction.JumpToPlatform && a != WaypointAction.WaitClear && a != WaypointAction.Jump)
+                return;
+            for (var i = wp - 1; i >= 0 && i >= wp - 2; i--)
+            {
+                var q = pts[i];
+                if (q.Action == WaypointAction.Platform && (uint)q.Arg < (uint)_hz.Platforms.Length)
+                {
+                    ref readonly var d = ref _hz.Platforms[q.Arg];
+                    HazardMath.PlatformCenterMm(in d, _hz.Time(tick), out var cx, out _, out var cz);
+                    tx += cx - d.CenterXMm;
+                    tz += cz - d.CenterZMm;
+                    return;
+                }
+
+                if (q.Action != WaypointAction.WaitClear)
+                    return;
+            }
+        }
+
         private void Advance(uint tick)
         {
+            _runUpWp = -1;
             _wp++;
             _bestDist2 = long.MaxValue;
             _progressTick = tick;
@@ -381,12 +482,310 @@ namespace FallRush.Shared
                 for (var i = 0; i < _hz.Mallets.Length; i++)
                     if (HazardMath.MalletContactMm(in _hz.Mallets[i], t, x, s.PosY, z, r, h, out _, out _))
                         return false;
+                if (_hz.RollingBalls.Length > 0 && BallNear(x, s.PosY, z, t, 120))
+                    return false;
             }
 
             return true;
         }
 
+        // ------------------------------------------------------------------ G4.2: look-ahead clear check, rolling balls
+
+        /// <summary>Run speed in mm per tick from the motor config (v2: 5 m/s → 167).</summary>
+        private int RunPerTick => Math.Max(60, (int)(_cfg.MaxSpeed * 1000f / HazardMath.TickRate));
+
+        /// <summary>
+        /// Is a rolling ball (pure pose, what a player sees) within reach of a standing capsule at (x, y, z) at hazard time
+        /// <paramref name="t"/>? 2D reach = ball r + capsule r + <paramref name="marginMm"/>; balls far above / below ignored.
+        /// </summary>
+        private bool BallNear(int x, int y, int z, int t, int marginMm)
+        {
+            var capR = MotorState.QuantizeMm(_cfg.Radius);
+            for (var i = 0; i < _hz.RollingBalls.Length; i++)
+            {
+                ref readonly var d = ref _hz.RollingBalls[i];
+                long reach = d.RadiusMm + capR + marginMm;
+                var n = HazardMath.BallMaxAlive(in d);
+                for (var j = 0; j < n; j++)
+                {
+                    if (!HazardMath.BallPosMm(in d, t, j, out var bx, out var by, out var bz, out _))
+                        break;
+                    if (Math.Abs(by - (y + 500)) > d.RadiusMm + 900)
+                        continue;
+                    long dx = x - bx, dz = z - bz;
+                    if (dx * dx + dz * dz < reach * reach)
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// WaitClear with Arg n ≥ 1: walk the next <paramref name="n"/> waypoints from here at the configured run speed
+        /// (+ 3 ticks to accelerate, + 2 ticks at each landing / jump / platform point, + 6 at the end). Each sample point
+        /// of that walk must be clear of the nearby spinner bars, mallet heads and rolling balls over a window of ticks
+        /// around its predicted time (0.8× − 2 … + 6 ticks: a hop arrives a little earlier than a run, a wobble later).
+        /// </summary>
+        private bool PathClearAhead(in MotorState s, uint tick, Waypoint[] pts, int wp, int n)
+        {
+            var v = RunPerTick;
+            var r = MotorState.QuantizeMm(_cfg.Radius) + Math.Max(0, 150 - 30 * TimingSlop);
+            var h = MotorState.QuantizeMm(_cfg.Height);
+            _aheadN = 0;
+            long x = s.PosX, y = s.PosY, z = s.PosZ;
+            var k = 3;
+            AddSample(x, y, z, 0);
+            for (var i = wp + 1; i <= wp + n && i < pts.Length; i++)
+            {
+                var p = pts[i];
+                long dx = p.XMm - x, dy = p.YMm - y, dz = p.ZMm - z;
+                var len = Math.Sqrt((double)dx * dx + (double)dz * dz);
+                var steps = Math.Max(1, (int)Math.Ceiling(len / v));
+                for (var j = 1; j <= steps; j++)
+                    AddSample(x + dx * j / steps, y + dy * j / steps, z + dz * j / steps, k + j);
+                k += steps;
+                x = p.XMm;
+                y = p.YMm;
+                z = p.ZMm;
+                var dwell = p.Action == WaypointAction.Run || p.Action == WaypointAction.WaitClear ? 0 : 2;
+                if (i == wp + n || i == pts.Length - 1)
+                    dwell = 6;
+                k += dwell;
+                AddSample(x, y, z, k);
+            }
+
+            // Only the hazards near the walk.
+            long minX = long.MaxValue, maxX = long.MinValue, minZ = long.MaxValue, maxZ = long.MinValue;
+            for (var i = 0; i < _aheadN; i++)
+            {
+                minX = Math.Min(minX, _aheadX[i]);
+                maxX = Math.Max(maxX, _aheadX[i]);
+                minZ = Math.Min(minZ, _aheadZ[i]);
+                maxZ = Math.Max(maxZ, _aheadZ[i]);
+            }
+
+            bool Near(long px, long pz, long reach) => px >= minX - reach && px <= maxX + reach && pz >= minZ - reach && pz <= maxZ + reach;
+            _nearSw.Clear();
+            _nearMl.Clear();
+            _nearBall.Clear();
+            for (var i = 0; i < _hz.Sweepers.Length; i++)
+                if (Near(_hz.Sweepers[i].PivotXMm, _hz.Sweepers[i].PivotZMm, _hz.Sweepers[i].ArmMm + 1500))
+                    _nearSw.Add(i);
+            for (var i = 0; i < _hz.Mallets.Length; i++)
+                if (Near(_hz.Mallets[i].PivotXMm, _hz.Mallets[i].PivotZMm, _hz.Mallets[i].ArmMm + _hz.Mallets[i].HeadHalfWidthMm + 1500))
+                    _nearMl.Add(i);
+            for (var i = 0; i < _hz.RollingBalls.Length; i++)
+            {
+                ref readonly var d = ref _hz.RollingBalls[i];
+                if (Near(Math.Min(d.StartXMm, d.EndXMm), Math.Min(d.StartZMm, d.EndZMm), 3000 + Math.Abs(d.EndXMm - d.StartXMm) + Math.Abs(d.EndZMm - d.StartZMm)))
+                    _nearBall.Add(i);
+            }
+
+            if (_nearSw.Count + _nearMl.Count + _nearBall.Count == 0)
+                return true;
+            var capR = MotorState.QuantizeMm(_cfg.Radius);
+            for (var i = 0; i < _aheadN; i++)
+            {
+                var kk = _aheadK[i];
+                var lo = Math.Max(0, kk * 8 / 10 - 2 + TimingSlop);
+                var hi = Math.Max(lo, kk + 6 - 2 * TimingSlop);
+                for (var q = lo; q <= hi; q++)
+                {
+                    var t = _hz.Time(tick + (uint)q);
+                    int sx = (int)_aheadX[i], sy = (int)_aheadY[i], sz = (int)_aheadZ[i];
+                    if (t >= _hz.SweeperStartT)
+                        foreach (var w in _nearSw)
+                            if (HazardMath.SweeperContactMm(in _hz.Sweepers[w], t, sx, sy, sz, r, h, out _, out _))
+                                return false;
+                    foreach (var w in _nearMl)
+                        if (HazardMath.MalletContactMm(in _hz.Mallets[w], t, sx, sy, sz, r, h, out _, out _))
+                            return false;
+                    foreach (var w in _nearBall)
+                        if (BallLaneNear(in _hz.RollingBalls[w], sx, sy, sz, t, capR + 150))
+                            return false;
+                }
+            }
+
+            return true;
+        }
+
+        private readonly long[] _aheadX = new long[256], _aheadY = new long[256], _aheadZ = new long[256];
+        private readonly int[] _aheadK = new int[256];
+        private int _aheadN;
+        private readonly List<int> _nearSw = new List<int>(), _nearMl = new List<int>(), _nearBall = new List<int>();
+
+        private void AddSample(long x, long y, long z, int k)
+        {
+            if (_aheadN >= _aheadX.Length)
+                return;
+            _aheadX[_aheadN] = x;
+            _aheadY[_aheadN] = y;
+            _aheadZ[_aheadN] = z;
+            _aheadK[_aheadN] = k;
+            _aheadN++;
+        }
+
+        private static bool BallLaneNear(in RollingBallDef d, int x, int y, int z, int t, int extraMm)
+        {
+            long reach = d.RadiusMm + extraMm;
+            var n = HazardMath.BallMaxAlive(in d);
+            for (var j = 0; j < n; j++)
+            {
+                if (!HazardMath.BallPosMm(in d, t, j, out var bx, out var by, out var bz, out _))
+                    break;
+                if (Math.Abs(by - (y + 500)) > d.RadiusMm + 900)
+                    continue;
+                long dx = x - bx, dz = z - bz;
+                if (dx * dx + dz * dz < reach * reach)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static readonly int[] DodgeAngles = { 45, -45, 90, -90, 135, -135, 180 };
+        private const int DodgeHorizon = 20;     // ticks (≈ 0.67 s: a ball closing at 9 m/s is ≈ 6 m away)
+        private const int DodgeLaneRange = 16000; // mm: lanes farther than this from us are ignored this tick
+        private readonly int[] _dodgeX = new int[(DodgeHorizon + 1) * 16];
+        private readonly int[] _dodgeZ = new int[(DodgeHorizon + 1) * 16];
+        private readonly int[] _dodgeN = new int[DodgeHorizon + 1];
+        private readonly int[] _dodgeR = new int[(DodgeHorizon + 1) * 16];
+        public int Dodges;
+
+        /// <summary>
+        /// Ball reflex (G4.2): if a ball reaches our predicted position within <see cref="DodgeHorizon"/> ticks on the
+        /// current heading (or standing, when <paramref name="mx"/>, <paramref name="mz"/> = 0), pick the heading (the plan,
+        /// ±45°, ±90°, ±135°, back, or stop) whose first contact is latest, preferring the plan's direction. Pure ball poses
+        /// only. Out: the new stick (−127…127); false = keep the plan.
+        /// </summary>
+        private bool DodgeBalls(in MotorState s, uint tick, int mx, int mz, out int ox, out int oz)
+        {
+            ox = mx;
+            oz = mz;
+            // Balls that can matter this tick: lanes whose segment passes within range of us.
+            var capR = MotorState.QuantizeMm(_cfg.Radius);
+            var any = false;
+            for (var k = 0; k <= DodgeHorizon; k++)
+                _dodgeN[k] = 0;
+            for (var i = 0; i < _hz.RollingBalls.Length; i++)
+            {
+                ref readonly var d = ref _hz.RollingBalls[i];
+                if (SegDist2(s.PosX, s.PosZ, d.StartXMm, d.StartZMm, d.EndXMm, d.EndZMm) > (long)DodgeLaneRange * DodgeLaneRange)
+                    continue;
+                if (Math.Abs(d.StartYMm - s.PosY) > 9000 && Math.Abs(d.EndYMm - s.PosY) > 9000)
+                    continue;
+                var n = HazardMath.BallMaxAlive(in d);
+                for (var k = 0; k <= DodgeHorizon; k++)
+                {
+                    var t = _hz.Time(tick + (uint)k);
+                    for (var j = 0; j < n && _dodgeN[k] < 16; j++)
+                    {
+                        if (!HazardMath.BallPosMm(in d, t, j, out var bx, out var by, out var bz, out _))
+                            break;
+                        if (Math.Abs(by - (s.PosY + 500)) > d.RadiusMm + 1200)
+                            continue;
+                        var m = k * 16 + _dodgeN[k]++;
+                        _dodgeX[m] = bx;
+                        _dodgeZ[m] = bz;
+                        _dodgeR[m] = d.RadiusMm + capR + 150;
+                        any = true;
+                    }
+                }
+            }
+
+            if (!any)
+                return false;
+            double px = mx, pz = mz;
+            var pl = Math.Sqrt(px * px + pz * pz);
+            var hasPlan = pl > 1;
+            var planHit = FirstHit(in s, hasPlan ? px / pl : 0, hasPlan ? pz / pl : 0, !hasPlan);
+            if (planHit > DodgeHorizon)
+                return false;
+            // Reference heading for the candidates: the plan, else straight up the course (+z).
+            double ux = hasPlan ? px / pl : 0, uz = hasPlan ? pz / pl : 1;
+            var bestScore = planHit * 100 + (hasPlan ? 40 : 0);
+            double bestX = hasPlan ? ux : 0, bestZ = hasPlan ? uz : 0;
+            var stopHit = hasPlan ? FirstHit(in s, 0, 0, true) : planHit;
+            if (stopHit * 100 + 10 > bestScore)
+            {
+                bestScore = stopHit * 100 + 10;
+                bestX = bestZ = 0;
+            }
+
+            // Odd slots try the right side first, even slots the left (a fixed order sent every bot of a left-hand line
+            // toward the rail, QA: 1.38× on that line).
+            var flip = (Slot & 1) == 1 ? -1 : 1;
+            foreach (var deg in DodgeAngles)
+            {
+                var a = flip * deg * Math.PI / 180.0;
+                double cx = ux * Math.Cos(a) - uz * Math.Sin(a), cz = ux * Math.Sin(a) + uz * Math.Cos(a);
+                var hit = FirstHit(in s, cx, cz, false);
+                var score = hit * 100 + (int)(Math.Cos(a) * 30);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestX = cx;
+                    bestZ = cz;
+                }
+            }
+
+            ox = (int)Math.Round(bestX * 127);
+            oz = (int)Math.Round(bestZ * 127);
+            return ox != mx || oz != mz;
+        }
+
+        /// <summary>First tick (1…horizon) a ball of the cached set reaches us on heading (hx, hz) (unit; stop = brake), horizon + 1 = never.</summary>
+        private int FirstHit(in MotorState s, double hx, double hz, bool stop)
+        {
+            var horizon = Math.Max(6, DodgeHorizon - 2 * TimingSlop); // G4.2: looser tiers see a ball later
+            // Velocity (mm per tick) blends from the current one to the heading at full speed over ~5 ticks (accel 28 m/s²).
+            double vx = s.VelX * 10.0 / HazardMath.TickRate, vz = s.VelZ * 10.0 / HazardMath.TickRate;
+            var top = stop ? 0 : RunPerTick;
+            double x = s.PosX, z = s.PosZ;
+            for (var k = 1; k <= horizon; k++)
+            {
+                var a = Math.Min(1.0, k / 5.0);
+                var cvx = vx + (hx * top - vx) * a;
+                var cvz = vz + (hz * top - vz) * a;
+                x += cvx;
+                z += cvz;
+                for (var m = k * 16; m < k * 16 + _dodgeN[k]; m++)
+                {
+                    double dx = x - _dodgeX[m], dz = z - _dodgeZ[m];
+                    if (dx * dx + dz * dz < (double)_dodgeR[m] * _dodgeR[m])
+                        return k;
+                }
+            }
+
+            return DodgeHorizon + 1;
+        }
+
+        private static long SegDist2(long px, long pz, long ax, long az, long bx, long bz)
+        {
+            long ux = bx - ax, uz = bz - az;
+            var l2 = ux * ux + uz * uz;
+            var f = l2 > 0 ? Math.Max(0.0, Math.Min(1.0, (double)((px - ax) * ux + (pz - az) * uz) / l2)) : 0.0;
+            var cx = ax + ux * f - px;
+            var cz = az + uz * f - pz;
+            return (long)(cx * cx + cz * cz);
+        }
+
         public int Jumps, Dives;
+        public int WaitTimeouts, RunUps;
+        private int _runUpWp = -1, _runUpX, _runUpZ;
+        private uint _runUpUntil;
+        /// <summary>
+        /// G4.2: how loosely the bot judges a look-ahead WaitClear window (0 = reference: the full margins; BotBrain sets it
+        /// per tier). Each step trims the window by 1 tick at the front and 2 at the back and the reach margin by 30 mm:
+        /// a looser bot goes in tighter gaps and gets clipped now and then, as players do.
+        /// </summary>
+        public int TimingSlop;
+        /// <summary>G4.2: the tick a look-ahead WaitClear said "go" (BotBrain's tiers may hesitate there, a mistimed crossing).</summary>
+        public uint LookAheadGoTick = uint.MaxValue;
+        private const int WaitTimeoutTicks = 240;
+        private uint _waitSince;
+        private int _waitWp = -1;
 
         private void ReactToBars(in MotorState s, uint tick, int mx, int mz, ref bool jump, ref bool dive)
         {

@@ -30,7 +30,7 @@ namespace FallRush.Net
 
         public static bool Requested() => Array.IndexOf(Environment.GetCommandLineArgs(), Arg) >= 0;
 
-        private const int MaxSections = 16, MaxRoutes = 8;
+        private const int MaxSections = 16, MaxRoutes = 16;
 
         private sealed class Tally
         {

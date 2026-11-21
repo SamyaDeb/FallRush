@@ -99,7 +99,10 @@ namespace FallRush.Shared
                 _rng = 1;
             _wobblePhase = Next() % 6283 / 1000.0;
             if (_mode == "Race" || _mode == "Survival")
-                _wp = new WaypointBot(slot, routes, _hz, _cfg, seed + (uint)slot * 7u);
+                _wp = new WaypointBot(slot, routes, _hz, _cfg, seed + (uint)slot * 7u)
+                {
+                    TimingSlop = tier == BotTier.Easy ? 5 : tier == BotTier.Normal ? 4 : tier == BotTier.Good ? 2 : 0, // G4.2
+                };
             if (_mode == "Survival")
                 _sectionY = SectionHeights(routes);
         }
@@ -210,7 +213,9 @@ namespace FallRush.Shared
             // in the final a held tile is about to drop).
             var waitAction = _wp != null && (_wp.CurrentAction == WaypointAction.Door || _wp.CurrentAction == WaypointAction.WaitClear || _wp.CurrentAction == WaypointAction.JumpToPlatform);
             var waiting = plan.MoveX == 0 && plan.MoveY == 0 && waitAction;
-            if (_wasWaiting && !waiting && Next() % 100 < (uint)S.HesitatePct)
+            // G4.2: or after a look-ahead clear check said "go" without a wait (the bot misjudges the timing this often).
+            var goNow = _wp != null && _wp.LookAheadGoTick == tick && !_wasWaiting;
+            if ((_wasWaiting && !waiting || goNow) && Next() % 100 < (uint)S.HesitatePct)
             {
                 _hesitateUntil = tick + (uint)(S.HesitateTicks / 2 + Next() % (uint)Math.Max(1, S.HesitateTicks));
                 Hesitations++;
