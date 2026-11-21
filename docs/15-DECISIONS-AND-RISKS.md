@@ -185,6 +185,19 @@
 | G4.8-11 | Palette tests skip role 3 (rim crowns / rounded edges: trim) and role 4 (hazard-coded parts) as "walkable tops"; moving-platform / turntable stripes in soft = the hue's mid tone deepened 30 % toward ink (the G4.6 rule gave grey on pastel; at 15 % the Soda blue stripe sat ΔE 15.0 from the soft sky top) | ✅ | `PaletteTests`, `MapArt` |
 | G4.8-12 | Soft clouds and the stadium backdrop use their own seed (the G4.6 dressing layout is unchanged); the backdrop sits 260 m beyond the course rectangle, at the horizon band | ✅ | `MapDressing` |
 
+### G4.8z / G4.9 decisions (2026-11-21; G4-B art, recorded in docs/proof/G4-B-art.md — say if you want any changed)
+| # | Decision | By | Where |
+|---|---|---|---|
+| G4.8z-1 | No look pick yet → **soft stays the default**, F7 stays live (G4.8-10) | 🟡 your pick | `G4-notes.md` |
+| G4.8z-2 | Lid Flip soft: calm lids are *lighter* than the lit amber, so a calm lid in a cast shadow is the weak case (≈ 0.01–0.05 deutan in full shadow). Fix = Lid Flip calm lids keep **0.85** of the sun in shadow (per-material `_ShadowKeep`, toon default 0.25 unchanged), not a deeper shade. The shot check samples off the capsule seam and reports the median + 10th-percentile lid per batch (rule ≥ 0.12 deutan / protan) | ✅ | `LidGridView`, `Toon.shader`, `PaletteShots` |
+| G4.8z-3 | Stun = **dizzy swirls** (3 ink / lavender spirals round the head) + a white bonk puff and 3–5 white sparks; no star shape, nothing gold on a hit. Stars only where they mean score | ✅ | `RushlingParts.StunSwirls`, `Fx.Bonk` |
+| G4.9-1 | Props carry palette **slots** (UV0) and a baked shade (UV1), not colours; `PropKit` resolves both looks from `PaletteTokens` at map build (one source of truth, exact G4.8-1 layout) | ✅ | `props.py`, `PropKit` |
+| G4.9-2 | Determinism: the FBX writer's clock is pinned and its ids SHA-1 hashed (Blender's exporter used `hash()` and `now()`) | ✅ | `props.py` |
+| G4.9-3 | A prop replacing a collider box's look is a render-only child (box scale undone); the box keeps collider + transform, loses its renderer. Tolerance 0.15 m, tested per placement | ✅ | `PropSwap`, `PropTests` |
+| G4.9-4 | Spinner bars keep their striped segments; foam caps end ≤ 0.12 m past the arm, hub r 0.4 (0.1 m past the post) | ✅ | `PropSwap.Spinner` |
+| G4.9-5 | Squash on hit = bumpers only (their visuals are own renderers now); mallet heads are merged with the handle and do not squash | ✅ | `HazardViewDriver` |
+| G4.9-6 | Capsule Run start arch: posts at x ±11.2 beside the 20 m deck, inner top 7.3 m (dressing, out of every reach) | ✅ | `MapDressing` |
+
 ## Top risks (live; update daily in PROJECT_STATUS)
 
 | # | Risk | Likelihood | Impact | Mitigation |
