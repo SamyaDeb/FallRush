@@ -24,6 +24,7 @@ namespace FallRush.Client
             UiKit.Label(panel, "FALL RUSH", 72, UiKit.Magenta, FontStyle.Bold, 90);
             UiKit.Label(panel, "Practice match: you + bots, 4 rounds", 22, UiKit.Grape);
             NameField(panel);
+            MyRushling(panel);
             _target = UiKit.Label(panel, string.Empty, 18, UiKit.Ink, FontStyle.Normal, 44);
             UiKit.Button(panel, "Play (Quick Play)", UiKit.SunYellow, OnPlay);
             UiKit.Button(panel, "Settings", UiKit.SkyLight, () => _settings.SetActive(!_settings.activeSelf));
@@ -40,6 +41,7 @@ namespace FallRush.Client
             _settings = sp.gameObject;
             _settings.SetActive(false);
             NetBootstrap.PreferredName = GameSettings.PlayerName;
+            NetBootstrap.PreferredPreset = GameSettings.CosmeticPreset;
 
             var boot = NetBootstrap.Instance;
             if (boot == null)
@@ -60,6 +62,20 @@ namespace FallRush.Client
             {
                 _wallet.text = WalletBridge.ProviderLabel ?? string.Empty;
             }
+        }
+
+        /// <summary>G2.2 "My Rushling": cycle the cosmetic preset (saved locally, sent in hello; no stats).</summary>
+        private static void MyRushling(Transform panel)
+        {
+            Button b = null;
+            string Label() => $"My Rushling: {CosmeticPresets.Get(GameSettings.CosmeticPreset).Name}  >";
+            b = UiKit.Button(panel, Label(), UiKit.Magenta, () =>
+            {
+                GameSettings.CosmeticPreset = (GameSettings.CosmeticPreset + 1) % CosmeticPresets.Count;
+                GameSettings.Save();
+                NetBootstrap.PreferredPreset = GameSettings.CosmeticPreset;
+                UiKit.SetButtonText(b, Label());
+            });
         }
 
         /// <summary>G1 §3.6: the display name (saved locally; sent in hello unless the URL has ?name=).</summary>

@@ -10,7 +10,7 @@ namespace FallRush.Shared
     public static class Protocol
     {
         /// <summary>Bump on any incompatible change to messages or approval payload.</summary>
-        public const ushort Version = 5; // v5 (G1): ctl Emote + `emo`, motor flag Stumbling (bit 4); v4 (M4): match / mevt / rx / ready / ctl, hello name + reconnect token; v3 (M3): snap race byte, round / rstate / evt
+        public const ushort Version = 6; // v6 (G2.2): `match` slot rows carry the cosmetic preset (hello already sent it); v5 (G1): ctl Emote + `emo`, motor flag Stumbling (bit 4); v4 (M4): match / mevt / rx / ready / ctl, hello name + reconnect token; v3 (M3): snap race byte, round / rstate / evt
 
         /// <summary>Hard cap on players per game server (doc 01: 12-player matches).</summary>
         public const int MaxPlayers = 12;

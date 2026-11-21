@@ -129,6 +129,7 @@ public static class LobbyBuilder
     /// <summary>Saves the scene, adds it to the build settings, records the map content hash, checks the allowlist for every variant × allowed modifier.</summary>
     public static void Save(UnityEngine.SceneManagement.Scene scene, string path, MapInfo info, string sceneName)
     {
+        MapArt.Apply(scene, info, info.definition != null ? info.definition.mapKey : sceneName); // G2 look + dressing
         if (!EditorSceneManager.SaveScene(scene, path))
             throw new IOException($"Failed to save {path}");
         var list = new List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);

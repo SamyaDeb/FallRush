@@ -76,6 +76,8 @@ namespace FallRush.Shared
         public readonly RosterSlot[] Roster = new RosterSlot[MaxSlots];
         public readonly byte[][] Tokens = new byte[MaxSlots][];
         public readonly string[] Names = new string[MaxSlots];
+        /// <summary>G2.2 cosmetic preset per lobby slot (from hello).</summary>
+        public readonly byte[] Presets = new byte[MaxSlots];
         public byte[] MatchSeed { get; private set; }
         public byte[] MatchId { get; private set; }
         public byte[] RosterHashBytes { get; private set; }
@@ -125,9 +127,10 @@ namespace FallRush.Shared
         // =====================================================================
 
         /// <summary>A human took <paramref name="slot"/> in the lobby (or as a viewer moved in). <paramref name="token"/> = their reconnect token.</summary>
-        public void OnHumanJoined(int slot, byte[] token, string name)
+        public void OnHumanJoined(int slot, byte[] token, string name, byte preset = 0)
         {
             Tokens[slot] = token;
+            Presets[slot] = CosmeticPresets.Clamp(preset);
             Names[slot] = string.IsNullOrEmpty(name) ? $"Player {slot + 1}" : name;
             UpdateHost();
             _host.OnMatchChanged();
@@ -474,6 +477,7 @@ namespace FallRush.Shared
                     Occupied = true, Bot = bot, Alive = true, Connected = true, Places = new byte[4], Late = new bool[4],
                     Name = bot ? BotNames[i % BotNames.Length] : Names[i] ?? $"Player {i + 1}",
                     Tier = bot ? TierFor(MatchSeed, i) : BotTier.Reference,
+                    Preset = bot ? CosmeticPresets.ForBot(i) : Presets[i],
                 };
                 entries.Add(new RosterHash.Entry { Slot = (byte)i, Bot = bot, UserId = RosterHash.PlaceholderUserId(i, bot) }); // TODO(M5): real guest ids
             }

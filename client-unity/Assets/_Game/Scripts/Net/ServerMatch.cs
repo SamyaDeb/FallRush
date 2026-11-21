@@ -37,7 +37,7 @@ namespace FallRush.Net
         private bool _loaded;
         private bool _loadingScene;
         private readonly HashSet<ulong> _viewers = new HashSet<ulong>();
-        private readonly Dictionary<ulong, (string name, byte[] token)> _viewerHello = new Dictionary<ulong, (string, byte[])>();
+        private readonly Dictionary<ulong, (string name, byte[] token, byte preset)> _viewerHello = new Dictionary<ulong, (string, byte[], byte)>();
         private uint _evtSeq;
         private bool _matchDirty, _stateDirty;
         private readonly byte[] _buf = new byte[4096];
@@ -315,20 +315,20 @@ namespace FallRush.Net
                 else
                 {
                     _viewers.Add(clientId);
-                    _viewerHello[clientId] = (hello.Name, hello.Token);
+                    _viewerHello[clientId] = (hello.Name, hello.Token, hello.CosmeticPreset);
                     Debug.Log($"[gs] client={clientId} watches (match in progress; no late joiners) viewers={_viewers.Count}");
                 }
             }
             else
             {
-                if (!Seat(clientId, hello.Name, hello.Token))
+                if (!Seat(clientId, hello.Name, hello.Token, hello.CosmeticPreset))
                     return;
             }
 
             SendFullState(clientId);
         }
 
-        private bool Seat(ulong clientId, string name, byte[] token)
+        private bool Seat(ulong clientId, string name, byte[] token, byte preset = 0)
         {
             var core = _sim.Core;
             var slot = core.AddHuman(clientId);
@@ -341,7 +341,7 @@ namespace FallRush.Net
 
             // A token the client already holds (it stays valid while connected) is kept; otherwise a new one.
             var t = token != null && token.Length == 16 && !AllZero(token) ? token : NewToken();
-            Director.OnHumanJoined(slot, t, name);
+            Director.OnHumanJoined(slot, t, name, preset);
             _sim.OnSlotAttached(slot);
             Debug.Log($"[gs] slot {slot} → client={clientId} name=\"{Director.Names[slot]}\" humans={core.HumanCount} bots={core.BotCount}");
             return true;
@@ -355,7 +355,7 @@ namespace FallRush.Net
                 _viewers.Remove(id);
                 _viewerHello.TryGetValue(id, out var h);
                 _viewerHello.Remove(id);
-                if (Seat(id, h.name, h.token))
+                if (Seat(id, h.name, h.token, h.preset))
                     SendFullState(id);
             }
         }
@@ -595,6 +595,7 @@ namespace FallRush.Net
                 {
                     Slot = (byte)i, Flags = f, Tier = r.Tier, Reason = r.Reason, EliminatedRound = r.EliminatedRound,
                     Places = r.Places ?? new byte[4], LateMask = late,
+                    Preset = r.Occupied ? r.Preset : s.Bot ? CosmeticPresets.ForBot(i) : d.Presets[i],
                     Name = r.Occupied ? r.Name : s.Bot ? MatchDirector.BotNames[i % MatchDirector.BotNames.Length] : d.Names[i] ?? $"Player {i + 1}",
                 });
             }

@@ -46,22 +46,14 @@ namespace FallRush.Client
 
         public bool Silhouette { get; private set; }
 
-        private Transform _tilt, _squash, _lid, _key, _faceT, _starsRoot;
+        private Transform _tilt, _squash, _lid, _faceT, _starsRoot;
         private readonly Transform[] _feet = new Transform[2];
-        private readonly Transform[] _stars = new Transform[3];
-        private readonly Transform[] _mitts = new Transform[2];
-        private Renderer[] _renderers;
-        private Material[] _baseMats;
-        private Renderer _face;
         private MaterialPropertyBlock _mpb;
         private Material _lit, _unlit;
 
         // arms
         private readonly Vector3[,] _arm = new Vector3[2, ArmPoints];
         private readonly Vector3[,] _armPrev = new Vector3[2, ArmPoints];
-        private readonly Mesh[] _armMesh = new Mesh[2];
-        private readonly Vector3[][] _armVerts = new Vector3[2][];
-        private readonly Vector3[][] _armNormals = new Vector3[2][];
         private readonly Vector3[] _spline = new Vector3[TubeSegments + 1];
         private bool _armsInit;
 
@@ -93,115 +85,196 @@ namespace FallRush.Client
         public bool StunStartedThisFrame { get; private set; }
         public bool DiveStartedThisFrame { get; private set; }
 
-        public void Build(int slot, Material lit, Material unlit)
+        // G2.2: three renderers (body, lid + LED screen, limbs) sharing one toon material with the outline pass; the key
+        // spin and the face glyph are per-renderer property-block values the shader applies (RushlingParts).
+        private static readonly int KeyAngleId = Shader.PropertyToID("_KeyAngle");
+        private static readonly int KeyPivotId = Shader.PropertyToID("_KeyPivot");
+        private static readonly int FaceMapId = Shader.PropertyToID("_FaceMap");
+        private static readonly int FaceStId = Shader.PropertyToID("_FaceST");
+        private static readonly int FaceOnId = Shader.PropertyToID("_FaceOn");
+        private static readonly int FaceTintId = Shader.PropertyToID("_FaceTint");
+        private static readonly int UnlitId = Shader.PropertyToID("_Unlit");
+        private static readonly int OutlineWidthId = Shader.PropertyToID("_OutlineWidth");
+        private const float LimbOutline = 0.006f; // the noodles are 4.5 cm thick: a thin hull keeps them white
+        private MeshRenderer _bodyR, _lidR, _limbsR, _starsR;
+        private MeshFilter _bodyF, _lidF;
+        private MaterialPropertyBlock _bodyMpb, _lidMpb, _plainMpb;
+        private int _preset = -1;
+        private Color _faceTint = Color.white;
+
+        /// <summary>The cosmetic preset currently shown (G2.2 "My Rushling").</summary>
+        public int Preset => _preset;
+
+        public void Build(int slot, Material lit, Material unlit) => Build(slot, CosmeticPresets.ForBot(slot), lit, unlit);
+
+        public void Build(int slot, int preset, Material lit, Material unlit)
         {
             _lit = lit;
             _unlit = unlit;
             _mpb = new MaterialPropertyBlock();
-            var preset = slot % ShellColors.Length;
-            var shell = UiKit.Hex(ShellColors[preset]);
-            var emblem = UiKit.Hex(EmblemColors[preset]);
+            _bodyMpb = new MaterialPropertyBlock();
+            _lidMpb = new MaterialPropertyBlock();
+            _plainMpb = new MaterialPropertyBlock();
             var phase = slot * 0.37f;
             _blinkAt = 1.5f + phase;
 
             _tilt = Node("Tilt", transform, new Vector3(0f, 0.5f, 0f));
             _squash = Node("Squash", _tilt, new Vector3(0f, -0.5f, 0f));
-
-            Part("Shell", _squash, ProcMesh.Shell, Vector3.zero, Quaternion.identity, Vector3.one, shell);
-            Part("Seam", _squash, ProcMesh.ThinTorus, new Vector3(0f, ProcMesh.SeamY, 0f), Quaternion.identity,
-                new Vector3(ProcMesh.R + 0.002f, 0.3f, ProcMesh.R + 0.002f), SeamColor);
-            Part("Emblem", _squash, ProcMesh.Bolt, new Vector3(0f, 0.45f, ProcMesh.R + 0.012f), Quaternion.identity, Vector3.one * 0.8f, emblem);
-            Part("Hinge", _squash, ProcMesh.Cube, new Vector3(0f, ProcMesh.SeamY, -ProcMesh.R - 0.01f), Quaternion.identity,
-                new Vector3(0.1f, 0.035f, 0.03f), SeamColor);
-
+            _bodyR = Renderer("Body", _squash, out _bodyF);
             // Lid: everything above the seam, hinged at the back so the stun pop opens it.
             _lid = Node("Lid", _squash, new Vector3(0f, ProcMesh.SeamY, -ProcMesh.R));
-            var lidOff = new Vector3(0f, -ProcMesh.SeamY, ProcMesh.R);
-            Part("Dome", _lid, ProcMesh.Dome, lidOff, Quaternion.identity, Vector3.one, DomeWhite);
-            _face = Part("Face", _lid, ProcMesh.Face, lidOff, Quaternion.identity, Vector3.one, Color.white, unlitMat: true);
-            _faceT = _face.transform;
+            _lidR = Renderer("LidAndScreen", _lid, out _lidF);
+            _faceT = _lid;
 
-            // Aviator goggles pushed up on the forehead: strap ring + two lenses.
-            var strapY = 0.84f;
-            var strapR = ProcMesh.RadiusAt(strapY) + 0.006f;
-            Part("GoggleStrap", _lid, ProcMesh.ThinTorus, lidOff + new Vector3(0f, strapY, 0f), Quaternion.Euler(-12f, 0f, 0f),
-                new Vector3(strapR, 0.2f, strapR), GoggleStrap);
-            for (var side = -1; side <= 1; side += 2)
-            {
-                var ly = 0.9f;
-                var lz = ProcMesh.RadiusAt(ly) * 0.86f;
-                var lp = lidOff + new Vector3(side * 0.085f, ly, lz);
-                var lr = Quaternion.Euler(-50f, side * 18f, 0f) * Quaternion.Euler(90f, 0f, 0f);
-                Part("GoggleRim", _lid, ProcMesh.Torus, lp, lr, new Vector3(0.055f, 0.15f, 0.055f), GoggleRim);
-                Part("GoggleLens", _lid, ProcMesh.Cylinder, lp, lr, new Vector3(0.1f, 0.008f, 0.1f), GoggleLens);
-            }
-
-            // Wind-up key on the back: shaft along −Z, two loops in the XY plane; spins about the shaft.
-            _key = Node("Key", _squash, new Vector3(0f, 0.5f, -ProcMesh.R - 0.005f));
-            Part("KeyShaft", _key, ProcMesh.Cylinder, new Vector3(0f, 0f, -0.05f), Quaternion.Euler(90f, 0f, 0f), new Vector3(0.04f, 0.05f, 0.04f), KeyPurple);
-            for (var side = -1; side <= 1; side += 2)
-                Part("KeyLoop", _key, ProcMesh.Torus, new Vector3(side * 0.085f, 0f, -0.11f), Quaternion.Euler(90f, 0f, 0f),
-                    new Vector3(0.075f, 0.2f, 0.06f), KeyPurple);
-
-            // Peg feet: children of the root (world-planted while stepping), not of the squash node.
+            // Peg feet: empty nodes under the root (world-planted while stepping); their pegs live in the limbs mesh.
             for (var f = 0; f < 2; f++)
-            {
-                var foot = Node(f == 0 ? "FootL" : "FootR", transform, Vector3.zero);
-                Part("Peg", foot, ProcMesh.Cylinder, new Vector3(0f, 0.05f, 0f), Quaternion.identity, new Vector3(0.1f, 0.05f, 0.12f), FootColor);
-                _feet[f] = foot;
-            }
+                _feet[f] = Node(f == 0 ? "FootL" : "FootR", transform, Vector3.zero);
 
-            // Stun stars (hidden until a stun starts).
+            // Stun stars: one mesh, hidden until a stun starts; the ring spins.
             _starsRoot = Node("Stars", _squash, new Vector3(0f, 1.18f, 0f));
-            for (var i = 0; i < _stars.Length; i++)
-            {
-                var st = Part("Star", _starsRoot, ProcMesh.Star, Vector3.zero, Quaternion.identity, Vector3.one, StarColor, unlitMat: true).transform;
-                _stars[i] = st;
-            }
-
+            _starsR = Renderer("StunStars", _starsRoot, out var sf);
+            sf.sharedMesh = RushlingParts.StunStars();
             _starsRoot.gameObject.SetActive(false);
 
-            // Noodle arms: world-space tube meshes (their own GameObjects at the origin so vertices are world positions).
-            for (var a = 0; a < 2; a++)
-            {
-                var go = new GameObject(a == 0 ? "ArmL" : "ArmR");
-                go.transform.SetParent(transform.parent, false);
-                go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
-                var mesh = new Mesh { name = "NoodleArm" };
-                mesh.MarkDynamic();
-                var rings = TubeSegments + 1;
-                _armVerts[a] = new Vector3[rings * TubeSides];
-                _armNormals[a] = new Vector3[rings * TubeSides];
-                mesh.vertices = _armVerts[a];
-                mesh.normals = _armNormals[a];
-                mesh.triangles = TubeTriangles(rings);
-                _armMesh[a] = mesh;
-                go.AddComponent<MeshFilter>().sharedMesh = mesh;
-                var mr = go.AddComponent<MeshRenderer>();
-                Setup(mr, DomeWhite, false);
-                var mitt = Part("Mitten", go.transform, ProcMesh.Sphere, Vector3.zero, Quaternion.identity, Vector3.one * 0.1f, DomeWhite).transform;
-                _mitts[a] = mitt;
-                _armGo[a] = go;
-            }
-
-            _renderers = GetComponentsInChildren<Renderer>(true);
-            var armR0 = _armGo[0].GetComponentsInChildren<Renderer>(true);
-            var armR1 = _armGo[1].GetComponentsInChildren<Renderer>(true);
-            var all = new Renderer[_renderers.Length + armR0.Length + armR1.Length];
-            _renderers.CopyTo(all, 0);
-            armR0.CopyTo(all, _renderers.Length);
-            armR1.CopyTo(all, _renderers.Length + armR0.Length);
-            _renderers = all;
-            _baseMats = new Material[_renderers.Length];
-            for (var i = 0; i < _renderers.Length; i++)
-                _baseMats[i] = _renderers[i].sharedMaterial;
+            // Noodle arms + mittens + peg feet: one world-space dynamic mesh (its own GameObject at the origin).
+            BuildLimbs();
+            SetPreset(preset);
             SetGlyph(ProcMesh.Glyph.Idle);
         }
 
-        private readonly GameObject[] _armGo = new GameObject[2];
+        private MeshRenderer Renderer(string name, Transform parent, out MeshFilter mf)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            mf = go.AddComponent<MeshFilter>();
+            var r = go.AddComponent<MeshRenderer>();
+            r.sharedMaterial = _lit != null ? _lit : MatFor(Color.white, false);
+            r.shadowCastingMode = ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            r.lightProbeUsage = LightProbeUsage.Off;
+            r.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            return r;
+        }
 
-        // One material per (colour, lit/unlit), shared by every Rushling: keeps the SRP Batcher working (no per-renderer
-        // property blocks except on the screen face, which needs its own atlas offset).
+        /// <summary>Shows cosmetic preset <paramref name="preset"/> (shell, emblem, topper, LED colour, key). Cheap: cached meshes.</summary>
+        public void SetPreset(int preset)
+        {
+            preset = CosmeticPresets.Clamp(preset);
+            if (preset == _preset)
+                return;
+            _preset = preset;
+            _bodyF.sharedMesh = RushlingParts.Body(preset);
+            _lidF.sharedMesh = RushlingParts.Lid(preset);
+            _faceTint = RushlingParts.FaceTint(CosmeticPresets.Get(preset).Face);
+            ApplyFace();
+        }
+
+        // ---- limbs mesh layout: [arm0][arm1][mitt0][mitt1][foot0][foot1]
+        private Mesh _limbMesh;
+        private Vector3[] _lv, _ln;
+        private Vector3[] _mittV, _mittN, _footV, _footN;
+        private int _mittOff0, _footOff0;
+        private const float MittRadius = 0.052f;
+
+        private void BuildLimbs()
+        {
+            var go = new GameObject("Limbs");
+            go.transform.SetParent(transform.parent, false);
+            go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+            var mitt = RushlingParts.Shapes.Sphere(RushlingParts.MittSeg, RushlingParts.MittRings);
+            var foot = ProcMeshCylinder8();
+            _mittV = mitt.vertices;
+            _mittN = mitt.normals;
+            _footV = foot.vertices;
+            _footN = foot.normals;
+            var rings = TubeSegments + 1;
+            var armN = rings * TubeSides;
+            _mittOff0 = 2 * armN;
+            _footOff0 = _mittOff0 + 2 * _mittV.Length;
+            var total = _footOff0 + 2 * _footV.Length;
+            _lv = new Vector3[total];
+            _ln = new Vector3[total];
+            var cols = new Color[total];
+            for (var i = 0; i < total; i++)
+                cols[i] = i < _footOff0 ? DomeWhite : FootColor;
+            var tris = new System.Collections.Generic.List<int>();
+            var tube = TubeTriangles(rings);
+            for (var a = 0; a < 2; a++)
+                foreach (var t in tube)
+                    tris.Add(a * armN + t);
+            var mt = mitt.triangles;
+            for (var a = 0; a < 2; a++)
+                foreach (var t in mt)
+                    tris.Add(_mittOff0 + a * _mittV.Length + t);
+            var ft = foot.triangles;
+            for (var a = 0; a < 2; a++)
+                foreach (var t in ft)
+                    tris.Add(_footOff0 + a * _footV.Length + t);
+            _limbMesh = new Mesh { name = "Limbs" };
+            _limbMesh.MarkDynamic();
+            _limbMesh.vertices = _lv;
+            _limbMesh.normals = _ln;
+            _limbMesh.colors = cols;
+            _limbMesh.SetTriangles(tris, 0);
+            go.AddComponent<MeshFilter>().sharedMesh = _limbMesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = _lit != null ? _lit : MatFor(Color.white, false);
+            mr.shadowCastingMode = ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+            mr.lightProbeUsage = LightProbeUsage.Off;
+            mr.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            _limbsR = mr;
+            _plainMpb.SetFloat(OutlineWidthId, LimbOutline);
+            mr.SetPropertyBlock(_plainMpb);
+            _armGo[0] = go;
+        }
+
+        private static Mesh ProcMeshCylinder8() => RushlingParts.Shapes.Cylinder8;
+
+        private void WriteMitt(int a, Vector3 c)
+        {
+            var o = _mittOff0 + a * _mittV.Length;
+            var d = MittRadius * 2f;
+            for (var i = 0; i < _mittV.Length; i++)
+            {
+                _lv[o + i] = c + _mittV[i] * d;
+                _ln[o + i] = _mittN[i];
+            }
+        }
+
+        private void WriteFoot(int f)
+        {
+            var o = _footOff0 + f * _footV.Length;
+            var t = _feet[f];
+            var pos = t.position;
+            var rot = t.rotation;
+            var scale = new Vector3(0.1f, 0.05f, 0.12f);
+            for (var i = 0; i < _footV.Length; i++)
+            {
+                var v = _footV[i];
+                _lv[o + i] = pos + rot * new Vector3(v.x * scale.x, v.y * scale.y + 0.05f, v.z * scale.z);
+                _ln[o + i] = rot * _footN[i];
+            }
+        }
+
+        private void UploadLimbs()
+        {
+            _limbMesh.vertices = _lv; // the same reused arrays: no managed allocation
+            _limbMesh.normals = _ln;
+            var min = _lv[0];
+            var max = _lv[0];
+            for (var i = 1; i < _lv.Length; i += 7)
+            {
+                min = Vector3.Min(min, _lv[i]);
+                max = Vector3.Max(max, _lv[i]);
+            }
+
+            _limbMesh.bounds = new Bounds((min + max) * 0.5f, max - min + Vector3.one * 0.3f);
+        }
+
+        private readonly GameObject[] _armGo = new GameObject[1];
+
+        // Fallback material when a map has none (tools): one per colour, shared.
         private static readonly System.Collections.Generic.Dictionary<long, Material> MatCache = new System.Collections.Generic.Dictionary<long, Material>();
 
         private Material MatFor(Color c, bool unlit)
@@ -210,8 +283,12 @@ namespace FallRush.Client
             var key = ((long)c32.r << 24) | ((long)c32.g << 16) | ((long)c32.b << 8) | c32.a | (unlit ? 1L << 40 : 0L);
             if (MatCache.TryGetValue(key, out var m) && m != null)
                 return m;
-            m = new Material(unlit ? _unlit : _lit) { name = $"Rushling_{(unlit ? "U" : "L")}_{ColorUtility.ToHtmlStringRGB(c)}" };
+            var sh = Shader.Find("FallRush/Toon");
+            m = sh != null ? new Material(sh) : new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            m.name = $"Rushling_{(unlit ? "U" : "L")}_{ColorUtility.ToHtmlStringRGB(c)}";
             m.SetColor(BaseColorId, c);
+            if (unlit)
+                m.SetFloat(UnlitId, 1f);
             MatCache[key] = m;
             return m;
         }
@@ -220,9 +297,8 @@ namespace FallRush.Client
         {
             if (gameObject.activeSelf != on)
                 gameObject.SetActive(on);
-            for (var a = 0; a < 2; a++)
-                if (_armGo[a].activeSelf != on)
-                    _armGo[a].SetActive(on);
+            if (_armGo[0].activeSelf != on)
+                _armGo[0].SetActive(on);
             if (!on)
             {
                 _armsInit = false;
@@ -233,31 +309,28 @@ namespace FallRush.Client
 
         private void OnDestroy()
         {
-            for (var a = 0; a < 2; a++)
-            {
-                if (_armGo[a] != null)
-                    Destroy(_armGo[a]);
-                if (_armMesh[a] != null)
-                    Destroy(_armMesh[a]);
-            }
+            if (_armGo[0] != null)
+                Destroy(_armGo[0]);
+            if (_limbMesh != null)
+                Destroy(_limbMesh);
         }
 
         /// <summary>Unlit black override for the silhouette test (doc 17 §2.1).</summary>
         public void SetSilhouette(bool on)
         {
             Silhouette = on;
-            for (var i = 0; i < _renderers.Length; i++)
+            _plainMpb.Clear();
+            _plainMpb.SetFloat(OutlineWidthId, LimbOutline);
+            if (on)
             {
-                var r = _renderers[i];
-                if (r == _face)
-                {
-                    r.sharedMaterial = _unlit;
-                    ApplyFace();
-                    continue;
-                }
-
-                r.sharedMaterial = on ? MatFor(Color.black, true) : _baseMats[i];
+                _plainMpb.SetColor(BaseColorId, Color.black);
+                _plainMpb.SetFloat(UnlitId, 1f);
             }
+
+            _limbsR.SetPropertyBlock(_plainMpb);
+            _starsR.SetPropertyBlock(_plainMpb);
+            ApplyFace();
+            ApplyKey();
         }
 
         // ------------------------------------------------------------------ per frame (G1 animation set)
@@ -414,6 +487,7 @@ namespace FallRush.Client
             {
                 _tumbleT = -1f;
                 _getUpT = 0f; // "get up" pop
+                _angryUntil = _time + 0.9f;
                 _sq = -0.12f;
                 _sqV = 8f;
                 _starsLeft = Mathf.Max(_starsLeft, 0.5f);
@@ -466,6 +540,7 @@ namespace FallRush.Client
                 _sq = -0.07f; // fidget: a little bounce on the spot
                 _sqV = 4f;
                 _keyBoost = 1.2f;
+                _smugUntil = _time + 0.9f;
             }
 
             Spring(ref _sq, ref _sqV, sqTarget, 26f, 0.55f, dt);
@@ -568,31 +643,34 @@ namespace FallRush.Client
 
             // ---- key ----
             _keyBoost = Mathf.Max(0f, _keyBoost - dt);
-            _keyAngle += (60f + hspeed * 110f + _keyBoost * 900f) * (diving || sliding ? 3f : 1f) * dt;
-            _key.localRotation = Quaternion.Euler(0f, 0f, _keyAngle);
+            _keyAngle = Mathf.Repeat(_keyAngle + (60f + hspeed * 110f + _keyBoost * 900f) * (diving || sliding ? 3f : 1f) * dt, 360f);
+            ApplyKey();
 
             // ---- stars ----
             var starsOn = _starsLeft > 0f || stun > 0;
             if (_starsRoot.gameObject.activeSelf != starsOn)
                 _starsRoot.gameObject.SetActive(starsOn);
             if (starsOn)
-            {
-                for (var i = 0; i < _stars.Length; i++)
-                {
-                    var a = _time * 7f + i * (Mathf.PI * 2f / _stars.Length);
-                    _stars[i].localPosition = new Vector3(Mathf.Cos(a) * 0.26f, Mathf.Sin(a * 2f) * 0.03f, Mathf.Sin(a) * 0.26f);
-                    _stars[i].localRotation = Quaternion.Euler(0f, -a * Mathf.Rad2Deg, 0f);
-                }
-            }
+                _starsRoot.localRotation = Quaternion.Euler(Mathf.Sin(_time * 5f) * 6f, -_time * 7f * Mathf.Rad2Deg, 0f);
 
             // ---- face ----
             ProcMesh.Glyph g;
             if (stun > 0 || _starsLeft > 0f || _tumbleT >= 0f)
                 g = ProcMesh.Glyph.Stunned;
-            else if (_pose == Pose.Qualified || _pose == Pose.Champion || _emote == 1 || _emote == 2 || _emote == 3)
+            else if (_pose == Pose.Champion)
+                g = ProcMesh.Glyph.Champion;
+            else if (_pose == Pose.Qualified)
+                g = ProcMesh.Glyph.Qualified;
+            else if (_emote == 1)
+                g = ProcMesh.Glyph.Wink;
+            else if (_emote == 2)
+                g = ProcMesh.Glyph.Love;
+            else if (_emote == 3)
                 g = ProcMesh.Glyph.Happy;
             else if (_pose == Pose.Eliminated)
                 g = ProcMesh.Glyph.Sad;
+            else if (_getUpT >= 0f || _angryUntil > _time)
+                g = ProcMesh.Glyph.Angry; // a grumpy beat after getting up from a hit
             else if (diving || sliding || _emote == 4)
                 g = ProcMesh.Glyph.Diving;
             else if (stumbling || _stumbleT >= 0f || (!grounded && vel.y < -7f))
@@ -601,6 +679,10 @@ namespace FallRush.Client
                 g = ProcMesh.Glyph.Jumping;
             else if (hspeed > 1f)
                 g = ProcMesh.Glyph.Running;
+            else if (idle && _idleT > 9f)
+                g = ProcMesh.Glyph.Sleepy;
+            else if (idle && _smugUntil > _time)
+                g = ProcMesh.Glyph.Smug;
             else
                 g = ProcMesh.Glyph.Idle;
             if ((g == ProcMesh.Glyph.Idle || g == ProcMesh.Glyph.Running) && _time >= _blinkAt)
@@ -617,9 +699,13 @@ namespace FallRush.Client
             var bodyPose = !grounded || diving || sliding || _tumbleT >= 0f || _getUpT >= 0f || _hop > 0.01f || _emote == 4;
             UpdateFeet(feet, vel, grounded && !bodyPose, walking, hspeed, dt);
             UpdateArms(vel, grounded, diving || sliding, stumbling || _stumbleT >= 0f, dt);
+            WriteFoot(0);
+            WriteFoot(1);
+            UploadLimbs();
         }
 
         private float _keyBoost;
+        private float _angryUntil, _smugUntil;
 
         // ------------------------------------------------------------------ feet
 
@@ -798,7 +884,7 @@ namespace FallRush.Client
                         _arm[a, i].y = floor;
 
                 BuildTube(a);
-                _mitts[a].position = _arm[a, ArmPoints - 1];
+                WriteMitt(a, _arm[a, ArmPoints - 1]);
             }
 
             _armsInit = true;
@@ -821,10 +907,7 @@ namespace FallRush.Client
                 _spline[s] = 0.5f * (2f * p1 + (-p0 + p2) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 + (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
             }
 
-            var verts = _armVerts[a];
-            var normals = _armNormals[a];
-            var min = _spline[0];
-            var max = _spline[0];
+            var baseIdx = a * (TubeSegments + 1) * TubeSides;
             var n = Vector3.zero;
             for (var s = 0; s <= TubeSegments; s++)
             {
@@ -854,18 +937,10 @@ namespace FallRush.Client
                     var ang = k * (Mathf.PI * 2f / TubeSides);
                     var dir = n * Mathf.Cos(ang) + b * Mathf.Sin(ang);
                     var v = _spline[s] + dir * radius;
-                    verts[s * TubeSides + k] = v;
-                    normals[s * TubeSides + k] = dir;
+                    _lv[baseIdx + s * TubeSides + k] = v;
+                    _ln[baseIdx + s * TubeSides + k] = dir;
                 }
-
-                min = Vector3.Min(min, _spline[s]);
-                max = Vector3.Max(max, _spline[s]);
             }
-
-            var mesh = _armMesh[a];
-            mesh.vertices = verts;   // assigning the same reused array: no managed allocation
-            mesh.normals = normals;
-            mesh.bounds = new Bounds((min + max) * 0.5f, max - min + Vector3.one * 0.2f);
         }
 
         private static int[] TubeTriangles(int rings)
@@ -880,8 +955,10 @@ namespace FallRush.Client
                     var b = s * TubeSides + (k + 1) % TubeSides;
                     var c = a + TubeSides;
                     var d = b + TubeSides;
-                    tris[t++] = a; tris[t++] = c; tris[t++] = b;
-                    tris[t++] = b; tris[t++] = c; tris[t++] = d;
+                    // Unity front faces are clockwise: cross(v1 − v0, v2 − v0) must point out of the tube (G2 fix: the
+                    // M2 order faced inward, which the outline hull exposed).
+                    tris[t++] = a; tris[t++] = b; tris[t++] = c;
+                    tris[t++] = b; tris[t++] = d; tris[t++] = c;
                 }
             }
 
@@ -900,13 +977,36 @@ namespace FallRush.Client
 
         private void ApplyFace()
         {
-            if (_face == null || _mpb == null)
+            if (_lidR == null || _lidMpb == null)
                 return;
-            _mpb.Clear();
-            _mpb.SetTexture(BaseMapId, ProcMesh.FaceAtlas);
-            _mpb.SetVector(BaseMapStId, ProcMesh.GlyphST(_glyph == (ProcMesh.Glyph)255 ? ProcMesh.Glyph.Idle : _glyph));
-            _mpb.SetColor(BaseColorId, Silhouette ? Color.black : Color.white);
-            _face.SetPropertyBlock(_mpb);
+            _lidMpb.Clear();
+            _lidMpb.SetTexture(FaceMapId, ProcMesh.FaceAtlas);
+            _lidMpb.SetVector(FaceStId, ProcMesh.GlyphST(_glyph == (ProcMesh.Glyph)255 ? ProcMesh.Glyph.Idle : _glyph));
+            _lidMpb.SetFloat(FaceOnId, Silhouette ? 0f : 1f);
+            _lidMpb.SetColor(FaceTintId, _faceTint);
+            if (Silhouette)
+            {
+                _lidMpb.SetColor(BaseColorId, Color.black);
+                _lidMpb.SetFloat(UnlitId, 1f);
+            }
+
+            _lidR.SetPropertyBlock(_lidMpb);
+        }
+
+        private void ApplyKey()
+        {
+            if (_bodyR == null)
+                return;
+            _bodyMpb.Clear();
+            _bodyMpb.SetFloat(KeyAngleId, _keyAngle * Mathf.Deg2Rad);
+            _bodyMpb.SetVector(KeyPivotId, RushlingParts.KeyPivot);
+            if (Silhouette)
+            {
+                _bodyMpb.SetColor(BaseColorId, Color.black);
+                _bodyMpb.SetFloat(UnlitId, 1f);
+            }
+
+            _bodyR.SetPropertyBlock(_bodyMpb);
         }
 
         private static void Spring(ref float x, ref float v, float target, float omega, float zeta, float dt)
@@ -934,28 +1034,6 @@ namespace FallRush.Client
             t.SetParent(parent, false);
             t.localPosition = localPos;
             return t;
-        }
-
-        private Renderer Part(string name, Transform parent, Mesh mesh, Vector3 pos, Quaternion rot, Vector3 scale, Color color, bool unlitMat = false)
-        {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = pos;
-            go.transform.localRotation = rot;
-            go.transform.localScale = scale;
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            var r = go.AddComponent<MeshRenderer>();
-            Setup(r, color, unlitMat);
-            return r;
-        }
-
-        private void Setup(Renderer r, Color color, bool unlitMat)
-        {
-            r.sharedMaterial = MatFor(color, unlitMat);
-            r.shadowCastingMode = ShadowCastingMode.Off;
-            r.receiveShadows = false;
-            r.lightProbeUsage = LightProbeUsage.Off;
-            r.reflectionProbeUsage = ReflectionProbeUsage.Off;
         }
     }
 }

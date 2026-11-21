@@ -50,6 +50,7 @@ namespace FallRush.Client
         private Vector3 _lastOwnFeet;
         private bool _hasOwn;
         private HazardViewDriver _hazardViews;
+        private BlobShadows _blobs;
 
         private static MatchProbeBot s_MatchBot; // WebGL ?bot=match: one bot for the whole match (survives scene loads)
 
@@ -62,6 +63,7 @@ namespace FallRush.Client
         private void Start()
         {
             _map = MapInfo.Current;
+            WorldLook.OnMapLoaded();
             var lit = _map != null ? _map.playerMaterial : null;
             var unlit = _map != null ? _map.unlitMaterial : null;
             _rushlings = new RushlingVisuals[Protocol.MaxPlayers];
@@ -88,6 +90,8 @@ namespace FallRush.Client
             }
 
             _cam = FollowCamera.Create(cam, _cameraTarget, PhysxMotorWorld.GameplayMask());
+            GraphicsQuality.Apply(cam); // G2.1 High / Low
+            _blobs = new BlobShadows(PhysxMotorWorld.GameplayMask());
             _cam.transform.SetParent(transform, false);
             _sampler = gameObject.AddComponent<PlayerInputSampler>();
             _sampler.cameraRig = _cam;
@@ -213,6 +217,7 @@ namespace FallRush.Client
                     cs.SendControl(ControlCmd.Emote, (uint)e);
                 }
             }
+            _blobs.Begin();
             for (var i = 0; i < Protocol.MaxPlayers; i++)
             {
                 var vis = _rushlings[i];
@@ -238,10 +243,13 @@ namespace FallRush.Client
                     _wasRespawning[i] = false;
                 }
 
+                vis.SetPreset(cs.TryGetSlotInfo(i, out var slotInfo) ? slotInfo.Preset : CosmeticPresets.ForBot(i)); // G2.2 (cheap when unchanged)
                 vis.SetPose(PoseFor(cs, match, i));
                 vis.Drive(feet, vel, flags, yaw, stun, dt);
                 _feetNow[i] = feet;
                 _visibleNow[i] = true;
+                if (_photo == null)
+                    _blobs.Add(feet);
                 var bot = (flags & MotorState.Bot) != 0;
                 _plates.Set(i, _photo == null, feet + Vector3.up * 1.3f, PlateText(cs, i, bot, i == own));
 
@@ -298,6 +306,7 @@ namespace FallRush.Client
                 }
             }
 
+            _blobs.Draw();
             _plates.Layout(Camera.main, own);
 
             if (FocusPoint.HasValue)
@@ -351,14 +360,7 @@ namespace FallRush.Client
             // TinyTilt (visual-only modifier): FOV −8°, fog in.
             var mod = cs.Round.HasValue ? ModifierEffects.Get(cs.Round.Value.Modifier) : ModifierEffects.Get(0);
             _cam.FovOffset = mod.FovDeltaDeg;
-            var fog = mod.FogPermille > 0;
-            if (RenderSettings.fog != fog)
-            {
-                RenderSettings.fog = fog;
-                RenderSettings.fogMode = FogMode.Exponential;
-                RenderSettings.fogDensity = mod.FogPermille / 1000f;
-                RenderSettings.fogColor = UiKit.SkyLight;
-            }
+            WorldLook.SetModifierFog(mod.FogPermille); // G2: base fog from the map art pass; TinyTilt adds its own
         }
 
         private void RefreshHud(ClientSim cs)
@@ -562,11 +564,56 @@ namespace FallRush.Client
                     r.enabled = false;
         }
 
+        private RushlingVisuals[] _gallery;
+        private Vector3 _galleryAt;
+
+        /// <summary>G2.2 proof: every cosmetic preset in two rows of six, idling, face to the camera.</summary>
+        private void PresetGallery(Camera cam)
+        {
+            if (_gallery == null)
+            {
+                _galleryAt = _lastOwnFeet + new Vector3(0f, 0f, 0f);
+                _gallery = new RushlingVisuals[CosmeticPresets.Count];
+                for (var i = 0; i < _gallery.Length; i++)
+                {
+                    var go = new GameObject($"Gallery{i}");
+                    go.transform.SetParent(transform, false);
+                    var v = go.AddComponent<RushlingVisuals>();
+                    v.Build(i, i, _map != null ? _map.playerMaterial : null, _map != null ? _map.unlitMaterial : null);
+                    v.SetVisible(true);
+                    _gallery[i] = v;
+                }
+
+                foreach (var r in _rushlings)
+                    r.SetVisible(false);
+            }
+
+            for (var i = 0; i < _gallery.Length; i++)
+            {
+                var row = i / 6;
+                var col = i % 6;
+                var p = _galleryAt + new Vector3((col - 2.5f) * 1.05f, 0f, row * 1.4f);
+                _gallery[i].Drive(p, Vector3.zero, MotorState.Grounded, 128, 0, Time.deltaTime);
+            }
+
+            var c = _galleryAt + new Vector3(0f, 0.9f, 0.7f);
+            cam.fieldOfView = 40f;
+            cam.transform.SetPositionAndRotation(c + new Vector3(0f, 1.6f, -6.4f), Quaternion.LookRotation(new Vector3(0f, -1.25f, 6.4f)));
+        }
+
         private void PhotoCamera()
         {
             var cam = Camera.main;
             if (cam == null || !_hasOwn)
                 return;
+            foreach (var cv in GetComponentsInChildren<Canvas>(true))
+                if (cv.enabled)
+                    cv.enabled = false; // the match HUD builds its canvas after photo mode starts
+            if (_photo == "presets")
+            {
+                PresetGallery(cam);
+                return;
+            }
             var c = _lastOwnFeet + Vector3.up * 0.55f;
             // Close-up: three-quarter front view (face, goggles, emblem) relative to the Rushling's facing.
             var own = ClientSim.Instance != null ? ClientSim.Instance.OwnSlot : -1;

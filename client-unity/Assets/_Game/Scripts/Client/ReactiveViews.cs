@@ -109,8 +109,9 @@ namespace FallRush.Client
 
         private static Material Tinted(Material src, Color c)
         {
-            var m = src != null ? new Material(src) : new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            var m = src != null ? new Material(src) : new Material(Shader.Find("FallRush/Toon"));
             m.SetColor("_BaseColor", c);
+            m.SetShaderPassEnabled("SRPDefaultUnlit", false); // G2: the outline pass is for Rushlings only
             return m;
         }
 

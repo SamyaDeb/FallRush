@@ -353,7 +353,7 @@ namespace FallRush.Client
 
         // ------------------------------------------------------------------ face atlas
 
-        public const int AtlasCell = 32;
+        public const int AtlasCell = 64;
         public enum Glyph
         {
             Idle = 0,      // ^ ^
@@ -363,14 +363,24 @@ namespace FallRush.Client
             Stunned = 4,   // @ @ (spirals)
             Falling = 5,   // O ◡ O (panic)
             Blink = 6,     // – –
-            Happy = 7,     // ^‿^ (G1: qualified, champion, emotes)
-            Sad = 8,       // ╥ ╥ (G1: eliminated)
+            Happy = 7,     // ^‿^ (emotes)
+            Sad = 8,       // x x with tears (eliminated, doc 17 §2.2)
+            Qualified = 9, // ★ ★
+            Champion = 10, // a crown across the screen (our own shape)
+            Wink = 11,     // ^ – with a smile
+            Angry = 12,    // slanted brows
+            Love = 13,     // ♥ ♥
+            Sleepy = 14,   // ︶ ︶ z
+            Smug = 15,     // half-lidded with a side smile
         }
 
-        /// <summary>4×4 atlas of 32 px cells: dark screen with mint LED glyphs (the face mesh provides the rounded outline).</summary>
+        /// <summary>
+        /// G2.2: 4×4 atlas of 64 px cells (crisp at 1080p): white anti-aliased LED glyphs with a soft glow in the alpha
+        /// channel over a transparent cell; the toon shader draws the dark screen and tints the glyph per face theme.
+        /// </summary>
         public static Texture2D FaceAtlas => _atlas != null ? _atlas : _atlas = BuildAtlas();
 
-        /// <summary>_BaseMap_ST for a glyph (scale.xy, offset.xy).</summary>
+        /// <summary>Face atlas ST for a glyph (scale.xy, offset.xy).</summary>
         public static Vector4 GlyphST(Glyph g)
         {
             var i = (int)g;
@@ -379,136 +389,178 @@ namespace FallRush.Client
             return new Vector4(0.25f, 0.25f, col * 0.25f, row * 0.25f);
         }
 
+        // Glyph shapes as distance fields in cell units (0..1, y up). Each returns the distance to the shape's ink.
+        private delegate float Sdf(Vector2 p);
+
+        private static float Seg(Vector2 p, Vector2 a, Vector2 b, float w)
+        {
+            var pa = p - a;
+            var ba = b - a;
+            var h = Mathf.Clamp01(Vector2.Dot(pa, ba) / Mathf.Max(1e-6f, Vector2.Dot(ba, ba)));
+            return (pa - ba * h).magnitude - w;
+        }
+
+        private static float DiscD(Vector2 p, Vector2 c, float r) => (p - c).magnitude - r;
+        private static float RingD(Vector2 p, Vector2 c, float r, float w) => Mathf.Abs((p - c).magnitude - r) - w;
+
+        private static float Arc(Vector2 p, Vector2 c, float r, float a0, float a1, float w)
+        {
+            var d = p - c;
+            var a = Mathf.Atan2(d.y, d.x);
+            if (a < a0) a += Mathf.PI * 2f;
+            if (a >= a0 && a <= a1)
+                return Mathf.Abs(d.magnitude - r) - w;
+            var e0 = c + new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * r;
+            var e1 = c + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * r;
+            return Mathf.Min((p - e0).magnitude, (p - e1).magnitude) - w;
+        }
+
+        private static float StarD(Vector2 p, Vector2 c, float r)
+        {
+            // Inside test against a 5-point star polygon; distance approximated by the nearest edge.
+            var q = new Vector2[10];
+            for (var i = 0; i < 10; i++)
+            {
+                var a = Mathf.PI * 0.5f + i * Mathf.PI / 5f;
+                var rr = i % 2 == 0 ? r : r * 0.45f;
+                q[i] = c + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * rr;
+            }
+
+            return PolyD(p, q);
+        }
+
+        private static float HeartD(Vector2 p, Vector2 c, float s)
+        {
+            var q = new Vector2[24];
+            for (var i = 0; i < q.Length; i++)
+            {
+                var t = i / (float)q.Length * Mathf.PI * 2f;
+                var x = 16f * Mathf.Pow(Mathf.Sin(t), 3f);
+                var y = 13f * Mathf.Cos(t) - 5f * Mathf.Cos(2f * t) - 2f * Mathf.Cos(3f * t) - Mathf.Cos(4f * t);
+                q[i] = c + new Vector2(x, y) * (s / 16f);
+            }
+
+            return PolyD(p, q);
+        }
+
+        private static float PolyD(Vector2 p, Vector2[] q)
+        {
+            var d = float.MaxValue;
+            var inside = false;
+            for (int i = 0, j = q.Length - 1; i < q.Length; j = i++)
+            {
+                d = Mathf.Min(d, Seg(p, q[j], q[i], 0f));
+                if ((q[i].y > p.y) != (q[j].y > p.y) && p.x < (q[j].x - q[i].x) * (p.y - q[i].y) / (q[j].y - q[i].y) + q[i].x)
+                    inside = !inside;
+            }
+
+            return inside ? -d : d;
+        }
+
+        private static float Min(params float[] d)
+        {
+            var m = float.MaxValue;
+            foreach (var x in d)
+                m = Mathf.Min(m, x);
+            return m;
+        }
+
+        private const float W = 0.045f; // LED stroke half-width (cell units)
+        private static readonly Vector2 L = new Vector2(0.31f, 0.56f), Rr = new Vector2(0.69f, 0.56f);
+
+        private static float Chevron(Vector2 p, Vector2 c, bool up) => Min(
+            Seg(p, c + new Vector2(-0.1f, up ? -0.06f : 0.06f), c + new Vector2(0f, up ? 0.06f : -0.06f), W),
+            Seg(p, c + new Vector2(0f, up ? 0.06f : -0.06f), c + new Vector2(0.1f, up ? -0.06f : 0.06f), W));
+
+        private static float Cross(Vector2 p, Vector2 c) => Min(
+            Seg(p, c + new Vector2(-0.08f, -0.08f), c + new Vector2(0.08f, 0.08f), W),
+            Seg(p, c + new Vector2(-0.08f, 0.08f), c + new Vector2(0.08f, -0.08f), W));
+
+        private static float Spiral(Vector2 p, Vector2 c)
+        {
+            var d = p - c;
+            var r = d.magnitude;
+            var a = Mathf.Atan2(d.y, d.x);
+            var best = float.MaxValue;
+            for (var k = 0; k < 3; k++)
+            {
+                var rr = 0.025f * (a + Mathf.PI + k * Mathf.PI * 2f) / Mathf.PI;
+                if (rr < 0.13f)
+                    best = Mathf.Min(best, Mathf.Abs(r - rr));
+            }
+
+            return Mathf.Min(best - W * 0.8f, r > 0.14f ? r - 0.14f : float.MaxValue);
+        }
+
+        private static float SmileD(Vector2 p, float w = 0.11f) => Arc(p, new Vector2(0.5f, 0.36f), w, -Mathf.PI * 0.85f, -Mathf.PI * 0.15f, W * 0.85f);
+
+        private static float GlyphD(int g, Vector2 p)
+        {
+            switch ((Glyph)g)
+            {
+                case Glyph.Idle: return Min(Chevron(p, L, true), Chevron(p, Rr, true));
+                case Glyph.Running: return Min(DiscD(p, L, 0.075f), DiscD(p, Rr, 0.075f));
+                case Glyph.Jumping: return Min(RingD(p, L, 0.085f, W * 0.8f), RingD(p, Rr, 0.085f, W * 0.8f));
+                case Glyph.Diving: return Min(Seg(p, L + new Vector2(-0.08f, 0.08f), L + new Vector2(0.07f, 0f), W), Seg(p, L + new Vector2(0.07f, 0f), L + new Vector2(-0.08f, -0.08f), W),
+                    Seg(p, Rr + new Vector2(0.08f, 0.08f), Rr + new Vector2(-0.07f, 0f), W), Seg(p, Rr + new Vector2(-0.07f, 0f), Rr + new Vector2(0.08f, -0.08f), W));
+                case Glyph.Stunned: return Min(Spiral(p, L), Spiral(p, Rr));
+                case Glyph.Falling: return Min(RingD(p, L + new Vector2(0f, 0.04f), 0.08f, W * 0.8f), RingD(p, Rr + new Vector2(0f, 0.04f), 0.08f, W * 0.8f),
+                    RingD(p, new Vector2(0.5f, 0.3f), 0.055f, W * 0.8f));
+                case Glyph.Blink: return Min(Seg(p, L + new Vector2(-0.09f, 0f), L + new Vector2(0.09f, 0f), W), Seg(p, Rr + new Vector2(-0.09f, 0f), Rr + new Vector2(0.09f, 0f), W));
+                case Glyph.Happy: return Min(Chevron(p, L + new Vector2(0f, 0.04f), true), Chevron(p, Rr + new Vector2(0f, 0.04f), true), SmileD(p));
+                case Glyph.Sad: return Min(Cross(p, L + new Vector2(0f, 0.04f)), Cross(p, Rr + new Vector2(0f, 0.04f)),
+                    Seg(p, L + new Vector2(0f, -0.08f), L + new Vector2(0f, -0.2f), W * 0.7f), Seg(p, Rr + new Vector2(0f, -0.08f), Rr + new Vector2(0f, -0.2f), W * 0.7f));
+                case Glyph.Qualified: return Min(StarD(p, L, 0.13f), StarD(p, Rr, 0.13f));
+                case Glyph.Champion:
+                {
+                    var crown = new[]
+                    {
+                        new Vector2(0.2f, 0.36f), new Vector2(0.8f, 0.36f), new Vector2(0.84f, 0.7f), new Vector2(0.67f, 0.52f), new Vector2(0.5f, 0.76f),
+                        new Vector2(0.33f, 0.52f), new Vector2(0.16f, 0.7f),
+                    };
+                    return Mathf.Max(PolyD(p, crown), -DiscD(p, new Vector2(0.5f, 0.45f), 0.045f));
+                }
+                case Glyph.Wink: return Min(Chevron(p, L + new Vector2(0f, 0.04f), true), Seg(p, Rr + new Vector2(-0.09f, 0.04f), Rr + new Vector2(0.09f, 0.04f), W), SmileD(p));
+                case Glyph.Angry: return Min(Seg(p, L + new Vector2(-0.1f, 0.1f), L + new Vector2(0.09f, 0.02f), W), Seg(p, Rr + new Vector2(-0.09f, 0.02f), Rr + new Vector2(0.1f, 0.1f), W),
+                    DiscD(p, L + new Vector2(0.02f, -0.07f), 0.04f), DiscD(p, Rr + new Vector2(-0.02f, -0.07f), 0.04f),
+                    Arc(p, new Vector2(0.5f, 0.2f), 0.09f, Mathf.PI * 0.2f, Mathf.PI * 0.8f, W * 0.8f));
+                case Glyph.Love: return Min(HeartD(p, L, 0.12f), HeartD(p, Rr, 0.12f));
+                case Glyph.Sleepy: return Min(Arc(p, L + new Vector2(0f, 0.06f), 0.09f, -Mathf.PI * 0.9f, -Mathf.PI * 0.1f, W * 0.8f), Arc(p, Rr + new Vector2(0f, 0.06f), 0.09f, -Mathf.PI * 0.9f, -Mathf.PI * 0.1f, W * 0.8f),
+                    Seg(p, new Vector2(0.72f, 0.86f), new Vector2(0.84f, 0.86f), W * 0.6f), Seg(p, new Vector2(0.84f, 0.86f), new Vector2(0.72f, 0.74f), W * 0.6f), Seg(p, new Vector2(0.72f, 0.74f), new Vector2(0.84f, 0.74f), W * 0.6f));
+                case Glyph.Smug: return Min(Seg(p, L + new Vector2(-0.09f, 0f), L + new Vector2(0.09f, 0f), W), Seg(p, Rr + new Vector2(-0.09f, 0f), Rr + new Vector2(0.09f, 0f), W),
+                    DiscD(p, L + new Vector2(0.03f, -0.05f), 0.04f), DiscD(p, Rr + new Vector2(0.03f, -0.05f), 0.04f),
+                    Arc(p, new Vector2(0.58f, 0.36f), 0.09f, -Mathf.PI * 0.75f, -Mathf.PI * 0.1f, W * 0.8f));
+                default: return 1f;
+            }
+        }
+
         private static Texture2D BuildAtlas()
         {
             const int size = AtlasCell * 4;
             var px = new Color32[size * size];
-            var white = new Color32(255, 255, 255, 255);
-            var screen = new Color32(27, 16, 53, 255);   // dark ink screen
-            var glyph = new Color32(91, 227, 181, 255);  // mint LED (doc 17 face theme "green")
-            for (var i = 0; i < px.Length; i++)
-                px[i] = white;
-
+            const float pxu = 1f / AtlasCell;
             for (var g = 0; g < 16; g++)
             {
                 var ox = (g % 4) * AtlasCell;
                 var oy = (3 - g / 4) * AtlasCell;
-                // Whole cell is screen (the face mesh itself is the rounded shape).
                 for (var y = 0; y < AtlasCell; y++)
                     for (var x = 0; x < AtlasCell; x++)
-                        px[(oy + y) * size + ox + x] = screen;
-
-                if (g > (int)Glyph.Sad)
-                    continue;
-                void Dot(float cx, float cy, float r) => Disc(px, size, ox, oy, cx, cy, r, glyph);
-                void Line(float x0, float y0, float x1, float y1, float w) => Seg(px, size, ox, oy, x0, y0, x1, y1, w, glyph);
-                void Ring(float cx, float cy, float r, float w) => RingPx(px, size, ox, oy, cx, cy, r, w, glyph);
-                const float lx = 10.5f, rx = 21.5f, ey = 18f;
-                switch ((Glyph)g)
-                {
-                    case Glyph.Idle:
-                        Line(lx - 3.5f, ey - 2f, lx, ey + 2f, 1.6f); Line(lx, ey + 2f, lx + 3.5f, ey - 2f, 1.6f);
-                        Line(rx - 3.5f, ey - 2f, rx, ey + 2f, 1.6f); Line(rx, ey + 2f, rx + 3.5f, ey - 2f, 1.6f);
-                        break;
-                    case Glyph.Running:
-                        Dot(lx, ey, 2.6f); Dot(rx, ey, 2.6f);
-                        break;
-                    case Glyph.Jumping:
-                        Ring(lx, ey, 3.6f, 1.5f); Ring(rx, ey, 3.6f, 1.5f);
-                        break;
-                    case Glyph.Diving:
-                        Line(lx - 3f, ey + 3f, lx + 2.5f, ey, 1.6f); Line(lx + 2.5f, ey, lx - 3f, ey - 3f, 1.6f);
-                        Line(rx + 3f, ey + 3f, rx - 2.5f, ey, 1.6f); Line(rx - 2.5f, ey, rx + 3f, ey - 3f, 1.6f);
-                        break;
-                    case Glyph.Stunned:
-                        Spiral(px, size, ox, oy, lx, ey, glyph);
-                        Spiral(px, size, ox, oy, rx, ey, glyph);
-                        break;
-                    case Glyph.Falling:
-                        Ring(lx, ey + 1f, 4f, 1.5f); Ring(rx, ey + 1f, 4f, 1.5f);
-                        for (var k = 0; k < 6; k++)
-                            Line(12f + k * 1.6f, 9f + (k % 2 == 0 ? 0f : 1.5f), 13.6f + k * 1.6f, 9f + (k % 2 == 0 ? 1.5f : 0f), 1.1f);
-                        break;
-                    case Glyph.Blink:
-                        Line(lx - 3.5f, ey, lx + 3.5f, ey, 1.6f); Line(rx - 3.5f, ey, rx + 3.5f, ey, 1.6f);
-                        break;
-                    case Glyph.Happy:
-                        Line(lx - 3.5f, ey - 2f, lx, ey + 2f, 1.6f); Line(lx, ey + 2f, lx + 3.5f, ey - 2f, 1.6f);
-                        Line(rx - 3.5f, ey - 2f, rx, ey + 2f, 1.6f); Line(rx, ey + 2f, rx + 3.5f, ey - 2f, 1.6f);
-                        Line(12f, 10.5f, 16f, 8f, 1.4f); Line(16f, 8f, 20f, 10.5f, 1.4f); // smile
-                        break;
-                    case Glyph.Sad:
-                        Line(lx - 3.5f, ey + 1.5f, lx + 3.5f, ey + 1.5f, 1.6f); Line(lx, ey + 1f, lx, ey - 4f, 1.2f);
-                        Line(rx - 3.5f, ey + 1.5f, rx + 3.5f, ey + 1.5f, 1.6f); Line(rx, ey + 1f, rx, ey - 4f, 1.2f);
-                        Line(12f, 8f, 16f, 10.5f, 1.4f); Line(16f, 10.5f, 20f, 8f, 1.4f); // frown
-                        break;
-                }
+                    {
+                        var p = new Vector2((x + 0.5f) * pxu, (y + 0.5f) * pxu);
+                        var d = GlyphD(g, p);
+                        var ink = Mathf.Clamp01(0.5f - d / pxu);              // anti-aliased stroke
+                        var glow = Mathf.Clamp01(1f - Mathf.Max(0f, d) / 0.06f) * 0.35f; // soft LED glow
+                        var a = Mathf.Max(ink, glow);
+                        var edge = x < 1 || y < 1 || x >= AtlasCell - 1 || y >= AtlasCell - 1;
+                        var v = (byte)Mathf.RoundToInt(255f * Mathf.Lerp(0.75f, 1f, ink));
+                        px[(oy + y) * size + ox + x] = edge ? new Color32(0, 0, 0, 0) : new Color32(v, v, v, (byte)Mathf.RoundToInt(a * 255f));
+                    }
             }
 
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { name = "FaceAtlas", filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
             tex.SetPixels32(px);
             tex.Apply(false, true);
             return tex;
-        }
-
-        private static void Plot(Color32[] px, int size, int ox, int oy, int x, int y, Color32 c)
-        {
-            if (x < 2 || y < 2 || x >= AtlasCell - 2 || y >= AtlasCell - 2)
-                return;
-            px[(oy + y) * size + ox + x] = c;
-        }
-
-        private static void Disc(Color32[] px, int size, int ox, int oy, float cx, float cy, float r, Color32 c)
-        {
-            for (var y = 0; y < AtlasCell; y++)
-                for (var x = 0; x < AtlasCell; x++)
-                    if ((x + 0.5f - cx) * (x + 0.5f - cx) + (y + 0.5f - cy) * (y + 0.5f - cy) <= r * r)
-                        Plot(px, size, ox, oy, x, y, c);
-        }
-
-        private static void RingPx(Color32[] px, int size, int ox, int oy, float cx, float cy, float r, float w, Color32 c)
-        {
-            for (var y = 0; y < AtlasCell; y++)
-            {
-                for (var x = 0; x < AtlasCell; x++)
-                {
-                    var d = Mathf.Sqrt((x + 0.5f - cx) * (x + 0.5f - cx) + (y + 0.5f - cy) * (y + 0.5f - cy));
-                    if (Mathf.Abs(d - r) <= w * 0.5f + 0.25f)
-                        Plot(px, size, ox, oy, x, y, c);
-                }
-            }
-        }
-
-        private static void Seg(Color32[] px, int size, int ox, int oy, float x0, float y0, float x1, float y1, float w, Color32 c)
-        {
-            var dx = x1 - x0;
-            var dy = y1 - y0;
-            var l2 = dx * dx + dy * dy;
-            for (var y = 0; y < AtlasCell; y++)
-            {
-                for (var x = 0; x < AtlasCell; x++)
-                {
-                    var px0 = x + 0.5f - x0;
-                    var py0 = y + 0.5f - y0;
-                    var t = l2 > 0 ? Mathf.Clamp01((px0 * dx + py0 * dy) / l2) : 0f;
-                    var ex = px0 - dx * t;
-                    var ey = py0 - dy * t;
-                    if (ex * ex + ey * ey <= w * w)
-                        Plot(px, size, ox, oy, x, y, c);
-                }
-            }
-        }
-
-        private static void Spiral(Color32[] px, int size, int ox, int oy, float cx, float cy, Color32 c)
-        {
-            for (var k = 0; k < 120; k++)
-            {
-                var a = k / 120f * Mathf.PI * 4f;
-                var r = 0.4f + k / 120f * 4f;
-                var x = cx + Mathf.Cos(a) * r;
-                var y = cy + Mathf.Sin(a) * r;
-                Disc(px, size, ox, oy, x, y, 0.7f, c);
-            }
         }
     }
 }

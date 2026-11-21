@@ -26,6 +26,7 @@ namespace FallRush.Client
             Slider(panel, "Camera distance", GameSettings.MinCamDistance, GameSettings.MaxCamDistance, () => GameSettings.CameraDistance, v => GameSettings.CameraDistance = v, v => "×" + v.ToString("F2"));
             Toggle(panel, "Reduced motion (no shake / FOV kick / tumbles)", () => GameSettings.ReducedMotion, v => GameSettings.ReducedMotion = v);
             Toggle(panel, "Show nameplates", () => GameSettings.ShowNameplates, v => GameSettings.ShowNameplates = v);
+            Toggle(panel, "Graphics: High (off = Low)", () => GameSettings.GraphicsHigh, v => { GameSettings.GraphicsHigh = v; GraphicsQuality.Apply(Camera.main); });
             Slider(panel, "Master volume", 0f, 1f, () => GameSettings.MasterVolume, v => GameSettings.MasterVolume = v, Pct);
             Slider(panel, "Music volume", 0f, 1f, () => GameSettings.MusicVolume, v => GameSettings.MusicVolume = v, Pct);
             Slider(panel, "SFX volume", 0f, 1f, () => GameSettings.SfxVolume, v => GameSettings.SfxVolume = v, Pct);

@@ -113,6 +113,23 @@ namespace FallRush.Net
         /// <summary>G1: the name typed on the menu (Client sets it; the URL / command line still win).</summary>
         public static string PreferredName;
 
+        /// <summary>G2.2 "My Rushling" preset id sent in hello (set by the menu from the saved choice); −1 = the config's.</summary>
+        public static int PreferredPreset = -1;
+
+        private static byte HelloPreset(NetClientConfig cfg)
+        {
+            var q = NetTargets.GetQueryParam(Application.absoluteURL, "preset");
+            if (q != null && int.TryParse(q, out var u))
+                return CosmeticPresets.Clamp(u);
+            var a = System.Environment.GetCommandLineArgs();
+            for (var i = 0; i < a.Length - 1; i++)
+                if (a[i] == "-fallrushPreset" && int.TryParse(a[i + 1], out var c))
+                    return CosmeticPresets.Clamp(c);
+            if (PreferredPreset >= 0)
+                return CosmeticPresets.Clamp(PreferredPreset);
+            return cfg != null ? CosmeticPresets.Clamp(cfg.cosmeticPreset) : (byte)0;
+        }
+
         /// <summary>Client: the display name sent in hello (desktop: <c>-fallrushName</c>; WebGL: <c>?name=</c>; else the menu's name entry).</summary>
         public static string ClientName()
         {
@@ -558,7 +575,7 @@ namespace FallRush.Net
             {
                 ProtocolVersion = ClientProtocolVersion,
                 BuildVersion = Application.version,
-                CosmeticPreset = clientConfig != null ? clientConfig.cosmeticPreset : (byte)0,
+                CosmeticPreset = HelloPreset(clientConfig),
                 Name = ClientName() ?? string.Empty,
                 Token = SessionToken.Load(), // M4-6: a reconnect within 20 s takes the same slot
             };

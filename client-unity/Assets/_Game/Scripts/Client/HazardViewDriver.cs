@@ -21,16 +21,18 @@ namespace FallRush.Client
     {
         private readonly MapInfo _map;
         private readonly MaterialPropertyBlock _mpb = new MaterialPropertyBlock();
-        private static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
+        // G2: hazard visual groups are merged into one vertex-coloured mesh each (MapArt); the telegraphs drive the
+        // toon shader's flash mask (_FlashColor, vertex alpha marks the part) and the belts' travelling chevron light
+        // (_Scroll / _ChevronCount, uv2.x numbers the chevrons).
+        private static readonly int FlashId = Shader.PropertyToID("_FlashColor");
+        private static readonly int ScrollId = Shader.PropertyToID("_Scroll");
+        private static readonly int ChevronCountId = Shader.PropertyToID("_ChevronCount");
         private readonly Renderer[][] _doorRenderers;
         private readonly Renderer[] _malletHeads;
-        private readonly Renderer[][] _chevrons;
-        private static readonly Color DoorColor = new Color(0.97f, 0.88f, 0.55f);
+        private readonly Renderer[] _chevrons;
+        private readonly int[] _chevronCount;
         private static readonly Color Flash = UiKit.Magenta;
-        private static readonly Color HeadColor = UiKit.Magenta;
         private static readonly Color Glow = new Color(1f, 0.95f, 0.6f);
-        private static readonly Color Chevron = new Color(0.96f, 0.97f, 1f);
-        private static readonly Color ChevronLit = UiKit.Mint;
 
         public HazardViewDriver(MapInfo map)
         {
@@ -41,18 +43,26 @@ namespace FallRush.Client
             _malletHeads = new Renderer[map.mallets.Length];
             for (var i = 0; i < map.mallets.Length; i++)
             {
-                var head = map.mallets[i] != null && map.mallets[i].visual != null ? map.mallets[i].visual.Find("Head/HeadBody") : null;
-                _malletHeads[i] = head != null ? head.GetComponent<Renderer>() : null;
+                _malletHeads[i] = map.mallets[i] != null && map.mallets[i].visual != null ? map.mallets[i].visual.GetComponent<Renderer>() : null;
             }
 
-            _chevrons = new Renderer[map.conveyors.Length][];
+            _chevrons = new Renderer[map.conveyors.Length];
+            _chevronCount = new int[map.conveyors.Length];
             for (var i = 0; i < map.conveyors.Length; i++)
             {
-                var list = new List<Renderer>();
-                if (map.conveyors[i] != null && map.conveyors[i].visual != null)
-                    foreach (Transform c in map.conveyors[i].visual)
-                        list.Add(c.GetComponent<Renderer>());
-                _chevrons[i] = list.ToArray();
+                var r = map.conveyors[i] != null && map.conveyors[i].visual != null ? map.conveyors[i].visual.GetComponent<Renderer>() : null;
+                _chevrons[i] = r;
+                var mf = r != null ? r.GetComponent<MeshFilter>() : null;
+                if (mf != null && mf.sharedMesh != null)
+                {
+                    // Count the chevron pairs once (uv2.x = 1..n); runs at map load, not per frame.
+                    var uvs = new List<Vector2>();
+                    mf.sharedMesh.GetUVs(1, uvs);
+                    var max = 0f;
+                    foreach (var u in uvs)
+                        max = Mathf.Max(max, u.x);
+                    _chevronCount[i] = Mathf.RoundToInt(max);
+                }
             }
         }
 
@@ -103,7 +113,7 @@ namespace FallRush.Client
                 var closingNow = l1 < l0;
                 var warn = closingNow || (until > 0 && until <= d.TelegraphTicks);
                 var on = warn && (reducedMotion || ((int)(t * 0.5) & 1) == 0);
-                SetColor(_doorRenderers[i], on ? Flash : DoorColor);
+                SetFlash(_doorRenderers[i], new Color(Flash.r, Flash.g, Flash.b, on ? 1f : 0f));
             }
 
             for (var i = 0; i < _map.mallets.Length && i < hz.Mallets.Length; i++)
@@ -119,7 +129,8 @@ namespace FallRush.Client
                 if (_malletHeads[i] != null)
                 {
                     var w = HazardMath.MalletWindup(in d, t);
-                    _mpb.SetColor(BaseColor, Color.Lerp(HeadColor, Glow, w));
+                    _mpb.Clear();
+                    _mpb.SetColor(FlashId, new Color(Glow.r, Glow.g, Glow.b, w));
                     _malletHeads[i].SetPropertyBlock(_mpb);
                 }
             }
@@ -127,26 +138,24 @@ namespace FallRush.Client
             for (var i = 0; i < _map.conveyors.Length && i < hz.Conveyors.Length; i++)
             {
                 var ch = _chevrons[i];
-                if (ch.Length < 2)
+                var pairs = _chevronCount[i];
+                if (ch == null || pairs < 1)
                     continue;
                 ref readonly var d = ref hz.Conveyors[i];
                 var speed = Math.Sqrt((double)d.BeltXMms * d.BeltXMms + (double)d.BeltYMms * d.BeltYMms + (double)d.BeltZMms * d.BeltZMms) * 0.001;
-                // Chevrons come in L/R pairs, laid out from the belt's start to its end; the lit pair travels with the belt.
-                var pairs = ch.Length / 2;
-                var wave = t / 30.0 * speed / 1.5; // ~1.5 m spacing
-                for (var p = 0; p < pairs; p++)
-                {
-                    var lit = (((wave - p) % pairs) + pairs) % pairs < 1.0;
-                    _mpb.SetColor(BaseColor, lit ? ChevronLit : Chevron);
-                    ch[p * 2].SetPropertyBlock(_mpb);
-                    ch[p * 2 + 1].SetPropertyBlock(_mpb);
-                }
+                // Chevron pairs are laid out from the belt's start to its end; the lit pair travels with the belt (~1.5 m spacing).
+                var wave = t / 30.0 * speed / 1.5;
+                _mpb.Clear();
+                _mpb.SetFloat(ScrollId, (float)(wave % pairs));
+                _mpb.SetFloat(ChevronCountId, pairs);
+                ch.SetPropertyBlock(_mpb);
             }
         }
 
-        private void SetColor(Renderer[] rs, Color c)
+        private void SetFlash(Renderer[] rs, Color c)
         {
-            _mpb.SetColor(BaseColor, c);
+            _mpb.Clear();
+            _mpb.SetColor(FlashId, c);
             foreach (var r in rs)
                 if (r != null)
                     r.SetPropertyBlock(_mpb);

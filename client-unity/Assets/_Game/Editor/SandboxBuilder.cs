@@ -145,6 +145,7 @@ public static class SandboxBuilder
         info.mallets = new[] { kit.mallet };
         info.bumpers = kit.bumpers;
 
+        MapArt.Apply(scene, info, "Sandbox"); // G2 look (the sandbox is a dev map; same pass keeps it consistent)
         if (!EditorSceneManager.SaveScene(scene, ScenePath))
             throw new IOException($"Failed to save {ScenePath}");
 

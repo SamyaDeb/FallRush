@@ -34,8 +34,9 @@ namespace FallRush.Client
             var unlit = map != null ? map.unlitMaterial : null;
             Material Mat(Color c)
             {
-                var m = lit != null ? new Material(lit) : new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                var m = lit != null ? new Material(lit) : new Material(Shader.Find("FallRush/Toon"));
                 m.SetColor("_BaseColor", c);
+                m.SetShaderPassEnabled("SRPDefaultUnlit", false);
                 return m;
             }
 
@@ -48,7 +49,8 @@ namespace FallRush.Client
             root.SetParent(transform, false);
             _rushling = root.gameObject.AddComponent<RushlingVisuals>();
             _rushling.SetPose(RushlingVisuals.Pose.Champion); // G1: crown pose (arms up, happy face)
-            _rushling.Build(slot, lit, unlit);
+            var preset = ClientSim.Instance != null && ClientSim.Instance.TryGetSlotInfo(slot, out var info) ? info.Preset : CosmeticPresets.ForBot(slot);
+            _rushling.Build(slot, preset, lit, unlit);
             _rushling.SetVisible(true);
             _crown = new GameObject("Crown").transform;
             _crown.SetParent(transform, false);

@@ -16,6 +16,7 @@ namespace FallRush.Shared
         public byte EliminatedRound;
         public byte[] Places; // 4
         public byte LateMask;
+        public byte Preset;   // G2.2 cosmetic preset id (CosmeticPresets), format v2
         public string Name;
 
         public bool Has(byte f) => (Flags & f) != 0;
@@ -27,7 +28,7 @@ namespace FallRush.Shared
     /// </summary>
     public sealed class MatchStateMessage
     {
-        public const byte FormatVersion = 1;
+        public const byte FormatVersion = 2; // v2 (G2.2): + per-slot cosmetic preset byte
         public const int HeaderSize = 1 + 1 + 4 + 4 + 4 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 16 + 32 + 32 + 4 + 16 + 16 + 1 + 1;
         public const byte FlagPractice = 1, FlagSoak = 2, FlagLoading = 4;
 
@@ -43,7 +44,7 @@ namespace FallRush.Shared
         public byte MatchSerial;
         public MatchSlotInfo[] Slots = Array.Empty<MatchSlotInfo>();
 
-        public static int MaxSize => HeaderSize + Protocol.MaxPlayers * (10 + MatchSlotInfo.MaxName);
+        public static int MaxSize => HeaderSize + Protocol.MaxPlayers * (11 + MatchSlotInfo.MaxName);
 
         public int Encode(Span<byte> d)
         {
@@ -80,6 +81,7 @@ namespace FallRush.Shared
                 d[o++] = s.EliminatedRound;
                 Copy(s.Places, 4, d, ref o);
                 d[o++] = s.LateMask;
+                d[o++] = s.Preset;
                 var name = Utf8Clamp(s.Name, MatchSlotInfo.MaxName);
                 d[o++] = (byte)name.Length;
                 name.CopyTo(d.Slice(o));
@@ -147,7 +149,7 @@ namespace FallRush.Shared
             r.Slots = new MatchSlotInfo[n];
             for (var i = 0; i < n; i++)
             {
-                if (s.Length - o < 10)
+                if (s.Length - o < 11)
                     return false;
                 var e = new MatchSlotInfo { Slot = s[o++], Flags = s[o++] };
                 var tr = s[o++];
@@ -156,6 +158,7 @@ namespace FallRush.Shared
                 e.EliminatedRound = s[o++];
                 e.Places = s.Slice(o, 4).ToArray(); o += 4;
                 e.LateMask = s[o++];
+                e.Preset = s[o++];
                 int len = s[o++];
                 if (len > MatchSlotInfo.MaxName || s.Length - o < len || e.Slot >= Protocol.MaxPlayers || e.Reason > ElimReason.Disconnect || e.Tier > BotTier.Good)
                     return false;

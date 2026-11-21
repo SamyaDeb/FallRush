@@ -84,6 +84,7 @@ namespace FallRush.Shared
         public byte EliminatedRound;  // 0 = not eliminated
         public ElimReason Reason;
         public BotTier Tier;
+        public byte Preset;           // G2.2 cosmetic preset (hello for humans, CosmeticPresets.ForBot for bots)
         public string Name;
         public byte[] Places;         // per round: place 1.. in that round's ranking, 0 = not played
         public bool[] Late;           // per round: missed the load timeout and spectated it

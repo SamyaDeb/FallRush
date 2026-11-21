@@ -325,6 +325,7 @@ public static class BlockPartyDashBuilder
         // Fall volume / bounds marker (visual only, far below).
         KitBuilder.Visual(_geo, "FallVolumeMarker", new Vector3(0f, KillY, 120f), new Vector3(60f, 0.02f, 290f), KitBuilder.Mint).GetComponent<MeshRenderer>().enabled = false;
 
+        MapArt.Apply(scene, info, "BlockPartyDash"); // G2: toon look, toy blocks, merged hazards, sky, dressing
         if (!EditorSceneManager.SaveScene(scene, ScenePath))
             throw new IOException($"Failed to save {ScenePath}");
         var list = new List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);

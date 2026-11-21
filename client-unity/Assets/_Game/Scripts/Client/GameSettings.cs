@@ -26,10 +26,13 @@ namespace FallRush.Client
         private const string KeySfx = "fr.volSfx";
         private const string KeyPlates = "fr.nameplates";
         private const string KeyName = "fr.name";
+        private const string KeyGfx = "fr.graphicsHigh";
+        private const string KeyPreset = "fr.preset";
 
         private static bool s_Loaded;
         private static float s_Sens, s_Fov, s_CamDist, s_Master, s_Music, s_Sfx;
-        private static bool s_Invert, s_Reduced, s_Plates;
+        private static bool s_Invert, s_Reduced, s_Plates, s_GfxHigh;
+        private static int s_Preset;
         private static string s_Name;
 
         private static void Load()
@@ -47,6 +50,8 @@ namespace FallRush.Client
             s_Sfx = Mathf.Clamp01(PlayerPrefs.GetFloat(KeySfx, 0.8f));
             s_Plates = PlayerPrefs.GetInt(KeyPlates, 1) != 0;
             s_Name = CleanName(PlayerPrefs.GetString(KeyName, string.Empty));
+            s_GfxHigh = PlayerPrefs.GetInt(KeyGfx, 1) != 0;
+            s_Preset = Mathf.Clamp(PlayerPrefs.GetInt(KeyPreset, 0), 0, 255);
             AudioListener.volume = s_Master;
         }
 
@@ -101,6 +106,20 @@ namespace FallRush.Client
         {
             get { Load(); return s_Sfx; }
             set { Load(); s_Sfx = Mathf.Clamp01(value); PlayerPrefs.SetFloat(KeySfx, s_Sfx); }
+        }
+
+        /// <summary>G2.1 Graphics: High (post-processing, full render scale) or Low (no post, 0.8 render scale).</summary>
+        public static bool GraphicsHigh
+        {
+            get { Load(); return s_GfxHigh; }
+            set { Load(); s_GfxHigh = value; PlayerPrefs.SetInt(KeyGfx, value ? 1 : 0); }
+        }
+
+        /// <summary>G2.2 "My Rushling" cosmetic preset id (sent in hello; no stats).</summary>
+        public static int CosmeticPreset
+        {
+            get { Load(); return s_Preset; }
+            set { Load(); s_Preset = Mathf.Clamp(value, 0, 255); PlayerPrefs.SetInt(KeyPreset, s_Preset); }
         }
 
         public static bool ShowNameplates
