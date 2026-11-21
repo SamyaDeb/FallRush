@@ -435,8 +435,9 @@ public static class MapDressing
         foreach (var (n, t) in new[] { (Vector3.forward, Vector3.right), (Vector3.back, Vector3.right), (Vector3.right, Vector3.forward), (Vector3.left, Vector3.forward) })
             glass.Add(MapArt.BevelBoxRaw(new Vector3(2f * f, 9.6f, 0.05f), Color.white, Color.white, Color.white, 0f, 0f), Matrix4x4.TRS(n * f + Vector3.up * 14.9f, Quaternion.LookRotation(n), new Vector3(2f * f, 9.6f, 0.05f)));
         // Cabinet under the kill plane (y −6): magenta body, a prize door, a coin slot and buttons.
-        Block(mb, new Vector3(0f, -11.2f, 0f), new Vector3(2f * f + 1f, 9f, 2f * f + 1f), Color.Lerp(P.magenta, Color.white, 0.25f), P.magenta);
-        Block(mb, new Vector3(0f, -6.8f, 0f), new Vector3(2f * f + 1.6f, 0.6f, 2f * f + 1.6f), P.sunYellow, P.sunYellow);
+        // Its top is dark ink (a void below the kill plane, never read as a floor to land on; the lower shelf's edge stands out over it).
+        Block(mb, new Vector3(0f, -11.2f, 0f), new Vector3(2f * f + 1f, 9f, 2f * f + 1f), P.ink, P.magenta);
+        Block(mb, new Vector3(0f, -6.8f, 0f), new Vector3(2f * f + 1.6f, 0.6f, 2f * f + 1.6f), P.ink, P.sunYellow);
         Block(mb, new Vector3(5f, -11.2f, -f - 0.55f), new Vector3(4f, 3.2f, 0.2f), P.ink, P.ink);
         for (var i = 0; i < 3; i++)
             mb.Cylinder(new Vector3(-5f + i * 1.6f, -9.2f, -f - 0.5f), new Vector3(-5f + i * 1.6f, -9.2f, -f - 0.9f), 0.5f, Party[i], 12);
