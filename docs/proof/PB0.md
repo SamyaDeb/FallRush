@@ -71,3 +71,99 @@ Paths below are relative to `~/.cargo/registry/src/index.crates.io-*/`.
 1. `request_deal`: `create_request_scoped_randomness_ix(p)` → `create_request_randomness_ix_const(p, program_identity_pubkey(&crate::ID))`. Same params, same `data[0] = 10`, same accounts.
 2. `Cargo.toml` pin + `Cargo.lock`. Nothing else in Rust (commits already on the intent builder).
 3. `programs/package.json`: TS SDK `0.16.2` → `0.18.0`. No source edits needed in `tests/lifecycle.ts` / `scripts/devnet-lifecycle.ts`.
+
+---
+
+## 2. The build
+
+| Item | Value |
+|---|---|
+| Command | `heavy-lock.sh pb0-build -- bash -c 'cd programs && anchor build -- --features localnet'` |
+| Toolchain | anchor-cli 1.0.2, solana-cli 3.1.10 (platform-tools as M0) |
+| Time | **430 s** cold (fresh worktree `target/`, incl. the IDL test build); incremental rebuild inside `m0:test:local` well under a minute (whole run 56 s) |
+| Warnings | **0** (`.pb0-logs/build-localnet.log`, `.m0-logs/build.log`) |
+| `.so` size | **481,128 B** final (M0/0.16.2: ~482 KB). The first 0.18 build was 511,424 B — it carried the runtime PDA derivation of the bug below |
+| `Cargo.lock` | only the SDK crates moved (`ephemeral-rollups-sdk*` 0.16.2 → 0.18.0, `ephemeral-vrf-sdk*` 0.4.1 → 0.18.0); the Anchor 1.0.2 macro-crate pins from M0 (doc 07 §9 #1) are kept |
+| Program keypair | the worktree had no `target/deploy/fall_rush-keypair.json` (gitignored); copied from the main checkout so the ID stays `4yehff…` (never committed) |
+
+### Code changes (`programs/fall_rush/src/lib.rs`)
+
+1. `request_deal`: `create_request_scoped_randomness_ix(p)` → `create_request_randomness_ix_const(p, PROGRAM_IDENTITY)` with `pub const PROGRAM_IDENTITY = program_identity_pubkey(&crate::ID)`. Caller seed, `accounts_metas`, callback discriminator and `data[0] = 10` unchanged.
+2. **SDK 0.18.0 bug workaround** in `DealCallback`: the `#[vrf_callback]`-injected constraint `address = Pubkey::new_from_array(scoped_vrf_identity_const(&crate::ID).0)` is a `const fn` called in a **runtime** expression, so the ed25519 off-curve check runs on-chain. Measured with `scripts/pb0-probe.sh` on the local ER: `deal_callback` → **200,000 / 200,000 CU, `ProgramFailedToComplete`** ("exceeded CUs meter"), so neither the attacker test nor the oracle's real callback could reach any check (first run: 4/10 lifecycle). Fix: declare `vrf_program_identity: Signer` ourselves (the macro then skips injection) with `address = VRF_CALLBACK_IDENTITY`, a crate-level `const`. Same name, same position (first field), same PDA → IDL account list unchanged.
+3. New unit test `identity_tests::const_vrf_identities_match_find_program_address` (2/2 lib tests green).
+4. Commits: no change (already `MagicIntentBundleBuilder` since M0). No account layout, seed, event, deal, transcript or instruction change.
+
+TS: `@magicblock-labs/ephemeral-rollups-sdk` 0.16.2 → **0.18.0**; `@solana/web3.js` 1.98.4 → **1.99.0** (SDK 0.18 depends on `^1.99.0`; without the bump pnpm installs a second web3.js copy for the SDK). No source edits in `tests/lifecycle.ts` / `scripts/devnet-lifecycle.ts` (no renamed exports).
+
+## 3. Local lifecycle (`pnpm m0:test:local`, 2026-11-21 ~08:30 UTC)
+
+Local stack unchanged: **`@magicblock-labs/ephemeral-validator@0.14.10`** (`mb-stack`) + 2 `vrf-oracle`. No 1.1.x / 2.x local validator was needed.
+
+| Run | Result |
+|---|---|
+| #1 (before the callback fix) | parity Rust 5/5, TS 6/6; lifecycle **4/10** — `deal_callback` direct call: no error code (`ProgramFailedToComplete`); VRF callback never observed in 30 s; rounds/finalize cascade-failed on status `Dealing` |
+| #2 (final, 56 s total) | parity **Rust 5/5, TS 6/6**; lifecycle **10/10** |
+
+Run #2 timings (local, from the test's own log):
+
+| Step | ms |
+|---|---|
+| delegate (Solana) | 424 |
+| request_deal ER confirm | 65 |
+| VRF callback observed | 115 |
+| complete_round ER confirm | 11 |
+| commit landed on Solana | 8,552 |
+| `GetCommitmentSignature` | 29,937 (the known local websocket stall, doc 07 §9 #8 — still there with TS SDK 0.18) |
+| undelegate landed on Solana | 500 |
+| ER send→confirm, 50 txs | p50 8, p95 49, max 65 |
+
+The direct-callback attack fails again with Anchor `ConstraintAddress` (2012) as in M0.
+
+## 4. Devnet-as — **NOT RUN (blocked on funding)**
+
+`solana balance -u devnet` = **0.853195385 SOL** (wallet `71Wd3S…`, 2026-11-21). The program upgrade needs ~3.4 SOL of buffer; the prompt's floor is 4 SOL. Per the rules, no deploy was attempted. To finish D once funded (faucet.solana.com):
+
+```bash
+cd ../FallRush-pb0
+solana balance -u devnet                      # ≥ 4 SOL
+bash /Users/samya/Downloads/FallRush/scripts/heavy-lock.sh pb0-devnet-deploy -- pnpm m0:devnet:deploy   # anchor build (devnet queue) + upgrade 4yehff…
+solana program close --buffers -u devnet      # only if a buffer is left over
+bash /Users/samya/Downloads/FallRush/scripts/heavy-lock.sh pb0-devnet -- pnpm m0:devnet
+```
+
+Devnet program on chain is still the **0.16.2 build** from M0.
+
+## 5. `rush-core` skeleton
+
+**Moved to P1** (prompt edit 2026-11-21: "Skip it in PB0; P1 owns `crates/**`"). Nothing under `crates/` in this branch, so commit 3 (`feat(pb0): rush-core skeleton + fx base`) does not exist.
+
+## 6. UNVERIFIED
+
+- **Devnet-as with SDK 0.18** (deploy, delegate, VRF in the rollup, commits, undelegate): not run, funding (§4).
+- Whether devnet-as (validator 1.1.1) needs the same callback workaround: the CU burn is in our program, not the validator, so it should fail the same way without it — not measured on devnet.
+- Real `deal_callback` CU after the fix (only "fulfilled in 115 ms" is measured).
+- Hydra crank (`crank::hydra`) vs legacy `ScheduleTask` on validator 1.1.1 (P0.2).
+- TS SDK 0.18 `GetCommitmentSignature` on devnet (local: still the 30 s websocket stall).
+- pnpm peer warning `ws → utf-8-validate ^5` (found 6.0.6) — pre-existing, harmless so far.
+
+## Notes on process
+
+- Running `mb-stack --version` (and `--help`) **starts the stack**. I did that once outside the lock at ~07:45 UTC while G4.13's WebGL measurement was running; it exited at once (port clash) and left nothing running, but it may have cost that measurement a second of CPU.
+- `m0-test-local.sh` refuses to start if `pgrep -f` finds `mb-stack`/`vrf-oracle`/… anywhere — including in an unrelated shell's command line that only mentions those words (hit twice by my own probe commands). Run the lock command on its own line.
+
+---
+
+## For main (merge later)
+
+**`PROJECT_STATUS.md`** (add under the on-chain plan / PB0):
+- PB0 (branch `pb0`): ER SDK **0.18.0** (Rust + TS) landed; `@solana/web3.js` 1.99.0. Local lifecycle **10/10** + deal parity 5/5 + 6/6 on ephemeral-validator 0.14.10. **Devnet-as re-run pending funding** (0.853 SOL, needs ≥ 4). Proof `docs/proof/PB0.md`.
+- SDK 0.18.0 `#[vrf_callback]` burns 200k CU (runtime PDA) → we declare the identity field with a const. Any new VRF callback (P2/P4 capsules) must do the same.
+- `rush-core` skeleton moved to P1.
+
+**doc 15 row** (decisions): `OC-4 | ER SDK 0.18.x on Anchor 1.0.2 and devnet-as; not 0.20 | ✅ local (PB0: 0.18.0, lifecycle 10/10 local, parity 5/5 + 6/6, docs/proof/PB0.md); devnet re-run pending funding`. Optionally a risk row: `SDK macro regressions (0.18.0 vrf_callback CU burn) — mitigated by local lifecycle on every SDK bump`.
+
+**For P0 / P1:**
+- Build against `ephemeral-rollups-sdk =0.18.0`; enable the `crank` feature for task scheduling (it is no longer on by default). `ScheduleCrankCpi` is deprecated in favour of `crank::hydra::…::CreateCrankCpi` — test which one devnet-as 1.1.1 runs.
+- Any `const fn` PDA helper from the SDK (`scoped_vrf_identity_const`, `program_identity_pda`, `const_crypto::ed25519::derive_program_address`) must be used in a `const` item, never in a constraint or handler expression: at runtime it costs > 200k CU.
+- The local 0.14.10 stack works with 0.18 programs; no validator change needed. `mb-stack --version/--help` starts the stack — keep it under the heavy lock.
+- `programs/tests/pb0-probe.ts` + `scripts/pb0-probe.sh` simulate ER instructions on a delegated match and print logs + CU; handy for P0.1-style CU reads on the local rollup.

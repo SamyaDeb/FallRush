@@ -1,9 +1,13 @@
 # 07 — MagicBlock Integration (ER + VRF + Session Keys)
 
-**Status:** v2 (2026-11-18).
+**Status:** v3 (2026-11-21).
+
+**Changelog:**
+- v3 (2026-11-21, PB0): ER SDK **0.16.2 → 0.18.0** (Rust + TS), `@solana/web3.js` 1.98.4 → 1.99.0 (dedupes the SDK's copy). VRF request → `create_request_randomness_ix_const` + `program_identity_pubkey(&ID)`. Commits were already on `MagicIntentBundleBuilder`. Evidence: `docs/proof/PB0.md`.
+- v2 (2026-11-18, M0): verified against SDK 0.16.2 + local/devnet runs (§9).
 
 **How this was checked:** every API name, ID and version below was read from these sources on 2026-11-18:
-- the **published `ephemeral-rollups-sdk` 0.16.2 crate source**;
+- the **published `ephemeral-rollups-sdk` 0.16.2 crate source** (v3: re-read against **0.18.0**, see `docs/proof/PB0.md` §1);
 - `magicblock-labs/magicblock-examples` at commit `101e8fd` (2026-11-13);
 - MagicBlock docs.
 
@@ -20,13 +24,13 @@ This is MagicBlock's own example tuple (their CI: `.github/workflows/test-exampl
 | Component | Version | Note |
 |---|---|---|
 | anchor-cli / anchor-lang | **1.0.2** | `avm install 1.0.2 && avm use 1.0.2`. The local machine has 1.2.1; switch per project via `[toolchain] anchor_version = "1.0.2"` |
-| ephemeral-rollups-sdk (Rust) | **0.16.2**, features `["anchor","vrf"]` | Pulls `ephemeral-vrf-sdk 0.4.1`, `magicblock-delegation-program-api 3.1.0`, `magicblock-magic-program-api 0.10.1` |
+| ephemeral-rollups-sdk (Rust) | **0.18.0**, features `["anchor","vrf"]` (was 0.16.2 until PB0) | Pulls `ephemeral-vrf-sdk 0.18.0`, `magicblock-delegation-program-api 3.1.0`, `magicblock-magic-program-api 0.10.1`. Task scheduling (`crank`) is now an opt-in cargo feature. magicblock-examples (HEAD `3376663`) are still on 0.16.2 |
 | session-keys (Rust) | **3.1.1**, features `["no-entrypoint"]` | Same as the official `session-keys` example |
 | Solana CLI | 3.1.9 in CI (local 3.1.10, expected fine; UNVERIFIED) | |
 | Rust | 1.89.0 in CI (local 1.96.1; pin via `rust-toolchain.toml` if builds fail) | |
 | @coral-xyz/anchor (TS) | **0.32.1** | Every example uses this with Anchor 1.0.2 programs |
-| @magicblock-labs/ephemeral-rollups-sdk (TS) | **0.16.2** | gasless-starter. Others use 0.14.3. We pin 0.16.2 to match the crate. |
-| @solana/web3.js | ^1.98.4 → pin the exact version at install | |
+| @magicblock-labs/ephemeral-rollups-sdk (TS) | **0.18.0** (npm dist-tag `legacy`) | Matches the crate. Same exports we use as 0.16.2 |
+| @solana/web3.js | **1.99.0** (exact) | TS SDK 0.18.0 depends on `^1.99.0`; pinning 1.99.0 keeps a single copy | |
 | @magicblock-labs/gum-sdk (session keys TS) | ^3.0.10 → pin the exact version | |
 | Local ER stack | `@magicblock-labs/ephemeral-validator@0.14.10` | CI note: 1.1.1 is broken for commits |
 
@@ -62,8 +66,8 @@ This is MagicBlock's own example tuple (their CI: `.github/workflows/test-exampl
 
 **Validator choice — default `devnet-as` (`MAS1…`):**
 - Most examples target it.
-- It reported core 1.1.1 on 2026-11-18, which matches the 0.16.x line.
-- `devnet-us` reported core 2.0.0, which is for the 0.20 line. **Do not use US with 0.16.2** until proven.
+- It reported core 1.1.1 on 2026-11-18, which matches the 0.16.x / 0.18.x line.
+- `devnet-us` reported core 2.0.0, which is for the 0.20 line. **Do not use US with 0.16.2 / 0.18.0** until proven.
 - The M0 spike confirms the choice.
 
 ## 3. Account lifecycle for one match
@@ -87,7 +91,7 @@ SOLANA (base)                                        EPHEMERAL ROLLUP (devnet-as
 - While delegated, the account is **locked on Solana**. All writes go to the ER.
 - Commits after the first cost 0.001 SOL each, and without a delegated fee payer **only 10 commits are allowed**. We use **at most 5** per match: 4 round commits and 1 commit + undelegate. (The fee figures were checked on v1 validators.)
 
-## 4. Rust patterns (from SDK 0.16.2 and the examples)
+## 4. Rust patterns (from SDK 0.18.0 source; M0 used 0.16.2 and the examples)
 
 ### 4.1 Program skeleton
 
@@ -127,7 +131,7 @@ The macro adds:
 
 It generates `delegate_<field>(payer, seeds, config)`.
 
-**Open question:** our account is a typed `Match`, but the 0.16 examples use `UncheckedAccount`. Either check the status before delegation by deserializing manually, or do it in a separate `lock_match` instruction (our choice, §06).
+**Resolved (M0):** the `del` field stays an `UncheckedAccount`; the handler deserializes `Match` manually to check owner + status first. SDK 0.18 makes a typed `del` field a compile error (SIMD-0460 direct mapping), and matches the `del` marker as a whole constraint (the 0.16 substring-stripping trap in §9 #4 is gone).
 
 ### 4.3 VRF request inside the ER
 
@@ -142,8 +146,10 @@ pub struct RequestDeal<'info> {
     /// CHECK: pinned queue
     #[account(mut, address = vrf::consts::DEFAULT_EPHEMERAL_QUEUE)] pub oracle_queue: UncheckedAccount<'info>,
 }
-// handler:
-let ix = vrf::instructions::create_request_scoped_randomness_ix(vrf::types::RequestRandomnessParams {
+// once, at crate level (compile-time PDA(["identity"], crate::ID)):
+pub const PROGRAM_IDENTITY: Pubkey = vrf::consts::program_identity_pubkey(&crate::ID);
+// handler (SDK 0.18: `create_request_scoped_randomness_ix` was removed in 0.17):
+let ix = vrf::instructions::create_request_randomness_ix_const(vrf::types::RequestRandomnessParams {
     payer: ctx.accounts.authority.key(),
     oracle_queue: ctx.accounts.oracle_queue.key(),
     callback_program_id: crate::ID,
@@ -152,19 +158,21 @@ let ix = vrf::instructions::create_request_scoped_randomness_ix(vrf::types::Requ
     accounts_metas: Some(vec![vrf::types::SerializableAccountMeta {
         pubkey: ctx.accounts.match_account.key(), is_signer: false, is_writable: true }]),
     ..Default::default()
-});
+}, PROGRAM_IDENTITY);   // data[0] = 10 = scoped, regular priority (same byte as the old fn)
 ctx.accounts.invoke_signed_vrf(&ctx.accounts.authority.to_account_info(), &ix)?;
 ```
 
 **Notes:**
 - `#[vrf]` adds `program_identity` (`[b"identity"]` PDA), `vrf_program`, `slot_hashes` and `system_program`.
 - For **localnet**, the queue constraint must be switched to `DEFAULT_EPHEMERAL_TEST_QUEUE` by a cargo feature (`localnet`).
-- `create_request_high_priority_scoped_randomness_ix` also exists. Use it if devnet fulfilment is slow (used by `rewards-delegated-vrf`).
+- `create_request_high_priority_scoped_randomness_ix_const` (`data[0] = 11`) also exists. Use it if devnet fulfilment is slow. The non-`_const` variants are `#[deprecated]` in 0.18 (runtime `find_program_address`).
+- 0.18's `#[vrf]` is a compile error without an `oracle_queue` field, and `invoke_signed_vrf` now also passes `system_program`.
 
 ### 4.4 VRF callback
 
 ```rust
-#[vrf_callback]           // inserts vrf_program_identity: Signer with address = scoped_vrf_identity(&crate::ID)
+#[vrf_callback]           // inserts vrf_program_identity: Signer with address = scoped_vrf_identity_const(&crate::ID)
+                          // = PDA(["identity", crate::ID], VRF program); same PDA as 0.16's runtime version
 #[derive(Accounts)]
 pub struct DealCallback<'info> {
     #[account(mut)] pub match_account: Account<'info, Match>,
@@ -173,6 +181,21 @@ pub fn deal_callback(ctx: Context<DealCallback>, randomness: [u8; 32]) -> Result
 ```
 
 **Never use the deprecated global `VRF_PROGRAM_IDENTITY` check.** It lets anyone call the callback.
+
+**SDK 0.18.0 bug — declare the identity field yourself.** The injected constraint is `address = Pubkey::new_from_array(scoped_vrf_identity_const(&crate::ID).0)` — a `const fn`, but called in a runtime expression, so the ed25519 off-curve check runs on-chain: `deal_callback` used **200,000 / 200,000 CU** and failed with `ProgramFailedToComplete` (measured on the local ER, PB0 §3). The macro skips injection when a field named `vrf_program_identity` exists, so:
+
+```rust
+pub const VRF_CALLBACK_IDENTITY: Pubkey =
+    Pubkey::new_from_array(vrf::consts::scoped_vrf_identity_const(&crate::ID).0);
+
+#[vrf_callback]
+#[derive(Accounts)]
+pub struct DealCallback<'info> {
+    #[account(address = VRF_CALLBACK_IDENTITY)]   // first field, same name/position as the injected one
+    pub vrf_program_identity: Signer<'info>,
+    #[account(mut)] pub match_account: Account<'info, Match>,
+}
+```
 
 ### 4.5 Commit (per round) & commit + undelegate (final)
 
@@ -196,6 +219,12 @@ MagicIntentBundleBuilder::new(
 ```
 
 `build_and_invoke` on chained builders needs `use ephemeral_rollups_sdk::ephem::FoldableIntentBuilder;`.
+
+Builder API (0.18.0 `src/ephem/`, unchanged from 0.16.2): `.magic_fee_vault(vault)` (delegated fee payer, lifts the 10-commit limit), `.commit(..).add_post_commit_action(s)(..)`, `.commit_and_undelegate(..).add_post_commit_action(s)/add_post_undelegate_action(s)(..)`, `.add_standalone_action(s)`, `.build()` / `.build_and_invoke()` / `.build_and_invoke_signed(seeds)`. Follow-up handlers on Solana use `#[action]` (adds `escrow_auth` + `escrow`; the handler must validate them). The old `commit_accounts` / `commit_and_undelegate_accounts` helpers are in `ephem::deprecated`.
+
+### 4.5b Timed tasks ("crank", P0.2 / P2.3)
+
+0.18 moves `ephemeral_rollups_sdk::crank` behind the **`crank` cargo feature** (not enabled yet). `crank::ScheduleCrankCpi { payer, magic_program, instruction_accounts, args: ScheduleTaskArgs { task_id, execution_interval_millis, iterations, instructions } }` sends `MagicBlockInstruction::ScheduleTask` (magic-program-api 0.10.1); it is `#[deprecated]` in favour of `crank::hydra::ephemeral::create::CreateCrankCpi` (hydra-api 0.2.1). Which one validator 1.1.1 runs is **UNVERIFIED** (P0.2).
 
 ### 4.6 Session keys (Fan Picks)
 
@@ -286,3 +315,5 @@ See 18-HACKATHON-STRATEGY §4. The chain worker writes every signature into `cha
 | 10 | §7 local stack | command list | mb-stack also needs the validator fixture account: `--account mAGicPQYBMvcYveUZA5F5UNNwyHvfYh5xkLS2Fr1mev <fixture.json>` (copied to `programs/tests/fixtures/`). mb-stack does **not** forward child logs, and **`mb-stack --help` starts the stack**. The examples' script runs `solana config set --url localhost` (global!) — ours doesn't. |
 | 11 | §7 Node 24 | — | ts-mocha 10 + Node 24: Node's native TS type-stripping loads `.ts` as ESM and bypasses ts-node. Run with `NODE_OPTIONS=--no-experimental-strip-types`. |
 | 12 | §8 ER explorer | — | MagicBlock docs (docs.magicblock.gg → get-started → how-integrate-your-program → anchor) link ER txs as `https://solscan.io/tx/<sig>?cluster=custom&customUrl=https://devnet.magicblock.app`. Using it with `devnet-as` is **UNVERIFIED**. |
+| 13 | §4.4 callback (PB0, SDK 0.18.0) | macro-injected `vrf_program_identity` | Injected check derives the PDA at runtime → 200k CU, `ProgramFailedToComplete`; the VRF oracle's callback fails the same way, so no deal ever lands. Fix: our own field with a `const` address (§4.4). Unit test `identity_tests` checks both const PDAs against `find_program_address`. |
+| 14 | §7 local stack (PB0) | — | SDK 0.18.0 programs run on the local `ephemeral-validator 0.14.10` stack unchanged (lifecycle 10/10). `mb-stack --version` also starts the stack (like `--help`). `m0-test-local.sh`'s "already running" guard is a `pgrep -f` on names like `mb-stack`/`vrf-oracle`, so it also trips on any shell whose command line merely contains those words. |
