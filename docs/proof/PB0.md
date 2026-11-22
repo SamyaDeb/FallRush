@@ -119,19 +119,38 @@ Run #2 timings (local, from the test's own log):
 
 The direct-callback attack fails again with Anchor `ConstraintAddress` (2012) as in M0.
 
-## 4. Devnet-as — **NOT RUN (blocked on funding)**
+## 4. Devnet-as (2026-11-21 ~08:40 UTC)
 
-`solana balance -u devnet` = **0.853195385 SOL** (wallet `71Wd3S…`, 2026-11-21). The program upgrade needs ~3.4 SOL of buffer; the prompt's floor is 4 SOL. Per the rules, no deploy was attempted. To finish D once funded (faucet.solana.com):
+Funded by the user to **5.853195385 SOL** (was 0.853). No leftover buffers before or after.
 
-```bash
-cd ../FallRush-pb0
-solana balance -u devnet                      # ≥ 4 SOL
-bash /Users/samya/Downloads/FallRush/scripts/heavy-lock.sh pb0-devnet-deploy -- pnpm m0:devnet:deploy   # anchor build (devnet queue) + upgrade 4yehff…
-solana program close --buffers -u devnet      # only if a buffer is left over
-bash /Users/samya/Downloads/FallRush/scripts/heavy-lock.sh pb0-devnet -- pnpm m0:devnet
-```
+**Upgrade:** `heavy-lock.sh pb0-devnet-deploy -- pnpm m0:devnet:deploy` (`anchor build` without `localnet` → `DEFAULT_EPHEMERAL_QUEUE`, then `solana program deploy --program-id …`). Same program ID `4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4`; the 481,128 B `.so` fits the existing 481,896 B ProgramData, so no extend. 71 s incl. build. **SOL spent: 0.002395** (5.853195385 → 5.850800385); the ~3.4 SOL buffer was refunded by the deploy itself, `solana program show --buffers` empty → nothing to close.
 
-Devnet program on chain is still the **0.16.2 build** from M0.
+**Lifecycle:** `heavy-lock.sh pb0-devnet -- pnpm m0:devnet` (104 s). Fees paid by the script's game-authority key `3EYRtp…` (4.99 SOL), not the admin wallet. Match `FfFKo6RshJUYmvhdRF2JE7ENNPaZ3D13ZcPnfY8dXtNT` (id `529e35af…`), VRF seed `c277a775…7fe9`, deal maps 0,1,2,3 · variants 1,1,0,1 · modifiers 2,0,1,0 — **TS deal parity true**.
+
+| # | Step | Layer | Signature | ms | Note |
+|---|---|---|---|---:|---|
+| 1 | Program upgrade (0.18.0 build, devnet queue) | Solana | [`5m4iyayZ3LBa…`](https://explorer.solana.com/tx/5m4iyayZ3LBamScTo3oDXfMofNQdWqXrWkBQ6i4aEmFZ2fnqFbwuQHDrqGpFVSXEztkdwRuFwi6RgBRsY3PEY1af?cluster=devnet) |  | slot 524654695 |
+| 2 | create_match (12 players) | Solana | [`pDF3dtXS8pET…`](https://explorer.solana.com/tx/pDF3dtXS8pETyq4BmotynZMVULP29FUMxrcijR9Xe7DWkFdJsSkBcGDGM9SSJNnihE3q1JT2SDWuPsTbWALWXw1?cluster=devnet) | 1073 |  |
+| 3 | delegate_match → devnet-as | Solana | [`5UAJnye9BFwX…`](https://explorer.solana.com/tx/5UAJnye9BFwXs4omhpCEdKj3Etiea32y9W96HXZuaHUsTMLpuXjuMESEWdu3iE78C35kNGUbddCpcdBNxMN4iPfN?cluster=devnet) | 1052 |  |
+| 4 | request_deal (VRF, ER queue) | ER | [`513ZwSn7q32D…`](https://solscan.io/tx/513ZwSn7q32DyudMRaoc8hYPQYFDnNfEMa3oMy57gJfq4cr5L1nuThQbfN36NDxpix7mmQTbmVDuRaZvQ5WoWTFm?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app) | 378 |  |
+| 5 | deal_callback (VRF oracle, scoped identity) | ER | [`3i3fLTnBxPG5…`](https://solscan.io/tx/3i3fLTnBxPG5ebhf6dLor6PWy2dUj7LkcAyfB33vdG9M8T9J9PQrcmMrZUm3vjq9HxfgZSQd9wYi8wjhsiSEJmea?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app) | 464 | from request send; **fall_rush 18,014 CU** (tx 44,207 incl. VRF program) |
+| 6 | start_round(1) + 8 qualified + 4 eliminated (13 txs) | ER | [`4XiLFEWCgwNC…`](https://solscan.io/tx/4XiLFEWCgwNCdj9yd66f4y3G5JM8ZZqmHkL8vXShhWNgsNiWEyMR3Chy3aFtXYiFMT15kt6MDrNVFhHFrR9GmEJD?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app) | 255–296 | first sig shown; all in `.pb0-logs/pb0-devnet-generated.md` |
+| 7 | complete_round(1) + commit | ER | [`uQeNaBWbffxC…`](https://solscan.io/tx/uQeNaBWbffxCnxBn521A2ZYcaCjWSqs6BmQ44KU4Rj57W9MSgJBsj4zNgBZ5FSzZSM6cwoyNCeD6NmMG8XmGrA7?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app) | 381 |  |
+| 8 | commit (round 1) landed | Solana | [`5TyMuU3c49zm…`](https://explorer.solana.com/tx/5TyMuU3c49zmmihGcisfKqkTVYRLRBZSK8ps8DJToT8MWXr2G6EA6FPt2xpnZgpzNbiikUD8kr5ACDRuWRJ7x52m?cluster=devnet) | 1251 | state visible on Solana; `GetCommitmentSignature` 1345 ms |
+| 9 | finalize_match (commit + undelegate) | ER | [`59AHrxPnbZr9…`](https://solscan.io/tx/59AHrxPnbZr9ZKHaQ3x2poazsXkDhBsMzFkhejC1XhJhE3g4YdixA9r9RWvyFyc7Y5YWQ5K39LZJxcD6MLWA7df2?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app) | 271 |  |
+| 10 | commit + undelegate landed | Solana | [`2tAkQ6Uoqp7K…`](https://explorer.solana.com/tx/2tAkQ6Uoqp7KnP5TP1Nux4BvYoPqouQ81NbYQ3WweREcAZrirvv2oBfj5EmuesCKX2EZwF6PRZKb3wbSanRatGzy?cluster=devnet) | 1591 | owner back to fall_rush; **final Solana state == ER state: true** |
+
+Full signatures are in the links (ER links use MagicBlock's documented Solscan custom-RPC pattern, **UNVERIFIED** for devnet-as). The script's generated table was saved as `.pb0-logs/pb0-devnet-generated.md` (untracked); `docs/proof/M0-devnet.md`, which the script overwrites, was restored to its M0 content.
+
+| Timing (devnet-as) | M0 / 0.16.2 (docs/proof/M0-devnet.md) | PB0 / 0.18.0 |
+|---|---|---|
+| VRF callback after request | 426 ms | **464 ms** |
+| commit visible on Solana | 1,945 ms | **1,251 ms** |
+| `GetCommitmentSignature` | 1,855 ms | **1,345 ms** |
+| undelegate visible on Solana | 1,511 ms | **1,591 ms** |
+| ER confirm p50 / max | 227 / 235 ms | **273 / 296 ms** |
+
+Same order of magnitude; one run each, so the differences are noise-level, not a regression claim.
 
 ## 5. `rush-core` skeleton
 
@@ -139,11 +158,9 @@ Devnet program on chain is still the **0.16.2 build** from M0.
 
 ## 6. UNVERIFIED
 
-- **Devnet-as with SDK 0.18** (deploy, delegate, VRF in the rollup, commits, undelegate): not run, funding (§4).
-- Whether devnet-as (validator 1.1.1) needs the same callback workaround: the CU burn is in our program, not the validator, so it should fail the same way without it — not measured on devnet.
-- Real `deal_callback` CU after the fix (only "fulfilled in 115 ms" is measured).
+- Whether devnet-as would also have failed **without** the callback workaround (not tried; the CU burn is in our program, so it is expected to).
 - Hydra crank (`crank::hydra`) vs legacy `ScheduleTask` on validator 1.1.1 (P0.2).
-- TS SDK 0.18 `GetCommitmentSignature` on devnet (local: still the 30 s websocket stall).
+- The local 30 s `GetCommitmentSignature` stall is a local-validator issue: on devnet-as it returned in 1,345 ms (measured).
 - pnpm peer warning `ws → utf-8-validate ^5` (found 6.0.6) — pre-existing, harmless so far.
 
 ## Notes on process
@@ -156,11 +173,11 @@ Devnet program on chain is still the **0.16.2 build** from M0.
 ## For main (merge later)
 
 **`PROJECT_STATUS.md`** (add under the on-chain plan / PB0):
-- PB0 (branch `pb0`): ER SDK **0.18.0** (Rust + TS) landed; `@solana/web3.js` 1.99.0. Local lifecycle **10/10** + deal parity 5/5 + 6/6 on ephemeral-validator 0.14.10. **Devnet-as re-run pending funding** (0.853 SOL, needs ≥ 4). Proof `docs/proof/PB0.md`.
+- PB0 (branch `pb0`): ER SDK **0.18.0** (Rust + TS) landed; `@solana/web3.js` 1.99.0. Local lifecycle **10/10** + deal parity 5/5 + 6/6 on ephemeral-validator 0.14.10. **Devnet-as: program upgraded (0.002395 SOL) and full lifecycle green** (VRF 464 ms, commit 1.25 s, undelegate 1.59 s, final state == ER state). Proof `docs/proof/PB0.md`.
 - SDK 0.18.0 `#[vrf_callback]` burns 200k CU (runtime PDA) → we declare the identity field with a const. Any new VRF callback (P2/P4 capsules) must do the same.
 - `rush-core` skeleton moved to P1.
 
-**doc 15 row** (decisions): `OC-4 | ER SDK 0.18.x on Anchor 1.0.2 and devnet-as; not 0.20 | ✅ local (PB0: 0.18.0, lifecycle 10/10 local, parity 5/5 + 6/6, docs/proof/PB0.md); devnet re-run pending funding`. Optionally a risk row: `SDK macro regressions (0.18.0 vrf_callback CU burn) — mitigated by local lifecycle on every SDK bump`.
+**doc 15 row** (decisions): `OC-4 | ER SDK 0.18.x on Anchor 1.0.2 and devnet-as; not 0.20 | ✅ (PB0: 0.18.0; lifecycle 10/10 local, parity 5/5 + 6/6; devnet-as upgrade `5m4iya…` + full lifecycle green, deal_callback 18,014 CU; docs/proof/PB0.md)`. Optionally a risk row: `SDK macro regressions (0.18.0 vrf_callback CU burn) — mitigated by local lifecycle on every SDK bump`.
 
 **For P0 / P1:**
 - Build against `ephemeral-rollups-sdk =0.18.0`; enable the `crank` feature for task scheduling (it is no longer on by default). `ScheduleCrankCpi` is deprecated in favour of `crank::hydra::…::CreateCrankCpi` — test which one devnet-as 1.1.1 runs.
