@@ -14,12 +14,19 @@ const [url, outDir, maxS = "300"] = pos;
 const shotS = Number(opt("shot", "15"));
 const doneRe = new RegExp(opt("done", "AUTO DONE|\\[rcselftest\\] (PASS|FAIL) "));
 const hide = opt("hide", "");
+// --profile=<dir>: a persistent Chrome profile (keeps the page's localStorage burner between devnet runs)
+const profile = opt("profile", "") || join(outDir, "profile");
+const keepProfile = opt("profile", "") !== "";
+// --play=x,y: click PLAY once the menu is up (CSS px of the 1440 × 900 viewport; G4.7's 585,492)
+const play = opt("play", "");
+// --until=<file>:<text>: also end when <file> contains <text> (e.g. the game server's COMPLETE_MATCH)
+const until = opt("until", "");
 mkdirSync(join(outDir, "shots"), { recursive: true });
 const log = join(outDir, "console.log");
 writeFileSync(log, "");
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const port = 9334;
-const chrome = spawn(CHROME, [`--remote-debugging-port=${port}`, `--user-data-dir=${join(outDir, "profile")}`, "--no-first-run",
+const chrome = spawn(CHROME, [`--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--no-first-run",
   "--no-default-browser-check", "--window-size=1440,1000", "--autoplay-policy=no-user-gesture-required", "about:blank"], { stdio: "ignore" });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let target;
@@ -46,15 +53,22 @@ ws.onmessage = (ev) => {
 await send("Runtime.enable"); await send("Page.enable"); await send("Performance.enable");
 await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 await send("Page.navigate", { url });
-let n = 0, lastShot = 0, lastHeap = 0, hidden = false;
+let n = 0, lastShot = 0, lastHeap = 0, hidden = false, played = false;
 const [hideAt, hideFor] = hide ? hide.split(":").map(Number) : [0, 0];
 while (!done && (Date.now() - t0) / 1000 < Number(maxS)) {
   await sleep(1000);
   const s = (Date.now() - t0) / 1000;
-  if (hide && !hidden && s >= hideAt) { hidden = true; appendFileSync(log, `${T()}\thide\tfrozen for ${hideFor} s\n`); await send("Page.setWebLifecycleState", { state: "frozen" }); await sleep(hideFor * 1000); await send("Page.setWebLifecycleState", { state: "active" }); appendFileSync(log, `${T()}\thide\tactive again\n`); }
+  if (play && !played && s > 14) {
+    played = true;
+    const [x, y] = play.split(",").map(Number);
+    for (const type of ["mouseMoved", "mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 });
+    appendFileSync(log, `${T()}\tclick\tPLAY at ${x},${y}\n`);
+  }
+  if (until) { const [f, ...t] = until.split(":"); try { if ((await import("node:fs")).readFileSync(f, "utf8").includes(t.join(":"))) { done = `until ${t.join(":")}`; await sleep(15000); } } catch {} }
+  if (hide && !hidden && s >= hideAt) { hidden = true; appendFileSync(log, `${T()}\thide\tfrozen for ${hideFor} s\n`); await send("Page.setWebLifecycleState", { state: "frozen" }); await sleep(hideFor * 1000); await send("Page.setWebLifecycleState", { state: "active" }); await send("Page.bringToFront"); await send("Emulation.setFocusEmulationEnabled", { enabled: true }); appendFileSync(log, `${T()}\thide\tactive again\n`); }
   if (s - lastHeap >= 5) { lastHeap = s; const m = await send("Performance.getMetrics"); const h = (m?.metrics ?? []).find((x) => x.name === "JSHeapUsedSize"); appendFileSync(log, `${T()}\theap\tJSHeapUsedSize ${h ? (h.value / 1048576).toFixed(1) : "?"} MB\n`); }
   if (s - lastShot >= shotS) { lastShot = s; const r = await send("Page.captureScreenshot", { format: "jpeg", quality: 75 }); if (r?.data) writeFileSync(join(outDir, "shots", `${String(++n).padStart(3, "0")}-${Math.round(s)}s.jpg`), Buffer.from(r.data, "base64")); }
 }
 await sleep(3000);
 console.log(`[p3-webgl] ${done ? "done: " + String(done).slice(0, 160) : "time limit"} after ${Math.round((Date.now() - t0) / 1000)} s, ${n} shots → ${outDir}`);
-ws.close(); chrome.kill(); await sleep(1000); process.exit(0);
+ws.close(); chrome.kill(); await sleep(1500); if (!keepProfile) { try { (await import("node:fs")).rmSync(profile, { recursive: true, force: true }); } catch {} } process.exit(0);

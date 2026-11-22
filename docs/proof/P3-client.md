@@ -3,8 +3,9 @@
 Branch `p3` in `../FallRush-p3` (off `main` @ `2decc78`, `main` @ `c534e37` merged in after P2). Prompt:
 `docs/prompts/P3-PROMPT.md`. A number is measured only where it says so; everything else is **UNVERIFIED**.
 
-**Summary.** Lid Flip Finals run on the MagicBlock rollup with you in them: Mac player (and WebGL, §8). 15 devnet
-Finals and 1 hybrid match completed; in all of them the champion on screen matched the on-chain `Match`. In the
+**Summary.** Lid Flip Finals run on the MagicBlock rollup with you in them, in the Mac player and in WebGL (Chrome).
+19 devnet Finals (incl. 1 in the browser) and 3 hybrid full matches (Classic rounds 1–3 → on-chain Final) completed;
+in all of them the champion on screen matched the on-chain result. In the
 user's feel test (3 devnet Finals) on-chain felt **as good as Classic, nothing laggy**. The automated correction
 target (< 1 per 5 s) is met on the emulator (0.08) and the local stack (0), but on devnet only in 2 of 5 runs
 (2.4–7.6 in the others). The rest of the corrections come from input transactions that sometimes take 0.5–1 s to
@@ -70,6 +71,13 @@ clashed with a local wrangler dev server). 20/20 tests: the World hash equals th
 deleted. Connect Wallet now uses `ChainWallet` (Phantom `window.solana` connect only). WebGL release went from
 ~24 MB (main) to 22.3 MB (build #1), with the core, bundle and chain files added.
 
+**Linux server build (E):** `Build.Server` (Linux64, Server subtarget) does not compile, and this was already so
+on `main`. 97 editor-side errors come from G4-era files that use the client assembly, which server builds exclude
+(`Editor/*Shots.cs`, `Tests/EditMode/{CameraRig,Palette,Look,LidFlip,Juice,Prop,StunVisual}Tests.cs`). P3's test
+assembly added a few and is now excluded from server builds too. The server code P3 adds (`ChainFinalHandoff`,
+`ChainFinalRules`, `ServerMatch` hook) compiles and ran in the Mac dev server builds (§6). Fixing the G4 editor
+tools for the server target is left to main (**Request for main**).
+
 ## 6. Classic → on-chain switch (F, M) and spectating (G)
 - Server (additive, off by default: `-fallrushOnchainFinal`), `ChainFinalHandoff`:
   - **emu:** at the last round, `POST /final` with the alive roster + hazard seed; the round waits ≤ 8 s until the
@@ -91,7 +99,10 @@ deleted. Connect Wallet now uses `ChainWallet` (Phantom `window.solana` connect 
   | `p3-switch` (port clash) | emulator URL answered 405 | **failure path**: the server played the Final itself |
   | `p3-m-20261123-002456` | **devnet** hybrid | keeper bridged rounds 1–3 + `start_final`, server live, the probe (eliminated in Classic) spectated, champion 7 = server `COMPLETE_MATCH` 7 |
   | `p3-m-20261123-001559` | devnet, keeper died (disk full) | **failure path on devnet**: the server played the Final itself |
-  | 2 more hybrid runs | devnet | see `docs/proof/p3/hybrid/` (added at the end of P3) |
+  | `p3-m-…` run 2 | **devnet** hybrid | live, champion 2 = server 2 |
+  | `p3-m-20261123-011216` | **devnet** hybrid (after the consistency fix) | live, champion 2 = server 2 |
+  | a 4th devnet hybrid | one ER read timed out (3 s) | the server ran its own Final (champion 1) **while** the arena ran one (champion 6), and the pre-joined client showed the arena's → **fixed**: the server retries reads inside the 8 s window; a pre-joined client takes over only after the server's `final_onchain` |
+  | WebGL `f` (Chrome) | emulator, Mac dev server + 11 bots, the browser as a match bot | live in 206 ms, the browser (eliminated in Classic) spectated the arena Final, champion 7 = server 7, handed back |
 
 ## 7. Devnet runs (K) — arena 2, you (Mac player, auto-play) + 2 bots, P2's keeper `MODE=final`
 Final set (all fixes in), corrections per 5 s while playing:
@@ -111,9 +122,19 @@ Final set (all fixes in), corrections per 5 s while playing:
   crash in Node (`window`), an RTT taken from the localhost relay, silent web3.js subscriptions, false "new match"
   resets from stale reads, an over-eager rate estimate. Rows: `docs/proof/p3/devnet/k-summary.json`.
 
-## 8. WebGL builds (H, N)
-- Build #1: **22,310,886 B** (≤ 25 MB). In Chrome the core loaded; the self-test and the World subscription had a
-  bug each (both fixed and verified in Node, §2). The rest is measured on build #2: (filled at the end of P3).
+## 8. WebGL builds (H, N) — `scripts/p3-webgl-n.sh`, Chrome via `scripts/p3-webgl-measure.mjs`
+- Build #1: **22,310,886 B**. In Chrome the core loaded; the self-test and the World subscription had a bug each
+  (both fixed, the jslib glue then verified in Node, §2).
+- **Build #2 (final): 22,288,867 B** (≤ 25 MB; main was ~24 MB before OC-6). Measured in Chrome (1440 × 900, DPR 1):
+  | check | result |
+  |---|---|
+  | a `?rcselftest=1` | **PASS 5/5 files, 200 cases**, core 0x10001, 28 ms |
+  | b `?onchain=emu` Final (auto-play, 150 s, emulator shaping) | **0 corrections** in all 22 windows, 29–31 updates/s, **60 fps**, JS heap 14–19 MB |
+  | c hidden tab 10 s / 30 s (page frozen) | the chain keeps running; within 3–5 s of coming back: 60 fps, 30 updates/s, caught up, 0 corrections (the player had fallen while frozen in the 10 s run, as on-chain rules say) |
+  | d `?onchain=devnet` Final (P2's keeper, browser burner funded 0.01) | joined slot 5 at 36 s, **1 correction** total, 0 late, 0 rejected, ~29 updates/s, 60 fps, champion = arena; chip **⬢ Solana ✓** at 194 s (Match owner: delegation program → fall_rush). One stall caught on screen (`webgl/d-onchain-devnet.jpg`: ! LAGGING / ! Pending) |
+  | e plain Classic match (Mac dev server, `?bot=match`) | full match to `COMPLETE_MATCH` in 444 s (regression check) |
+  | f Classic + switch (emulator) | see §6 |
+  Consoles + screenshots: `docs/proof/p3/webgl/`.
 
 ## 9. Session keys (J, local stack)
 burner → `create_session_v2` → `join_lobby` with the token → `submit_input` signed by the session key.
@@ -125,11 +146,12 @@ out (**UNVERIFIED** on the client; the program side was checked in P2 §7).
 3 devnet Finals played by the user: **"as good as Classic", "nothing laggy"** (`docs/proof/p3/feel-test-L.md`).
 
 ## 11. SOL
-Admin wallet 5.678 → 5.668 (0.010 burner top-up). Game authority 3.877 → (end of P3), mostly P2's keeper `Match`
-receipt rent (~0.011 per Final). The user raised the P3 cap from 0.2 to 0.45 SOL on 2026-11-22.
+Admin wallet 5.677863 → 5.647848 (0.030: burner top-ups for the Mac relay ×2 and the browser burner). Game authority
+3.877355 → 3.490374 (0.387: P2's keeper, ~0.011 per Final, `Match` receipt rent kept on Solana + fees; 35 keeper
+matches incl. the debugging runs). **P3 total 0.417 SOL**; the user raised the cap from 0.2 to 0.45 on 2026-11-22.
 
 ## 12. UNVERIFIED
-- The rollup path in a browser (WebGL against devnet): see §8.
+- Only 1 devnet Final in the browser (§8 d); the 5-run K table is the Mac player through the relay.
 - Session expiry (as opposed to revoke) on the client; Phantom-as-authority sessions.
 - The Mac relay is a dev tool: shipping clients use the bundle in the browser.
 - Solana ✓ on the receipt is decided by polling the `Match` account owner on Solana; not checked against

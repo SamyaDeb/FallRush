@@ -1,0 +1,204 @@
+1.3	log	[UnityMemory] Configuration Parameters - Can be set up in boot.config
+
+1.3	log	    "memorysetup-allocator-temp-initial-block-size-main=262144"
+
+1.3	log	    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+
+1.3	log	    "memorysetup-temp-allocator-size-audio-worker=65536"
+
+1.3	log	    "memorysetup-remapper-allocator-initial-capacity=32768"
+
+1.3	log	    "memorysetup-temp-allocator-size-background-worker=32768"
+
+1.4	log	    "memorysetup-bucket-allocator-granularity=16"
+
+1.4	log	    "memorysetup-bucket-allocator-bucket-count=8"
+
+1.4	log	    "memorysetup-bucket-allocator-block-size=4194304"
+
+1.4	log	    "memorysetup-bucket-allocator-block-count=1"
+
+1.4	log	    "memorysetup-main-allocator-block-size=16777216"
+
+1.4	log	    "memorysetup-thread-allocator-block-size=16777216"
+
+1.4	log	    "memorysetup-gfx-main-allocator-block-size=16777216"
+
+1.4	log	    "memorysetup-gfx-thread-allocator-block-size=16777216"
+
+1.4	log	    "memorysetup-cache-allocator-block-size=4194304"
+
+1.4	log	    "memorysetup-typetree-allocator-block-size=2097152"
+
+1.4	log	    "memorysetup-profiler-bucket-allocator-granularity=16"
+
+1.4	log	    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+
+1.4	log	    "memorysetup-profiler-bucket-allocator-block-size=4194304"
+
+1.4	log	    "memorysetup-profiler-bucket-allocator-block-count=1"
+
+1.4	log	    "memorysetup-profiler-allocator-block-size=16777216"
+
+1.4	log	    "memorysetup-profiler-editor-allocator-block-size=1048576"
+
+1.4	log	    "memorysetup-temp-allocator-size-main=4194304"
+
+1.4	log	    "memorysetup-job-temp-allocator-block-size=2097152"
+
+1.4	log	    "memorysetup-job-temp-allocator-block-size-background=1048576"
+
+1.4	log	    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+
+1.4	log	Input System module state changed to: Initialized.
+
+1.4	log	[Physics::Module] Initialized fallback backend.
+
+1.4	log	[Physics::Module] Id: 0xdecafbad
+
+1.4	log	Loading player data from data.unity3d
+
+1.5	log	Initialize engine version: 6000.3.28f1 (8f082d2fe476)
+
+1.5	log	[Subsystems] Discovering subsystems at path UnitySubsystems
+
+1.5	log	Creating WebGL 2.0 context.
+1.5	log	Renderer: WebKit WebGL
+
+1.5	log	Vendor:   WebKit
+
+1.5	log	Version:  OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium))
+
+1.5	log	GLES:     3
+
+1.5	log	 EXT_clip_control EXT_color_buffer_float EXT_color_buffer_half_float EXT_conservative_depth EXT_depth_clamp EXT_disjoint_timer_query_webgl2 EXT_float_blend EXT_polygon_offset_clamp EXT_render_snorm EXT_texture_compression_bptc EXT_texture_compression_rgtc EXT_texture_filter_anisotropic EXT_texture_mirror_clamp_to_edge EXT_texture_norm16 KHR_parallel_shader_compile NV_shader_noperspective_i
+
+1.5	log	depth GL_EXT_depth_clamp GL_EXT_disjoint_timer_query_webgl2 GL_EXT_float_blend GL_EXT_polygon_offset_clamp GL_EXT_render_snorm GL_EXT_texture_compression_bptc GL_EXT_texture_compression_rgtc GL_EXT_texture_filter_anisotropic GL_EXT_texture_mirror_clamp_to_edge GL_EXT_texture_norm16 GL_KHR_parallel_shader_compile GL_NV_shader_noperspective_interpolation GL_OES_draw_buffers_indexed GL_OES_sa
+
+1.5	log	OPENGL LOG: Creating OpenGL ES 3.0 graphics device ; Context level  <OpenGL ES 3.0> ; Context handle 1
+
+1.6	log	[Physics::Module] Selected backend.
+
+1.6	log	[Physics::Module] Name: PhysX
+
+1.6	log	[Physics::Module] Id: 0xf2b8ea05
+
+1.6	log	[Physics::Module] SDK Version: 4.1.2
+
+1.6	log	[Physics::Module] Integration Version: 1.0.0
+
+1.6	log	[Physics::Module] Threading Mode: Single-Threaded
+
+1.8	log	ERROR: Shader 
+1.8	log	Hidden/CoreSRP/CoreCopy shader is not supported on this GPU (none of subshaders/fallbacks are suitable)
+
+1.8	log	ERROR: Shader 
+1.8	log	Hidden/Universal Render Pipeline/StencilDitherMaskSeed shader is not supported on this GPU (none of subshaders/fallbacks are suitable)
+
+1.8	log	ERROR: Shader 
+1.8	log	Hidden/Universal/HDRDebugView shader is not supported on this GPU (none of subshaders/fallbacks are suitable)
+
+1.8	log	Input System initialize...
+
+1.8	log	UnloadTime: 3.300001 ms
+
+1.9	log	[UnityCache] 'http://localhost:8797/Build/WebGL.data.br' successfully downloaded and stored in the browser cache
+1.9	log	Audio context resumed after 0.386 seconds.
+4.2	log	UnloadTime: 1.600001 ms
+
+4.2	log	Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
+
+4.2	log	Unloading 3 unused Assets to reduce memory usage. Loaded Objects now: 2122.
+
+4.2	log	Total: 8.500000 ms (FindLiveObjects: 0.200001 ms CreateObjectMapping: 0.299999 ms MarkObjects: 8.000000 ms  DeleteObjects: 0.000000 ms)
+
+
+4.4	log	[onchain] session: target emu via bundle ws://127.0.0.1:8797/, lead T+3, 3 ticks per tx, core loading
+
+4.8	log	[rcw] rush_core.wasm ready, rc_version 0x10001, 307645 B
+4.8	log	[frc] chain bundle ready: emulator via emulator, burner 2i1AgW1cnPvCxycTNnnPf7xJJ6GjxcPDHzywP3ZUhRcx (public key)
+5.0	log	[onchain] joined emu:2 slot 0, map CrumbleShelf
+
+5.0	log	UnloadTime: 5.000000 ms
+
+5.0	log	Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
+
+5.0	log	Unloading 16 unused Assets to reduce memory usage. Loaded Objects now: 2807.
+
+5.0	log	Total: 6.000000 ms (FindLiveObjects: 0.299999 ms CreateObjectMapping: 0.000000 ms MarkObjects: 5.400000 ms  DeleteObjects: 0.300001 ms)
+
+
+5.1	log	[gfx] level=high Mobile_RPAsset grading HighDynamicRange HDR True scale 1.00 cameraHDR=True rtRGB111110=True rtHalf=True post=True device=OpenGLES3
+
+5.2	log	[net] prediction ready map=Map_CrumbleShelf mapHash=b0684a98 round: map=3 variant=A modifier=None seed=0xfbc20f4e483934ad start=151 qualify=1/3 intro=60 countdown=90 timer=3600 hazards=3
+
+9.2	log	[onchain] tick 479 upd/s 30.0 batches/s 10.0 corr/5s 5 corr 5 match 108 late 5 replay 8/9 rtt 112 confirm p50 213 p95 229 gaps 0 polls 5 resync 0 lag 1 rejected 2 unconfirmed 0 lead +1 fps 60 playing True phase RoundActive
+
+14.2	log	[onchain] tick 630 upd/s 29.5 batches/s 9.8 corr/5s 0 corr 5 match 258 late 5 replay 7/9 rtt 102 confirm p50 214 p95 229 gaps 0 polls 10 resync 0 lag 1 rejected 2 unconfirmed 0 lead +1 fps 60 playing True phase RoundActive
+
+19.2	log	[onchain] tick 780 upd/s 29.6 batches/s 9.9 corr/5s 0 corr 5 match 407 late 5 replay 6/9 rtt 92 confirm p50 213 p95 229 gaps 0 polls 15 resync 0 lag 1 rejected 2 unconfirmed 0 lead +0 fps 60 playing True phase RoundActive
+
+24.2	log	[onchain] tick 930 upd/s 29.6 batches/s 9.9 corr/5s 0 corr 5 match 557 late 5 replay 6/9 rtt 101 confirm p50 213 p95 229 gaps 0 polls 20 resync 0 lag 1 rejected 2 unconfirmed 0 lead +0 fps 60 playing True phase RoundActive
+
+29.2	log	[onchain] tick 1080 upd/s 29.6 batches/s 9.9 corr/5s 0 corr 5 match 705 late 5 replay 6/9 rtt 106 confirm p50 220 p95 237 gaps 0 polls 25 resync 0 lag 1 rejected 2 unconfirmed 0 lead +0 fps 60 playing True phase RoundActive
+
+34.2	log	[onchain] tick 1230 upd/s 30.0 batches/s 0.0 corr/5s 0 corr 5 match 849 late 5 replay 7/9 rtt 107 confirm p50 221 p95 237 gaps 0 polls 30 resync 0 lag 1 rejected 2 unconfirmed 0 lead +1 fps 60 playing False phase RoundActive
+
+39.2	log	[onchain] tick 1380 upd/s 30.0 batches/s 0.0 corr/5s 0 corr 5 match 999 late 5 replay 7/9 rtt 101 confirm p50 221 p95 237 gaps 0 polls 35 resync 0 lag 1 rejected 2 unconfirmed 0 lead +1 fps 60 playing False phase RoundActive
+
+40.7	hide	frozen for 30 s
+71.0	hide	active again
+71.1	log	[onchain] tick 1427 upd/s 0.6 batches/s 0.0 corr/5s 0 corr 5 match 1046 late 5 replay 7/9 rtt 101 confirm p50 221 p95 237 gaps 0 polls 36 resync 1 lag 2 rejected 2 unconfirmed 0 lead +0 fps 12 playing False phase RoundActive
+
+71.2	log	[onchain] tick 1427 upd/s 0.6 batches/s 0.0 corr/5s 0 corr 5 match 1046 late 5 replay 7/9 rtt 101 confirm p50 221 p95 237 gaps 0 polls 36 resync 2 lag 2 rejected 2 unconfirmed 0 lead +0 fps 10 playing False phase RoundActive
+
+71.3	log	[onchain] tick 1427 upd/s 0.6 batches/s 0.0 corr/5s 0 corr 5 match 1046 late 5 replay 7/9 rtt 101 confirm p50 221 p95 237 gaps 0 polls 36 resync 3 lag 2 rejected 2 unconfirmed 0 lead +0 fps 12 playing False phase RoundActive
+
+71.3	log	[onchain] tick 1427 upd/s 0.6 batches/s 0.0 corr/5s 0 corr 5 match 1046 late 5 replay 7/9 rtt 101 confirm p50 221 p95 237 gaps 0 polls 36 resync 4 lag 2 rejected 2 unconfirmed 0 lead +0 fps 14 playing False phase RoundActive
+
+71.3	log	[onchain] tick 1427 upd/s 0.6 batches/s 0.0 corr/5s 0 corr 5 match 1046 late 5 replay 7/9 rtt 101 confirm p50 221 p95 237 gaps 0 polls 36 resync 5 lag 2 rejected 2 unconfirmed 0 lead +0 fps 17 playing False phase RoundActive
+
+71.3	log	[onchain] tick 1427 upd/s 0.6 batches/s 0.0 corr/5s 0 corr 5 match 1046 late 5 replay 7/9 rtt 101 confirm p50 221 p95 237 gaps 0 polls 36 resync 6 lag 2 rejected 2 unconfirmed 0 lead +0 fps 20 playing False phase RoundActive
+
+74.2	log	[onchain] tick 2430 upd/s 30.0 batches/s 0.0 corr/5s 0 corr 5 match 1131 late 5 replay 6/9 rtt 97 confirm p50 221 p95 237 gaps 1 polls 40 resync 8 lag 2 rejected 2 unconfirmed 0 lead +0 fps 60 playing False phase RoundActive
+
+79.2	log	[onchain] tick 2580 upd/s 29.0 batches/s 0.0 corr/5s 0 corr 5 match 1280 late 5 replay 6/9 rtt 94 confirm p50 221 p95 237 gaps 1 polls 45 resync 8 lag 2 rejected 2 unconfirmed 0 lead +0 fps 60 playing False phase RoundActive
+
+84.2	log	[onchain] tick 2730 upd/s 29.5 batches/s 0.0 corr/5s 0 corr 5 match 1428 late 5 replay 6/9 rtt 95 confirm p50 221 p95 237 gaps 2 polls 50 resync 8 lag 2 rejected 2 unconfirmed 0 lead +0 fps 60 playing False phase RoundActive
+
+89.2	log	[onchain] tick 2880 upd/s 30.0 batches/s 0.0 corr/5s 0 corr 5 match 1578 late 5 replay 6/9 rtt 89 confirm p50 221 p95 237 gaps 2 polls 54 resync 8 lag 2 rejected 2 unconfirmed 0 lead +0 fps 61 playing False phase RoundActive
+
+91.5	log	[onchain] RESULT champion 1 order 1,2,0 own slot 0 arena emu:2 tick 2950
+
+94.2	log	[onchain] tick 3030 upd/s 30.0 batches/s 0.0 corr/5s 0 corr 5 match 1727 late 5 replay 6/9 rtt 86 confirm p50 221 p95 237 gaps 2 polls 59 resync 8 lag 2 rejected 2 unconfirmed 0 lead +0 fps 60 playing False phase RoundResult
+
+99.2	log	[onchain] tick 3180 upd/s 30.5 batches/s 0.0 corr/5s 0 corr 5 match 1876 late 5 replay 6/9 rtt 89 confirm p50 221 p95 237 gaps 4 polls 64 resync 8 lag 2 rejected 2 unconfirmed 0 lead +0 fps 60 playing False phase Champion
+
+99.5	log	[onchain] new arena: resetting the feed and the prediction
+
+99.6	log	[net] prediction ready map=Map_CrumbleShelf mapHash=b0684a98 round: map=3 variant=A modifier=None seed=0x749bf32335cc59eb start=151 qualify=1/3 intro=60 countdown=90 timer=3600 hazards=3
+
+104.2	log	[onchain] tick 139 upd/s 30.0 batches/s 10.0 corr/5s 0 corr 0 match 138 late 0 replay 6/6 rtt 94 confirm p50 220 p95 237 gaps 5 polls 69 resync 8 lag 3 rejected 2 unconfirmed 0 lead +0 fps 60 playing True phase RoundIntro
+
+109.2	log	[onchain] tick 289 upd/s 30.0 batches/s 10.0 corr/5s 0 corr 0 match 288 late 0 replay 6/6 rtt 91 confirm p50 214 p95 230 gaps 5 polls 74 resync 8 lag 3 rejected 2 unconfirmed 0 lead +0 fps 60 playing True phase RoundActive
+
+114.2	log	[onchain] tick 439 upd/s 30.0 batches/s 10.0 corr/5s 0 corr 0 match 438 late 0 replay 6/6 rtt 94 confirm p50 213 p95 227 gaps 5 polls 79 resync 8 lag 3 rejected 2 unconfirmed 0 lead +0 fps 60 playing True phase RoundActive
+
+119.2	log	[onchain] tick 589 upd/s 30.0 batches/s 10.0 corr/5s 0 corr 0 match 588 late 0 replay 6/6 rtt 95 confirm p50 210 p95 226 gaps 5 polls 84 resync 8 lag 3 rejected 2 unconfirmed 0 lead +0 fps 61 playing True phase RoundActive
+
+124.2	log	[onchain] tick 739 upd/s 30.5 batches/s 10.8 corr/5s 0 corr 0 match 738 late 0 replay 6/6 rtt 92 confirm p50 210 p95 225 gaps 5 polls 89 resync 8 lag 3 rejected 2 unconfirmed 0 lead +0 fps 61 playing True phase RoundActive
+
+129.2	log	[onchain] tick 889 upd/s 29.0 batches/s 10.0 corr/5s 0 corr 0 match 888 late 0 replay 6/6 rtt 90 confirm p50 212 p95 225 gaps 5 polls 94 resync 8 lag 3 rejected 2 unconfirmed 0 lead +0 fps 60 playing True phase RoundActive
+
+134.2	log	[onchain] tick 1039 upd/s 30.0 batches/s 0.0 corr/5s 0 corr 0 match 1038 late 0 replay 6/6 rtt 90 confirm p50 213 p95 225 gaps 5 polls 99 resync 8 lag 3 rejected 2 unconfirmed 0 lead +0 fps 60 playing False phase RoundActive
+
+139.2	log	[onchain] tick 1189 upd/s 31.0 batches/s 0.0 corr/5s 0 corr 0 match 1188 late 0 replay 6/6 rtt 90 confirm p50 213 p95 225 gaps 5 polls 104 resync 8 lag 3 rejected 2 unconfirmed 0 lead +0 fps 60 playing False phase RoundActive
+
+144.2	log	[onchain] tick 1339 upd/s 30.0 batches/s 0.0 corr/5s 0 corr 0 match 1338 late 0 replay 6/6 rtt 92 confirm p50 213 p95 225 gaps 5 polls 109 resync 8 lag 3 rejected 2 unconfirmed 0 lead +0 fps 60 playing False phase RoundActive
+
+149.2	log	[onchain] tick 1489 upd/s 30.0 batches/s 0.0 corr/5s 0 corr 0 match 1487 late 0 replay 6/6 rtt 91 confirm p50 213 p95 225 gaps 5 polls 114 resync 8 lag 3 rejected 2 unconfirmed 0 lead +0 fps 60 playing False phase RoundActive
+
+154.2	log	[onchain] tick 1639 upd/s 29.0 batches/s 0.0 corr/5s 0 corr 0 match 1637 late 0 replay 6/6 rtt 92 confirm p50 213 p95 225 gaps 6 polls 119 resync 8 lag 3 rejected 2 unconfirmed 0 lead +0 fps 60 playing False phase RoundActive
+
+154.2	log	[onchain] AUTO DONE [onchain] tick 1639 upd/s 29.0 batches/s 0.0 corr/5s 0 corr 0 match 1637 late 0 replay 6/6 rtt 92 confirm p50 213 p95 225 gaps 6 polls 119 resync 8 lag 3 rejected 2 unconfirmed 0 lead +0 corr/5s mean 0.45 max 5 over 11 windows
+

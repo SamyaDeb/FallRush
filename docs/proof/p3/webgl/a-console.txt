@@ -1,0 +1,123 @@
+1.7	log	[UnityCache] 'http://localhost:8797/Build/WebGL.data.br' successfully downloaded and stored in the browser cache
+1.9	log	[UnityMemory] Configuration Parameters - Can be set up in boot.config
+
+1.9	log	    "memorysetup-allocator-temp-initial-block-size-main=262144"
+
+1.9	log	    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+
+1.9	log	    "memorysetup-temp-allocator-size-audio-worker=65536"
+
+1.9	log	    "memorysetup-remapper-allocator-initial-capacity=32768"
+
+1.9	log	    "memorysetup-temp-allocator-size-background-worker=32768"
+
+1.9	log	    "memorysetup-bucket-allocator-granularity=16"
+
+1.9	log	    "memorysetup-bucket-allocator-bucket-count=8"
+
+1.9	log	    "memorysetup-bucket-allocator-block-size=4194304"
+
+1.9	log	    "memorysetup-bucket-allocator-block-count=1"
+
+1.9	log	    "memorysetup-main-allocator-block-size=16777216"
+
+1.9	log	    "memorysetup-thread-allocator-block-size=16777216"
+
+1.9	log	    "memorysetup-gfx-main-allocator-block-size=16777216"
+
+1.9	log	    "memorysetup-gfx-thread-allocator-block-size=16777216"
+
+1.9	log	    "memorysetup-cache-allocator-block-size=4194304"
+
+1.9	log	    "memorysetup-typetree-allocator-block-size=2097152"
+
+1.9	log	    "memorysetup-profiler-bucket-allocator-granularity=16"
+
+1.9	log	    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+
+1.9	log	    "memorysetup-profiler-bucket-allocator-block-size=4194304"
+
+1.9	log	    "memorysetup-profiler-bucket-allocator-block-count=1"
+
+1.9	log	    "memorysetup-profiler-allocator-block-size=16777216"
+
+1.9	log	    "memorysetup-profiler-editor-allocator-block-size=1048576"
+
+1.9	log	    "memorysetup-temp-allocator-size-main=4194304"
+
+1.9	log	    "memorysetup-job-temp-allocator-block-size=2097152"
+
+1.9	log	    "memorysetup-job-temp-allocator-block-size-background=1048576"
+
+1.9	log	    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+
+2.0	log	Input System module state changed to: Initialized.
+
+2.0	log	[Physics::Module] Initialized fallback backend.
+
+2.0	log	[Physics::Module] Id: 0xdecafbad
+
+2.0	log	Loading player data from data.unity3d
+
+2.0	log	Initialize engine version: 6000.3.28f1 (8f082d2fe476)
+
+2.0	log	[Subsystems] Discovering subsystems at path UnitySubsystems
+
+2.0	log	Creating WebGL 2.0 context.
+2.1	log	Renderer: WebKit WebGL
+
+2.1	log	Vendor:   WebKit
+
+2.1	log	Version:  OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium))
+
+2.1	log	GLES:     3
+
+2.1	log	 EXT_clip_control EXT_color_buffer_float EXT_color_buffer_half_float EXT_conservative_depth EXT_depth_clamp EXT_disjoint_timer_query_webgl2 EXT_float_blend EXT_polygon_offset_clamp EXT_render_snorm EXT_texture_compression_bptc EXT_texture_compression_rgtc EXT_texture_filter_anisotropic EXT_texture_mirror_clamp_to_edge EXT_texture_norm16 KHR_parallel_shader_compile NV_shader_noperspective_i
+
+2.1	log	depth GL_EXT_depth_clamp GL_EXT_disjoint_timer_query_webgl2 GL_EXT_float_blend GL_EXT_polygon_offset_clamp GL_EXT_render_snorm GL_EXT_texture_compression_bptc GL_EXT_texture_compression_rgtc GL_EXT_texture_filter_anisotropic GL_EXT_texture_mirror_clamp_to_edge GL_EXT_texture_norm16 GL_KHR_parallel_shader_compile GL_NV_shader_noperspective_interpolation GL_OES_draw_buffers_indexed GL_OES_sa
+
+2.1	log	OPENGL LOG: Creating OpenGL ES 3.0 graphics device ; Context level  <OpenGL ES 3.0> ; Context handle 1
+
+2.2	log	[Physics::Module] Selected backend.
+
+2.2	log	[Physics::Module] Name: PhysX
+
+2.2	log	[Physics::Module] Id: 0xf2b8ea05
+
+2.2	log	[Physics::Module] SDK Version: 4.1.2
+
+2.2	log	[Physics::Module] Integration Version: 1.0.0
+
+2.2	log	[Physics::Module] Threading Mode: Single-Threaded
+
+2.3	log	ERROR: Shader 
+2.3	log	Hidden/CoreSRP/CoreCopy shader is not supported on this GPU (none of subshaders/fallbacks are suitable)
+
+2.3	log	ERROR: Shader 
+2.3	log	Hidden/Universal Render Pipeline/StencilDitherMaskSeed shader is not supported on this GPU (none of subshaders/fallbacks are suitable)
+
+2.3	log	ERROR: Shader 
+2.3	log	Hidden/Universal/HDRDebugView shader is not supported on this GPU (none of subshaders/fallbacks are suitable)
+
+2.3	log	Input System initialize...
+
+2.3	log	UnloadTime: 1.500000 ms
+
+2.4	log	Audio context resumed after 0.183 seconds.
+4.6	log	UnloadTime: 1.700000 ms
+
+4.6	log	Unloading 5 Unused Serialized files (Serialized files now loaded: 0)
+
+4.6	log	Unloading 3 unused Assets to reduce memory usage. Loaded Objects now: 2133.
+
+4.6	log	Total: 3.800000 ms (FindLiveObjects: 0.200000 ms CreateObjectMapping: 0.000000 ms MarkObjects: 3.600000 ms  DeleteObjects: 0.000000 ms)
+
+
+5.0	log	[rcw] rush_core.wasm ready, rc_version 0x10001, 307645 B
+5.1	log	[rcselftest] PASS 5/5 files, 200 cases, core 0x10001, 28 ms
+[rcselftest] collide_v1.bin 40 cases ecef555686f146c6 PASS
+[rcselftest] fx_v1.bin 40 cases 555d7eee5afcb7e0 PASS
+[rcselftest] hazard_v2.bin 40 cases 458142349d352041 PASS
+[rcselftest] motor_v1.bin 40 cases b7d0b50a7a70fa3d PASS
+[rcselftest] world_v1.bin 40 cases 1639735e9708f0dc PASS
+
