@@ -230,7 +230,7 @@
 | OC-8 | Drop the M5 Rush Relay (Postgres) and the M8 Next.js site; program + optional stateless helpers + a Vite web app | 🟡 | Supersedes D-9 |
 | OC-9 | Chaos Drops: map-wide, 0.75 s telegraph, capped, never target a slot | 🟡 | |
 | OC-10 | Pots pay humans only; markets seeded by a labelled market-maker bot | 🟡 | |
-| P0-1 | Go / reduced / no-go after the P0 spikes | open | Filled in by P0 |
+| P0-1 | **REDUCED (conditional GO)** after the P0 spikes: whole sim on the ER at **20 Hz**, timed task + permissionless keeper / `NotDue` tick fallback, **bots on-chain**. Conditions: (1) `rush-core` deterministic work budget, tick ≤ 300k CU worst case (a task execution has 400k CU; one failed execution ends the task); (2) own-player prediction + 2–3 tick input delay (end-to-end p95 337 ms); (3) relay optional for spectators. If (1) fails on Capsule Run in P1, go on-chain round by round (Final → Skill → Survival → Race), Classic serves the rest | ✅ (user, 2026-11-21) | Evidence: `docs/proof/P0-feasibility.md` |
 
 ## Top risks (live; update daily in PROJECT_STATUS)
 

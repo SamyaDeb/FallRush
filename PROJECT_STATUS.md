@@ -19,6 +19,21 @@ _Last updated: 2026-11-21 (**⚑ New plan: fully on-chain Fall Rush on the Magic
   - hackathon strategy
   - implementation plan
 
+## Phase P0 (on-chain feasibility spikes) — ✅ done 2026-11-21, P0-1 approved: REDUCED (conditional GO)
+- Proof: [`docs/proof/P0-feasibility.md`](docs/proof/P0-feasibility.md). Spike code: `spikes/p0/`, `tools/load/`, `scripts/p0-*.sh` (merged from branch `p0`).
+- **Results on devnet-as:**
+  - **P0.1** CU per tick: PASS only as a 2-instruction split. A timed-task execution has **400k CU in total**.
+  - **P0.2** timed task: timing PASS (20.00 Hz, 99.8 % within ±1 slot), robustness FAIL (**one failed execution ends the task**).
+  - **P0.3** input load: rate limits PASS (0 rejects at 253 tx/s); confirm p95 270 ms FAIL.
+  - **P0.4** state delivery: PASS (19.9 updates/s; relay +13–27 ms p95).
+  - **P0.5** end-to-end latency: p50 130 ms PASS, p95 337 ms FAIL.
+  - **P0.6** sBPF = native = WASM: PASS (200/200).
+- **Decision:** 20 Hz, bots on-chain. Conditions for P1/P2:
+  - deterministic work budget (tick ≤ 300k CU);
+  - keeper + tick fallback;
+  - own-player prediction + 2–3 tick input delay.
+- **Devnet:** spike program `8z4ofj7GeGLArXaYjbV2QXrdUqDdbutavqQSWXqpQBxy` **kept deployed** (1.92 SOL rent, refundable; the user decides later). Spike accounts closed (+0.36 SOL). Wallet 3.848 SOL. P0 spent 2.00 SOL.
+
 ## Milestone M0 (repo + MagicBlock lifecycle spike) — ✅ complete
 | Item | State |
 |---|---|
