@@ -206,6 +206,15 @@
 | G4.12-3 | Soft budget misses measured under load (tris 440–455k Capsule Run, ≈ 395k Goo; draw peak 216 Capsule Run) not acted on (needs a build #5); levers listed in the proof | 🟡 your call | proof G4.12 |
 | G4.12-4 | **⚑ Art freeze declared 2026-11-20 23:56 UTC** | ✅ | PROJECT_STATUS |
 
+### G4.13 decisions (2026-11-21; post-freeze fixes, recorded in docs/proof/G4.13-post-freeze.md — say if you want any changed)
+| # | Decision | State | Where |
+|---|---|---|---|
+| G4.13-1 | "Black / broken floor" on Lid Flip: the lid swung on its top edge (its body cut the neighbour lid → black shards) and the open ink read as black. Fix: bottom-edge hinge (both looks) + soft open lid #7E6BB4 dark lavender (60 % sun in shadow); not the shadows (shadows-off repro) | ✅ | `LidGridView`, proof B |
+| G4.13-2 | Lid Flip soft lids: own token set `PaletteTokens.SoftLidHex`, the most saturation the lit-amber luma rules allow (Bubblegum S 0.24, Tangerine 0.42, Soda blue 0.18, Grape fizz 0.19, V 1.0); the S 0.45–0.60 / V 0.88–0.95 start band fails the ≥ 0.15 gap to #FF8A00 for every ring hue but Grape | 🟡 your call for more colour (new lit colour or other ring hues) | proof C |
+| G4.13-3 | Soft budget (decision 6) **deferred**: no idle machine (another project's tests, load 15–40); no lever applied | 🟡 later (user) | proof D |
+| G4.13-4 | Rigged Bolt jiggle / flop (decision 7) skipped | ✅ user | — |
+| G4.13-5 | WebGL build #5 (24.11 MB) is the only G4.13 build; its browser performance table is UNVERIFIED (load + a throttled page); B / C confirmed visually in it | 🟡 re-measure with D | proof F |
+
 ## Top risks (live; update daily in PROJECT_STATUS)
 
 | # | Risk | Likelihood | Impact | Mitigation |
