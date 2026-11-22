@@ -22,14 +22,27 @@ pub fn measure(blob: &[u8], rate: u32, secs: u32, seed: u64) -> Stats {
     }
     let params = MovementParams::default();
     let mut ev = StepEvents::default();
+    // a real round when the map has a mode (all 12 take part); counted from RUSH only
+    let ranked = m.mode() != rush_core::mapblob::mode::SANDBOX as i32 && m.mode() != rush_core::mapblob::mode::LOBBY as i32;
+    if ranked {
+        rush_core::rules::begin_round(&mut w, &m, 0, 0, 0xFFF, rush_core::rules::ROUND_INTRO_30, rush_core::rules::ROUND_COUNTDOWN_30, &mut ev);
+    }
     let mut per = Vec::new();
     let t0 = std::time::Instant::now();
-    for _ in 0..rate * secs {
+    let mut guard = 0;
+    while per.len() < (rate * secs) as usize && guard < rate * (secs + 30) {
+        guard += 1;
         ev.n = 0;
         world::step(&mut w, &[None; MAX_PLAYERS], &m, &params, &mut NoHasher, &mut ev);
-        per.push(rush_core::collide::take_tick_counters());
+        let c = rush_core::collide::take_tick_counters();
+        if !ranked || w.round.phase == rush_core::rules::phase::RUSH {
+            per.push(c);
+        }
+        if ranked && rush_core::rules::is_over(&w) {
+            break;
+        }
     }
-    let dt = t0.elapsed().as_secs_f64() * 1e6 / (rate * secs) as f64;
+    let dt = t0.elapsed().as_secs_f64() * 1e6 / per.len().max(1) as f64;
     let _ = pose_scene;
     Stats { per_tick: per, wall_us_per_tick: dt }
 }
