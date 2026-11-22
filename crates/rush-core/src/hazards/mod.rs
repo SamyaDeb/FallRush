@@ -179,7 +179,7 @@ pub struct Hazards<'m> {
 }
 
 /// Most hazards whose seeded phase / seed a [`PhaseTable`] keeps.
-pub const MAX_PHASES: usize = 96;
+pub const MAX_PHASES: usize = 64;
 
 /// The seeded phase (`phase16` after `Hazards::phase`) of every phased hazard, and each lid grid's seed, computed
 /// once per tick (P2 0.2: the obstacle hash + header reads were ≈ 400 CU per def decode on sBPF, and the bots decode
@@ -189,11 +189,17 @@ pub struct PhaseTable {
     pub ok: bool,
     pub base: [u8; 16],
     pub v: [i32; MAX_PHASES],
+    /// The resolved lid grids (with their seeds), `lids_n` of them (0 when the map has more than [`MAX_LID_DEFS`]).
+    pub lids: [LidGridDef; MAX_LID_DEFS],
+    pub lids_n: u8,
 }
+
+/// Lid grids a [`PhaseTable`] keeps resolved.
+pub const MAX_LID_DEFS: usize = 2;
 
 impl Default for PhaseTable {
     fn default() -> Self {
-        PhaseTable { ok: false, base: [0; 16], v: [0; MAX_PHASES] }
+        PhaseTable { ok: false, base: [0; 16], v: [0; MAX_PHASES], lids: [LidGridDef::default(); MAX_LID_DEFS], lids_n: 0 }
     }
 }
 
@@ -229,6 +235,16 @@ impl PhaseTable {
         fill(self, HazardType::MalletSwing, &|i| hz.mallet(i).phase16);
         fill(self, HazardType::RollingBall, &|i| hz.ball(i).phase16);
         fill(self, HazardType::LidFlip, &|i| hz.lid_grid(i).seed as i32);
+        self.lids_n = 0;
+        let nl = hz.count(HazardType::LidFlip);
+        if nl <= MAX_LID_DEFS {
+            let mut i = 0;
+            while i < nl {
+                self.lids[i] = hz.lid_grid(i);
+                i += 1;
+            }
+            self.lids_n = nl as u8;
+        }
         self.ok = true;
     }
 
@@ -365,6 +381,11 @@ impl<'m> Hazards<'m> {
     }
 
     pub fn lid_grid(&self, i: usize) -> LidGridDef {
+        if let Some(t) = self.ph {
+            if t.ok && i < t.lids_n as usize {
+                return t.lids[i];
+            }
+        }
         let mut d = LidGridDef::read(&self.words::<{ LidGridDef::WORDS }>(HazardType::LidFlip, i));
         d.seed = match self.ph.and_then(|t| t.get(HazardType::LidFlip, i)) {
             Some(v) => v as u32,

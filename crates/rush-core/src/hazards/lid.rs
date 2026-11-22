@@ -19,6 +19,20 @@ pub enum LidState {
     RetireWarn = 4,
 }
 
+impl LidState {
+    /// From its `repr(u8)` value (anything else: Idle).
+    #[inline]
+    pub const fn from_u8(v: u8) -> LidState {
+        match v {
+            1 => LidState::Lit,
+            2 => LidState::Flipped,
+            3 => LidState::Retired,
+            4 => LidState::RetireWarn,
+            _ => LidState::Idle,
+        }
+    }
+}
+
 /// `LidSolid`: Idle, Lit, RetireWarn have a collider.
 #[inline]
 pub fn lid_solid(s: LidState) -> bool {

@@ -44,6 +44,27 @@ pub fn process(_program: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Prog
             let map = acc.try_borrow_data()?;
             if let Ok(v) = rush_core::mapblob::MapView::new(&map) {
                 world.reset(&v, 20);
+                if kind == rush_core::vectors::KIND_COLLIDE || kind == rush_core::vectors::KIND_MOTOR {
+                    let sc = new_scene(v);
+                    let mut h = rush_core::vectors::Fnv(state);
+                    rush_core::vectors::scene_cases_with(kind, &sc, seed, start, n, &mut h);
+                    set_return_data(&h.0.to_le_bytes());
+                    return Ok(());
+                }
+                if kind == rush_core::vectors::KIND_WORLD {
+                    // world cases on a heap Scene (sBPF frames are 4 KB; a Scene is ≈ 3.5 KB)
+                    let mut sc = new_scene(v);
+                    let mut h = rush_core::vectors::Fnv(state);
+                    let mut buf = [0u8; rush_core::vectors::MAX_CASE];
+                    let mut i = start;
+                    while i < start + n {
+                        let len = rush_core::world::vector_case_with(&mut world, &mut sc, &v, seed, i, &mut buf);
+                        h.bytes(&buf[..len]);
+                        i += 1;
+                    }
+                    set_return_data(&h.0.to_le_bytes());
+                    return Ok(());
+                }
             }
             rush_core::vectors::run_from(kind, seed, start, n, if map.is_empty() { None } else { Some(&map[..]) }, state, Some(&mut world))
         }
@@ -102,7 +123,11 @@ fn bench_step(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
         let mut ev: Box<rush_core::world::StepEvents> = Box::default();
         let params = rush_core::config::MovementParams::default();
         let mut sc = new_scene(v);
-        if what == 3 {
+        if what == 4 {
+            // split tick: [0x20, 4, part, parts]
+            let (part, parts) = (data.get(2).copied().unwrap_or(0), data.get(3).copied().unwrap_or(1));
+            rush_core::world::step_part(&mut world, &[None; rush_core::world::MAX_PLAYERS], &v, &params, &mut rush_core::world::NoHasher, &mut ev, &mut sc, part, parts);
+        } else if what == 3 {
             rush_core::world::step_with(&mut world, &[None; rush_core::world::MAX_PLAYERS], &v, &params, &mut ProfHasher, &mut ev, &mut sc);
         } else {
             rush_core::world::step_with(&mut world, &[None; rush_core::world::MAX_PLAYERS], &v, &params, &mut rush_core::world::NoHasher, &mut ev, &mut sc);
@@ -132,7 +157,7 @@ fn bench_op(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
     let arg = u32::from_le_bytes(data[4..8].try_into().unwrap());
     let map = accounts.first().ok_or(ProgramError::NotEnoughAccountKeys)?.try_borrow_data()?;
     let v = rush_core::mapblob::MapView::new(&map).map_err(|_| ProgramError::InvalidAccountData)?;
-    let sc = rush_core::collide::Scene::new(v);
+    let sc = new_scene(v);
     let mut acc = 0i64;
     let mut i = 0u32;
     while i < n {

@@ -244,10 +244,16 @@ pub fn run_from(kind: u8, seed: u64, start: u32, n: u32, map: Option<&[u8]>, sta
 #[inline(never)]
 fn scene_cases(kind: u8, v: MapView, seed: u64, start: u32, n: u32, h: &mut Fnv) {
     let sc = Scene::new(v);
+    scene_cases_with(kind, &sc, seed, start, n, h);
+}
+
+/// Collide / motor cases on caller `Scene` storage (the sBPF harness keeps it on the heap).
+#[inline(never)]
+pub fn scene_cases_with(kind: u8, sc: &Scene, seed: u64, start: u32, n: u32, h: &mut Fnv) {
     let mut buf = [0u8; MAX_CASE];
     let mut i = start;
     while i < start + n {
-        let len = if kind == KIND_COLLIDE { collide_case(&sc, seed, i, &mut buf) } else { motor_case(&sc, seed, i, &mut buf) };
+        let len = if kind == KIND_COLLIDE { collide_case(sc, seed, i, &mut buf) } else { motor_case(sc, seed, i, &mut buf) };
         h.bytes(&buf[..len]);
         i += 1;
     }

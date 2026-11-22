@@ -343,3 +343,68 @@ pub fn soak(args: &[String]) -> i32 {
         1
     }
 }
+
+/// `rush-sim split-check [--runs N] [--parts 2,3,4]` (P2 split tick): full 12-bot matches through the director, one
+/// copy stepped whole and one with `world::step_part` in K parts; the World hash must match after every tick.
+pub fn split_check(args: &[String]) -> i32 {
+    use rush_core::collide::Scene;
+    let dir = crate::arg(args, "--maps").map(std::path::PathBuf::from).unwrap_or_else(|| crate::repo_root().join("maps"));
+    let runs: u64 = crate::arg(args, "--runs").and_then(|v| v.parse().ok()).unwrap_or(3);
+    let rate: u32 = crate::arg(args, "--rate").and_then(|v| v.parse().ok()).unwrap_or(30);
+    let parts: Vec<u8> = crate::arg(args, "--parts").unwrap_or_else(|| "2,3,4,6".into()).split(',').map(|x| x.parse().unwrap()).collect();
+    let (maps, lobby) = load_maps(&dir);
+    let mut bad = 0;
+    for &k in &parts {
+        for seed in 1..=runs {
+            let lm = MapView::new(&lobby).unwrap();
+            let mut h = Sha;
+            let mut s32 = [0u8; 32];
+            s32[..8].copy_from_slice(&seed.to_le_bytes());
+            let ids: Vec<String> = (0..12).map(|s| format!("bot:{s}")).collect();
+            let e: Vec<rush_core::transcript::RosterEntry> = (0..12).map(|s| rush_core::transcript::RosterEntry { bot: true, user_id: ids[s].as_bytes(), wallet: None }).collect();
+            let rh = rush_core::transcript::roster_hash(&mut h, &e);
+            let mut a = World::new(&lm, rate);
+            rules::director::start_match(&mut a, &lm, &s32, 12, &rh, &mut h);
+            let mut b = a;
+            let params = MovementParams::default();
+            let mut cur: Vec<u8> = lobby.clone();
+            let (mut ea, mut eb) = (StepEvents::default(), StepEvents::default());
+            let mut ticks = 0u64;
+            let mut ok = true;
+            for _ in 0..rate as u64 * 1500 {
+                if let Some(id) = rules::director::needs_map(&a) {
+                    cur = maps.iter().find(|(x, _)| *x == id).unwrap().1.clone();
+                    let v = MapView::new(&cur).unwrap();
+                    rules::director::load_round(&mut a, &v, &mut h);
+                    rules::director::load_round(&mut b, &v, &mut h);
+                }
+                let v = MapView::new(&cur).unwrap();
+                ea.n = 0;
+                eb.n = 0;
+                world::step(&mut a, &[None; MAX_PLAYERS], &v, &params, &mut h, &mut ea);
+                let mut sc = Scene::new(v);
+                for p in 0..k {
+                    world::step_part(&mut b, &[None; MAX_PLAYERS], &v, &params, &mut h, &mut eb, &mut sc, p, k);
+                }
+                ticks += 1;
+                if a.hash() != b.hash() || ea.n != eb.n {
+                    eprintln!("split {k} seed {seed}: differs at tick {}", a.tick);
+                    ok = false;
+                    break;
+                }
+                if a.dir.phase >= rules::director::phase::DONE {
+                    break;
+                }
+            }
+            println!("split {k} parts, match seed {seed}: {} ticks, {}", ticks, if ok { "identical every tick" } else { "MISMATCH" });
+            if !ok {
+                bad += 1;
+            }
+        }
+    }
+    if bad == 0 {
+        0
+    } else {
+        1
+    }
+}

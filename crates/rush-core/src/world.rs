@@ -859,18 +859,34 @@ pub fn step<H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], 
 /// frame holds it next to the step's own locals.
 #[inline(never)]
 pub fn step_with<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], map: &MapView<'m>, params: &MovementParams, h: &mut H, ev: &mut StepEvents, scene: &mut Scene<'m>) {
-    w.tick = w.tick.wrapping_add(1);
+    step_part(w, inputs, map, params, h, ev, scene, 0, 1);
+}
+
+/// Part `part` of `parts` of one tick (P2 split tick): part 0 advances the tick and runs the director / round
+/// start-of-tick rules, every part re-poses the scene for that tick and steps its slots
+/// `[part·12/parts, (part+1)·12/parts)`, the last part separates and runs the end-of-tick rules. Running parts
+/// 0..parts in order gives exactly the unsplit step (the slots are stepped in the same order on the same state;
+/// the scene of a tick depends only on state the player loop does not change). Proven by `split_tick_equals_step`.
+pub fn step_part<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], map: &MapView<'m>, params: &MovementParams, h: &mut H, ev: &mut StepEvents, scene: &mut Scene<'m>, part: u8, parts: u8) {
+    let parts = parts.clamp(1, MAX_PLAYERS as u8) as usize;
+    let part = (part as usize).min(parts - 1);
+    if part == 0 {
+        w.tick = w.tick.wrapping_add(1);
+        crate::rules::director::before_tick(w, map, w.tick, h, ev);
+    }
     let tick = w.tick;
-    crate::rules::director::before_tick(w, map, tick, h, ev);
     h.mark(1);
     let cfg = w.motor_config(params);
     pose_scene_into(scene, w, map, &cfg, tick);
     let sc: &Scene<'m> = scene;
-    crate::rules::begin_tick(w, map, tick, ev);
+    if part == 0 {
+        crate::rules::begin_tick(w, map, tick, ev);
+    }
     h.mark(2);
 
-    let mut slot = 0;
-    while slot < MAX_PLAYERS {
+    let mut slot = part * MAX_PLAYERS / parts;
+    let end = (part + 1) * MAX_PLAYERS / parts;
+    while slot < end {
         if !w.players[slot].active() {
             slot += 1;
             continue;
@@ -917,10 +933,12 @@ pub fn step_with<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_P
         slot += 1;
     }
 
-    separate(w, &cfg, &sc);
-    h.mark(3);
-    crate::rules::end_tick(w, map, &sc, tick, ev);
-    crate::rules::director::after_tick(w, map, tick, h, ev);
+    if part + 1 == parts {
+        separate(w, &cfg, &sc);
+        h.mark(3);
+        crate::rules::end_tick(w, map, &sc, tick, ev);
+        crate::rules::director::after_tick(w, map, tick, h, ev);
+    }
     h.mark(4);
 }
 
@@ -1038,6 +1056,13 @@ fn stagger(s: &mut MotorState, cfg: &MotorConfig) -> bool {
 /// The 40 random ticks of a world vector case (own frame: sBPF stack frames are 4 KB).
 #[inline(never)]
 fn vector_ticks(w: &mut World, map: &MapView, r: &mut crate::vectors::Rng) {
+    let mut sc = Scene::new(*map);
+    vector_ticks_with(w, map, r, &mut sc);
+}
+
+/// [`vector_ticks`] on caller `Scene` storage (the sBPF parity harness keeps it on the heap).
+#[inline(never)]
+fn vector_ticks_with<'m>(w: &mut World, map: &MapView<'m>, r: &mut crate::vectors::Rng, sc: &mut Scene<'m>) {
     let params = MovementParams::default();
     let mut ev = StepEvents::default();
     let mut k = 0;
@@ -1051,9 +1076,28 @@ fn vector_ticks(w: &mut World, map: &MapView, r: &mut crate::vectors::Rng) {
             s += 1;
         }
         ev.n = 0;
-        step(w, &inputs, map, &params, &mut NoHasher, &mut ev);
+        step_with(w, &inputs, map, &params, &mut NoHasher, &mut ev, sc);
         k += 1;
     }
+}
+
+/// [`vector_case`] with caller `Scene` storage (`sc` must be a scene of `map`).
+pub fn vector_case_with<'m>(w: &mut World, sc: &mut Scene<'m>, map: &MapView<'m>, seed: u64, i: u32, out: &mut [u8]) -> usize {
+    let mut r = crate::vectors::Rng(seed ^ 0x5017_0000 ^ (i as u64).wrapping_mul(0xD6E8_FEB8_6659_FD93));
+    r.next();
+    let rate = [15u32, 20, 30][r.range(0, 2) as usize];
+    w.reset(map, rate);
+    w.hazard_seed = r.next();
+    let mut s = 0;
+    while s < MAX_PLAYERS {
+        w.add_player(map, s, s % 2 == 1);
+        s += 1;
+    }
+    vector_ticks_with(w, map, &mut r, sc);
+    let mut wr = crate::vectors::W { b: out, n: 0 };
+    wr.u8(rate as u8);
+    wr.i64(w.hash() as i64);
+    wr.n
 }
 
 pub fn vector_case(w: &mut World, map_bytes: &[u8], seed: u64, i: u32, out: &mut [u8]) -> usize {

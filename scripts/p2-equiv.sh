@@ -4,7 +4,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 N="${1:-5}"
-BASE=/Users/samya/Downloads/FallRush-p1/crates/target/release/rush-sim
+BASE="${P2_BASE:-/Users/samya/Downloads/FallRush-p1/crates/target/release/rush-sim}"  # P2_BASE: another baseline binary
 (cd "$ROOT/crates" && CARGO_BUILD_JOBS=2 nice -n 10 cargo build --offline --release -q -p rush-sim)
 "$BASE" soak --runs "$N" --rate 30 --maps "$ROOT/maps" > "${TMPDIR:-/tmp}/p2-equiv-base.txt"
 "$ROOT/crates/target/release/rush-sim" soak --runs "$N" --rate 30 --maps "$ROOT/maps" > "${TMPDIR:-/tmp}/p2-equiv-new.txt"

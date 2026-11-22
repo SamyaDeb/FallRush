@@ -99,12 +99,23 @@ fn cu_per_tick_real_maps() {
         while cus.len() < (rate * secs) as usize && guard < rate * (secs + 40) {
             guard += 1;
             let profile = std::env::var("BENCH_PROFILE").is_ok();
-            let what = if guard == 1 { 1u8 } else if profile { 3u8 } else { 0u8 };
-            let ix = Instruction { program_id: pid, accounts: vec![AccountMeta::new_readonly(map_key, false), AccountMeta::new(world_key, false)], data: vec![0x20, what] };
-            let msg = Message::new(&[ix], Some(&payer.pubkey()));
-            let tx = Transaction::new(&[&payer], msg, svm.latest_blockhash());
-            let meta = svm.send_transaction(tx).unwrap_or_else(|e| panic!("{stem} tick {}: {:?} {:?}", w.tick, e.err, e.meta.logs));
-            svm.expire_blockhash();
+            let parts: u8 = std::env::var("BENCH_PARTS").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
+            let what = if guard == 1 { 1u8 } else if parts > 1 { 4u8 } else if profile { 3u8 } else { 0u8 };
+            // split tick: one transaction per part; the tick's CU is the most expensive part
+            let mut meta_cu = 0u64;
+            let mut meta = None;
+            for part in 0..(if what == 4 { parts } else { 1 }) {
+                let ix = Instruction { program_id: pid, accounts: vec![AccountMeta::new_readonly(map_key, false), AccountMeta::new(world_key, false)], data: vec![0x20, what, part, parts] };
+                let msg = Message::new(&[ix], Some(&payer.pubkey()));
+                let tx = Transaction::new(&[&payer], msg, svm.latest_blockhash());
+                let m = svm.send_transaction(tx).unwrap_or_else(|e| panic!("{stem} tick {}: {:?} {:?}", w.tick, e.err, e.meta.logs));
+                svm.expire_blockhash();
+                if m.compute_units_consumed >= meta_cu {
+                    meta_cu = m.compute_units_consumed;
+                    meta = Some(m);
+                }
+            }
+            let meta = meta.unwrap();
             if what == 1 {
                 codec_cu = meta.compute_units_consumed;
                 continue;

@@ -36,11 +36,12 @@ fn knock_out(w: &mut World, slot: usize, tick: u32, why: u8, ev: &mut StepEvents
 }
 
 /// `TimedRoundRules.EndTick` (Rush phase only).
-pub fn end_tick(w: &mut World, map: &MapView, tick: u32, ev: &mut StepEvents) {
+/// `sc`: this tick's scene (its phase table makes the hazard decodes cheap; `None` = decode per use, same values).
+pub fn end_tick(w: &mut World, map: &MapView, sc: Option<&crate::collide::Scene>, tick: u32, ev: &mut StepEvents) {
     match w.round.mode {
         mode::SURVIVAL => survival_tick(w, map, tick, ev),
-        mode::SKILL => skill_tick(w, map, tick, ev),
-        _ => final_tick(w, map, tick, ev),
+        mode::SKILL => skill_tick(w, map, sc, tick, ev),
+        _ => final_tick(w, map, sc, tick, ev),
     }
     if w.round.phase == super::phase::ENDED {
         return;
@@ -316,8 +317,11 @@ fn star_candidates(f: &crate::hazards::defs::StarFieldDef, seed: u64, t: i64, ou
 const STAR_CANDS: usize = 64;
 
 #[inline(never)] // own sBPF frame (the star field def is 1.1 KB)
-fn skill_tick(w: &mut World, map: &MapView, tick: u32, ev: &mut StepEvents) {
-    let hz = w.hazards(map);
+fn skill_tick(w: &mut World, map: &MapView, sc: Option<&crate::collide::Scene>, tick: u32, ev: &mut StepEvents) {
+    let hz = match sc {
+        Some(sc) => sc.hz(w),
+        None => w.hazards(map),
+    };
     if hz.count(HazardType::StarPickup) == 0 {
         return;
     }
@@ -465,8 +469,11 @@ fn tile_idle(w: &World, d: &crate::hazards::defs::TileGridDef, k: usize, tick: u
     back != 0 && tick >= c + d.wobble_ticks as u32 + back
 }
 
-fn final_tick(w: &mut World, map: &MapView, tick: u32, ev: &mut StepEvents) {
-    let hz = w.hazards(map);
+fn final_tick(w: &mut World, map: &MapView, sc: Option<&crate::collide::Scene>, tick: u32, ev: &mut StepEvents) {
+    let hz = match sc {
+        Some(sc) => sc.hz(w),
+        None => w.hazards(map),
+    };
     let lids = lid_mode(w, map);
     let has_grid = hz.count(HazardType::CrumbleTile) > 0;
     let grid = if has_grid { Some(hz.tile_grid(0)) } else { None };

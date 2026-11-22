@@ -47,6 +47,7 @@ fn main() {
         ["qa", ..] => qa::qa(&args),
         ["run", ..] => qa::run(&args),
         ["soak", ..] => qa::soak(&args),
+        ["split-check", ..] => qa::split_check(&args),
         ["vectors", "gen", ..] => vectors_cmd::gen(&args),
         ["vectors", "check", ..] => vectors_cmd::check(&args),
         _ => {

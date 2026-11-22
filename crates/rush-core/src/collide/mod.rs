@@ -211,17 +211,24 @@ impl Default for RouteTable {
     }
 }
 
-/// Two (grid, t30) entries of [`crate::hazards::lid::states`].
+/// (grid, t30) entries a [`LidCache`] keeps: the scene's t and the three bot tiers' look-behind lags.
+pub const LID_CACHE: usize = 4;
+
+/// Bytes of one packed lid-state entry.
+pub const LID_PACKED: usize = crate::hazards::lid::MAX_LIDS_PER_GRID.div_ceil(2);
+
+/// [`LID_CACHE`] (grid, t30) entries of [`crate::hazards::lid::states`].
 #[derive(Clone, Copy)]
 pub struct LidCache {
-    pub key: [(i32, i64); 2],
-    pub states: [[crate::hazards::lid::LidState; crate::hazards::lid::MAX_LIDS_PER_GRID]; 2],
+    pub key: [(i32, i64); LID_CACHE],
+    /// Two states per byte (low nibble = even lid).
+    pub states: [[u8; LID_PACKED]; LID_CACHE],
     pub next: u8,
 }
 
 impl Default for LidCache {
     fn default() -> Self {
-        LidCache { key: [(-1, 0); 2], states: [[crate::hazards::lid::LidState::Idle; crate::hazards::lid::MAX_LIDS_PER_GRID]; 2], next: 0 }
+        LidCache { key: [(-1, 0); LID_CACHE], states: [[0; LID_PACKED]; LID_CACHE], next: 0 }
     }
 }
 
@@ -277,7 +284,7 @@ impl<'m> Scene<'m> {
         self.counters.reset();
         {
             let mut c = self.lid_cache.borrow_mut();
-            c.key = [(-1, 0); 2];
+            c.key = [(-1, 0); LID_CACHE];
             c.next = 0;
         }
         self.bp_cache.borrow_mut().valid = false;
@@ -291,18 +298,28 @@ impl<'m> Scene<'m> {
         let key = (g as i32, t);
         let mut c = self.lid_cache.borrow_mut();
         let mut e = 0;
-        while e < 2 {
+        while e < LID_CACHE {
             if c.key[e] == key {
-                *out = c.states[e];
+                let st = &c.states[e];
+                let mut i = 0;
+                while i < crate::hazards::lid::MAX_LIDS_PER_GRID {
+                    out[i] = crate::hazards::lid::LidState::from_u8((st[i / 2] >> ((i & 1) * 4)) & 0xF);
+                    i += 1;
+                }
                 return;
             }
             e += 1;
         }
         let mut scratch = [0u8; crate::hazards::lid::MAX_LIDS_PER_GRID];
         crate::hazards::lid::states(d, t, out, &mut scratch);
-        let slot = c.next as usize & 1;
+        let slot = c.next as usize % LID_CACHE;
         c.key[slot] = key;
-        c.states[slot] = *out;
+        let mut i = 0;
+        while i < crate::hazards::lid::MAX_LIDS_PER_GRID {
+            let b = &mut c.states[slot][i / 2];
+            *b = (*b & !(0xF << ((i & 1) * 4))) | ((out[i] as u8) << ((i & 1) * 4));
+            i += 1;
+        }
         c.next = c.next.wrapping_add(1);
     }
 

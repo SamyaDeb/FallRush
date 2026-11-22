@@ -457,14 +457,14 @@ pub fn respawn(w: &mut World, map: &MapView, slot: usize, ev: &mut StepEvents) -
 }
 
 /// After the players and the separation of `tick` (checkpoints, scores, round end).
-pub fn end_tick(w: &mut World, map: &MapView, _sc: &crate::collide::Scene, tick: u32, ev: &mut StepEvents) {
+pub fn end_tick(w: &mut World, map: &MapView, sc: &crate::collide::Scene, tick: u32, ev: &mut StepEvents) {
     if free(w) || w.round.phase != phase::RUSH {
         return;
     }
     if race(w) {
         race::end_tick(w, map, tick, ev);
     } else {
-        timed::end_tick(w, map, tick, ev);
+        timed::end_tick(w, map, Some(sc), tick, ev);
     }
 }
 
