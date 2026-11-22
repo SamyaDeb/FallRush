@@ -1,5 +1,7 @@
 # 14 — Implementation Plan (Blitz V10 build: Nov 18 → Nov 27)
 
+> **2026-11-21: Phase B (M5, M6, M8, P1) is superseded by [doc 19 — Fully On-Chain Plan](19-ONCHAIN-PLAN.md)** (phases PB0, P0–P7). Phase A below is history.
+
 **Status:** v3 (2026-11-19): re-planned game first (Phase A), then platform (Phase B). v2 (2026-11-18) replaced the missing `14-CODEX-IMPLEMENTATION.md`.
 
 **Owners:**

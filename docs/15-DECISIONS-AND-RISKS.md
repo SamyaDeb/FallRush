@@ -7,11 +7,11 @@
 | ID | Decision | Status | Notes |
 |---|---|---|---|
 | ADR-001 | Original IP, genre-level inspiration. Gacha-capsule Rushlings with noodle arms. Fall Guys-style *feel*, original expression. | ✅ | doc 17 §1 guardrails |
-| ADR-002 | Server-authoritative physics on a Unity headless dedicated server | ✅ | |
-| ADR-003 | ER records competitive transitions (not frames) and **is** the live system of record for outcomes | ✅ | |
+| ADR-002 | Server-authoritative physics on a Unity headless dedicated server | ⤳ OC-1 | Kept as **Classic mode** (fallback); on-chain mode moves the sim to the ER (doc 19) |
+| ADR-003 | ER records competitive transitions (not frames) and **is** the live system of record for outcomes | ⤳ OC-1 | On-chain mode: the ER runs every tick, not only transitions (doc 19) |
 | ADR-004 | VRF deals the map, variant, modifiers and hazard seed; the **deal is derived inside the callback** | ✅ | Fixes v1 contradiction C4 |
 | ADR-005 | Wallet optional; guests play everything | ✅ | |
-| ADR-006 | No paid entry or cash prizes; Fan Picks are free points | ✅ | |
+| ADR-006 | No paid entry or cash prizes; Fan Picks are free points | ⤳ OC-2 | Replaced by devnet RUSH chips (no real money) |
 | D-1 | NGO 2.14 + custom prediction; FishNet as the post-hackathon alternative | ✅ | |
 | **D-1b** | **Fix first, then fallback F1.** If the Nov 22 go/no-go fails, diagnose and fix the server-authoritative prediction first (doc 04 §4.5 fix window, until **Mon Nov 23 12:00 UTC**). Only if it still fails, switch to F1: owner-predicted movement with server validation. | ✅ (revised 2026-11-18) | You chose fix-first. F1 is the last resort: weaker anti-cheat, disclosed. |
 | D-2 | MagicBlock tuple = official examples: Anchor 1.0.2 + ER SDK 0.16.2 (`anchor`,`vrf`) + session-keys 3.1.1 | ✅ | doc 07 §1 |
@@ -211,9 +211,26 @@
 |---|---|---|---|
 | G4.13-1 | "Black / broken floor" on Lid Flip: the lid swung on its top edge (its body cut the neighbour lid → black shards) and the open ink read as black. Fix: bottom-edge hinge (both looks) + soft open lid #7E6BB4 dark lavender (60 % sun in shadow); not the shadows (shadows-off repro) | ✅ | `LidGridView`, proof B |
 | G4.13-2 | Lid Flip soft lids: own token set `PaletteTokens.SoftLidHex`, the most saturation the lit-amber luma rules allow (Bubblegum S 0.24, Tangerine 0.42, Soda blue 0.18, Grape fizz 0.19, V 1.0); the S 0.45–0.60 / V 0.88–0.95 start band fails the ≥ 0.15 gap to #FF8A00 for every ring hue but Grape | 🟡 your call for more colour (new lit colour or other ring hues) | proof C |
-| G4.13-3 | Soft budget (decision 6) **deferred**: no idle machine (another project's tests, load 15–40); no lever applied | 🟡 later (user) | proof D |
+| G4.13-3 | Soft budget (decision 6) **deferred**: no idle machine (another project's tests, load 15–40); no lever applied | 🟡 → doc 19 P8 (last, user) | proof D |
 | G4.13-4 | Rigged Bolt jiggle / flop (decision 7) skipped | ✅ user | — |
-| G4.13-5 | WebGL build #5 (24.11 MB) is the only G4.13 build; its browser performance table is UNVERIFIED (load + a throttled page); B / C confirmed visually in it | 🟡 re-measure with D | proof F |
+| G4.13-5 | WebGL build #5 (24.11 MB) is the only G4.13 build; its browser performance table is UNVERIFIED (load + a throttled page); B / C confirmed visually in it | 🟡 → doc 19 P8.1 | proof F |
+
+
+### On-chain plan decisions (2026-11-21, doc 19 §8)
+
+| ID | Decision | Status | Notes |
+|---|---|---|---|
+| OC-1 | Fully on-chain sim on the MagicBlock ER (`tick()` by timed task, `rush-core` in the program); Classic mode (ADR-002) is the fallback until on-chain mode matches it | ✅ (user, 2026-11-21) | Supersedes ADR-002/003 for on-chain mode, D-12/D-13 there |
+| OC-2 | RUSH devnet SPL chips (faucet, no real money) for markets, Chaos Drops and pots; mainnet needs a legal review | ✅ (user, 2026-11-21) | Supersedes ADR-006 |
+| OC-3 | Motor retuned in `rush-core` / `movement_v4` (integer, 20 Hz); the user signs off on the A/B feel test | ✅ (user, 2026-11-21) | |
+| OC-4 | ER SDK 0.18.x on Anchor 1.0.2 + devnet-as; not 0.20 | 🟡 | Supersedes D-2's SDK version |
+| OC-5 | One Rust core compiled to sBPF + WASM (prediction = authority by construction) | 🟡 | |
+| OC-6 | Solana.Unity-SDK removed from WebGL; chain I/O via the bridge file → TS bundle | 🟡 | Supersedes D-8, D-15 |
+| OC-7 | BOLT not used (deprecated, Anchor 0.x only) | 🟡 | |
+| OC-8 | Drop the M5 Rush Relay (Postgres) and the M8 Next.js site; program + optional stateless helpers + a Vite web app | 🟡 | Supersedes D-9 |
+| OC-9 | Chaos Drops: map-wide, 0.75 s telegraph, capped, never target a slot | 🟡 | |
+| OC-10 | Pots pay humans only; markets seeded by a labelled market-maker bot | 🟡 | |
+| P0-1 | Go / reduced / no-go after the P0 spikes | open | Filled in by P0 |
 
 ## Top risks (live; update daily in PROJECT_STATUS)
 

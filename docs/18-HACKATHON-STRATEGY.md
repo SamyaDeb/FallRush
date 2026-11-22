@@ -1,5 +1,7 @@
 # 18 — Hackathon Strategy: MagicBlock Solana Blitz V10
 
+> **2026-11-21:** the pitch (§3), proof checklist (§4) and video (§5) are superseded by doc 19 (§1 trust model, §5 P7.6 PROOF list, §7 video). The new pitch: *"The first 3D party game whose physics runs on Solana."*
+
 **Status:** v2 (2026-11-18). Research sources are listed in §7. Everything marked VERIFIED was checked on 2026-11-18.
 
 ---
