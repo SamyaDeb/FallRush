@@ -13,6 +13,7 @@ mod counters;
 mod hazcmp;
 mod mapjson;
 mod movement;
+mod qa;
 mod trace;
 mod vectors_cmd;
 
@@ -43,6 +44,9 @@ fn main() {
         ["trace", ..] => trace::cmd(&args),
         ["ffi-expect", ..] => ffi_expect(),
         ["counters", ..] => counters::cmd(&args),
+        ["qa", ..] => qa::qa(&args),
+        ["run", ..] => qa::run(&args),
+        ["soak", ..] => qa::soak(&args),
         ["vectors", "gen", ..] => vectors_cmd::gen(&args),
         ["vectors", "check", ..] => vectors_cmd::check(&args),
         _ => {
@@ -74,6 +78,10 @@ fn mapblob_cmd(a: &[&str]) -> i32 {
             let spec = match *which {
                 "flat" => testmaps::flat_arena_spec(),
                 "course" => testmaps::motor_course_spec(),
+                "race" => testmaps::race_strip_spec(),
+                "goo" => testmaps::goo_tower_spec(),
+                "stars" => testmaps::star_field_spec(),
+                "lids" => testmaps::lid_grids_spec(),
                 _ => {
                     eprintln!("unknown synthetic map {which}");
                     return 2;
