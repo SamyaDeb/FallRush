@@ -76,6 +76,33 @@ public static class Build
         Finish(ok, exitWhenDone: true);
     }
 
+    public const string MacClientOut = "Builds/Mac-p1-feellab";
+    public const string MacClientApp = "FallRush.app";
+
+    /// <summary>
+    /// P1-N (additive): macOS arm64 development client with the Feel Lab (<c>Scripts/FeelLab</c>, rush_core.bundle). Local
+    /// A/B only; never shipped. Batch: <c>-buildTarget OSXUniversal -executeMethod Build.MacClient</c>.
+    /// </summary>
+    public static void MacClient()
+    {
+        ProjectSetup.ApplyPlayerSettings();
+        var arch = EditorUserBuildSettings.GetPlatformSettings("Standalone", "OSXUniversal", "Architecture");
+        EditorUserBuildSettings.SetPlatformSettings("Standalone", "OSXUniversal", "Architecture", "ARM64"); // rush_core.bundle is arm64
+        var options = new BuildPlayerOptions
+        {
+            scenes = ClientScenes,
+            locationPathName = Path.Combine(MacClientOut, MacClientApp),
+            target = BuildTarget.StandaloneOSX,
+            targetGroup = BuildTargetGroup.Standalone,
+            subtarget = (int)StandaloneBuildSubtarget.Player,
+            options = BuildOptions.Development,
+        };
+        var ok = Run("macclient-feellab", options, MacClientOut);
+        EditorUserBuildSettings.SetPlatformSettings("Standalone", "OSXUniversal", "Architecture", string.IsNullOrEmpty(arch) ? "ARM64" : arch);
+        SavePlayerSettings();
+        Finish(ok, exitWhenDone: true);
+    }
+
     private static void BuildWebGL(bool release, bool exitWhenDone)
     {
         var previousExceptions = PlayerSettings.WebGL.exceptionSupport;
