@@ -21,6 +21,7 @@ pub mod codec;
 pub mod collide;
 pub mod config;
 pub mod config_data;
+pub mod deal;
 pub mod fx;
 pub mod hazards;
 pub mod input;
@@ -30,6 +31,7 @@ pub mod motor;
 #[cfg(any(test, feature = "builder"))]
 pub mod motor_table;
 pub mod rules;
+pub mod transcript;
 pub mod vec;
 pub mod vectors;
 pub mod world;
