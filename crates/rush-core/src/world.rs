@@ -866,7 +866,8 @@ pub fn step_with<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_P
 /// start-of-tick rules, every part re-poses the scene for that tick and steps its slots
 /// `[part·12/parts, (part+1)·12/parts)`, the last part separates and runs the end-of-tick rules. Running parts
 /// 0..parts in order gives exactly the unsplit step (the slots are stepped in the same order on the same state;
-/// the scene of a tick depends only on state the player loop does not change). Proven by `split_tick_equals_step`.
+/// the scene of a tick depends only on state the player loop does not change). Proven by `rush-sim split-check`.
+#[allow(clippy::too_many_arguments)]
 pub fn step_part<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], map: &MapView<'m>, params: &MovementParams, h: &mut H, ev: &mut StepEvents, scene: &mut Scene<'m>, part: u8, parts: u8) {
     let parts = parts.clamp(1, MAX_PLAYERS as u8) as usize;
     let part = (part as usize).min(parts - 1);
@@ -892,7 +893,7 @@ pub fn step_part<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_P
             continue;
         }
         let mut cmd = if w.players[slot].is_bot() {
-            crate::bots::bot_input(slot, w, map, &sc)
+            crate::bots::bot_input(slot, w, map, sc)
         } else {
             let mut t = w.players[slot].input;
             let c = t.consume(inputs[slot]);
@@ -918,7 +919,7 @@ pub fn step_part<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_P
             continue;
         }
         let mut m = w.players[slot].m;
-        let r = player_step(&cfg, &mut m, &cmd, w, map, &sc, tick);
+        let r = player_step(&cfg, &mut m, &cmd, w, map, sc, tick);
         h.mark(32 + slot as u8);
         let p = &mut w.players[slot];
         p.m = m;
@@ -934,9 +935,9 @@ pub fn step_part<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_P
     }
 
     if part + 1 == parts {
-        separate(w, &cfg, &sc);
+        separate(w, &cfg, sc);
         h.mark(3);
-        crate::rules::end_tick(w, map, &sc, tick, ev);
+        crate::rules::end_tick(w, map, sc, tick, ev);
         crate::rules::director::after_tick(w, map, tick, h, ev);
     }
     h.mark(4);

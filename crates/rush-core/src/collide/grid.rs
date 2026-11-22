@@ -33,8 +33,12 @@ impl<'m> Scene<'m> {
             } else {
                 let d = IVec3::new(BP_INFLATE_MM, BP_INFLATE_MM, BP_INFLATE_MM);
                 let (imn, imx) = (mn.sub(d), mx.add(d));
+                let mut r0: Bits = [0; crate::mapblob::MAX_COLLIDERS / 64];
+                self.raw_candidates(imn, imx, &mut r0);
+                // keep only colliders enabled and overlapping the inflated box this tick (the scene is per tick):
+                // every query inside the box only ever keeps a subset of these
                 let mut r: Bits = [0; crate::mapblob::MAX_COLLIDERS / 64];
-                self.raw_candidates(imn, imx, &mut r);
+                self.fine_filter(&r0, imn, imx, &mut r);
                 let mut c = self.bp_cache.borrow_mut();
                 c.valid = true;
                 c.mn = imn;
@@ -43,7 +47,11 @@ impl<'m> Scene<'m> {
                 r
             }
         };
-        // Fine filter: posed AABB overlap and enabled.
+        self.fine_filter(&raw, mn, mx, out);
+    }
+
+    /// Of `raw`, the colliders enabled this tick whose posed AABB overlaps `[mn, mx]`, into `out` (cleared by caller).
+    fn fine_filter(&self, raw: &Bits, mn: IVec3, mx: IVec3, out: &mut Bits) {
         let mut w = 0;
         while w < raw.len() {
             let mut bits = raw[w];

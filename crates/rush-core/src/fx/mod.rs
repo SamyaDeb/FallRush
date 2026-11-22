@@ -90,7 +90,7 @@ pub const fn floor_div(a: i64, b: i64) -> i64 {
     if a >= 0 {
         (a as u64 / b as u64) as i64
     } else {
-        -(((a.unsigned_abs() + b as u64 - 1) / b as u64) as i64)
+        -(a.unsigned_abs().div_ceil(b as u64) as i64)
     }
 }
 

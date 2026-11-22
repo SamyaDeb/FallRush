@@ -72,3 +72,49 @@ pub fn cmd(args: &[String]) -> i32 {
     }
     0
 }
+
+/// `rush-sim player-counters --map <blob> [--secs S] [--seeds N]`: narrowphase tests / sweep sub-steps / bisections
+/// per *player*-tick (one `step_part` per slot), RUSH only, 12 bots. Picks the deterministic per-player work cap.
+pub fn player_cmd(args: &[String]) -> i32 {
+    use rush_core::collide::Scene;
+    let map = crate::arg(args, "--map").expect("--map <blob>");
+    let secs: u32 = crate::arg(args, "--secs").and_then(|v| v.parse().ok()).unwrap_or(120);
+    let seeds: u64 = crate::arg(args, "--seeds").and_then(|v| v.parse().ok()).unwrap_or(5);
+    let blob = std::fs::read(&map).unwrap();
+    let m = MapView::new(&blob).expect("blob");
+    let params = MovementParams::default();
+    let mut narrow = Vec::new();
+    for seed in 1..=seeds {
+        let mut w = World::new(&m, 30);
+        w.hazard_seed = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+        for s in 0..MAX_PLAYERS {
+            w.add_player(&m, s, true);
+        }
+        let mut ev = StepEvents::default();
+        let ranked = m.mode() != rush_core::mapblob::mode::SANDBOX as i32 && m.mode() != rush_core::mapblob::mode::LOBBY as i32;
+        if ranked {
+            rush_core::rules::begin_round(&mut w, &m, 0, 0, 0xFFF, rush_core::rules::ROUND_INTRO_30, rush_core::rules::ROUND_COUNTDOWN_30, &mut ev);
+        }
+        let mut sc = Scene::new(m);
+        let mut t = 0;
+        while t < 30 * (secs + 10) {
+            t += 1;
+            ev.n = 0;
+            for p in 0..12u8 {
+                rush_core::collide::take_tick_counters();
+                world::step_part(&mut w, &[None; MAX_PLAYERS], &m, &params, &mut NoHasher, &mut ev, &mut sc, p, 12);
+                let c = rush_core::collide::take_tick_counters();
+                if !ranked || w.round.phase == rush_core::rules::phase::RUSH {
+                    narrow.push(c[ctr::NARROW]);
+                }
+            }
+            if ranked && rush_core::rules::is_over(&w) {
+                break;
+            }
+        }
+    }
+    let n = narrow.len();
+    println!("{map}: {n} player-ticks; narrowphase tests per player-tick p50 {} p99 {} p99.9 {} p99.99 {} max {}",
+        pct(&mut narrow.clone(), 0.5), pct(&mut narrow.clone(), 0.99), pct(&mut narrow.clone(), 0.999), pct(&mut narrow.clone(), 0.9999), pct(&mut narrow, 1.0));
+    0
+}

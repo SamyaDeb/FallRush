@@ -44,6 +44,7 @@ fn main() {
         ["trace", ..] => trace::cmd(&args),
         ["ffi-expect", ..] => ffi_expect(),
         ["counters", ..] => counters::cmd(&args),
+        ["player-counters", ..] => counters::player_cmd(&args),
         ["qa", ..] => qa::qa(&args),
         ["run", ..] => qa::run(&args),
         ["soak", ..] => qa::soak(&args),

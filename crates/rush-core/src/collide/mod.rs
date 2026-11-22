@@ -33,7 +33,7 @@ pub const SUBSTEP_MM: i64 = 200;
 /// Most samples per sweep (a 12.8 m sweep; longer sweeps use longer steps).
 pub const MAX_SUBSTEPS: i64 = 64;
 /// Time-of-impact bisection steps.
-pub const TOI_BISECT: u32 = 8;
+pub const TOI_BISECT: u32 = 6; // P2 0.2: 8 → 6 (30/30 C# traces still pass at 30 Hz; 4 and 5 fail Sandbox-mallet)
 /// Most moving platforms / doors a map may have.
 pub const MAX_PLATFORMS: usize = 16;
 pub const MAX_DOORS: usize = 16;

@@ -63,5 +63,5 @@ fn sbf_matches_native() {
         report += &line;
         assert_eq!(state, digest, "{name}: sBPF digest differs from native");
     }
-    std::fs::write(root.join("docs/proof/p1/sbf-parity.txt"), report).ok();
+    std::fs::write(root.join("docs/proof/p2/sbf-parity.txt"), report).ok();
 }

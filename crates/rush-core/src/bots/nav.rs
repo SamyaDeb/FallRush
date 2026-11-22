@@ -738,6 +738,7 @@ fn dodge_balls(c: &Ctx, cmd: &mut InputCmd, moving: bool) {
     }
     // lanes in range (each near ball's kinematics computed once: P2 0.2)
     let mut near = [hazards::BallK::default(); 16];
+    let mut lane_d = [0i64; 16];
     let mut nn = 0usize;
     let mut i = 0;
     while i < n && nn < near.len() {
@@ -750,6 +751,7 @@ fn dodge_balls(c: &Ctx, cmd: &mut InputCmd, moving: bool) {
         let vertical_ok = (d.start_y - s.pos.y).abs() <= 9000 || (d.end_y - s.pos.y).abs() <= 9000;
         if cx * cx + cz * cz <= 16_000i64 * 16_000 && vertical_ok {
             near[nn] = if (c.sc.balls_n as usize) == n { c.sc.balls[i] } else { hazards::BallK::of(&d) };
+            lane_d[nn] = isqrt_i64(cx * cx + cz * cz);
             nn += 1;
         }
         i += 1;
@@ -766,6 +768,7 @@ fn dodge_balls(c: &Ctx, cmd: &mut InputCmd, moving: bool) {
     let first_hits = |hd: &[(i64, i64, bool)], out: &mut [i64]| {
         let m = hd.len();
         let (vx, vz) = (s.vel.x as i64 / 30, s.vel.z as i64 / 30);
+        let vmax = vx.abs().max(vz.abs());
         let mut x = [s.pos.x as i64; 9];
         let mut z = [s.pos.z as i64; 9];
         let mut open = m;
@@ -788,6 +791,14 @@ fn dodge_balls(c: &Ctx, cmd: &mut InputCmd, moving: bool) {
             let mut q = 0;
             while q < nn && open > 0 {
                 let d = &near[q];
+                // Exact reject (P2 0.2): balls stay on their lane, and each tick a heading moves us by
+                // v + (h·top − v)·a/5, at most 2|v|/30 + run per axis; so a lane farther than k times that (×2 ≥ √2,
+                // + reach + the lane-point rounding) is never within reach at tick k.
+                let reach_q = (d.radius + c.cfg.radius + 150) as i64;
+                if lane_d[q] > 2 * k * (2 * vmax + run) + reach_q + 64 {
+                    q += 1;
+                    continue;
+                }
                 let alive = d.alive.min(16);
                 let reach = (d.radius + c.cfg.radius + 150) as i64;
                 let mut j = 0;

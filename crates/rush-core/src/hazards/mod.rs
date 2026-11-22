@@ -893,15 +893,19 @@ pub fn star_slot(d: &StarFieldDef, seed: u64, id: i32) -> Option<StarSlot> {
     }
     let wave = id / d.wave_size;
     let k = id % d.wave_size;
-    let mut pool = [0i32; MAX_ANCHORS];
-    let mut m = 0usize;
-    let mut i = 0;
-    while i < n && m < pool.len() {
-        if !d.is_golden_anchor(i) {
-            pool[m] = i;
-            m += 1;
+    // the non-golden anchors, precomputed by `StarFieldDef::read` (same list; P2 0.2)
+    let mut pool = d.pool;
+    let mut m = d.pool_n as usize;
+    if m == 0 {
+        // a def not made by `read` (tests, vectors): build it here
+        let mut i = 0;
+        while i < n && m < pool.len() {
+            if !d.is_golden_anchor(i) {
+                pool[m] = i as u8;
+                m += 1;
+            }
+            i += 1;
         }
-        i += 1;
     }
     if k as usize >= m {
         return None;
@@ -913,7 +917,7 @@ pub fn star_slot(d: &StarFieldDef, seed: u64, id: i32) -> Option<StarSlot> {
         i += 1;
     }
     let spawn = wave * d.wave_every_ticks;
-    Some(StarSlot { anchor: pool[k as usize], spawn_t: spawn, expire_t: spawn + d.wave_life_ticks, value: 1 })
+    Some(StarSlot { anchor: pool[k as usize] as i32, spawn_t: spawn, expire_t: spawn + d.wave_life_ticks, value: 1 })
 }
 
 /// `StarAnchorMm` at `t60` (static, on a platform, or on a turn table).
