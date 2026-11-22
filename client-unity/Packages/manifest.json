@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "com.solana.unity_sdk": "https://github.com/magicblock-labs/Solana.Unity-SDK.git#1da8fd7fe9e035ad0f6fb627997f3f2a6f134475",
     "com.unity.cinemachine": "3.1.7",
     "com.unity.dedicated-server": "2.0.2",
     "com.unity.ide.rider": "3.1.0",
