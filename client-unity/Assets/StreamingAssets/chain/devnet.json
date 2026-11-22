@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "name": "devnet (PLACEHOLDER: fill from P2 at G-layout)",
+  "_todo": "Every TODO_ value and every offset below is a placeholder until P2's real program + WorldAcc layout (P2 proof §10). The submitInput discriminator is sha256('global:submit_input')[0..8], correct only if P2 keeps that Anchor ix name.",
+  "transport": "rollup",
+  "addresses": {
+    "program": "TODO_P2_PROGRAM_ID",
+    "arena": "TODO_P2_ARENA_PUBKEY",
+    "world": "TODO_P2_WORLD_PUBKEY"
+  },
+  "world": {
+    "magicHex": null,
+    "offset": 72,
+    "lenOffset": 68,
+    "tickOffset": 12,
+    "appliedTickOffset": 16,
+    "appliedTickCount": 12,
+    "coreVersionOffset": 8,
+    "flagsOffset": 70,
+    "arenaSeqOffset": 64
+  },
+  "queue": { "maxWorlds": 64, "maxEvents": 512 },
+  "rollup": {
+    "erHttp": "https://devnet-as.magicblock.app",
+    "erWs": "wss://devnet-as.magicblock.app",
+    "baseHttp": "https://api.devnet.solana.com",
+    "baseWs": null,
+    "commitment": "processed",
+    "baseTxPerSec": 1.5,
+    "baseBurst": 1,
+    "confirmPollMs": 50,
+    "confirmBatch": 256,
+    "confirmTimeoutMs": 5000,
+    "accountPollMs": 1000,
+    "stallMs": 2000,
+    "rttPollMs": 2000,
+    "blockhashRefreshMs": 10000,
+    "clonerRetryMs": 5000,
+    "clonerRetryEveryMs": 250,
+    "inputClonerRetryMs": 300,
+    "computeUnitLimit": null,
+    "submitInput": {
+      "programId": "$program",
+      "discriminator": "38b89a5bad3f158a",
+      "accounts": [
+        { "name": "session_signer", "address": "$session", "signer": true, "writable": true },
+        { "name": "input_buf", "pda": { "seeds": [{ "utf8": "in" }, { "pubkey": "$arena" }, { "u8": "$slot" }] }, "writable": true },
+        { "name": "session_token", "address": "$sessionToken" }
+      ],
+      "args": [{ "type": "vec", "from": "$batch" }]
+    },
+    "join": {
+      "ix": null,
+      "layer": "er",
+      "slotTable": null,
+      "map": "",
+      "rate": 30,
+      "confirmTimeoutMs": 15000
+    }
+  },
+  "session": {
+    "programId": "KeyspM2ssCJbqUhQ4k7sveSiY4WjnYsrXkC8oDbwde5",
+    "targetProgram": "$program",
+    "validitySec": 3600,
+    "topUp": true,
+    "topUpLamports": 10000000
+  }
+}

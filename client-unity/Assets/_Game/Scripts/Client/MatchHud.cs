@@ -52,7 +52,7 @@ namespace FallRush.Client
         private bool _backSent;
         private float _introStart = -1f;
         private RaceRules _course;
-        private IChainAdapter _chain;
+        private static IChainAdapter _chain => ChainAdapters.Current; // P3: the on-chain session's adapter while it runs
         private int _lastCount = -1;
         private int _dealtShown;
         private float _dealtAt = -1f;
@@ -67,7 +67,6 @@ namespace FallRush.Client
         private void Start()
         {
             _map = MapInfo.Current;
-            _chain = PracticeChainAdapter.Current; // TODO(M6): the real adapter (evt.chainStatus, VRF deal, receipt links)
             if (_map != null && _map.definition != null && _map.definition.IsRace)
                 _course = new RaceRules(_map.CheckpointDefs(), _map.CourseLineMm(), 0);
             _rv = gameObject.AddComponent<ReactiveViews>();

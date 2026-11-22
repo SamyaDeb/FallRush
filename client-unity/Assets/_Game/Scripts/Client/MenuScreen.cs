@@ -70,6 +70,12 @@ namespace FallRush.Client
                 NetBootstrap.StartPractice("Sandbox");
             });
             lab.GetComponent<LayoutElement>().minHeight = 44;
+            // P3: the on-chain Final against the local chain emulator / the rollup (Scripts/OnChain). Its own entry only.
+            if (OnChainEntry.Available)
+            {
+                var oc = UiKit.Button(panel, "Play On-Chain (preview)", UiKit.Mint, () => OnChainEntry.Play());
+                oc.GetComponent<LayoutElement>().minHeight = 44;
+            }
 #endif
             _wallet = UiKit.Label(panel, string.Empty, 14, UiKit.Ink, FontStyle.Normal, 20);
             _target = UiKit.Label(panel, string.Empty, 13, UiKit.Grey, FontStyle.Normal, 18);

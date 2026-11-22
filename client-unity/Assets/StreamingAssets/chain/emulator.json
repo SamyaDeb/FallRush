@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "name": "emulator",
+  "transport": "emulator",
+  "addresses": {
+    "world": "emu:world",
+    "program": "4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4"
+  },
+  "world": {
+    "magicHex": "4652574f524c4430",
+    "offset": 72,
+    "lenOffset": 68,
+    "tickOffset": 12,
+    "appliedTickOffset": 16,
+    "appliedTickCount": 12,
+    "coreVersionOffset": 8,
+    "flagsOffset": 70,
+    "arenaSeqOffset": 64
+  },
+  "queue": { "maxWorlds": 64, "maxEvents": 512 },
+  "emulator": {
+    "url": "ws://127.0.0.1:8787/",
+    "pollMs": 1000,
+    "pingMs": 1000,
+    "joinTimeoutMs": 5000,
+    "reconnect": { "minMs": 250, "maxMs": 5000 }
+  },
+  "session": {
+    "programId": "KeyspM2ssCJbqUhQ4k7sveSiY4WjnYsrXkC8oDbwde5",
+    "targetProgram": "$program",
+    "validitySec": 3600
+  }
+}
