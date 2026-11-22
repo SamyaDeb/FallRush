@@ -456,6 +456,56 @@ namespace FallRush.Tests
             Assert.That(res.TimerExpired, Is.False);
         }
 
+        // ------------------------------------------------------------------ final on a lid map (decision G4.5-8 = (b))
+
+        private static HazardSet LidFinalSet() => new HazardSet(null, null)
+        {
+            LidGrids = new[] { LidGridDef.Default(0, 6000, 0, 9), LidGridDef.Default(0, 0, 0, 5) }, KillYMm = -6000,
+        };
+
+        [Test]
+        public void Final_LidMap_TimerTiebreak_TopShelfThenFewerFallsThenLaterDropThenSlot()
+        {
+            var hz = LidFinalSet();
+            var r = new Round<FinalRules>(new FinalRules(3600), hz, new AnalyticWorld().Ground(), 5, 1);
+            r.Start();
+            var p = r.Rules.Players;
+            (p[0].LidShelf, p[0].LidFalls, p[0].LidDropTick) = (1, 1, 900u);
+            (p[1].LidShelf, p[1].LidFalls, p[1].LidDropTick) = (0, 0, 0u);
+            (p[2].LidShelf, p[2].LidFalls, p[2].LidDropTick) = (1, 1, 1500u);
+            (p[3].LidShelf, p[3].LidFalls, p[3].LidDropTick) = (0, 0, 0u);
+            (p[4].LidShelf, p[4].LidFalls, p[4].LidDropTick) = (1, 2, 2000u);
+            var res = r.Rules.RankNow(r.Sim, r.Sim.Tick, true);
+            Assert.That(res.Order, Is.EqualTo(new[] { 1, 3, 2, 0, 4 }), "top shelf (tie → slot), then fewer falls, then the later drop");
+            Assert.That(res.Qualified, Is.EqualTo(new[] { true, false, false, false, false }));
+            Assert.That(res.Reasons[1], Is.EqualTo(ElimReason.TimeoutRank));
+            var again = r.Rules.RankNow(r.Sim, r.Sim.Tick, true);
+            Assert.That(again.Order, Is.EqualTo(res.Order), "same inputs → same order");
+        }
+
+        [Test]
+        public void Final_LidMap_TracksTheShelfStoodOn_AndCountsTheDrop()
+        {
+            var hz = LidFinalSet();
+            var low = new Vec3(0f, 0.02f, 0f);   // on the lower 5 × 5 grid (top 0 m)
+            var off = new Vec3(30f, 0.02f, 30f); // on the ground, outside every lid grid
+            var r = new Round<FinalRules>(new FinalRules(3600), hz, new AnalyticWorld().Ground(), 2, 1);
+            r.Sim.Reconfigure(Cfg, r.Sim.World, hz, new[] { low, off, V(), V(), V(), V(), V(), V(), V(), V(), V(), V() });
+            r.Sim.Place(0, low, 0);
+            r.Sim.Place(1, off, 0);
+            r.Start();
+            for (var i = 0; i < 240; i++)
+                r.Sim.Step();
+            var p = r.Rules.Players;
+            Assert.That(p[0].LidShelf, Is.EqualTo(1), "standing on the lower shelf");
+            Assert.That(p[0].LidFalls, Is.EqualTo(1), "one drop from the top shelf (everyone starts on the top shelf)");
+            Assert.That(p[0].LidDropTick, Is.Not.Zero);
+            Assert.That((p[1].LidShelf, p[1].LidFalls), Is.EqualTo((0, 0)), "off the lids: unchanged");
+            Assert.That(p[0].Deepest + p[0].Tiles + p[1].Deepest + p[1].Tiles, Is.Zero, "no crumble keys on a lid map");
+            var res = r.Rules.RankNow(r.Sim, r.Sim.Tick, true);
+            Assert.That(res.Order, Is.EqualTo(new[] { 1, 0 }));
+        }
+
         [Test]
         public void Final_TimerAt120s_EndsWithOneQualifier()
         {

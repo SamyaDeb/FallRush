@@ -23,6 +23,9 @@ namespace FallRush.Shared
             public int Deepest;      // final: deepest shelf reached (0 = top)
             public int Tiles;        // final: distinct tiles stood on
             public int Height;       // survival: max height reached (mm)
+            public int LidShelf;     // final, lid maps: index in LidGrids of the shelf last stood on (0 = top)
+            public int LidFalls;     // final, lid maps: times LidShelf went down
+            public uint LidDropTick; // final, lid maps: tick of the last drop to a lower shelf (0 = never)
         }
 
         public readonly Player[] Players = new Player[SimCore.MaxSlots];
