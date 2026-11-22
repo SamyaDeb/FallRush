@@ -20,13 +20,15 @@ for i in $(seq 1 "$N"); do
   node tools/p3/chain-relay.mjs --net devnet --fund-from ~/.config/solana/id.json --fund-lamports 10000000 > ".m1-logs/$RUN-relay.log" 2>&1 &
   RELAY=$!
   sleep 3
+  # P3_HUMAN=1 (task L): you play with keyboard + mouse (no auto-play); otherwise the scripted auto-play measures
+  if [[ "${P3_HUMAN:-0}" == 1 ]]; then PLAY=(-fallrushName You); else PLAY=(-fallrushOnchainAuto 400 -fallrushOnchainShot "$ROOT/$OUT/$RUN.png" -fallrushHud -fallrushName P3); fi
   "$ROOT/$APP" -screen-width 1280 -screen-height 720 -screen-fullscreen 0 -logFile "$ROOT/.m1-logs/$RUN-client.log" \
-    -fallrushOnchain devnet -fallrushOnchainAuto 400 -fallrushOnchainShot "$ROOT/$OUT/$RUN.png" -fallrushHud -fallrushName P3 &
+    -fallrushOnchain devnet "${PLAY[@]}" &
   CLIENT=$!
   for _ in $(seq 1 60); do grep -q "waitingLobby\|waitingMatch\|lobby" ".m1-logs/$RUN-relay.log" 2>/dev/null && break; sleep 1; done
   ( cd "$P2" && P2_NET=devnet ARENA=2 MATCHES=1 MODE=final INTERVAL_MS=11 RUN="$RUN" node --experimental-strip-types tools/keeper/run.ts ) > ".m1-logs/$RUN-keeper.log" 2>&1
   echo "keeper exit $?"
-  sleep 8
+  sleep $([[ "${P3_HUMAN:-0}" == 1 ]] && echo 20 || echo 8)
   kill $CLIENT 2>/dev/null; sleep 1; kill $RELAY 2>/dev/null; wait 2>/dev/null
   mkdir -p "$OUT/$RUN"
   cp "$P2/docs/proof/p2/runs/$RUN-m1/summary.json" "$OUT/$RUN/keeper-summary.json" 2>/dev/null

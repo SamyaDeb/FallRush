@@ -182,7 +182,8 @@ namespace FallRush.OnChain
 
         // ------------------------------------------------------------------ IChainFeed
 
-        public bool OverridesServer => isActiveAndEnabled;
+        public bool OverridesServer => isActiveAndEnabled && !_handedBack;
+        private bool _handedBack;
 
         public double PresentTick => _pred != null && _pred.HasState && OwnPlaying ? _pred.Present + _frac : double.NaN;
 
@@ -231,15 +232,18 @@ namespace FallRush.OnChain
                 OnJoined(j);
 
             var cs = ClientSim.Instance;
-            if (cs != null && !ReferenceEquals(cs.Feed, this))
+            if (cs != null && !ReferenceEquals(cs.Feed, this) && !_handedBack)
                 cs.Feed = this;
 
             _worlds.Clear();
             _tx.DrainWorlds(_worlds);
-            foreach (var w in _worlds)
-                OnWorldMsg(in w, cs);
-            if (_worlds.Count > 0 && cs != null && _hasNewest)
-                AfterWorlds(cs, now);
+            if (!_handedBack) // after the switch hand-back the game server drives the screens again
+            {
+                foreach (var w in _worlds)
+                    OnWorldMsg(in w, cs);
+                if (_worlds.Count > 0 && cs != null && _hasNewest)
+                    AfterWorlds(cs, now);
+            }
 
             _confirms.Clear();
             _tx.DrainConfirms(_confirms);
@@ -273,7 +277,8 @@ namespace FallRush.OnChain
             }
             else if (!lag)
                 _lastLagAt = -1;
-            _adapter.Live = _hasNewest && !lag;
+            _adapter.Live = _hasNewest && (!lag || _handedBack);
+            PollSolana();
             Stats(now);
             if (BaseMatch != null)
                 SuperviseSwitch(cs, now);
@@ -293,8 +298,15 @@ namespace FallRush.OnChain
             var sm = cs != null ? cs.ServerMatch : null;
             if (sm != null && sm.Phase >= MatchPhase.Champion && sm.Phase != MatchPhase.Aborted)
             {
-                Debug.Log($"[onchain] switch done: server match {sm.Phase}, champion {sm.Champion}; handing back");
-                End();
+                if (!_handedBack)
+                {
+                    // the server's screens again (same champion); the chip / receipt stay on-chain (Rollup ✓, then
+                    // Solana ✓ once the Match is committed back to Solana)
+                    Debug.Log($"[onchain] switch done: server match {sm.Phase}, champion {sm.Champion}; handing back");
+                    _handedBack = true;
+                    cs?.FeedHandBack();
+                }
+
                 return;
             }
 
@@ -314,6 +326,41 @@ namespace FallRush.OnChain
 
         public const float SwitchTimeoutSeconds = 8f;
 
+        private float _solanaAt;
+        private bool _solanaPolling;
+
+        /// <summary>P3-M: after the Final, the receipt chip turns ⬢ Solana ✓ once the Match account is owned by the game
+        /// program on Solana again (finalize_match committed + undelegated it).</summary>
+        private void PollSolana()
+        {
+            if (!_resultLogged || _adapter.Committed || _adapter.Emulator || string.IsNullOrEmpty(_matchPda) || _solanaPolling || Time.unscaledTime < _solanaAt)
+                return;
+            _solanaAt = Time.unscaledTime + 4f;
+            _solanaPolling = true;
+            var url = Cfg.target == "local" ? "http://127.0.0.1:8899" : "https://api.devnet.solana.com";
+            var body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getAccountInfo\",\"params\":[\"" + _matchPda + "\",{\"encoding\":\"base64\",\"commitment\":\"confirmed\"}]}";
+            var req = new UnityEngine.Networking.UnityWebRequest(url, "POST")
+            {
+                uploadHandler = new UnityEngine.Networking.UploadHandlerRaw(Encoding.UTF8.GetBytes(body)),
+                downloadHandler = new UnityEngine.Networking.DownloadHandlerBuffer(),
+            };
+            req.SetRequestHeader("Content-Type", "application/json");
+            req.SendWebRequest().completed += _ =>
+            {
+                _solanaPolling = false;
+                var t = req.result == UnityEngine.Networking.UnityWebRequest.Result.Success ? req.downloadHandler.text : null;
+                req.Dispose();
+                if (t != null && t.Contains("\"owner\":\"" + ProgramId + "\""))
+                {
+                    _adapter.Committed = true;
+                    Debug.Log($"[onchain] Solana ✓: Match {_matchPda} is back on Solana (committed)");
+                }
+            };
+        }
+
+        public const string ProgramId = "4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4";
+        private string _matchPda;
+
         private void OnJoined(JoinInfo j)
         {
             _ownSlot = j.slot;
@@ -322,6 +369,13 @@ namespace FallRush.OnChain
                 _joinedAt = ClientSim.Now;
             _feed.OwnSlot = j.slot;
             _adapter.Arena = j.arena;
+            if (!string.IsNullOrEmpty(j.match) && j.match.Length >= 32 && j.match.Length <= 44 && Cfg.target != "emu")
+            {
+                _matchPda = j.match; // the rollup join reports the Match PDA (base58)
+                var cluster = Cfg.target == "local" ? "custom&customUrl=http%3A%2F%2F127.0.0.1%3A8899" : "devnet";
+                _adapter.AccountUrl = $"https://explorer.solana.com/address/{_matchPda}?cluster={cluster}";
+                _adapter.RollupUrl = $"https://explorer.solana.com/address/{j.arena}?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app";
+            }
             for (var i = 0; i < 12; i++)
             {
                 _feed.Names[i] = null;
