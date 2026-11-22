@@ -113,11 +113,11 @@ fn tiered_bots_finish_and_are_deterministic() {
 }
 
 #[test]
-fn bot_state_is_24_bytes() {
+fn bot_state_is_26_bytes() {
     let mut buf = [0u8; 64];
     let mut e = crate::codec::Enc::new(&mut buf);
     BotState::default().enc(&mut e);
-    assert_eq!(e.n, 24);
+    assert_eq!(e.n, 26);
 }
 
 #[test]

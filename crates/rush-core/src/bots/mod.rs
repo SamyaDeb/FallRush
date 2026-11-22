@@ -14,11 +14,11 @@
 //! ```
 //! A section without routes (or a map without any) falls back to the course polyline (Race) or the mode heuristics.
 //!
-//! ## Per-bot memory ([`BotState`], 24 bytes in `World`)
+//! ## Per-bot memory ([`BotState`], 26 bytes in `World`)
 //! Ticks are kept as their low 16 bits (wrap-safe comparisons; every window is ≪ 65,536 ticks).
 //!
 //! ## Simplifications vs C# (listed in the proof)
-//! - no steering *reaction delay* (it needs a 16-tick move history; 24-byte budget): wobble, speed scale, late jumps
+//! - steering *reaction delay* is a first-order lag (2 bytes) instead of the C# 16-tick move history; wobble, speed scale, late jumps
 //!   and hesitation are kept;
 //! - Skill: island stars (spring-pad trips), the burst look-ahead and the camper probe are not ported; pads and bumpers
 //!   are avoided with a simpler side push;
@@ -57,7 +57,7 @@ pub mod bf {
     pub const LID_IGNORE: u8 = 64;
 }
 
-/// Per-bot memory kept in `World` (24 bytes canonical).
+/// Per-bot memory kept in `World` (26 bytes canonical).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct BotState {
     pub tier: u8,
@@ -79,6 +79,9 @@ pub struct BotState {
     pub aux_tick: u16,
     /// Best distance to the current waypoint (mm / 16, saturating).
     pub best_d: u16,
+    /// Steering after the reaction lag (the last move sent).
+    pub lag_x: i8,
+    pub lag_y: i8,
 }
 
 impl Codec for BotState {
@@ -94,6 +97,8 @@ impl Codec for BotState {
         for v in [self.jump_held_until, self.hesitate_until, self.pending_jump_at, self.progress_tick, self.aux_tick, self.best_d] {
             e.u16(v);
         }
+        e.i8(self.lag_x);
+        e.i8(self.lag_y);
     }
     fn dec(d: &mut Dec) -> Self {
         BotState {
@@ -111,6 +116,8 @@ impl Codec for BotState {
             progress_tick: d.u16(),
             aux_tick: d.u16(),
             best_d: d.u16(),
+            lag_x: d.i8(),
+            lag_y: d.i8(),
         }
     }
 }
@@ -143,6 +150,8 @@ impl BotState {
 #[derive(Clone, Copy, Debug)]
 pub struct Skill {
     pub wobble_deg: i64,
+    /// Steering reaction delay (30 Hz ticks; `BotBrain` ReactionTicks), as a first-order lag of that time constant.
+    pub reaction_ticks: i64,
     pub late_jump_ticks: i32,
     pub speed_permille: i64,
     pub hesitate_pct: u32,
@@ -155,10 +164,10 @@ pub struct Skill {
 
 pub fn skill(t: u8) -> Skill {
     match t {
-        tier::EASY => Skill { wobble_deg: 22, late_jump_ticks: 3, speed_permille: 820, hesitate_pct: 35, hesitate_ticks: 40, star_pick_range_mm: 12_000, timing_slop: 5, lid_lag: 12, lid_misjudge_pct: 45 },
-        tier::NORMAL => Skill { wobble_deg: 12, late_jump_ticks: 2, speed_permille: 900, hesitate_pct: 18, hesitate_ticks: 25, star_pick_range_mm: 18_000, timing_slop: 4, lid_lag: 9, lid_misjudge_pct: 30 },
-        tier::GOOD => Skill { wobble_deg: 5, late_jump_ticks: 1, speed_permille: 970, hesitate_pct: 6, hesitate_ticks: 12, star_pick_range_mm: 30_000, timing_slop: 2, lid_lag: 3, lid_misjudge_pct: 10 },
-        _ => Skill { wobble_deg: 0, late_jump_ticks: 0, speed_permille: 1000, hesitate_pct: 0, hesitate_ticks: 0, star_pick_range_mm: 40_000, timing_slop: 0, lid_lag: 0, lid_misjudge_pct: 0 },
+        tier::EASY => Skill { reaction_ticks: 8, wobble_deg: 22, late_jump_ticks: 3, speed_permille: 820, hesitate_pct: 35, hesitate_ticks: 40, star_pick_range_mm: 12_000, timing_slop: 5, lid_lag: 12, lid_misjudge_pct: 45 },
+        tier::NORMAL => Skill { reaction_ticks: 5, wobble_deg: 12, late_jump_ticks: 2, speed_permille: 900, hesitate_pct: 18, hesitate_ticks: 25, star_pick_range_mm: 18_000, timing_slop: 4, lid_lag: 9, lid_misjudge_pct: 30 },
+        tier::GOOD => Skill { reaction_ticks: 2, wobble_deg: 5, late_jump_ticks: 1, speed_permille: 970, hesitate_pct: 6, hesitate_ticks: 12, star_pick_range_mm: 30_000, timing_slop: 2, lid_lag: 3, lid_misjudge_pct: 10 },
+        _ => Skill { reaction_ticks: 0, wobble_deg: 0, late_jump_ticks: 0, speed_permille: 1000, hesitate_pct: 0, hesitate_ticks: 0, star_pick_range_mm: 40_000, timing_slop: 0, lid_lag: 0, lid_misjudge_pct: 0 },
     }
 }
 
@@ -388,9 +397,19 @@ fn noise(c: &Ctx, b: &mut BotState, plan: Plan) -> InputCmd {
             ox = div_round(ox * 127, l);
             oy = div_round(oy * 127, l);
         }
-        cmd.move_x = ox as i8;
-        cmd.move_y = oy as i8;
+        // Reaction delay: a first-order lag with a time constant of the tier's reaction ticks (30 Hz), so steering
+        // changes arrive ≈ that late (C#: a 16-tick move history; 2 bytes here). Precise moves: no lag.
+        let r = if precise { 0 } else { c.sk.reaction_ticks };
+        if r > 0 {
+            let k = (30_000 / (c.w.rate.max(1) as i64 * r)).min(1000);
+            ox = b.lag_x as i64 + div_round((ox - b.lag_x as i64) * k, 1000);
+            oy = b.lag_y as i64 + div_round((oy - b.lag_y as i64) * k, 1000);
+        }
+        cmd.move_x = ox.clamp(-127, 127) as i8;
+        cmd.move_y = oy.clamp(-127, 127) as i8;
     }
+    b.lag_x = cmd.move_x;
+    b.lag_y = cmd.move_y;
     if p.buttons & JUMP_PRESSED != 0 && !b.has(bf::PENDING_JUMP) {
         b.set(bf::PENDING_JUMP, true);
         let late = if precise { c.sk.late_jump_ticks.min(1) } else { c.sk.late_jump_ticks };

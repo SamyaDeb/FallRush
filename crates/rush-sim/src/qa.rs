@@ -3,8 +3,8 @@
 //!
 //! QA: N seeded single rounds of the blob's mode with all-bot players: Race 12 (8 qualify), Survival 8 (5), Skill 5 (3),
 //! Final 3 (1) — `RoundTargets(12)`. Variant alternates A / B by seed, modifier None. Per run: duration (RUSH → end),
-//! qualified, timer ending, valid (the result has every participant once), soft-lock (a player in play that moved
-//! < 0.5 m for 5 s; not counted on Final maps, where standing on a solid lid is the strategy), tunnelling (a tick-to-tick jump > the max course speed without a respawn), and determinism (the
+//! qualified, timer ending, valid (the result has every participant once), soft-lock (the round never ends, as in C#
+//! `ModeQa`; plus an info count of players in play that moved < 0.5 m for 5 s, not on Final maps), tunnelling (a tick-to-tick jump > the max course speed without a respawn), and determinism (the
 //! same seed twice → the same World hash at every round end). Bots read only player-visible information.
 
 use rush_core::config::MovementParams;
@@ -36,7 +36,10 @@ pub struct RunResult {
     pub players: u32,
     pub timer: bool,
     pub valid: bool,
-    pub softlocks: u32,
+    /// The round never ended (C# ModeQa soft-lock).
+    pub softlock: bool,
+    /// Players in play that moved < 0.5 m for 5 s (info: waits at doors / bars count too).
+    pub stuck5: u32,
     pub tunnels: u32,
     pub falls: u32,
     pub hits: u32,
@@ -96,6 +99,14 @@ pub fn run_round(blob: &[u8], seed: u64, rate: u32, tier: u8) -> RunResult {
                 since[i] = 0;
             }
             continue;
+        }
+        if std::env::var("RUSH_QA_DEBUG").is_ok() {
+            for i in 0..np as usize {
+                let p = &w.players[i];
+                if p.last_step & world::step_result::HAZARD_HIT != 0 {
+                    eprintln!("hit t={} slot={} pos=({},{},{}) cp={}", t, i, p.m.pos.x, p.m.pos.y, p.m.pos.z, p.r.checkpoint);
+                }
+            }
         }
         for i in 0..np as usize {
             let p = &w.players[i];
@@ -166,7 +177,8 @@ pub fn run_round(blob: &[u8], seed: u64, rate: u32, tier: u8) -> RunResult {
         players: np,
         timer: r.timer_expired,
         valid,
-        softlocks: stuck.iter().take(np as usize).filter(|x| **x).count() as u32,
+        softlock: !rules::is_over(&w),
+        stuck5: stuck.iter().take(np as usize).filter(|x| **x).count() as u32,
         tunnels,
         falls: (0..np as usize).map(|i| w.players[i].falls as u32).sum(),
         hits: (0..np as usize).map(|i| w.players[i].hits as u32).sum(),
@@ -220,7 +232,8 @@ pub fn qa(args: &[String]) -> i32 {
     let p9 = p90(&mut secs);
     let valid = res.iter().filter(|r| r.valid).count();
     let timer = res.iter().filter(|r| r.timer).count();
-    let soft: u32 = res.iter().map(|r| r.softlocks).sum();
+    let soft = res.iter().filter(|r| r.softlock).count();
+    let stuck5: u32 = res.iter().map(|r| r.stuck5).sum();
     let tun: u32 = res.iter().map(|r| r.tunnels).sum();
     let q = res.iter().map(|r| r.qualified as f64).sum::<f64>() / runs as f64;
     let ex0 = res.iter().map(|r| r.extra[0] as f64).sum::<f64>() / runs as f64;
@@ -230,7 +243,7 @@ pub fn qa(args: &[String]) -> i32 {
     let j = json!({
         "map": name, "mode": m.mode(), "rate": rate, "runs": runs, "tier": tier,
         "median_s": med, "p90_s": p9, "qualified_avg": q, "players": res[0].players,
-        "valid": valid, "timer_endings": timer, "softlocked_players": soft, "tunnels": tun, "deterministic": det,
+        "valid": valid, "timer_endings": timer, "softlocks": soft, "stuck5s_players": stuck5, "tunnels": tun, "deterministic": det,
         "extra0_avg": ex0, "extra1_avg": ex1, "falls_avg": falls, "hits_avg": hits,
         "wall_s": t0.elapsed().as_secs_f64(),
     });

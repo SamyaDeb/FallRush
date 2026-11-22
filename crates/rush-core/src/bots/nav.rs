@@ -681,43 +681,119 @@ pub(crate) fn react_to_bars(c: &Ctx, _cmd: &mut InputCmd, jump: &mut bool, dive:
     }
 }
 
-/// Ball reflex (simplified `DodgeBalls`): if a ball reaches our predicted position within 20 ticks (30 Hz) on the
-/// current heading, take the side step (odd slots right, even left) if that is clear longer, else stop.
+/// Ball reflex (`WaypointBot.DodgeBalls`): if a ball reaches our predicted position within 20 ticks (30 Hz; looser
+/// tiers see it later) on the current heading, take the heading among the plan, stop and ±45°, ±90°, ±135°, back whose
+/// first contact is latest (plan preferred, then forward-leaning headings), odd slots trying the right side first.
+/// Lanes farther than 16 m are ignored. Integer port: headings from the Q15 table, positions in mm per 30 Hz tick.
 fn dodge_balls(c: &Ctx, cmd: &mut InputCmd, moving: bool) {
+    use crate::fx::{cos_q15, deg_to_turn_q16, normalize_q15, sin_q15, ONE_Q15};
     let hz = c.w.hazards(c.map);
-    if hz.count(HazardType::RollingBall) == 0 {
+    let n = hz.count(HazardType::RollingBall);
+    if n == 0 {
+        return;
+    }
+    let s = c.s;
+    if !s.has(flag::GROUNDED) {
+        return;
+    }
+    // lanes in range
+    let mut near = [0u8; 16];
+    let mut nn = 0usize;
+    let mut i = 0;
+    while i < n && nn < near.len() {
+        let d = hz.ball(i);
+        let (ux, uz) = ((d.end_x - d.start_x) as i64, (d.end_z - d.start_z) as i64);
+        let l2 = ux * ux + uz * uz;
+        let (px, pz) = ((s.pos.x - d.start_x) as i64, (s.pos.z - d.start_z) as i64);
+        let f = if l2 > 0 { ((px * ux + pz * uz) as i128 * 4096 / l2 as i128).clamp(0, 4096) as i64 } else { 0 };
+        let (cx, cz) = (d.start_x as i64 + ux * f / 4096 - s.pos.x as i64, d.start_z as i64 + uz * f / 4096 - s.pos.z as i64);
+        let vertical_ok = (d.start_y - s.pos.y).abs() <= 9000 || (d.end_y - s.pos.y).abs() <= 9000;
+        if cx * cx + cz * cz <= 16_000i64 * 16_000 && vertical_ok {
+            near[nn] = i as u8;
+            nn += 1;
+        }
+        i += 1;
+    }
+    if nn == 0 {
         return;
     }
     c.sc.counters.add(crate::collide::ctr::BOT_RAYS, 1);
-    let (mx, mz) = if moving { (cmd.move_x as i64, cmd.move_y as i64) } else { (0, 0) };
     let horizon = (20 - 2 * c.sk.timing_slop).max(6) as i64;
-    let first_hit = |hx: i64, hz_: i64| -> i64 {
-        let s = &c.s;
-        let (vx, vz) = (s.vel.x as i64 / 30, s.vel.z as i64 / 30); // mm per 30 Hz tick
-        let top = 220i64;
+    let run = (c.cfg.max_speed as i64 / 30).max(60); // RunPerTick (mm per 30 Hz tick)
+    let t0 = c.w.t60(c.tick);
+    // First tick a ball reaches us on Q15 heading (hx, hz); stop = brake.
+    let first_hit = |hx: i64, hz_: i64, stop: bool| -> i64 {
+        let (vx, vz) = (s.vel.x as i64 / 30, s.vel.z as i64 / 30);
+        let top = if stop { 0 } else { run };
         let (mut x, mut z) = (s.pos.x as i64, s.pos.z as i64);
         let mut k = 1;
         while k <= horizon {
             let a = k.min(5);
-            x += vx + (div_round(hx * top, 127) - vx) * a / 5;
-            z += vz + (div_round(hz_ * top, 127) - vz) * a / 5;
-            if ball_near(c, x as i32, s.pos.y, z as i32, c.w.t60(c.tick) + 2 * k, 150) {
-                return k;
+            x += vx + (hx * top / ONE_Q15 as i64 - vx) * a / 5;
+            z += vz + (hz_ * top / ONE_Q15 as i64 - vz) * a / 5;
+            let t60 = t0 + 2 * k;
+            let mut q = 0;
+            while q < nn {
+                let d = hz.ball(near[q] as usize);
+                let alive = hazards::ball_max_alive(&d).min(16);
+                let reach = (d.radius + c.cfg.radius + 150) as i64;
+                let mut j = 0;
+                while j < alive {
+                    match hazards::ball_pos(&d, t60, j) {
+                        None => break,
+                        Some((p, _)) => {
+                            if (p.y - (s.pos.y + 500)).abs() <= d.radius + 1200 {
+                                let (dx, dz) = (x - p.x as i64, z - p.z as i64);
+                                if dx * dx + dz * dz < reach * reach {
+                                    return k;
+                                }
+                            }
+                        }
+                    }
+                    j += 1;
+                }
+                q += 1;
             }
             k += 1;
         }
         horizon + 1
     };
-    let plan_hit = first_hit(mx, mz);
+    let (mx, mz) = if moving { (cmd.move_x as i64, cmd.move_y as i64) } else { (0, 0) };
+    let has_plan = mx * mx + mz * mz > 1;
+    let (ux, uz) = if has_plan {
+        let u = normalize_q15(mx, 0, mz);
+        (u[0] as i64, u[2] as i64)
+    } else {
+        (0, ONE_Q15 as i64)
+    };
+    let plan_hit = if has_plan { first_hit(ux, uz, false) } else { first_hit(0, 0, true) };
     if plan_hit > horizon {
         return;
     }
-    let flip = if c.slot & 1 == 1 { -1 } else { 1 };
-    let (ux, uz) = if mx != 0 || mz != 0 { (mx, mz) } else { (0, 127) };
-    let (sx, sz) = (-uz * flip, ux * flip);
-    let side = first_hit(sx, sz);
-    let stop = first_hit(0, 0);
-    let (ox, oz) = if side >= stop && side > plan_hit { (sx, sz) } else if stop > plan_hit { (0, 0) } else { (mx, mz) };
+    let mut best = plan_hit * 100 + if has_plan { 40 } else { 0 };
+    let (mut bx, mut bz) = if has_plan { (ux, uz) } else { (0, 0) };
+    let stop_hit = if has_plan { first_hit(0, 0, true) } else { plan_hit };
+    if stop_hit * 100 + 10 > best {
+        best = stop_hit * 100 + 10;
+        bx = 0;
+        bz = 0;
+    }
+    let flip: i64 = if c.slot & 1 == 1 { -1 } else { 1 };
+    for deg in [45i64, -45, 90, -90, 135, -135, 180] {
+        let t = deg_to_turn_q16(flip * deg);
+        let (ca, sa) = (cos_q15(t) as i64, sin_q15(t) as i64);
+        let cx = (ux * ca - uz * sa) / ONE_Q15 as i64;
+        let cz = (ux * sa + uz * ca) / ONE_Q15 as i64;
+        let hit = first_hit(cx, cz, false);
+        let score = hit * 100 + ca * 30 / ONE_Q15 as i64;
+        if score > best {
+            best = score;
+            bx = cx;
+            bz = cz;
+        }
+    }
+    let ox = div_round(bx * 127, ONE_Q15 as i64);
+    let oz = div_round(bz * 127, ONE_Q15 as i64);
     cmd.move_x = ox.clamp(-127, 127) as i8;
     cmd.move_y = oz.clamp(-127, 127) as i8;
 }
