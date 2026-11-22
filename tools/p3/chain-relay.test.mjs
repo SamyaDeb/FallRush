@@ -56,7 +56,7 @@ test('WorldView → wire-v0 §3 WorldAcc', () => {
   assert.equal(confirmStatus({ status: 'ok' }), 0);
   assert.equal(confirmStatus({ status: 'err', err: '{"InstructionError":[0,{"Custom":6020}]}' }), 2);
   assert.equal(confirmStatus({ status: 'err', err: '{"InstructionError":[0,{"Custom":6000}]}' }), 3);
-  assert.equal(confirmStatus({ status: 'timeout' }), 1);
+  assert.equal(confirmStatus({ status: 'timeout' }), 4); // unconfirmed, not a rejection
 });
 
 test('key file shim: persisted, mode 600, gitignored dir', () => {

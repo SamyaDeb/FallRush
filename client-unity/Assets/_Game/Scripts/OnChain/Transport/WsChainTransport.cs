@@ -156,10 +156,10 @@ namespace FallRush.OnChain
             _outSignal.Release();
         }
 
-        public void Join(string name, int slot, bool spectate)
+        public void Join(string name, int slot, bool spectate, string match = null)
         {
             var n = (name ?? "Rushling").Replace("\"", "").Replace("\\", "");
-            _joinJson = $"{{\"t\":\"join\",\"name\":\"{n}\",\"spectate\":{(spectate ? "true" : "false")}{(slot >= 0 ? ",\"slot\":" + slot : "")}}}";
+            _joinJson = $"{{\"t\":\"join\",\"name\":\"{n}\",\"spectate\":{(spectate ? "true" : "false")}{(slot >= 0 ? ",\"slot\":" + slot : "")}{(string.IsNullOrEmpty(match) ? "" : ",\"match\":\"" + match + "\"")}}}";
             Enqueue(Encoding.UTF8.GetBytes(_joinJson), true);
         }
 
@@ -207,16 +207,17 @@ namespace FallRush.OnChain
         {
             if (s.Contains("\"t\":\"pong\""))
             {
-                var i = s.IndexOf("\"c\":", StringComparison.Ordinal);
-                if (i >= 0 && long.TryParse(new string(Array.FindAll(s.Substring(i + 4).ToCharArray(), char.IsDigit)), out var c))
+                // {"t":"pong","c":<client ms>[,"er":<the relay's rollup RTT ms>]}
+                var c = Num(s, "\"c\":");
+                if (!double.IsNaN(c))
                 {
-                    // median of the last 16 probes: robust to one slow frame or a GC pause
-                    _rtt[_rttN++ % _rtt.Length] = (float)(t * 1000.0 - c);
+                    var er = Num(s, "\"er\":");
+                    _rtt[_rttN++ % _rtt.Length] = (float)(t * 1000.0 - c + (double.IsNaN(er) ? 0 : er));
                     var n = Math.Min(_rttN, _rtt.Length);
                     var a = new float[n];
                     Array.Copy(_rtt, a, n);
                     Array.Sort(a);
-                    RttMs = a[n / 2];
+                    RttMs = a[n / 2]; // median of the last 16 probes: robust to one slow frame or a GC pause
                 }
 
                 return;
@@ -233,6 +234,19 @@ namespace FallRush.OnChain
                 var j = JsonUtility.FromJson<JoinInfo>(s);
                 Error = "arena refused the join: " + (j.why ?? j.t);
             }
+        }
+
+        /// <summary>The number after <paramref name="key"/> in a flat JSON text, or NaN (null / missing).</summary>
+        public static double Num(string s, string key)
+        {
+            var i = s.IndexOf(key, StringComparison.Ordinal);
+            if (i < 0)
+                return double.NaN;
+            i += key.Length;
+            var j = i;
+            while (j < s.Length && (char.IsDigit(s[j]) || s[j] == '.' || s[j] == '-' || s[j] == 'e' || s[j] == 'E' || s[j] == '+'))
+                j++;
+            return double.TryParse(s.Substring(i, j - i), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : double.NaN;
         }
 
         public int DrainWorlds(List<WorldMsg> into)

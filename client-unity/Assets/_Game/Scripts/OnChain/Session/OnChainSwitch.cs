@@ -11,7 +11,7 @@ namespace FallRush.OnChain
     /// </summary>
     public static class OnChainSwitch
     {
-        [Serializable] private sealed class Fonc { public string t, arena, match, url; public RosterEntry[] slot_map; }
+        [Serializable] private sealed class Fonc { public string t, net, arena, match, url; public RosterEntry[] slot_map; }
 
         private static ClientSim _hooked;
 
@@ -57,10 +57,25 @@ namespace FallRush.OnChain
 
             var slot = PickSlot(f.slot_map, cs.MatchSlot);
             var cfg = ChainConfig.FromArgs();
-            cfg.target = "emu";
+            cfg.target = string.IsNullOrEmpty(f.net) ? "emu" : f.net;
+            cfg.bundleConfig = cfg.target switch { "local" => "local.json", "devnet" => "devnet.json", _ => "emulator.json" };
+            if (cfg.target != "emu" && string.IsNullOrEmpty(ChainConfig.UrlArg()))
+                cfg.url = "ws://127.0.0.1:8788/"; // Mac player → tools/p3/chain-relay.mjs (WebGL: the bundle itself)
             if (!string.IsNullOrEmpty(f.url))
                 cfg.url = f.url;
             cfg.arena = f.arena;
+            if (f.t == "final_prejoin")
+            {
+                if (OnChainSession.Instance != null)
+                    return;
+                Debug.Log($"[onchain] pre-join: {cfg.target} arena {f.arena} match {f.match}, slot {slot}");
+                var s = OnChainSession.StartFinal(cfg, cs.ServerMatch, slot);
+                s.MatchHex = f.match;
+                return;
+            }
+
+            if (OnChainSession.Instance != null)
+                return; // pre-joined: the session takes over when the arena starts the Final
             Debug.Log($"[onchain] switch: Final on {f.arena} ({cfg.url}), {(slot >= 0 ? "playing slot " + slot : "spectating")}");
             OnChainSession.StartFinal(cfg, cs.ServerMatch, slot);
         }

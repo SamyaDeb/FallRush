@@ -44,7 +44,7 @@ namespace FallRush.OnChain
             c.bundleConfig = c.target switch { "local" => "local.json", "devnet" => "devnet.json", _ => "emulator.json" };
             if (c.target == "local" || c.target == "devnet")
                 c.url = "ws://127.0.0.1:8788/"; // Mac player → tools/p3/chain-relay.mjs (the bundle in Node)
-            var u = GetArg("-fallrushOnchainUrl") ?? NetTargets.GetQueryParam(Application.absoluteURL, "onchainurl");
+            var u = UrlArg();
             if (!string.IsNullOrEmpty(u))
                 c.url = u;
             var lead = GetArg("-fallrushOnchainLead") ?? NetTargets.GetQueryParam(Application.absoluteURL, "lead");
@@ -52,6 +52,8 @@ namespace FallRush.OnChain
                 c.inputLead = l;
             return c;
         }
+
+        public static string UrlArg() => GetArg("-fallrushOnchainUrl") ?? NetTargets.GetQueryParam(Application.absoluteURL, "onchainurl");
 
         private static string GetArg(string a)
         {

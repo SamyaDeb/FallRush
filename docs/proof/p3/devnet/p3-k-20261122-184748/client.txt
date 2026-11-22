@@ -1,0 +1,36 @@
+[onchain] session: target devnet via emulator-ws ws://127.0.0.1:8788/, lead T+3, 3 ticks per tx, core 0x10001
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 19 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 fps 679 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 11 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 fps 642 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 9 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 fps 848 playing True phase -
+[onchain] joined HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt slot 4, map CrumbleShelf
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 396 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 420 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 372 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 418 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 393 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 403 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 396 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 417 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 394 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 376 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 437 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 436 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 418 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 473 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 214 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 422 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 478 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 409 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 485 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 462 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 490 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 451 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 443 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 446 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 395 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 252 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 446 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 438 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 447 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 471 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 6 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 fps 437 playing True phase -

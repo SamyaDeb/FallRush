@@ -59,7 +59,8 @@ namespace FallRush.OnChain
         bool Connected { get; }
         void Connect(ChainConfig cfg);
         /// <summary>Asks to join (slot −1 = any free human slot) or to spectate.</summary>
-        void Join(string name, int slot, bool spectate);
+        /// <param name="match">Optional 16-byte match id (hex): join only that match's lobby (hybrid pre-join).</param>
+        void Join(string name, int slot, bool spectate, string match = null);
         /// <summary>The join reply once it arrived (slot 255 = spectator), else null.</summary>
         JoinInfo Joined { get; }
         /// <summary>Fire-and-forget <c>submit_input</c>; returns a local tx id.</summary>

@@ -1,0 +1,44 @@
+[relay] devnet (P2, Final arena 2): burner GWiyKB4Z3ytYfaRfiqAnNrimo2DneAtVeJJi6LgTmDAA session 2T2uSXq9VEmfdTYxyXt9ZoCgdMoehUbdTFxkApH3dL7h (keys /Users/samya/Downloads/FallRush-p3/tools/p3/.relay-keys/devnet.json)
+[relay] balance: burner 0.006608 SOL, session 0.002000 SOL; a session costs ~0.003913 SOL
+[relay] listening ws://127.0.0.1:8788/ (wire-v0 §4) → rollup https://devnet-as.magicblock.app
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 188.6 gaps 0 slices 0 clients 0
+[relay] join {"name":"P3","spectate":false} (waits for the arena lobby and start_final)
+[relay] join: session {"state":"reused","token":"56NFwaA8WG9gWRN3ft8g3uNFsAFRg3qDeHhYJPiYwoC4"}
+[relay] join: waitingLobby {"arenaStatus":3}
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 159.6 gaps 0 slices 0 clients 1
+[relay] join: lobbyOpen {"arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","match":"BwocbTgHsmttkNunjTNV84E9CBFAggZhWaK7Gj243B7H","humanMask":0}
+[relay] join: finalists {"finalists":[0,5,9]}
+[relay] join: lobbyJoined {"slot":0,"sig":"tsQuUCQ8mp8JceB5CPYvZUSk368BqtLCqLK7MQCeQiCmpAkmHTiTLXmD8iTxCMcirdv35DYEt3zbHpHYyWLa4p5","player":"2T2uSXq9VEmfdTYxyXt9ZoCgdMoehUbdTFxkApH3dL7h","withSessionToken":true}
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 150.8 gaps 0 slices 0 clients 1
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 139.6 gaps 0 slices 0 clients 1
+[relay] joined: slot 0 arena HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt match BwocbTgHsmttkNunjTNV84E9CBFAggZhWaK7Gj243B7H roster [{"slot":0,"kind":"human","name":"P3","wallet":"GWiyKB4Z3ytYfaRfiqAnNrimo2DneAtVeJJi6LgTmDAA"},{"slot":5,"kind":"bot"},{"slot":9,"kind":"bot"}]
+[relay] join: started {"slot":0,"match":"BwocbTgHsmttkNunjTNV84E9CBFAggZhWaK7Gj243B7H","finalists":[0,5,9],"ms":17454}
+[relay] tick 9 upd/s 5 in/s 1.5 confirm p50/p95 89.4/89.4 ms rtt 117.7 gaps 0 slices 0 clients 1
+[relay] tick 126 upd/s 3 in/s 10.5 confirm p50/p95 207.4/567.7 ms rtt 117.3 gaps 3 slices 0 clients 1
+[relay] arenaChanged {"from":1,"to":2,"tick":119}
+[relay] arenaChanged {"from":2,"to":3,"tick":135}
+[relay] tick 305 upd/s 1 in/s 11 confirm p50/p95 218.6/732.1 ms rtt 188.7 gaps 9 slices 0 clients 1
+[relay] tick 455 upd/s 1 in/s 10 confirm p50/p95 207.5/699.3 ms rtt 175.9 gaps 14 slices 0 clients 1
+[relay] tick 605 upd/s 1 in/s 10 confirm p50/p95 207.4/624.1 ms rtt 146.9 gaps 19 slices 0 clients 1
+[relay] tick 725 upd/s 0.5 in/s 10 confirm p50/p95 205.1/570.8 ms rtt 139.6 gaps 23 slices 0 clients 1
+[relay] wsReconnect {"transport":"rollup","how":"resubscribe","silentMs":2187}
+[relay] error {"where":"sendInputs","txid":268,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] error {"where":"sendInputs","txid":267,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] tick 892 upd/s 12.5 in/s 2 confirm p50/p95 206.5/710.6 ms rtt 889.8 gaps 26 slices 0 clients 1
+[relay] tick 1026 upd/s 0.5 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 601.9 gaps 31 slices 0 clients 1
+[relay] error {"where":"sendInputs","txid":258,"why":"fetch failed"}
+[relay] tick 1177 upd/s 1 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 475.5 gaps 35 slices 0 clients 1
+[relay] tick 1326 upd/s 0.5 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 281.8 gaps 40 slices 0 clients 1
+[relay] tick 1478 upd/s 1 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 289.8 gaps 45 slices 0 clients 1
+[relay] tick 1626 upd/s 0.5 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 203 gaps 50 slices 0 clients 1
+[relay] tick 1776 upd/s 0.5 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 159.3 gaps 55 slices 0 clients 1
+[relay] tick 1926 upd/s 0.5 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 133.4 gaps 60 slices 0 clients 1
+[relay] tick 2076 upd/s 1 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 131.3 gaps 65 slices 0 clients 1
+[relay] tick 2227 upd/s 0.5 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 113.9 gaps 70 slices 0 clients 1
+[relay] tick 2377 upd/s 0.5 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 102.5 gaps 75 slices 0 clients 1
+[relay] tick 2527 upd/s 0.5 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 117.7 gaps 80 slices 0 clients 1
+[relay] tick 2676 upd/s 1 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 151.9 gaps 85 slices 0 clients 1
+[relay] tick 2806 upd/s 0.5 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 140.9 gaps 90 slices 0 clients 1
+[relay] tick 2806 upd/s 0 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 130.8 gaps 90 slices 0 clients 1
+[relay] tick 2806 upd/s 0 in/s 0 confirm p50/p95 206.5/710.6 ms rtt 112.2 gaps 90 slices 0 clients 1
+[relay] receipt {"arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","world":"HYJRSXpSGZ3HdjmZr4oMy3x6VgTWLcarkgHav7L4hSTQ","match":"BwocbTgHsmttkNunjTNV84E9CBFAggZhWaK7Gj243B7H","joinSig":"tsQuUCQ8mp8JceB5CPYvZUSk368BqtLCqLK7MQCeQiCmpAkmHTiTLXmD8iTxCMcirdv35DYEt3zbHpHYyWLa4p5","slot":0,"finalists":[0,5,9],"lastInputSig":"4o8kgH9rdfhGvHRJgCr8sKQHEUnywV5A1AQTUQJvF5HvHcscsUqciWpRTg4EiNod8UMYir6Njb1TxPxuneRovhxF"}

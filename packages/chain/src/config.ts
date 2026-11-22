@@ -79,6 +79,11 @@ export interface ChainConfig {
   rollup?: {
     erHttp: string;
     erWs?: string | null;
+    /** P3-K: subscribe with a plain accountSubscribe WebSocket (not web3.js onAccountChange). */
+    rawWs?: boolean;
+    /** Redundant raw sockets (default 2) and the silence after which one is reopened (default 600 ms). */
+    rawSockets?: number;
+    rawStallMs?: number;
     baseHttp: string;
     baseWs?: string | null;
     commitment?: 'processed' | 'confirmed' | 'finalized';

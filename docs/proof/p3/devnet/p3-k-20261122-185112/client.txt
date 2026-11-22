@@ -1,0 +1,38 @@
+[onchain] session: target devnet via emulator-ws ws://127.0.0.1:8788/, lead T+3, 3 ticks per tx, core 0x10001
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 28 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 fps 1012 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 16 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 fps 1025 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 16 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 fps 582 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 16 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 fps 746 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 19 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 fps 697 playing True phase -
+[onchain] joined HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt slot 0, map CrumbleShelf
+[onchain] tick 78 upd/s 20.9 batches/s 10.0 corr/5s 0 corr 0 match 71 late 0 replay 22/32 rtt 24 confirm p50 306 p95 1285 gaps 0 polls 1 resync 19 lag 3 rejected 1 fps 213 playing True phase RoundIntro
+[onchain] tick 246 upd/s 22.9 batches/s 10.0 corr/5s 33 corr 33 match 111 late 32 replay 12/32 rtt 43 confirm p50 633 p95 2692 gaps 0 polls 1 resync 20 lag 8 rejected 42 fps 201 playing True phase RoundActive
+[onchain] tick 393 upd/s 28.9 batches/s 10.0 corr/5s 63 corr 96 match 195 late 94 replay 18/32 rtt 66 confirm p50 503 p95 2594 gaps 0 polls 1 resync 20 lag 11 rejected 42 fps 207 playing True phase RoundActive
+[onchain] tick 536 upd/s 19.9 batches/s 10.0 corr/5s 89 corr 185 match 229 late 183 replay 11/32 rtt 85 confirm p50 493 p95 1654 gaps 0 polls 1 resync 20 lag 15 rejected 64 fps 176 playing True phase RoundActive
+[onchain] new arena: resetting the feed and the prediction
+[onchain] new arena: resetting the feed and the prediction
+[onchain] tick 597 upd/s 0.0 batches/s 10.0 corr/5s 26 corr 26 match 0 late 26 replay 51/60 rtt 132 confirm p50 535 p95 1925 gaps 0 polls 2 resync 20 lag 21 rejected 78 fps 157 playing True phase RoundActive
+[onchain] new arena: resetting the feed and the prediction
+[onchain] new arena: resetting the feed and the prediction
+[onchain] new arena: resetting the feed and the prediction
+[onchain] new arena: resetting the feed and the prediction
+[onchain] new arena: resetting the feed and the prediction
+[onchain] tick 691 upd/s 28.0 batches/s 15.0 corr/5s 4 corr 4 match 0 late 4 replay 12/13 rtt 229 confirm p50 1402 p95 4262 gaps 0 polls 2 resync 137 lag 30 rejected 178 fps 149 playing True phase RoundActive
+[onchain] new arena: resetting the feed and the prediction
+[onchain] tick 831 upd/s 22.0 batches/s 11.0 corr/5s 31 corr 31 match 10 late 31 replay 22/33 rtt 442 confirm p50 1476 p95 4262 gaps 0 polls 2 resync 139 lag 36 rejected 204 fps 164 playing True phase RoundActive
+[onchain] new arena: resetting the feed and the prediction
+[onchain] new arena: resetting the feed and the prediction
+[onchain] new arena: resetting the feed and the prediction
+[onchain] tick 1022 upd/s 48.0 batches/s 0.0 corr/5s 0 corr 0 match 24 late 0 replay 14/19 rtt 546 confirm p50 2885 p95 4696 gaps 0 polls 2 resync 148 lag 41 rejected 281 fps 170 playing False phase RoundResult
+[onchain] new arena: resetting the feed and the prediction
+[onchain] new arena: resetting the feed and the prediction
+[onchain] new arena: resetting the feed and the prediction
+[onchain] new arena: resetting the feed and the prediction
+[onchain] new arena: resetting the feed and the prediction
+[onchain] tick 1184 upd/s 35.8 batches/s 0.0 corr/5s 0 corr 0 match 14 late 0 replay 22/22 rtt 407 confirm p50 2749 p95 4770 gaps 0 polls 2 resync 158 lag 47 rejected 285 fps 25 playing False phase RoundResult
+[onchain] new arena: resetting the feed and the prediction
+[onchain] new arena: resetting the feed and the prediction
+[onchain] new arena: resetting the feed and the prediction
+[onchain] tick 1425 upd/s 65.0 batches/s 0.0 corr/5s 0 corr 0 match 41 late 0 replay 10/13 rtt 420 confirm p50 2749 p95 4770 gaps 0 polls 2 resync 164 lag 51 rejected 285 fps 123 playing False phase RoundResult
+[onchain] tick 1425 upd/s 1.0 batches/s 0.0 corr/5s 0 corr 0 match 45 late 0 replay 64/64 rtt 139 confirm p50 2749 p95 4770 gaps 0 polls 6 resync 503 lag 56 rejected 285 fps 168 playing False phase RoundResult
+[onchain] tick 1425 upd/s 1.0 batches/s 0.0 corr/5s 0 corr 0 match 50 late 0 replay 64/64 rtt 35 confirm p50 2749 p95 4770 gaps 0 polls 11 resync 994 lag 61 rejected 285 fps 22 playing False phase RoundResult

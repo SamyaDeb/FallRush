@@ -1,0 +1,35 @@
+[relay] devnet (P2, Final arena 2): burner GWiyKB4Z3ytYfaRfiqAnNrimo2DneAtVeJJi6LgTmDAA session 2T2uSXq9VEmfdTYxyXt9ZoCgdMoehUbdTFxkApH3dL7h (keys /Users/samya/Downloads/FallRush-p3/tools/p3/.relay-keys/devnet.json)
+[relay] balance: burner 0.006608 SOL, session 0.002000 SOL; a session costs ~0.003913 SOL
+[relay] listening ws://127.0.0.1:8788/ (wire-v0 §4) → rollup https://devnet-as.magicblock.app
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 306.4 gaps 0 slices 0 clients 0
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 254 gaps 0 slices 0 clients 1
+[relay] join {"name":"P3","spectate":false} (waits for the arena lobby and start_final)
+[relay] join: session {"state":"reused","token":"56NFwaA8WG9gWRN3ft8g3uNFsAFRg3qDeHhYJPiYwoC4"}
+[relay] join: waitingLobby {"arenaStatus":3}
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 201.9 gaps 0 slices 0 clients 1
+[relay] join: lobbyOpen {"arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","match":"HQ1rDqJToxsz8s4Cb1ZtQPfbMxZ86SmJ58qJwTc91T3C","humanMask":0}
+[relay] join: finalists {"finalists":[8,10,11]}
+[relay] join: lobbyJoined {"slot":8,"sig":"4jY7CWGkvZRnGzWNSfoB66fXbMdmgkSMeAJ4RxvcMPagB8bujbmQuaBSgpnw1e9XUYYo3zqopGXxyyPGQ3ED379p","player":"2T2uSXq9VEmfdTYxyXt9ZoCgdMoehUbdTFxkApH3dL7h","withSessionToken":true}
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 164.9 gaps 0 slices 0 clients 1
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 131.8 gaps 0 slices 0 clients 1
+[relay] joined: slot 8 arena HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt match HQ1rDqJToxsz8s4Cb1ZtQPfbMxZ86SmJ58qJwTc91T3C roster [{"slot":8,"kind":"human","name":"P3","wallet":"GWiyKB4Z3ytYfaRfiqAnNrimo2DneAtVeJJi6LgTmDAA"},{"slot":10,"kind":"bot"},{"slot":11,"kind":"bot"}]
+[relay] join: started {"slot":8,"match":"HQ1rDqJToxsz8s4Cb1ZtQPfbMxZ86SmJ58qJwTc91T3C","finalists":[8,10,11],"ms":17276}
+[relay] tick 39 upd/s 12.5 in/s 5 confirm p50/p95 319.1/419.4 ms rtt 187.6 gaps 1 slices 0 clients 1
+[relay] tick 175 upd/s 20.5 in/s 10 confirm p50/p95 193.4/415.2 ms rtt 166.3 gaps 2 slices 0 clients 1
+[relay] tick 340 upd/s 33.5 in/s 11 confirm p50/p95 243.4/891.9 ms rtt 211.1 gaps 5 slices 0 clients 1
+[relay] tick 486 upd/s 27.5 in/s 10 confirm p50/p95 214.8/736.2 ms rtt 196.8 gaps 5 slices 0 clients 1
+[relay] tick 641 upd/s 28 in/s 10 confirm p50/p95 188.7/651.4 ms rtt 168.8 gaps 8 slices 0 clients 1
+[relay] tick 779 upd/s 19 in/s 9.5 confirm p50/p95 182.8/551.6 ms rtt 135.3 gaps 12 slices 0 clients 1
+[relay] tick 941 upd/s 26.5 in/s 0 confirm p50/p95 179.6/551.6 ms rtt 115.7 gaps 17 slices 0 clients 1
+[relay] tick 1084 upd/s 22 in/s 0 confirm p50/p95 179.6/551.6 ms rtt 121.2 gaps 22 slices 0 clients 1
+[relay] tick 1211 upd/s 8 in/s 0.5 confirm p50/p95 179.6/551.6 ms rtt 116.4 gaps 25 slices 0 clients 1
+[relay] tick 1392 upd/s 30 in/s 0 confirm p50/p95 179.6/551.6 ms rtt 104.6 gaps 28 slices 0 clients 1
+[relay] tick 1540 upd/s 29 in/s 0 confirm p50/p95 179.6/551.6 ms rtt 88 gaps 32 slices 0 clients 1
+[relay] tick 1692 upd/s 29.5 in/s 0 confirm p50/p95 179.6/551.6 ms rtt 123.6 gaps 35 slices 0 clients 1
+[relay] tick 1841 upd/s 29 in/s 0 confirm p50/p95 179.6/551.6 ms rtt 96.8 gaps 35 slices 0 clients 1
+[relay] wsReconnect {"transport":"rollup","how":"resubscribe","silentMs":2217}
+[relay] wsReconnect {"transport":"rollup","how":"resubscribe","silentMs":4217}
+[relay] tick 1842 upd/s 0 in/s 0 confirm p50/p95 179.6/551.6 ms rtt 99 gaps 35 slices 0 clients 1
+[relay] wsReconnect {"transport":"rollup","how":"newConnection"}
+[relay] tick 1842 upd/s 0 in/s 0 confirm p50/p95 179.6/551.6 ms rtt 172.4 gaps 35 slices 0 clients 1
+[relay] receipt {"arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","world":"HYJRSXpSGZ3HdjmZr4oMy3x6VgTWLcarkgHav7L4hSTQ","match":"HQ1rDqJToxsz8s4Cb1ZtQPfbMxZ86SmJ58qJwTc91T3C","joinSig":"4jY7CWGkvZRnGzWNSfoB66fXbMdmgkSMeAJ4RxvcMPagB8bujbmQuaBSgpnw1e9XUYYo3zqopGXxyyPGQ3ED379p","slot":8,"finalists":[8,10,11],"lastInputSig":"5hw3MLs5ut5z1xmcUiizUapmyebUNBVPPaioKYzefXsPxMs2tdNCY2eE4wxzH6xPgEEnfSmkX68ui9WFAXnWSnfy"}

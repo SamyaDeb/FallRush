@@ -1,0 +1,16 @@
+13:17:47 balances: admin 5.677862687 SOL authority 3.87735472 SOL
+13:20:49 balances: admin 5.667857687 SOL authority 3.8665212 SOL
+13:21:10 balances: admin 5.667857687 SOL authority 3.8665212 SOL
+13:22:51 balances: admin 5.667857687 SOL authority 3.85568768 SOL
+13:26:07 balances: admin 5.667857687 SOL authority 3.85568768 SOL
+13:27:52 balances: admin 5.667857687 SOL authority 3.84485416 SOL
+13:30:09 balances: admin 5.667857687 SOL authority 3.84485416 SOL
+13:32:43 balances: admin 5.667857687 SOL authority 3.83402064 SOL
+13:35:37 balances: admin 5.667857687 SOL authority 3.83402064 SOL
+13:37:22 balances: admin 5.667857687 SOL authority 3.82318712 SOL
+13:39:02 balances: admin 5.667857687 SOL authority 3.82318712 SOL
+13:49:19 balances: admin 5.667857687 SOL authority 3.76901952 SOL
+13:53:17 balances: admin 5.667857687 SOL authority 3.758186 SOL
+13:55:38 balances: admin 5.667857687 SOL authority 3.74735248 SOL
+13:56:50 balances: admin 5.667857687 SOL authority 3.74735248 SOL
+14:06:17 balances: admin 5.667857687 SOL authority 3.69318488 SOL

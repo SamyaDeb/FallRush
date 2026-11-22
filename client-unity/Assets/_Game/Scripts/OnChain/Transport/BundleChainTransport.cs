@@ -59,7 +59,7 @@ namespace FallRush.OnChain
         public long Polls { get; private set; }
         public long Reconnects { get; private set; }
 
-        [Serializable] private sealed class Ev { public string type; public uint txid; public string status; public float ms; public uint chainTick; public string why; }
+        [Serializable] private sealed class Ev { public string type; public uint txid; public string status; public float ms; public uint chainTick; public string why; public string err; }
         [Serializable] private sealed class Evs { public Ev[] e; }
         [Serializable] private sealed class Stats { public float rttMs = float.NaN; public long gaps, polls, reconnects; }
         [Serializable] private sealed class JoinReply { public bool ok; public string err; }
@@ -73,10 +73,10 @@ namespace FallRush.OnChain
             fr_boot(sa + "/fallrush-chain.js", sa + "/chain/" + cfg.bundleConfig, url);
         }
 
-        public void Join(string name, int slot, bool spectate)
+        public void Join(string name, int slot, bool spectate, string match = null)
         {
             var n = (name ?? "Rushling").Replace("\"", "").Replace("\\", "");
-            _pendingJoin = $"{{\"name\":\"{n}\",\"spectate\":{(spectate ? "true" : "false")}{(slot >= 0 ? ",\"slot\":" + slot : "")}}}";
+            _pendingJoin = $"{{\"name\":\"{n}\",\"spectate\":{(spectate ? "true" : "false")}{(slot >= 0 ? ",\"slot\":" + slot : "")}{(string.IsNullOrEmpty(match) ? "" : ",\"match\":\"" + match + "\"")}}}";
             _joinSent = false;
         }
 
@@ -118,7 +118,7 @@ namespace FallRush.OnChain
                 foreach (var x in e.e ?? Array.Empty<Ev>())
                 {
                     if (x.type == "confirm")
-                        _confirms.Add(new InputConfirm { TxId = x.txid, Status = (byte)(x.status == "ok" ? 0 : x.status == "late" ? 1 : x.status == "window" ? 2 : x.status == "badSlot" ? 3 : 255), ChainTick = x.chainTick, LatencyMs = x.ms });
+                        _confirms.Add(new InputConfirm { TxId = x.txid, Status = (byte)(x.status == "ok" ? 0 : x.status == "late" ? 1 : x.status == "window" ? 2 : x.status == "badSlot" ? 3 : x.status == "timeout" ? 4 : x.err != null && x.err.Contains("6027") ? 5 : x.err != null && (x.err.Contains("6020")) ? 2 : x.err != null && (x.err.Contains("6000") || x.err.Contains("6005")) ? 3 : 255), ChainTick = x.chainTick, LatencyMs = x.ms });
                     else if (x.type == "error")
                         Debug.LogWarning("[frc] " + x.why);
                 }

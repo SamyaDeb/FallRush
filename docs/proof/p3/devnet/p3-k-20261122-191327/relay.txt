@@ -1,0 +1,36 @@
+[relay] devnet (P2, Final arena 2): burner GWiyKB4Z3ytYfaRfiqAnNrimo2DneAtVeJJi6LgTmDAA session 2T2uSXq9VEmfdTYxyXt9ZoCgdMoehUbdTFxkApH3dL7h (keys /Users/samya/Downloads/FallRush-p3/tools/p3/.relay-keys/devnet.json)
+[relay] balance: burner 0.006608 SOL, session 0.002000 SOL; a session costs ~0.003913 SOL
+[relay] listening ws://127.0.0.1:8788/ (wire-v0 §4) → rollup https://devnet-as.magicblock.app
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 187.2 gaps 0 slices 0 clients 0
+[relay] join {"name":"P3","spectate":false} (waits for the arena lobby and start_final)
+[relay] join: session {"state":"reused","token":"56NFwaA8WG9gWRN3ft8g3uNFsAFRg3qDeHhYJPiYwoC4"}
+[relay] join: waitingLobby {"arenaStatus":3}
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 147.5 gaps 0 slices 0 clients 1
+[relay] join: lobbyOpen {"arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","match":"HrHRusHQjjD1EBHDmysEd8idfY4ctN1FkEdKwYnScmj","humanMask":0}
+[relay] join: finalists {"finalists":[0,5,9]}
+[relay] join: lobbyJoined {"slot":0,"sig":"2WxNdbZMZZYLVzvvdJuxinPWSCJRE1ZDHbUjEiJ9S3XKj6AXQWknJu3BrXLLTP4TTCeJLyghBz7wC8D1ZGEAtkCS","player":"2T2uSXq9VEmfdTYxyXt9ZoCgdMoehUbdTFxkApH3dL7h","withSessionToken":true}
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 143.5 gaps 0 slices 0 clients 1
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 149.8 gaps 0 slices 0 clients 1
+[relay] joined: slot 0 arena HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt match HrHRusHQjjD1EBHDmysEd8idfY4ctN1FkEdKwYnScmj roster [{"slot":0,"kind":"human","name":"P3","wallet":"GWiyKB4Z3ytYfaRfiqAnNrimo2DneAtVeJJi6LgTmDAA"},{"slot":5,"kind":"bot"},{"slot":9,"kind":"bot"}]
+[relay] join: started {"slot":0,"match":"HrHRusHQjjD1EBHDmysEd8idfY4ctN1FkEdKwYnScmj","finalists":[0,5,9],"ms":17873}
+[relay] tick 9 upd/s 4 in/s 1 confirm p50/p95 0/0 ms rtt 194.3 gaps 1 slices 0 clients 1
+[relay] tick 159 upd/s 33.5 in/s 10 confirm p50/p95 169/387.8 ms rtt 206.5 gaps 3 slices 0 clients 1
+[relay] tick 277 upd/s 7 in/s 9.5 confirm p50/p95 208.7/541.6 ms rtt 164 gaps 8 slices 0 clients 1
+[relay] tick 456 upd/s 1.5 in/s 10 confirm p50/p95 210.8/593.2 ms rtt 143.6 gaps 14 slices 0 clients 1
+[relay] tick 607 upd/s 1 in/s 10 confirm p50/p95 201.4/537.7 ms rtt 119.4 gaps 19 slices 0 clients 1
+[relay] tick 760 upd/s 1 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 103 gaps 24 slices 0 clients 1
+[relay] tick 907 upd/s 1 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 96.9 gaps 29 slices 0 clients 1
+[relay] tick 1027 upd/s 0.5 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 115.5 gaps 33 slices 0 clients 1
+[relay] tick 1209 upd/s 1 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 173.9 gaps 39 slices 0 clients 1
+[relay] tick 1327 upd/s 1 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 137 gaps 43 slices 0 clients 1
+[relay] tick 1507 upd/s 1 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 123.5 gaps 49 slices 0 clients 1
+[relay] tick 1627 upd/s 0.5 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 154.4 gaps 53 slices 0 clients 1
+[relay] tick 1807 upd/s 1 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 179.4 gaps 59 slices 0 clients 1
+[relay] tick 1927 upd/s 1 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 228.1 gaps 63 slices 0 clients 1
+[relay] tick 2108 upd/s 1 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 174.2 gaps 69 slices 0 clients 1
+[relay] tick 2227 upd/s 0.5 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 123.9 gaps 73 slices 0 clients 1
+[relay] tick 2408 upd/s 1 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 119.5 gaps 79 slices 0 clients 1
+[relay] tick 2528 upd/s 0.5 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 95.1 gaps 83 slices 0 clients 1
+[relay] tick 2598 upd/s 0 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 86.2 gaps 85 slices 0 clients 1
+[relay] tick 2598 upd/s 0 in/s 0 confirm p50/p95 201.4/537.7 ms rtt 84 gaps 85 slices 0 clients 1
+[relay] receipt {"arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","world":"HYJRSXpSGZ3HdjmZr4oMy3x6VgTWLcarkgHav7L4hSTQ","match":"HrHRusHQjjD1EBHDmysEd8idfY4ctN1FkEdKwYnScmj","joinSig":"2WxNdbZMZZYLVzvvdJuxinPWSCJRE1ZDHbUjEiJ9S3XKj6AXQWknJu3BrXLLTP4TTCeJLyghBz7wC8D1ZGEAtkCS","slot":0,"finalists":[0,5,9],"lastInputSig":"2yKTTNBHt4N29CwZ6ERL1fThTfoQwUqR3hJnq3QJiEBoLJLnaWJ9WqUH9qUJkH11qmXrZJPwtmhuVKAG6CRKfCAV"}

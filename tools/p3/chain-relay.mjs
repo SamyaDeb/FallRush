@@ -69,9 +69,11 @@ export function confirmStatus(ev, errors = {}) {
   if (s === 'late') return 1;
   if (s === 'window') return 2;
   if (s === 'badSlot') return 3;
+  if (s === 'timeout') return 4; // not confirmed in time (not a rejection)
   const m = String(ev.err ?? '').match(/"Custom":(\d+)/);
   const code = m ? Number(m[1]) : null;
   if (code === (errors.inputOutOfWindow ?? 6020)) return 2;
+  if (code === (errors.sessionInvalid ?? 6027)) return 5; // SessionInvalid: the token was revoked or expired
   if (code === 6000 || code === 6005) return 3; // Unauthorized / InvalidSlot
   return 1;
 }
@@ -107,6 +109,8 @@ function b58encode(bytes) {
 
 /** Loads the bundle into this realm (sets globalThis.FallRushChain). */
 export function loadBundle(path = DEFAULT_BUNDLE) {
+  // web3.js's browser build opens its WebSocket as window.WebSocket (rpc-websockets): Node 24 has a global WebSocket.
+  if (typeof globalThis.window === 'undefined') globalThis.window = globalThis;
   vm.runInThisContext(readFileSync(path, 'utf8'), { filename: path });
   if (!globalThis.FallRushChain) throw new Error('bundle did not set globalThis.FallRushChain');
   return globalThis.FallRushChain;
@@ -157,7 +161,7 @@ export async function startRelay({ chain, port = DEFAULT_PORT, host = '127.0.0.1
   function onText(c, s) {
     let m;
     try { m = JSON.parse(s); } catch { return; }
-    if (m.t === 'ping') return sendText(c, { t: 'pong', c: m.c });
+    if (m.t === 'ping') { let er = null; try { er = JSON.parse(chain.stats()).rttMs ?? null; } catch {} return sendText(c, { t: 'pong', c: m.c, er }); }
     if (m.t === 'join') return void doJoin(c, m);
     if (m.t === 'get') {
       const b64 = chain.latestWorldBase64();
@@ -209,7 +213,7 @@ export async function startRelay({ chain, port = DEFAULT_PORT, host = '127.0.0.1
   const statusTimer = setInterval(() => {
     try {
       const s = JSON.parse(chain.stats());
-      log(`[relay] tick ${s.lastTick} upd/s ${s.updatesPerSec} in/s ${s.inputBatchesPerSec} confirm p50/p95 ${s.confirmP50}/${s.confirmP95} ms rtt ${s.rttMs} gaps ${s.gaps} slices ${s.slicesDropped ?? 0} clients ${conns.size}`);
+      log(`[relay] tick ${s.lastTick} upd/s ${s.updatesPerSec} in/s ${s.inputBatchesPerSec} confirm p50/p95 ${s.confirmP50}/${s.confirmP95} ms rtt ${s.rttMs} gaps ${s.gaps} slices ${s.slicesDropped ?? 0} ws ${s.wsMsgs ?? 0} stale ${s.staleDrops ?? 0} reconn ${s.reconnects ?? 0} clients ${conns.size}`);
     } catch { /* not initialised */ }
   }, 5000);
 
@@ -219,6 +223,12 @@ export async function startRelay({ chain, port = DEFAULT_PORT, host = '127.0.0.1
       let stats = {};
       try { stats = JSON.parse(chain.stats()); } catch { /* ignore */ }
       res.end(JSON.stringify({ wallet: JSON.parse(chain.wallet()), stats, joined: joinState?.result ?? null, clients: conns.size }));
+      return;
+    }
+    if (req.method === 'POST' && req.url === '/session/revoke') {
+      // P3-J (dev): revoke the SessionTokenV2 mid-game; the next inputs must be rejected (SessionInvalid)
+      chain.session('revoke', '{}').then((r) => { log(`[relay] SOL: session revoke ${r}`); res.writeHead(200, { 'content-type': 'application/json' }); res.end(r); })
+        .catch((e) => { res.writeHead(500); res.end(String(e)); });
       return;
     }
     res.writeHead(404); res.end();

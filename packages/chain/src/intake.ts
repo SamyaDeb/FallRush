@@ -52,6 +52,9 @@ export class Stats {
   lastTick = -1;
   queueDrops = 0;
   slicesDropped = 0;
+  /** P3-K diagnostics: World notifications seen on the socket, and those dropped as duplicate / older ticks. */
+  wsMsgs = 0;
+  staleDrops = 0;
   confirmOk = 0;
   confirmBad = 0;
   confirmTimeouts = 0;
@@ -66,7 +69,7 @@ export class Stats {
       confirmP50: r(percentile(s, 50)), confirmP95: r(percentile(s, 95)), confirmN: s.length,
       confirmOk: this.confirmOk, confirmBad: this.confirmBad, confirmTimeouts: this.confirmTimeouts, sendErrors: this.sendErrors,
       rttMs: r(this.rttEwma), gaps: this.gaps, missingTicks: this.missingTicks, polls: this.polls, pollFills: this.pollFills,
-      reconnects: this.reconnects, lastTick: this.lastTick, queueDrops: this.queueDrops, slicesDropped: this.slicesDropped,
+      reconnects: this.reconnects, lastTick: this.lastTick, queueDrops: this.queueDrops, slicesDropped: this.slicesDropped, wsMsgs: this.wsMsgs, staleDrops: this.staleDrops,
     };
   }
 }
@@ -94,11 +97,16 @@ export class WorldIntake {
     const now = this.clock.now();
     const p = parseWorldAccount(acc, this.layout);
     if (!p) { this.events.push({ type: 'error', where: 'world', why: 'unparseable World account', len: acc.length }); return false; }
+    if (source === 'ws') this.stats.wsMsgs++;
     if (!p.complete) { this.stats.slicesDropped++; return false; } // P2 tick slice: only complete ticks go out
     const vdv = new DataView(p.view.buffer);
     if (this.layout.arenaSeqOffset == null) {
       // no restart counter in the account: a tick far behind the last one = a new match on the same arena
-      if (this.stats.lastTick >= 0 && p.tick + 30 < this.stats.lastTick) this.epoch++;
+      // a new match restarts the World near tick 0; anything else far behind is a stale read (a slow poll reply)
+      if (this.stats.lastTick >= 0 && p.tick + 30 < this.stats.lastTick) {
+        if (p.tick >= 150) return false;
+        this.epoch++;
+      }
       vdv.setUint32(8, this.epoch, true);
     }
     const arenaSeq = vdv.getUint32(8, true);
@@ -110,6 +118,7 @@ export class WorldIntake {
     this.arenaSeq = arenaSeq;
     const last = this.stats.lastTick;
     if (last >= 0 && p.tick <= last) {
+      this.stats.staleDrops++;
       return false; // duplicate (poll of a tick the WS already delivered) or reordered
     } else if (last >= 0 && p.tick > last + 1) {
       const missing = p.tick - last - 1;

@@ -94,7 +94,7 @@ export class ConfirmPoller {
   stop() { this.ctx.clock.clearInterval(this.timer); }
 }
 
-interface Sub { addr: string; pk: PublicKey; id: number | null; lastWsMs: number; nextResubMs: number; stalls: number; polling: boolean }
+interface Sub { addr: string; pk: PublicKey; id: number | null; lastWsMs: number; nextResubMs: number; stalls: number; polling: boolean; raw?: any[]; rawLast?: number[] }
 
 export class RollupTransport implements Transport {
   readonly kind = 'rollup' as const;
@@ -149,6 +149,7 @@ export class RollupTransport implements Transport {
     const c = this.clock;
     this.timers.push(c.setInterval(() => { void this.refreshBlockhash(); }, this.rc.blockhashRefreshMs ?? 10000));
     this.timers.push(c.setInterval(() => { void this.pollAccounts(); }, this.rc.accountPollMs ?? 1000));
+    if (this.rc.rawWs) this.timers.push(c.setInterval(() => { const now = this.clock.now(); for (const x of this.subs.values()) this.rawWatch(x, now); }, 250));
     this.timers.push(c.setInterval(() => { void this.rttProbe(); }, this.rc.rttPollMs ?? 2000));
     void this.rttProbe();
   }
@@ -255,6 +256,17 @@ export class RollupTransport implements Transport {
 
   private attach(s: Sub) {
     const gen = this.erGen;
+    const WS = (globalThis as any).WebSocket;
+    if (this.rc.rawWs && this.rc.erWs && WS) {
+      // P3-K: plain accountSubscribe sockets. Measured on devnet-as: the rollup streams ~90 notifications/s (every
+      // tick slice) and a raw socket receives them, while web3.js's onAccountChange in this bundle went silent for
+      // seconds; a raw socket also went silent at times, so keep RAW_SOCKETS of them (duplicates are dropped by tick)
+      // and reopen any socket silent for rawStallMs (the watchdog in pollAccounts / rawWatch).
+      const n = this.rc.rawSockets ?? 2;
+      s.raw = []; s.rawLast = [];
+      for (let k = 0; k < n; k++) this.rawOpen(s, k, gen);
+      return;
+    }
     s.id = this.er.onAccountChange(s.pk, (info) => {
       if (gen !== this.erGen || !this.subs.has(s.addr)) return;
       s.lastWsMs = this.clock.now();
@@ -263,7 +275,46 @@ export class RollupTransport implements Transport {
     }, this.cm);
   }
 
+  private rawOpen(s: Sub, k: number, gen: number) {
+    const WS = (globalThis as any).WebSocket;
+    const ws = new WS(this.rc.erWs);
+    s.raw![k] = ws;
+    s.rawLast![k] = this.clock.now();
+    ws.onopen = () => ws.send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'accountSubscribe', params: [s.pk.toBase58(), { encoding: 'base64', commitment: this.cm }] }));
+    ws.onmessage = (m: { data: unknown }) => {
+      if (gen !== this.erGen || !s.raw || s.raw[k] !== ws || !this.subs.has(s.addr)) return;
+      const txt = typeof m.data === 'string' ? m.data : String(m.data);
+      if (txt.indexOf('accountNotification') < 0) return;
+      try {
+        const j = JSON.parse(txt);
+        const b64 = j?.params?.result?.value?.data?.[0];
+        if (typeof b64 !== 'string') return;
+        const now = this.clock.now();
+        s.rawLast![k] = now;
+        s.lastWsMs = now;
+        if (s.stalls) { s.stalls = 0; this.backoff.reset(); }
+        this.ctx.intake.ingest(toU8(Buffer.from(b64, 'base64')), 'ws');
+      } catch (e) { this.ctx.events.push({ type: 'error', where: 'rawWs', why: errMsg(e) }); }
+    };
+    ws.onerror = () => { /* rawWatch reopens it */ };
+  }
+
+  /** Reopens a raw socket that has been silent for rawStallMs (default 600 ms). */
+  private rawWatch(s: Sub, now: number) {
+    if (!s.raw) return;
+    if (now - s.lastWsMs > 10_000) return; // the arena is idle (no ticks): the backup poll covers it, no churn
+    const stall = this.rc.rawStallMs ?? 600;
+    for (let k = 0; k < s.raw.length; k++) {
+      if (now - (s.rawLast![k] ?? 0) <= stall) continue;
+      try { s.raw[k].close(); } catch { /* closed */ }
+      this.ctx.stats.reconnects++;
+      this.ctx.events.push({ type: 'wsReconnect', transport: 'rollup', how: 'rawReopen', socket: k, silentMs: Math.round(now - (s.rawLast![k] ?? 0)) });
+      this.rawOpen(s, k, this.erGen);
+    }
+  }
+
   private detach(s: Sub) {
+    if (s.raw) { const r = s.raw; s.raw = undefined; for (const x of r) { try { x.close(); } catch { /* closed */ } } }
     if (s.id !== null) { const id = s.id; s.id = null; this.er.removeAccountChangeListener(id).catch(() => { /* old socket */ }); }
   }
 
@@ -290,6 +341,7 @@ export class RollupTransport implements Transport {
     const now = this.clock.now();
     for (const s of this.subs.values()) {
       void this.pollOne(s);
+      if (s.raw) { this.rawWatch(s, now); continue; }
       const stall = this.rc.stallMs ?? 2000;
       if (now - s.lastWsMs > stall && now >= s.nextResubMs) this.recover(s, now);
     }

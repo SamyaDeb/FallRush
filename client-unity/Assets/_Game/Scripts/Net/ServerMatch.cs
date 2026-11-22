@@ -187,7 +187,11 @@ namespace FallRush.Net
             if (Director.Phase == MatchPhase.LobbyOpen && _viewers.Count > 0 && _loaded)
                 SeatViewers();
             if (Director.MatchId != null && Director.MatchSerial != _loggedSerial && Director.Phase >= MatchPhase.RosterLocked)
+            {
                 OpenLog();
+                if (Handoff != null && Handoff.Rollup)
+                    SendPrejoin();
+            }
             if (_matchDirty)
             {
                 _matchDirty = false;
@@ -267,6 +271,22 @@ namespace FallRush.Net
 
             Debug.Log($"[gs] on-chain Final: handing round {Director.Round} ({MapPoolV1.KeyOf(mapId)}) to {Handoff.ControlUrl} with {roster.Count} players");
             Handoff.Begin(Sha256.Hex(Director.MatchId), p.HazardSeed, roster.ToArray());
+        }
+
+        /// <summary>P3-M: rollup mode, at roster lock: clients pre-join the arena's lobby (their Classic slot).</summary>
+        private void SendPrejoin()
+        {
+            var humans = new List<(int slot, string name, bool bot)>();
+            for (var i = 0; i < Director.Roster.Length; i++)
+                if (Director.Roster[i].Occupied && !Director.Roster[i].Bot)
+                    humans.Add((i, Director.Roster[i].Name, false));
+            var msg = Handoff.PrejoinMessage(Sha256.Hex(Director.MatchId), humans.ToArray());
+            var b = Encoding.UTF8.GetBytes(msg);
+            Buffer.BlockCopy(b, 0, _buf, 0, b.Length);
+            long bytes = 0, count = 0;
+            foreach (var id in Recipients())
+                Send(ChainFinalHandoff.Msg, id, b.Length, ref bytes, ref count);
+            Debug.Log($"[gs] fonc prejoin → {count} clients: {msg}");
         }
 
         /// <summary>P3-F: tells every client to play the Final on the arena (<c>fonc</c>, reliable, JSON).</summary>

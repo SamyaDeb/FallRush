@@ -28,6 +28,8 @@ namespace FallRush.OnChain
         /// <summary>Switch mode: the Classic match this Final continues (names, places), the slot to take, the arena.</summary>
         public MatchStateMessage BaseMatch;
         public int WantSlot = -1;
+        /// <summary>Hybrid pre-join: the Classic match id (hex) whose arena lobby to join.</summary>
+        public string MatchHex;
         public bool Spectate;
 
         private IRushCore _core;
@@ -59,7 +61,10 @@ namespace FallRush.OnChain
         private uint _pendingFirst;
 
         // stats
-        public long Updates, Batches, BatchesRejected, Resyncs, Lagged;
+        public long Updates, Batches, BatchesRejected, BatchesUnconfirmed, Resyncs, Lagged;
+        /// <summary>P3-J: the arena rejected our session key (revoked or expired SessionTokenV2).</summary>
+        public bool SessionExpired;
+        private long _acceptedBatches;
         private long _updatesMark, _batchesMark;
         public float UpdatesPerSec, BatchesPerSec, ConfirmP50, ConfirmP95;
         private double _statsAt;
@@ -126,6 +131,8 @@ namespace FallRush.OnChain
         {
             Cfg ??= ChainConfig.FromArgs();
             _clock = new OnChainClock(Cfg.rate) { LagMs = Cfg.lagMs };
+            _prevFrameRate = Application.targetFrameRate;
+            Application.targetFrameRate = 60; // on-chain play: leave CPU to the chain link (a relay may share the machine)
             _core = RushCoreAbi.Create();
 #if UNITY_WEBGL && !UNITY_EDITOR
             _tx = new BundleChainTransport();
@@ -134,9 +141,9 @@ namespace FallRush.OnChain
             _tx = new WsChainTransport();
 #endif
             _adapter.Emulator = Cfg.target == "emu";
+            _extraLead = Cfg.target == "emu" ? 0 : 2; // rollup: P0.5 saw inputs applied at T+2 (p50) / T+6 (p95)
             _tx.Connect(Cfg);
-            _tx.Join(NetBootstrap.ClientName(), WantSlot, Spectate);
-            ChainAdapters.Override = _adapter;
+            _tx.Join(NetBootstrap.ClientName(), WantSlot, Spectate, MatchHex);
             _feed.Base = BaseMatch;
             _panel = NetTargets.GetQueryParam(Application.absoluteURL, "hud") == "1" || Array.Exists(Environment.GetCommandLineArgs(), a => a == "-fallrushHud");
             var auto = OnChainAutoPlay.Arg();
@@ -145,8 +152,11 @@ namespace FallRush.OnChain
             Debug.Log($"[onchain] session: target {Cfg.target} via {_tx.Name} {Cfg.url}, lead T+{Cfg.inputLead}, {Cfg.batchTicks} ticks per tx, core {(_core.Ready ? $"0x{_core.Version:x}" : "loading")}");
         }
 
+        private int _prevFrameRate = -1;
+
         private void OnDestroy()
         {
+            Application.targetFrameRate = _prevFrameRate;
             if (Instance == this)
                 Instance = null;
             var cs = ClientSim.Instance;
@@ -235,11 +245,23 @@ namespace FallRush.OnChain
             _tx.DrainConfirms(_confirms);
             foreach (var c in _confirms)
             {
-                if (c.Status != 0)
-                    BatchesRejected++;
+                if (c.Status == 5 || c.Status == 3 && Batches > 10 && SessionExpired == false && _acceptedBatches > 0)
+                {
+                    // the program refused our session key (revoked / expired token): inputs no longer count
+                    SessionExpired = true;
+                    Debug.LogWarning("[onchain] session expired / revoked: inputs rejected (status " + c.Status + ")");
+                }
+
+                if (c.Status == 0)
+                    _acceptedBatches++;
+                if (c.Status == 1 || c.Status == 2 || c.Status == 3 || c.Status == 5)
+                    BatchesRejected++; // late / out of window / bad slot
+                else if (c.Status != 0)
+                    BatchesUnconfirmed++; // timeout or a transport error: may still have landed
                 _confirmMs[_confirmN++ % _confirmMs.Length] = c.LatencyMs;
             }
 
+            AdaptLead(now);
             AdvanceAndSend(cs, now);
             _pred?.UpdateSmoothing(Time.deltaTime);
 
@@ -257,7 +279,7 @@ namespace FallRush.OnChain
                 SuperviseSwitch(cs, now);
         }
 
-        private double _startedAt = -1;
+        private double _startedAt = -1, _joinedAt = -1;
 
         /// <summary>
         /// P3-F: in the Classic → on-chain switch, hand the screens back to the game server once it has the arena's
@@ -282,7 +304,8 @@ namespace FallRush.OnChain
                 return;
             }
 
-            if (!_hasNewest && now - _startedAt > SwitchTimeoutSeconds)
+            // failure path: joined (the arena started) but no World within the timeout; a pre-join waits for the lobby
+            if (!_hasNewest && (_joinedAt >= 0 ? now - _joinedAt : MatchHex == null ? now - _startedAt : 0) > SwitchTimeoutSeconds)
             {
                 Debug.LogWarning($"[onchain] switch failed: no World from {Cfg.url} in {SwitchTimeoutSeconds} s; back to the game server");
                 End();
@@ -294,6 +317,9 @@ namespace FallRush.OnChain
         private void OnJoined(JoinInfo j)
         {
             _ownSlot = j.slot;
+            ChainAdapters.Override = _adapter; // from the join on (a pre-join stays invisible until the Final starts)
+            if (_joinedAt < 0)
+                _joinedAt = ClientSim.Now;
             _feed.OwnSlot = j.slot;
             _adapter.Arena = j.arena;
             for (var i = 0; i < 12; i++)
@@ -348,7 +374,11 @@ namespace FallRush.OnChain
             _clock.OnWorld(view.Tick, m.RecvAt);
             var key = view.RushTick ^ (uint)view.HazardSeed;
             if (_hasNewest && view.Tick + 30 < _newestTick)
+            {
+                if (view.Tick >= 150)
+                    return; // a stale read (a slow backup-poll reply), not a restart: a new match starts near tick 0
                 NewArena(cs); // the arena restarted
+            }
             if (_hasNewest && view.Tick <= _newestTick)
                 return; // old / duplicate (a poll reply)
             _feed.OnWorld(in view, m.RecvAt);
@@ -364,16 +394,69 @@ namespace FallRush.OnChain
             _newestTick = view.Tick;
             _hasNewest = true;
             _applied = _ownSlot < 12 ? lay.Applied(m.Acc, _ownSlot) : 0;
+            // inputs are latched in intro / countdown too (the rules neutralise them): measure there, so the lead has
+            // settled before RUSH
+            var timed = view.Phase == WorldView.PhaseIntro || view.Phase == WorldView.PhaseCountdown || view.Phase == WorldView.PhaseRush;
+            if (_ownSlot < 12 && timed && _sentTicks.Contains(view.Tick))
+            {
+                if (_applied < view.Tick)
+                {
+                    _lateWindow++;
+                    // P3-J: 2 s of our ticks never applied at the maximum lead = the arena refuses our key (a revoked /
+                    // expired SessionTokenV2 is not always reported back as a clean confirm status)
+                    if (++_lateStreak >= 60 && _extraLead >= MaxExtraLead && !SessionExpired)
+                    {
+                        SessionExpired = true;
+                        Debug.LogWarning($"[onchain] session expired / revoked: no input applied for {_lateStreak} ticks (applied_tick {_applied}, tick {view.Tick})");
+                    }
+                }
+                else
+                {
+                    _onTimeWindow++;
+                    _lateStreak = 0;
+                }
+            }
             if (key != _arenaKey && view.Phase != WorldView.PhaseSandbox)
                 _arenaKey = key;
         }
 
         private uint _applied;
+        private bool _resultLogged;
+        // P3-K: adaptive extra input lead (client-side delay tuning): +1 tick when our inputs arrive late (the arena's
+        // applied_tick for that slot is behind a tick we sent), −1 after 10 s without any late input; ≤ MaxExtraLead.
+        private readonly HashSet<uint> _sentTicks = new HashSet<uint>();
+        private int _lateWindow, _onTimeWindow, _extraLead, _lateStreak;
+        private double _leadAt, _lastLateAt = -1;
+        public int ExtraLead => _extraLead;
+        /// <summary>The program accepts stamps ≤ World.tick + 8; a batch ends 2 ticks after its first stamp (T+3+x+2 ≤ +8).</summary>
+        public const int MaxExtraLead = 3;
+
+        private void AdaptLead(double now)
+        {
+            if (now - _leadAt < 1.0)
+                return;
+            _leadAt = now;
+            if (_lateWindow > 0)
+            {
+                _lastLateAt = now;
+                _extraLead = Math.Min(MaxExtraLead, _extraLead + 1);
+            }
+            else if (_extraLead > 0 && _lastLateAt >= 0 && now - _lastLateAt > 10.0)
+            {
+                _extraLead--;
+                _lastLateAt = now;
+            }
+
+            _lateWindow = _onTimeWindow = 0;
+            if (_sentTicks.Count > 600)
+                _sentTicks.Clear();
+        }
 
         private void NewArena(ClientSim cs)
         {
             Debug.Log("[onchain] new arena: resetting the feed and the prediction");
             _feed.Reset();
+            _resultLogged = false;
             _pred?.Dispose();
             _pred = null;
             _pending = 0;
@@ -397,6 +480,16 @@ namespace FallRush.OnChain
                 cs.FeedMatch(m);
             }
 
+            if (m != null && m.Champion != 255 && !_resultLogged)
+            {
+                _resultLogged = true;
+                var v = new WorldView(_newest, 0, _newestLen);
+                var order = new StringBuilder();
+                for (var k = 0; k < v.ResultCount; k++)
+                    order.Append(k > 0 ? "," : "").Append(v.ResultOrder(k));
+                Debug.Log($"[onchain] RESULT champion {m.Champion} order {order} own slot {_ownSlot} arena {_adapter.Arena} tick {_newestTick}");
+            }
+
             // own prediction: rebase on the newest World
             var view = new WorldView(_newest, 0, _newestLen);
             if (_ownSlot >= 12 || !view.Active(_ownSlot) || _map == null)
@@ -418,7 +511,7 @@ namespace FallRush.OnChain
             a.MapId == b.MapId && a.HazardSeed == b.HazardSeed && a.RoundStartTick == b.RoundStartTick && a.Variant == b.Variant && a.Modifier == b.Modifier;
 
         /// <summary>The predicted present: chain now + lead + batch − 1 (fractional).</summary>
-        private double Target(double now) => _clock.ChainNow(now) + Cfg.inputLead + Cfg.batchTicks - 1;
+        private double Target(double now) => _clock.ChainNow(now) + Cfg.inputLead + _extraLead + Cfg.batchTicks - 1;
 
         private void AdvanceAndSend(ClientSim cs, double now)
         {
@@ -448,7 +541,10 @@ namespace FallRush.OnChain
                 _pred.SetInput(tick, in cmd);
                 _pred.StepTo(tick);
                 if (playing)
+                {
                     Queue(tick, in cmd);
+                    _sentTicks.Add(tick);
+                }
             }
 
             _frac = _pred.Present < whole ? 0 : Math.Min(1.0, target - whole);
@@ -514,7 +610,7 @@ namespace FallRush.OnChain
         public string StatsLine(double now)
         {
             var p = _pred;
-            return $"[onchain] tick {_newestTick} upd/s {UpdatesPerSec:F1} batches/s {BatchesPerSec:F1} corr/5s {(p != null ? p.CorrectionsSince(now, 5) : 0)} corr {(p?.Corrections ?? 0)} match {(p?.Matches ?? 0)} late {(p?.LateInputs ?? 0)} replay {(p?.LastReplay ?? 0)}/{(p?.MaxReplay ?? 0)} rtt {_tx.RttMs:F0} confirm p50 {ConfirmP50:F0} p95 {ConfirmP95:F0} gaps {_tx.Gaps} polls {_tx.Polls} resync {Resyncs} lag {Lagged} rejected {BatchesRejected}";
+            return $"[onchain] tick {_newestTick} upd/s {UpdatesPerSec:F1} batches/s {BatchesPerSec:F1} corr/5s {(p != null ? p.CorrectionsSince(now, 5) : 0)} corr {(p?.Corrections ?? 0)} match {(p?.Matches ?? 0)} late {(p?.LateInputs ?? 0)} replay {(p?.LastReplay ?? 0)}/{(p?.MaxReplay ?? 0)} rtt {_tx.RttMs:F0} confirm p50 {ConfirmP50:F0} p95 {ConfirmP95:F0} gaps {_tx.Gaps} polls {_tx.Polls} resync {Resyncs} lag {Lagged} rejected {BatchesRejected} unconfirmed {BatchesUnconfirmed} lead +{_extraLead}";
         }
 
         private readonly StringBuilder _sb = new StringBuilder(512);
@@ -531,6 +627,12 @@ namespace FallRush.OnChain
 
             if (!_hasNewest)
                 GUI.Label(new Rect(16, Screen.height - 80, 900, 24), $"On-chain (preview): {_status}");
+            if (SessionExpired)
+            {
+                GUI.color = new Color(1f, 0.75f, 0.2f);
+                GUI.Label(new Rect(Screen.width * 0.5f - 220, 96, 440, 24), "Session expired → rejoin (your inputs are no longer accepted)");
+                GUI.color = Color.white;
+            }
             if (!_panel)
                 return;
             var p = _pred;
@@ -554,7 +656,7 @@ namespace FallRush.OnChain
 
             var w = new WorldView(_newest, 0, _newestLen);
             _sb.Append("core 0x").Append(_core.Version.ToString("x")).Append("  World hash ").Append(_hasNewest ? Fnv(_newest, _newestLen).ToString("x16") : "-")
-                .Append("  phase ").Append(_hasNewest ? w.Phase.ToString() : "-").Append("  lead T+").Append(Cfg.inputLead).Append(" × ").Append(Cfg.batchTicks).Append('\n');
+                .Append("  phase ").Append(_hasNewest ? w.Phase.ToString() : "-").Append("  lead T+").Append(Cfg.inputLead).Append(" +").Append(_extraLead).Append(" × ").Append(Cfg.batchTicks).Append('\n');
             GUI.Box(new Rect(Screen.width - 620, 120, 610, 150), GUIContent.none);
             GUI.Label(new Rect(Screen.width - 612, 124, 600, 145), _sb.ToString());
         }

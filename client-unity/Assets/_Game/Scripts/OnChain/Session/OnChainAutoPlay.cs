@@ -8,7 +8,7 @@ namespace FallRush.OnChain
 {
     /// <summary>
     /// P3-D measurement (dev): <c>-fallrushOnchainAuto &lt;seconds&gt;</c> / <c>?onchainauto=&lt;seconds&gt;</c> plays the own
-    /// Rushling with a scripted input (runs a slow circle, jumps every ~1.3 s, dives every ~4 s), logs
+    /// Rushling with a scripted input (shadows the nearest bot, a small hop every 3 s), logs
     /// <see cref="OnChainSession.StatsLine"/> every 5 s (corrections per 5 s, updates/s, batches/s, RTT, confirms),
     /// saves a screenshot at half time (<c>-fallrushOnchainShot &lt;png&gt;</c>) and quits (desktop) when the time is up.
     /// </summary>
@@ -44,41 +44,38 @@ namespace FallRush.OnChain
         public void Sample(ref InputCmd cmd)
         {
             _n++;
-            // Steer toward the other players still in (the bots keep to the lids), with a slow orbit around them so
-            // there are contacts and pushes; falls happen, as in real play.
+            // Shadow the nearest bot (the bots read the lids and keep to safe ones): walk to ~0.6 m behind it, small
+            // hops now and then. Falls still happen (pushes, flips), as in real play.
             var cs = ClientSim.Instance;
-            var dir = new Vector2(Mathf.Cos(_n * 0.05f), Mathf.Sin(_n * 0.05f)) * 0.45f;
+            var dir = Vector2.zero;
             if (cs != null && cs.TrySample(cs.OwnSlot, out var me, out _, out _, out _, out _))
             {
-                var sum = Vector3.zero;
-                var k = 0;
+                var best = float.MaxValue;
+                var target = me;
                 for (var s = 0; s < 12; s++)
-                    if (s != cs.OwnSlot && cs.Remote.Sample(s, out var f, out _, out _))
+                    if (s != cs.OwnSlot && cs.Remote.Sample(s, out var f, out var fv, out _))
                     {
-                        sum += new Vector3(f.X, f.Y, f.Z);
-                        k++;
+                        var p = new Vector3(f.X, f.Y, f.Z);
+                        var d = (p - me).sqrMagnitude;
+                        if (d < best)
+                        {
+                            best = d;
+                            target = p - new Vector3(fv.X, 0f, fv.Z).normalized * 0.6f;
+                        }
                     }
 
-                if (k > 0)
-                {
-                    var to = sum / k - me;
-                    var d = new Vector2(to.x, to.z);
-                    if (d.magnitude > 1.5f)
-                        dir += d.normalized;
-                }
+                var to = new Vector2(target.x - me.x, target.z - me.z);
+                if (to.magnitude > 0.3f)
+                    dir = to.normalized * Mathf.Clamp01(to.magnitude / 1.5f);
             }
 
-            if (dir.magnitude > 1f)
-                dir.Normalize();
             cmd.MoveX = (sbyte)(dir.x * 120f);
             cmd.MoveY = (sbyte)(dir.y * 120f);
             cmd.Buttons = 0;
-            if (_n % 40 < 6)
+            if (_n % 90 < 4)
                 cmd.Buttons |= InputCmd.JumpHeld;
-            if (_n % 40 == 0)
+            if (_n % 90 == 0)
                 cmd.Buttons |= InputCmd.JumpPressed;
-            if (_n % 150 == 75)
-                cmd.Buttons |= InputCmd.DivePressed | InputCmd.DiveHeld;
             cmd.CamYaw = 0;
         }
 

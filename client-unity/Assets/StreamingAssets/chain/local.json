@@ -189,7 +189,8 @@
     "join": {
       "map": "CrumbleShelf",
       "rate": 30
-    }
+    },
+    "rawWs": true
   },
   "session": {
     "programId": "KeyspM2ssCJbqUhQ4k7sveSiY4WjnYsrXkC8oDbwde5",
