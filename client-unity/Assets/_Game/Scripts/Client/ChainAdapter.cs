@@ -51,6 +51,14 @@ namespace FallRush.Client
         void OnMatchState(FallRush.Shared.MatchStateMessage m);
     }
 
+    /// <summary>P3: the adapter the match screens read. The on-chain session sets <see cref="Override"/> while it runs;
+    /// otherwise the practice adapter (Classic play is unchanged).</summary>
+    public static class ChainAdapters
+    {
+        public static IChainAdapter Override;
+        public static IChainAdapter Current => Override ?? PracticeChainAdapter.Current;
+    }
+
     /// <summary>Chip look per state (glyph, label, colour). Pure; tested.</summary>
     public static class ChainChipStyle
     {

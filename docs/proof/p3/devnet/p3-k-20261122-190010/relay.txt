@@ -1,0 +1,45 @@
+[relay] devnet (P2, Final arena 2): burner GWiyKB4Z3ytYfaRfiqAnNrimo2DneAtVeJJi6LgTmDAA session 2T2uSXq9VEmfdTYxyXt9ZoCgdMoehUbdTFxkApH3dL7h (keys /Users/samya/Downloads/FallRush-p3/tools/p3/.relay-keys/devnet.json)
+[relay] balance: burner 0.006608 SOL, session 0.002000 SOL; a session costs ~0.003913 SOL
+[relay] listening ws://127.0.0.1:8788/ (wire-v0 §4) → rollup https://devnet-as.magicblock.app
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 211.1 gaps 0 slices 0 clients 0
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 180 gaps 0 slices 0 clients 0
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 272.3 gaps 0 slices 0 clients 1
+[relay] join {"name":"P3","spectate":false} (waits for the arena lobby and start_final)
+[relay] join: session {"state":"reused","token":"56NFwaA8WG9gWRN3ft8g3uNFsAFRg3qDeHhYJPiYwoC4"}
+[relay] join: waitingLobby {"arenaStatus":3}
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 204.8 gaps 0 slices 0 clients 1
+[relay] join: lobbyOpen {"arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","match":"9bvExrRbbTuzojWS7Z5evfbPFHCRTWFQiRBvxdoakW76","humanMask":0}
+[relay] join: finalists {"finalists":[0,5,11]}
+[relay] join: lobbyJoined {"slot":0,"sig":"4MYbjtJW46pbzAHuTk7t9rPVMVEy7Kd5tyZtJyooxrvaHRRK8ZM8ip3JqhTZJwVKhvyijbYW6nAxPGQVawwFcSsN","player":"2T2uSXq9VEmfdTYxyXt9ZoCgdMoehUbdTFxkApH3dL7h","withSessionToken":true}
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 186.1 gaps 0 slices 0 clients 1
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 142.8 gaps 0 slices 0 clients 1
+[relay] joined: slot 0 arena HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt match 9bvExrRbbTuzojWS7Z5evfbPFHCRTWFQiRBvxdoakW76 roster [{"slot":0,"kind":"human","name":"P3","wallet":"GWiyKB4Z3ytYfaRfiqAnNrimo2DneAtVeJJi6LgTmDAA"},{"slot":5,"kind":"bot"},{"slot":11,"kind":"bot"}]
+[relay] join: started {"slot":0,"match":"9bvExrRbbTuzojWS7Z5evfbPFHCRTWFQiRBvxdoakW76","finalists":[0,5,11],"ms":15337}
+[relay] tick 78 upd/s 29 in/s 10 confirm p50/p95 267.9/432.1 ms rtt 129.1 gaps 0 slices 0 clients 1
+[relay] tick 228 upd/s 29.5 in/s 10.5 confirm p50/p95 212.4/680.2 ms rtt 107.6 gaps 0 slices 0 clients 1
+[relay] tick 379 upd/s 30 in/s 10 confirm p50/p95 208.5/468.9 ms rtt 121.4 gaps 0 slices 0 clients 1
+[relay] tick 527 upd/s 31 in/s 10 confirm p50/p95 212.4/590.2 ms rtt 157.7 gaps 1 slices 0 clients 1
+[relay] tick 679 upd/s 30 in/s 9.5 confirm p50/p95 210.4/578.1 ms rtt 137.8 gaps 3 slices 0 clients 1
+[relay] tick 829 upd/s 29.5 in/s 6 confirm p50/p95 206.9/557.5 ms rtt 126.7 gaps 4 slices 0 clients 1
+[relay] tick 978 upd/s 30.5 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 140.2 gaps 4 slices 0 clients 1
+[relay] tick 1128 upd/s 31.5 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 150.8 gaps 4 slices 0 clients 1
+[relay] tick 1280 upd/s 30.5 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 130.1 gaps 5 slices 0 clients 1
+[relay] tick 1429 upd/s 29.5 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 116.8 gaps 6 slices 0 clients 1
+[relay] tick 1572 upd/s 21.5 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 161.8 gaps 7 slices 0 clients 1
+[relay] tick 1728 upd/s 29 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 141.5 gaps 8 slices 0 clients 1
+[relay] tick 1880 upd/s 28.5 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 125.9 gaps 10 slices 0 clients 1
+[relay] tick 2028 upd/s 29 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 108.6 gaps 12 slices 0 clients 1
+[relay] tick 2180 upd/s 31.5 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 121.5 gaps 12 slices 0 clients 1
+[relay] tick 2330 upd/s 26 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 142.5 gaps 13 slices 0 clients 1
+[relay] tick 2480 upd/s 32 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 125 gaps 13 slices 0 clients 1
+[relay] tick 2630 upd/s 30 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 117.4 gaps 13 slices 0 clients 1
+[relay] tick 2780 upd/s 30.5 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 107.2 gaps 13 slices 0 clients 1
+[relay] tick 2930 upd/s 29.5 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 109.4 gaps 13 slices 0 clients 1
+[relay] tick 3072 upd/s 24.5 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 149.6 gaps 15 slices 0 clients 1
+[relay] tick 3190 upd/s 13 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 120.5 gaps 18 slices 0 clients 1
+[relay] wsReconnect {"transport":"rollup","how":"resubscribe","silentMs":2357}
+[relay] wsReconnect {"transport":"rollup","how":"resubscribe","silentMs":4359}
+[relay] tick 3190 upd/s 0 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 113.2 gaps 18 slices 0 clients 1
+[relay] wsReconnect {"transport":"rollup","how":"newConnection"}
+[relay] tick 3190 upd/s 0 in/s 0 confirm p50/p95 206.9/557.5 ms rtt 115.6 gaps 18 slices 0 clients 1
+[relay] receipt {"arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","world":"HYJRSXpSGZ3HdjmZr4oMy3x6VgTWLcarkgHav7L4hSTQ","match":"9bvExrRbbTuzojWS7Z5evfbPFHCRTWFQiRBvxdoakW76","joinSig":"4MYbjtJW46pbzAHuTk7t9rPVMVEy7Kd5tyZtJyooxrvaHRRK8ZM8ip3JqhTZJwVKhvyijbYW6nAxPGQVawwFcSsN","slot":0,"finalists":[0,5,11],"lastInputSig":"d6XfYAmttWJu5mRjVbDCSJuFnrpe84wwYDCHvD2giyEbUAQWww5oKjxY2BHKxnPEC3ZqRaNUV7DHCNUNMda8YLq"}

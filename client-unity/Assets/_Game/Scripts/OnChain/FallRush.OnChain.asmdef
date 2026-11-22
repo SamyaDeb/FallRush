@@ -1,0 +1,25 @@
+{
+    "name": "FallRush.OnChain",
+    "rootNamespace": "FallRush.OnChain",
+    "references": [
+        "FallRush.Shared",
+        "FallRush.Net",
+        "FallRush.Client",
+        "FallRush.FeelLab",
+        "Unity.Netcode.Runtime",
+        "Unity.InputSystem",
+        "Unity.TextMeshPro",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "!UNITY_SERVER"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

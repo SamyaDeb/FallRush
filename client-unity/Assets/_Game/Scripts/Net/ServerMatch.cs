@@ -45,6 +45,9 @@ namespace FallRush.Net
         private int _loggedSerial = -1;
         private readonly System.Security.Cryptography.RandomNumberGenerator _rng = System.Security.Cryptography.RandomNumberGenerator.Create();
         private BotBrainSet _bots;
+        /// <summary>P3-F: the Classic → on-chain switch at the Final (null unless <c>-fallrushOnchainFinal</c>).</summary>
+        public readonly ChainFinalHandoff Handoff = ChainFinalHandoff.Enabled ? new ChainFinalHandoff() : null;
+        private bool _foncSent;
 
         /// <summary>Server ticks simulated per network tick while no human is connected (soak; 1 = real time).</summary>
         public int SimSpeed = 1;
@@ -184,7 +187,11 @@ namespace FallRush.Net
             if (Director.Phase == MatchPhase.LobbyOpen && _viewers.Count > 0 && _loaded)
                 SeatViewers();
             if (Director.MatchId != null && Director.MatchSerial != _loggedSerial && Director.Phase >= MatchPhase.RosterLocked)
+            {
                 OpenLog();
+                if (Handoff != null && Handoff.Rollup)
+                    SendPrejoin();
+            }
             if (_matchDirty)
             {
                 _matchDirty = false;
@@ -203,6 +210,8 @@ namespace FallRush.Net
 
         public void LoadMap(byte mapId, in RoundParams p)
         {
+            if (Handoff != null)
+                BeginHandoff(mapId, in p);
             _wantMap = mapId;
             _wantParams = p;
             _wantParams.RoundStartTick = mapId == MapPoolV1.Lobby ? 0u : WaitingRoundStart;
@@ -244,13 +253,70 @@ namespace FallRush.Net
             _matchDirty = true;
         }
 
-        public bool MapLoaded => _loaded && !_loadingScene;
+        public bool MapLoaded => _loaded && !_loadingScene && (Handoff == null || Handoff.Phase != ChainFinalHandoff.State.Deciding);
+
+        /// <summary>P3-F: at the last round (the Final), ask the arena for it; the round waits (≤ 8 s) for the answer.</summary>
+        private void BeginHandoff(byte mapId, in RoundParams p)
+        {
+            _foncSent = false;
+            if (mapId == MapPoolV1.Lobby || Director.Round != Director.RoundCount || Director.RoundCount < 2)
+                return;
+            var roster = new List<(int slot, string name, bool bot)>();
+            for (var i = 0; i < Director.Roster.Length; i++)
+            {
+                var r = Director.Roster[i];
+                if (r.Occupied && r.Alive)
+                    roster.Add((i, r.Name, r.Bot));
+            }
+
+            Debug.Log($"[gs] on-chain Final: handing round {Director.Round} ({MapPoolV1.KeyOf(mapId)}) to {Handoff.ControlUrl} with {roster.Count} players");
+            Handoff.Begin(Sha256.Hex(Director.MatchId), p.HazardSeed, roster.ToArray());
+        }
+
+        /// <summary>P3-M: rollup mode, at roster lock: clients pre-join the arena's lobby (their Classic slot).</summary>
+        private void SendPrejoin()
+        {
+            var humans = new List<(int slot, string name, bool bot)>();
+            for (var i = 0; i < Director.Roster.Length; i++)
+                if (Director.Roster[i].Occupied && !Director.Roster[i].Bot)
+                    humans.Add((i, Director.Roster[i].Name, false));
+            var msg = Handoff.PrejoinMessage(Sha256.Hex(Director.MatchId), humans.ToArray());
+            var b = Encoding.UTF8.GetBytes(msg);
+            Buffer.BlockCopy(b, 0, _buf, 0, b.Length);
+            long bytes = 0, count = 0;
+            foreach (var id in Recipients())
+                Send(ChainFinalHandoff.Msg, id, b.Length, ref bytes, ref count);
+            Debug.Log($"[gs] fonc prejoin → {count} clients: {msg}");
+        }
+
+        /// <summary>P3-F: tells every client to play the Final on the arena (<c>fonc</c>, reliable, JSON).</summary>
+        private void SendFinalOnchain()
+        {
+            var b = Encoding.UTF8.GetBytes(Handoff.Message);
+            Buffer.BlockCopy(b, 0, _buf, 0, b.Length);
+            long bytes = 0, count = 0;
+            foreach (var id in Recipients())
+                Send(ChainFinalHandoff.Msg, id, b.Length, ref bytes, ref count);
+            Debug.Log($"[gs] fonc → {count} clients: {Handoff.Message}");
+        }
 
         public IRoundRules CreateRules(byte mapId)
         {
             var map = _sim.Map;
             var def = map != null ? map.definition : null;
-            return RulesFactory.Create(map, mapId);
+            var rules = RulesFactory.Create(map, mapId);
+            if (Handoff != null && Handoff.Phase == ChainFinalHandoff.State.Live && mapId != MapPoolV1.Lobby && Director.Round == Director.RoundCount)
+            {
+                if (!_foncSent)
+                {
+                    _foncSent = true;
+                    SendFinalOnchain();
+                }
+
+                return new ChainFinalRules(rules, Handoff);
+            }
+
+            return rules;
         }
 
         public Func<int, uint, MotorState, InputCmd> CreateBotInput(IRoundRules rules, RosterSlot[] roster, in RoundParams p)

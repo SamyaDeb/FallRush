@@ -1,0 +1,1743 @@
+{
+  "note": "WorldAcc v0 samples of a seeded 3-player Lid Flip Final (slot 0 human with scripted inputs, 1-2 bots). Files are the WorldAcc bytes (wire-v0 §3) without the 5-byte 0x90 frame header. Regenerate: node tools/chain-emulator/test/make-fixtures.mjs",
+  "seed": "0x5eed0f1a1f1a1f00",
+  "layout": {
+    "headerLen": 22,
+    "playerStride": 115,
+    "playersOffset": 22,
+    "reactiveLen": 318,
+    "dropQueueLen": 48,
+    "roundOffset": 1768,
+    "roundLen": 142,
+    "directorOffset": 1910,
+    "directorLen": 123,
+    "totalLen": 2037,
+    "slotRulesOffset": 46,
+    "botOffset": 89,
+    "roundResultOffset": 52
+  },
+  "samples": {
+    "waiting": {
+      "file": "waiting.worldacc",
+      "bytes": 2109,
+      "decoded": {
+        "coreVersion": 65537,
+        "tick": 6,
+        "applied": [
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "arenaSeq": 1,
+        "worldLen": 2037,
+        "flags": 0,
+        "world": {
+          "version": 1,
+          "tick": 6,
+          "rate": 30,
+          "roundIndex": 0,
+          "mapKey": 3,
+          "variant": 0,
+          "modifier": 0,
+          "hazardSeed": "0x5eed0f1a1f1a1f00",
+          "roundStart": 0,
+          "players": [
+            {
+              "slot": 0,
+              "active": true,
+              "bot": false,
+              "flags": 1,
+              "pos": {
+                "x": -1711,
+                "y": 6604,
+                "z": -3623
+              },
+              "vel": {
+                "x": 1343,
+                "y": 4927,
+                "z": 1070
+              },
+              "yaw": 26,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 1,
+              "active": true,
+              "bot": true,
+              "flags": 3,
+              "pos": {
+                "x": -1860,
+                "y": 6010,
+                "z": 3720
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 109,
+              "motorFlags": 129,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 2,
+              "active": true,
+              "bot": true,
+              "flags": 3,
+              "pos": {
+                "x": 3720,
+                "y": 6010,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 192,
+              "motorFlags": 129,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 3,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 4,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 5,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 6,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 7,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 8,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 9,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 10,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 11,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            }
+          ],
+          "round": {
+            "mode": 0,
+            "phase": 5,
+            "phaseStart": 0,
+            "rushTick": 0,
+            "rushEnd": 0,
+            "introTicks": 0,
+            "countdownTicks": 0,
+            "target": 0,
+            "qualifyCount": 0,
+            "qualifiedCount": 0,
+            "finishedCount": 0,
+            "timerExpired": false,
+            "hasResult": false,
+            "eventSeq": 0,
+            "result": {
+              "n": 0,
+              "order": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "qualified": 0,
+              "reasons": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "values": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "target": 0,
+              "startTick": 0,
+              "endTick": 0,
+              "timerExpired": false
+            }
+          },
+          "directorPhase": 0,
+          "eventSeq": 0
+        }
+      }
+    },
+    "rush": {
+      "file": "rush.worldacc",
+      "bytes": 2109,
+      "decoded": {
+        "coreVersion": 65537,
+        "tick": 463,
+        "applied": [
+          463,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "arenaSeq": 1,
+        "worldLen": 2037,
+        "flags": 1,
+        "world": {
+          "version": 1,
+          "tick": 463,
+          "rate": 30,
+          "roundIndex": 0,
+          "mapKey": 3,
+          "variant": 0,
+          "modifier": 0,
+          "hazardSeed": "0x5eed0f1a1f1a1f00",
+          "roundStart": 163,
+          "players": [
+            {
+              "slot": 0,
+              "active": true,
+              "bot": false,
+              "flags": 1,
+              "pos": {
+                "x": -1305,
+                "y": 6011,
+                "z": -6554
+              },
+              "vel": {
+                "x": -3504,
+                "y": 0,
+                "z": -1772
+              },
+              "yaw": 173,
+              "motorFlags": 1,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 1,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 1,
+              "active": true,
+              "bot": true,
+              "flags": 3,
+              "pos": {
+                "x": -1860,
+                "y": 6011,
+                "z": 3720
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 109,
+              "motorFlags": 129,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 1,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 2,
+              "active": true,
+              "bot": true,
+              "flags": 3,
+              "pos": {
+                "x": 1652,
+                "y": 6010,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 64,
+              "motorFlags": 129,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 1,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 3,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 4,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 5,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 6,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 7,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 8,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 9,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 10,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 11,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            }
+          ],
+          "round": {
+            "mode": 4,
+            "phase": 3,
+            "phaseStart": 163,
+            "rushTick": 163,
+            "rushEnd": 3763,
+            "introTicks": 60,
+            "countdownTicks": 90,
+            "target": 1,
+            "qualifyCount": 1,
+            "qualifiedCount": 0,
+            "finishedCount": 0,
+            "timerExpired": false,
+            "hasResult": false,
+            "eventSeq": 3,
+            "result": {
+              "n": 0,
+              "order": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "qualified": 0,
+              "reasons": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "values": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "target": 0,
+              "startTick": 0,
+              "endTick": 0,
+              "timerExpired": false
+            }
+          },
+          "directorPhase": 0,
+          "eventSeq": 3
+        }
+      }
+    },
+    "ended": {
+      "file": "ended.worldacc",
+      "bytes": 2109,
+      "decoded": {
+        "coreVersion": 65537,
+        "tick": 1276,
+        "applied": [
+          1276,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "arenaSeq": 1,
+        "worldLen": 2037,
+        "flags": 3,
+        "world": {
+          "version": 1,
+          "tick": 1276,
+          "rate": 30,
+          "roundIndex": 0,
+          "mapKey": 3,
+          "variant": 0,
+          "modifier": 0,
+          "hazardSeed": "0x5eed0f1a1f1a1f00",
+          "roundStart": 163,
+          "players": [
+            {
+              "slot": 0,
+              "active": true,
+              "bot": false,
+              "flags": 1,
+              "pos": {
+                "x": -5126,
+                "y": -6344,
+                "z": -13107
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 166,
+              "motorFlags": 8,
+              "stun": 0,
+              "respawn": 30,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 1,
+              "hits": 0,
+              "rules": {
+                "flags": 3,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 523,
+                "outReason": 2,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 1,
+              "active": true,
+              "bot": true,
+              "flags": 3,
+              "pos": {
+                "x": 122,
+                "y": 7117,
+                "z": 1859
+              },
+              "vel": {
+                "x": -280,
+                "y": -2209,
+                "z": 5
+              },
+              "yaw": 192,
+              "motorFlags": 128,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 9,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 2,
+              "active": true,
+              "bot": true,
+              "flags": 3,
+              "pos": {
+                "x": 1857,
+                "y": -6605,
+                "z": -1027
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 128,
+              "motorFlags": 136,
+              "stun": 0,
+              "respawn": 30,
+              "lastStep": 2,
+              "missing": 0,
+              "falls": 1,
+              "hits": 0,
+              "rules": {
+                "flags": 3,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 1276,
+                "outReason": 2,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 1,
+                "lidFalls": 1,
+                "lidDropTick": 843
+              }
+            },
+            {
+              "slot": 3,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 4,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 5,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 6,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 7,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 8,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 9,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 10,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            },
+            {
+              "slot": 11,
+              "active": false,
+              "bot": false,
+              "flags": 0,
+              "pos": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "vel": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+              },
+              "yaw": 0,
+              "motorFlags": 0,
+              "stun": 0,
+              "respawn": 0,
+              "lastStep": 0,
+              "missing": 0,
+              "falls": 0,
+              "hits": 0,
+              "rules": {
+                "flags": 0,
+                "checkpoint": 0,
+                "doneTick": 0,
+                "place": 0,
+                "outTick": 0,
+                "outReason": 0,
+                "score": 0,
+                "height": 0,
+                "deepest": 0,
+                "tiles": 0,
+                "lidShelf": 0,
+                "lidFalls": 0,
+                "lidDropTick": 0
+              }
+            }
+          ],
+          "round": {
+            "mode": 4,
+            "phase": 4,
+            "phaseStart": 1276,
+            "rushTick": 163,
+            "rushEnd": 3763,
+            "introTicks": 60,
+            "countdownTicks": 90,
+            "target": 1,
+            "qualifyCount": 1,
+            "qualifiedCount": 0,
+            "finishedCount": 0,
+            "timerExpired": false,
+            "hasResult": true,
+            "eventSeq": 10,
+            "result": {
+              "n": 3,
+              "order": [
+                1,
+                2,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "qualified": 1,
+              "reasons": [
+                0,
+                2,
+                2,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "values": [
+                0,
+                1001,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "target": 1,
+              "startTick": 163,
+              "endTick": 1276,
+              "timerExpired": false
+            }
+          },
+          "directorPhase": 0,
+          "eventSeq": 10
+        }
+      }
+    }
+  }
+}

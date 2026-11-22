@@ -1,0 +1,4 @@
+[onchain] session: target devnet via emulator-ws ws://127.0.0.1:8788/, lead T+3, 3 ticks per tx, core 0x10001
+[onchain] joined HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt slot 0, map CrumbleShelf
+[onchain] RESULT champion 2 order 2,4,0 own slot 0 arena HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt tick 2727
+[onchain] Solana ✓: Match 7Bh9QdeYfkMRLU6N5Bbtwh7bJFf2JukwdLZ6KH8xGNFT is back on Solana (committed)

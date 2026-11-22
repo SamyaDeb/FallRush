@@ -23,6 +23,9 @@ namespace FallRush.FeelLab
         [DllImport(Lib)] public static extern int rc_respawn(int h, uint slot);
         [DllImport(Lib)] public static extern ulong rc_clock(int h);
         [DllImport(Lib)] public static extern ulong rc_vectors(uint kind, ulong seed, uint n, byte[] map, uint mapLen);
+        // P3: World bytes in / out (the on-chain session rebases its prediction on the arena's World).
+        [DllImport(Lib)] public static extern uint rc_world_bytes(int h, byte[] outBuf, uint cap);
+        [DllImport(Lib)] public static extern int rc_set_world(int h, byte[] world, uint len);
 
         /// <summary>The 24-byte init config: rate, active mask, bot mask, flags, hazard seed.</summary>
         public static byte[] Cfg(int rate, uint active, uint bots, ulong seed)

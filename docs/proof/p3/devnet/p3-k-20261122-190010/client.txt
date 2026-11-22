@@ -1,0 +1,29 @@
+[onchain] session: target devnet via emulator-ws ws://127.0.0.1:8788/, lead T+3, 3 ticks per tx, core 0x10001
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 483 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 lead +0 fps 60 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 266 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 lead +0 fps 60 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 223 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 lead +0 fps 58 playing True phase -
+[onchain] joined HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt slot 0, map CrumbleShelf
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 218 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 lead +0 fps 50 playing True phase -
+[onchain] tick 143 upd/s 34.6 batches/s 8.9 corr/5s 0 corr 0 match 143 late 0 replay 9/22 rtt 203 confirm p50 464 p95 1135 gaps 0 polls 1 resync 0 lag 1 rejected 4 lead +0 fps 57 playing True phase RoundIntro
+[onchain] tick 284 upd/s 29.0 batches/s 10.0 corr/5s 9 corr 9 match 275 late 9 replay 22/25 rtt 199 confirm p50 342 p95 936 gaps 0 polls 1 resync 1 lag 2 rejected 4 lead +3 fps 45 playing True phase RoundActive
+[onchain] tick 439 upd/s 28.6 batches/s 9.9 corr/5s 0 corr 9 match 430 late 9 replay 16/25 rtt 200 confirm p50 318 p95 768 gaps 0 polls 1 resync 1 lag 2 rejected 4 lead +4 fps 60 playing True phase RoundActive
+[onchain] tick 591 upd/s 31.5 batches/s 9.9 corr/5s 14 corr 23 match 564 late 23 replay 15/25 rtt 192 confirm p50 329 p95 701 gaps 0 polls 1 resync 1 lag 2 rejected 7 lead +6 fps 58 playing True phase RoundActive
+[onchain] tick 744 upd/s 34.5 batches/s 9.8 corr/5s 75 corr 98 match 641 late 98 replay 15/25 rtt 182 confirm p50 290 p95 701 gaps 0 polls 1 resync 1 lag 2 rejected 39 lead +6 fps 60 playing True phase RoundActive
+[onchain] tick 894 upd/s 25.6 batches/s 0.0 corr/5s 30 corr 127 match 761 late 127 replay 14/25 rtt 192 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 4 rejected 54 lead +6 fps 57 playing False phase RoundActive
+[onchain] tick 1044 upd/s 30.9 batches/s 0.0 corr/5s 0 corr 127 match 911 late 127 replay 15/25 rtt 194 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 4 rejected 54 lead +6 fps 60 playing False phase RoundActive
+[onchain] tick 1191 upd/s 28.5 batches/s 0.0 corr/5s 0 corr 127 match 1058 late 127 replay 17/25 rtt 200 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 4 rejected 54 lead +5 fps 59 playing False phase RoundActive
+[onchain] tick 1344 upd/s 26.5 batches/s 0.0 corr/5s 0 corr 127 match 1204 late 127 replay 13/25 rtt 210 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 4 rejected 54 lead +5 fps 58 playing False phase RoundActive
+[onchain] tick 1494 upd/s 28.8 batches/s 0.0 corr/5s 0 corr 127 match 1354 late 127 replay 12/25 rtt 175 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 4 rejected 54 lead +4 fps 59 playing False phase RoundActive
+[onchain] tick 1645 upd/s 30.5 batches/s 0.0 corr/5s 0 corr 127 match 1492 late 127 replay 12/29 rtt 183 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 5 rejected 54 lead +4 fps 60 playing False phase RoundActive
+[onchain] tick 1788 upd/s 30.6 batches/s 0.0 corr/5s 0 corr 127 match 1632 late 127 replay 12/29 rtt 183 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 5 rejected 54 lead +3 fps 58 playing False phase RoundActive
+[onchain] tick 1942 upd/s 30.5 batches/s 0.0 corr/5s 0 corr 127 match 1778 late 127 replay 14/29 rtt 170 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 5 rejected 54 lead +3 fps 59 playing False phase RoundActive
+[onchain] tick 2094 upd/s 29.9 batches/s 0.0 corr/5s 0 corr 127 match 1928 late 127 replay 9/29 rtt 166 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 5 rejected 54 lead +2 fps 58 playing False phase RoundActive
+[onchain] tick 2245 upd/s 31.9 batches/s 0.0 corr/5s 0 corr 127 match 2079 late 127 replay 9/29 rtt 164 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 5 rejected 54 lead +2 fps 59 playing False phase RoundActive
+[onchain] tick 2392 upd/s 31.5 batches/s 0.0 corr/5s 0 corr 127 match 2218 late 127 replay 12/29 rtt 172 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 5 rejected 54 lead +1 fps 57 playing False phase RoundActive
+[onchain] tick 2543 upd/s 27.9 batches/s 0.0 corr/5s 0 corr 127 match 2369 late 127 replay 9/29 rtt 174 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 5 rejected 54 lead +1 fps 60 playing False phase RoundActive
+[onchain] tick 2693 upd/s 25.9 batches/s 0.0 corr/5s 0 corr 127 match 2519 late 127 replay 10/29 rtt 172 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 5 rejected 54 lead +0 fps 59 playing False phase RoundActive
+[onchain] tick 2842 upd/s 29.6 batches/s 0.0 corr/5s 0 corr 127 match 2668 late 127 replay 10/29 rtt 167 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 5 rejected 54 lead +0 fps 57 playing False phase RoundResult
+[onchain] tick 2988 upd/s 30.9 batches/s 0.0 corr/5s 0 corr 127 match 2814 late 127 replay 14/29 rtt 157 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 5 rejected 54 lead +0 fps 59 playing False phase Champion
+[onchain] tick 3131 upd/s 19.7 batches/s 0.0 corr/5s 0 corr 127 match 2928 late 127 replay 18/29 rtt 157 confirm p50 284 p95 701 gaps 0 polls 1 resync 2 lag 6 rejected 54 lead +0 fps 60 playing False phase Champion
+[onchain] tick 3190 upd/s 1.0 batches/s 0.0 corr/5s 0 corr 127 match 2981 late 127 replay 64/64 rtt 164 confirm p50 284 p95 701 gaps 0 polls 4 resync 70 lag 11 rejected 54 lead +0 fps 60 playing False phase Done
+[onchain] tick 3190 upd/s 1.0 batches/s 0.0 corr/5s 0 corr 127 match 2986 late 127 replay 64/64 rtt 164 confirm p50 284 p95 701 gaps 0 polls 9 resync 251 lag 15 rejected 54 lead +0 fps 59 playing False phase Done

@@ -1,0 +1,60 @@
+[relay] balance: burner 0.006608 SOL, session 0.002000 SOL; a session costs ~0.003913 SOL
+[relay] listening ws://127.0.0.1:8788/ (wire-v0 §4) → rollup https://devnet-as.magicblock.app
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 229.1 gaps 0 slices 0 clients 0
+[relay] join {"name":"P3","spectate":false} (waits for the arena lobby and start_final)
+[relay] join: session {"state":"reused","token":"56NFwaA8WG9gWRN3ft8g3uNFsAFRg3qDeHhYJPiYwoC4"}
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 202.8 gaps 0 slices 0 clients 1
+[relay] join: waitingLobby {"arenaStatus":3}
+[relay] join: lobbyOpen {"arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","match":"A6m4Bwb1ry4e2ASk8ZozCWKZi5CRkPYtnofMuYu9ZLWw","humanMask":0}
+[relay] join: finalists {"finalists":[1,5,7]}
+[relay] join: lobbyJoined {"slot":1,"sig":"2q2kbMGdUtyXmcKnKEbT4BMkfPeb212BUn783nfYx5ayDtiLn9sjEseSCEZ631FfkB5drmS6siQEnoo3nrW17jFe","player":"2T2uSXq9VEmfdTYxyXt9ZoCgdMoehUbdTFxkApH3dL7h","withSessionToken":true}
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 162.7 gaps 0 slices 0 clients 1
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 139.3 gaps 0 slices 0 clients 1
+[relay] joined: slot 1 arena HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt match A6m4Bwb1ry4e2ASk8ZozCWKZi5CRkPYtnofMuYu9ZLWw roster [{"slot":1,"kind":"human","name":"P3","wallet":"GWiyKB4Z3ytYfaRfiqAnNrimo2DneAtVeJJi6LgTmDAA"},{"slot":5,"kind":"bot"},{"slot":7,"kind":"bot"}]
+[relay] join: started {"slot":1,"match":"A6m4Bwb1ry4e2ASk8ZozCWKZi5CRkPYtnofMuYu9ZLWw","finalists":[1,5,7],"ms":14881}
+[relay] tick 8 upd/s 1 in/s 0.5 confirm p50/p95 0/0 ms rtt 129.2 gaps 0 slices 0 clients 1
+[relay] arenaChanged {"from":1,"to":2,"tick":19}
+[relay] arenaChanged {"from":2,"to":3,"tick":32}
+[relay] error {"where":"sendInputs","txid":32,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] error {"where":"sendInputs","txid":33,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] error {"where":"sendInputs","txid":34,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] error {"where":"sendInputs","txid":35,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] error {"where":"sendInputs","txid":36,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] error {"where":"sendInputs","txid":37,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] error {"where":"sendInputs","txid":38,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] error {"where":"sendInputs","txid":40,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] error {"where":"sendInputs","txid":41,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] error {"where":"sendInputs","txid":42,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] arenaChanged {"from":3,"to":4,"tick":45}
+[relay] error {"where":"sendInputs","txid":39,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] arenaChanged {"from":4,"to":5,"tick":56}
+[relay] tick 58 upd/s 13.5 in/s 9.5 confirm p50/p95 200.3/524.1 ms rtt 229.6 gaps 6 slices 0 clients 1
+[relay] arenaChanged {"from":5,"to":6,"tick":72}
+[relay] arenaChanged {"from":6,"to":7,"tick":93}
+[relay] error {"where":"sendInputs","txid":70,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] error {"where":"sendInputs","txid":71,"why":"Transaction  resulted in an error. \ntransaction verification error: This transaction has already been processed. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+[relay] arenaChanged {"from":7,"to":8,"tick":126}
+[relay] tick 281 upd/s 16.5 in/s 11.5 confirm p50/p95 202.7/524.1 ms rtt 209.1 gaps 10 slices 0 clients 1
+[relay] tick 431 upd/s 1 in/s 10 confirm p50/p95 220.2/616.3 ms rtt 163.1 gaps 15 slices 0 clients 1
+[relay] tick 581 upd/s 0.5 in/s 10 confirm p50/p95 220.2/755.5 ms rtt 157.5 gaps 20 slices 0 clients 1
+[relay] tick 761 upd/s 1.5 in/s 10.5 confirm p50/p95 235.2/883.3 ms rtt 140.8 gaps 26 slices 0 clients 1
+[relay] tick 911 upd/s 1.5 in/s 10 confirm p50/p95 212.3/815 ms rtt 120.8 gaps 31 slices 0 clients 1
+[relay] tick 1061 upd/s 1.5 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 102.8 gaps 36 slices 0 clients 1
+[relay] tick 1213 upd/s 1.5 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 118.9 gaps 41 slices 0 clients 1
+[relay] tick 1362 upd/s 1.5 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 144.3 gaps 46 slices 0 clients 1
+[relay] tick 1513 upd/s 1 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 128.8 gaps 51 slices 0 clients 1
+[relay] tick 1662 upd/s 1.5 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 130.8 gaps 56 slices 0 clients 1
+[relay] tick 1812 upd/s 1 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 142.3 gaps 61 slices 0 clients 1
+[relay] tick 1932 upd/s 1 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 152.6 gaps 65 slices 0 clients 1
+[relay] tick 2112 upd/s 1.5 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 129.6 gaps 71 slices 0 clients 1
+[relay] tick 2232 upd/s 0.5 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 116.5 gaps 75 slices 0 clients 1
+[relay] tick 2412 upd/s 1 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 205.8 gaps 81 slices 0 clients 1
+[relay] tick 2535 upd/s 0.5 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 206.5 gaps 85 slices 0 clients 1
+[relay] tick 2692 upd/s 0.5 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 186.5 gaps 90 slices 0 clients 1
+[relay] tick 2798 upd/s 0.5 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 153.7 gaps 94 slices 0 clients 1
+[relay] tick 2798 upd/s 0 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 126.6 gaps 94 slices 0 clients 1
+[relay] wsReconnect {"transport":"rollup","how":"resubscribe","silentMs":2770}
+[relay] wsReconnect {"transport":"rollup","how":"resubscribe","silentMs":4771}
+[relay] tick 2798 upd/s 0 in/s 0 confirm p50/p95 211.4/804.9 ms rtt 122 gaps 94 slices 0 clients 1
+[relay] wsReconnect {"transport":"rollup","how":"newConnection"}
+[relay] receipt {"arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","world":"HYJRSXpSGZ3HdjmZr4oMy3x6VgTWLcarkgHav7L4hSTQ","match":"A6m4Bwb1ry4e2ASk8ZozCWKZi5CRkPYtnofMuYu9ZLWw","joinSig":"2q2kbMGdUtyXmcKnKEbT4BMkfPeb212BUn783nfYx5ayDtiLn9sjEseSCEZ631FfkB5drmS6siQEnoo3nrW17jFe","slot":1,"finalists":[1,5,7],"lastInputSig":"7nXvrLWQtRixP5GgwEeycebaa6UrU6qdqwwvChLB8ce7zo5HHmnKXzWaUahjtPUePqUCoC3Xqkddr5eivT6mVNj"}

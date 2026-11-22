@@ -92,6 +92,7 @@ namespace FallRush.Net
             _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.MatchEvent, OnMatchEvent);
             _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Reactive, OnReactive);
             _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Emote, OnEmote);
+            _nm.CustomMessagingManager.RegisterNamedMessageHandler(ChainFinalHandoff.Msg, OnFinalOnchain);
         }
 
         // ---------------------------------------------------------------- match (v4)
@@ -125,11 +126,14 @@ namespace FallRush.Net
 
             MatchMsgs++;
             MatchBytesIn += len;
+            ServerMatch = m; // P3: kept while the chain feed drives the screens (the switch hands back to it)
+            SessionToken.Save(m.Token);
+            if (Feed != null && Feed.OverridesServer)
+                return;
             var newMatch = Match == null || Match.MatchSerial != m.MatchSerial || m.Phase == MatchPhase.LobbyOpen;
             if (newMatch && (Match == null || m.MatchSerial != Match.MatchSerial))
                 MatchEvents.Clear();
             Match = m;
-            SessionToken.Save(m.Token);
             MatchChanged?.Invoke();
         }
 
@@ -149,6 +153,8 @@ namespace FallRush.Net
 
         private void OnMatchEvent(ulong sender, FastBufferReader reader)
         {
+            if (Feed != null && Feed.OverridesServer)
+                return; // P3: the chain feed drives these
             var len = reader.Length - reader.Position;
             if (len <= 0 || len > _msgBuf.Length)
                 return;
@@ -167,7 +173,7 @@ namespace FallRush.Net
         /// <summary>Loads the map the server's round names, and reports <c>ready</c> once it is loaded with a matching hash (M4-3).</summary>
         private void FollowServerScene()
         {
-            if (!FollowScenes || !Round.HasValue || _nm == null || !_nm.IsConnectedClient)
+            if (!FollowScenes || !Round.HasValue || _nm == null || !_nm.IsConnectedClient || Feed != null && Feed.OverridesServer)
                 return;
             var want = SceneFor(Round.Value.MapId);
             var active = SceneManager.GetActiveScene().name;
@@ -240,6 +246,8 @@ namespace FallRush.Net
 
         private void OnReactive(ulong sender, FastBufferReader reader)
         {
+            if (Feed != null && Feed.OverridesServer)
+                return; // P3: the chain feed drives these
             var len = reader.Length - reader.Position;
             if (len <= 0 || len > _msgBuf.Length)
                 return;
@@ -391,6 +399,8 @@ namespace FallRush.Net
 
         private void OnRound(ulong sender, FastBufferReader reader)
         {
+            if (Feed != null && Feed.OverridesServer)
+                return; // P3: the chain feed drives these
             var len = reader.Length - reader.Position;
             if (len != RoundMessage.Size)
             {
@@ -436,6 +446,8 @@ namespace FallRush.Net
 
         private void OnRaceState(ulong sender, FastBufferReader reader)
         {
+            if (Feed != null && Feed.OverridesServer)
+                return; // P3: the chain feed drives these
             var len = reader.Length - reader.Position;
             if (len <= 0 || len > _msgBuf.Length)
                 return;
@@ -455,6 +467,8 @@ namespace FallRush.Net
 
         private void OnEvent(ulong sender, FastBufferReader reader)
         {
+            if (Feed != null && Feed.OverridesServer)
+                return; // P3: the chain feed drives these
             var len = reader.Length - reader.Position;
             if (len != RaceEvent.Size)
                 return;
@@ -497,6 +511,8 @@ namespace FallRush.Net
 
         private void OnSnap(ulong sender, FastBufferReader reader)
         {
+            if (Feed != null && Feed.OverridesServer)
+                return; // P3: the chain feed drives these
             var len = reader.Length - reader.Position;
             BytesIn += len;
             if (len <= 0 || len > NetMessages.SnapMaxBytes)
@@ -695,7 +711,12 @@ namespace FallRush.Net
         {
             feet = vel = Vector3.zero;
             flags = yaw = stun = 0;
-            if (slotId == OwnSlot && Prediction != null && Prediction.HasState && Active && !OwnOutOfSim)
+            if (Feed != null && Feed.OverridesServer && slotId == OwnSlot)
+            {
+                if (Feed.TrySampleOwn(out feet, out vel, out flags, out yaw, out stun))
+                    return true;
+            }
+            else if (slotId == OwnSlot && Prediction != null && Prediction.HasState && Active && !OwnOutOfSim)
             {
                 var p = Prediction.RenderPosition(TickFraction);
                 var s = Prediction.State;
@@ -719,9 +740,115 @@ namespace FallRush.Net
         }
 
         /// <summary>Hazard render time: the local predicted timeline (fractional tick), so what you touch is where it is drawn.</summary>
-        public double HazardRenderTick => Prediction != null && Prediction.HasState && !OwnOutOfSim ? Prediction.Tick - 1 + TickFraction : Remote.RenderTick;
+        public double HazardRenderTick => Feed != null && Feed.OverridesServer ? FeedTick(-1) : Prediction != null && Prediction.HasState && !OwnOutOfSim ? Prediction.Tick - 1 + TickFraction : Remote.RenderTick;
 
         /// <summary>The tick the local player's inputs are stamped for now (the predicted present), or the interpolated server time.</summary>
-        public double LocalTick => Prediction != null && Prediction.HasState && !OwnOutOfSim ? Prediction.Tick + TickFraction : Remote.RenderTick;
+        public double LocalTick => Feed != null && Feed.OverridesServer ? FeedTick(0) : Prediction != null && Prediction.HasState && !OwnOutOfSim ? Prediction.Tick + TickFraction : Remote.RenderTick;
+        // ---------------------------------------------------------------- P3: chain feed (on-chain session)
+
+        /// <summary>P3: the newest <c>match</c> from the game server, also while the chain feed overrides <see cref="Match"/>.</summary>
+        public MatchStateMessage ServerMatch { get; private set; }
+
+        /// <summary>P3-F: the server handed the Final to an arena (<c>fonc</c> JSON: arena, match, url, slot_map).</summary>
+        public event Action<string> FinalOnchain;
+        public string LastFinalOnchain { get; private set; }
+
+        private void OnFinalOnchain(ulong sender, FastBufferReader reader)
+        {
+            var len = reader.Length - reader.Position;
+            if (len <= 0 || len > _msgBuf.Length)
+                return;
+            var buf = _msgBuf;
+            reader.ReadBytesSafe(ref buf, len);
+            LastFinalOnchain = System.Text.Encoding.UTF8.GetString(buf, 0, len);
+            Debug.Log("[net] fonc: " + LastFinalOnchain);
+            FinalOnchain?.Invoke(LastFinalOnchain);
+        }
+
+        /// <summary>P3-F: back to the game server's screens (the on-chain Final ended or failed).</summary>
+        public void FeedHandBack()
+        {
+            Feed = null;
+            FeedReset();
+            if (ServerMatch != null)
+            {
+                Match = ServerMatch;
+                MatchChanged?.Invoke();
+            }
+        }
+
+        /// <summary>P3: the on-chain session (null in Classic play). See <see cref="IChainFeed"/>.</summary>
+        public IChainFeed Feed;
+
+        private double FeedTick(int offset)
+        {
+            var t = Feed.PresentTick;
+            return double.IsNaN(t) ? Remote.RenderTick : t + offset;
+        }
+
+        /// <summary>P3: one World of the arena as a snapshot (remote-player interpolation, HUD).</summary>
+        public void FeedSnapshot(uint tick, ReadOnlySpan<PlayerState> players, int ownSlot, double now)
+        {
+            if (!Remote.Add(tick, players, now))
+            {
+                OldSnaps++;
+                return;
+            }
+
+            SnapsIn++;
+            OwnSlot = ownSlot;
+            var own = false;
+            OwnRace = 0;
+            foreach (var p in players)
+            {
+                if (p.Slot != ownSlot)
+                    continue;
+                own = true;
+                OwnRace = p.Race;
+            }
+
+            OwnOutOfSim = !own || (OwnRace & (PlayerState.RaceFinished | PlayerState.RaceEliminated)) != 0;
+        }
+
+        public void FeedRound(in RoundParams p)
+        {
+            Round = p;
+            ServerMapHash = null;
+            MapMismatch = null;
+            RoundChanged?.Invoke();
+        }
+
+        public void FeedRaceState(in RaceStateMessage m)
+        {
+            RaceState = m;
+            HasRaceState = true;
+            if (m.LastEventSeq > LastEventSeq)
+                LastEventSeq = m.LastEventSeq;
+        }
+
+        public void FeedRaceEvent(in RaceEvent e)
+        {
+            LastEventSeq = e.Seq;
+            EventsReceived++;
+            RaceEventReceived?.Invoke(e);
+        }
+
+        public void FeedMatch(MatchStateMessage m)
+        {
+            if (Match == null || Match.MatchSerial != m.MatchSerial)
+                MatchEvents.Clear();
+            Match = m;
+            MatchChanged?.Invoke();
+        }
+
+        /// <summary>P3: forget the feed's round + snapshots (a new arena, or back to the game server).</summary>
+        public void FeedReset()
+        {
+            Remote.Reset();
+            HasRaceState = false;
+            LastEventSeq = 0;
+            OwnRace = 0;
+            OwnOutOfSim = false;
+        }
     }
 }

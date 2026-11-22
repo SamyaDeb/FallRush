@@ -8,7 +8,9 @@ namespace FallRush.Tests
 {
     /// <summary>P1-N: rush_core.bundle loads in the Editor, its version matches, and stepping each map blob through the
     /// FFI gives the same World hash as rush-sim (native parity through P/Invoke; expected hashes from
-    /// <c>rush-sim ffi-expect</c>, docs/proof/p1/ffi_expected.txt).</summary>
+    /// <c>rush-sim ffi-expect</c>, docs/proof/p1/ffi_expected.txt). P3: the bundle is built from P2's branch
+    /// (Plugins/rush_core_version.txt), so the expected hashes are those of that core and its map blobs
+    /// (Tests/Vectors/rushcore/ffi_expected.txt by tools/p3/ffi-expect.mjs; blobs in FeelLab/Resources/feellab).</summary>
     public class P1FeelLabTests
     {
         private static string Root => Path.GetFullPath(Path.Combine(Application.dataPath, "..", ".."));
@@ -23,7 +25,7 @@ namespace FallRush.Tests
         [Test]
         public void FfiStepMatchesRushSim()
         {
-            var lines = File.ReadAllLines(Path.Combine(Root, "docs", "proof", "p1", "ffi_expected.txt"));
+            var lines = File.ReadAllLines(Path.Combine(Application.dataPath, "_Game", "Tests", "Vectors", "rushcore", "ffi_expected.txt"));
             Assert.Greater(lines.Length, 0);
             var checkedSeeds = 0;
             foreach (var l in lines)
@@ -31,7 +33,7 @@ namespace FallRush.Tests
                 var p = l.Split(' ');
                 if (p.Length != 3)
                     continue;
-                var blob = File.ReadAllBytes(Path.Combine(Root, "maps", p[0] + ".mapblob"));
+                var blob = File.ReadAllBytes(Path.Combine(Application.dataPath, "_Game", "Scripts", "FeelLab", "Resources", "feellab", p[0] + ".bytes"));
                 var seed = ulong.Parse(p[1]);
                 var h = RushCoreNative.rc_init(blob, (uint)blob.Length, RushCoreNative.Cfg(20, 0xFFF, 0xAAA, seed));
                 Assert.GreaterOrEqual(h, 0, p[0]);

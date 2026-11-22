@@ -1,0 +1,162 @@
+[
+ {
+  "run": "p3-k-20261122-192651",
+  "ownSlot": "2",
+  "playingWindows": 4,
+  "corrPer5s": {
+   "mean": 1.25,
+   "max": 2
+  },
+  "updPerS": 12.2,
+  "rtt": 157,
+  "confirmP50": 235,
+  "confirmP95": 577,
+  "late": 1,
+  "rejected": 3,
+  "gaps": 0,
+  "lag": 46,
+  "lead": "0",
+  "championShown": "9",
+  "order": "9,2,7",
+  "championOnSolana": 9,
+  "solanaStatus": "completed",
+  "finalists": [
+   2,
+   7,
+   9
+  ],
+  "tickGapClientP95": 166,
+  "gameWall": 0.998,
+  "match": "CQpXU2ZJNeXJEgzx5MoPHVCUdVroGDk5g1LA1xMLpcEX",
+  "explorer": "https://explorer.solana.com/address/CQpXU2ZJNeXJEgzx5MoPHVCUdVroGDk5g1LA1xMLpcEX?cluster=devnet",
+  "finalizeTx": "https://explorer.solana.com/tx/4uLEDrV83i4pxvAepetah4QCStfWyrL3oZFtduKEenBfyH4y4GxvxufXuj5vnH5N3BErshqaG3ZNCzg46385h6R7?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app"
+ },
+ {
+  "run": "p3-k-20261122-192810",
+  "ownSlot": "1",
+  "playingWindows": 4,
+  "corrPer5s": {
+   "mean": 3.5,
+   "max": 14
+  },
+  "updPerS": 4.1,
+  "rtt": 171,
+  "confirmP50": 228,
+  "confirmP95": 922,
+  "late": 14,
+  "rejected": 67,
+  "gaps": 0,
+  "lag": 112,
+  "lead": "0",
+  "championShown": "5",
+  "order": "5,7,1",
+  "championOnSolana": 5,
+  "solanaStatus": "completed",
+  "finalists": [
+   1,
+   5,
+   7
+  ],
+  "tickGapClientP95": 132,
+  "gameWall": 1,
+  "match": "A6m4Bwb1ry4e2ASk8ZozCWKZi5CRkPYtnofMuYu9ZLWw",
+  "explorer": "https://explorer.solana.com/address/A6m4Bwb1ry4e2ASk8ZozCWKZi5CRkPYtnofMuYu9ZLWw?cluster=devnet",
+  "finalizeTx": "https://explorer.solana.com/tx/2mKnKEcKb6mVuvRfxuXHGrfqrvohugbr5aFUoF7qFrZ4zbSxsdNRKFqxdVQeeauW9S8NpTfKVi67wZVx67v3dhVs?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app"
+ },
+ {
+  "run": "p3-k-20261122-193025",
+  "ownSlot": "0",
+  "playingWindows": 5,
+  "corrPer5s": {
+   "mean": 1,
+   "max": 3
+  },
+  "updPerS": 19.7,
+  "rtt": 119,
+  "confirmP50": 222,
+  "confirmP95": 544,
+  "late": 4,
+  "rejected": 1,
+  "gaps": 0,
+  "lag": 22,
+  "lead": "0",
+  "championShown": "11",
+  "order": "11,5,0",
+  "championOnSolana": 11,
+  "solanaStatus": "completed",
+  "finalists": [
+   0,
+   5,
+   11
+  ],
+  "tickGapClientP95": 136,
+  "gameWall": 1.001,
+  "match": "3FpQtj7ZeiPwguUAYC1RhNReqE5N17upwNc9Wh2LwQzm",
+  "explorer": "https://explorer.solana.com/address/3FpQtj7ZeiPwguUAYC1RhNReqE5N17upwNc9Wh2LwQzm?cluster=devnet",
+  "finalizeTx": "https://explorer.solana.com/tx/6tThLXVAn485fceE4VqM99A5gYJsVeEK3iSiCaMyBBkfCXe2JsVCpLvmTyuMS7wc78yzneph9eD1oGgGE51AV7S?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app"
+ },
+ {
+  "run": "p3-k-20261122-193208",
+  "ownSlot": "0",
+  "playingWindows": 4,
+  "corrPer5s": {
+   "mean": 1.5,
+   "max": 3
+  },
+  "updPerS": 6.6,
+  "rtt": 162,
+  "confirmP50": 229,
+  "confirmP95": 3908,
+  "late": 2,
+  "rejected": 36,
+  "gaps": 0,
+  "lag": 107,
+  "lead": "0",
+  "championShown": "5",
+  "order": "5,9,0",
+  "championOnSolana": 5,
+  "solanaStatus": "completed",
+  "finalists": [
+   0,
+   5,
+   9
+  ],
+  "tickGapClientP95": 130,
+  "gameWall": 0.998,
+  "match": "BwocbTgHsmttkNunjTNV84E9CBFAggZhWaK7Gj243B7H",
+  "explorer": "https://explorer.solana.com/address/BwocbTgHsmttkNunjTNV84E9CBFAggZhWaK7Gj243B7H?cluster=devnet",
+  "finalizeTx": "https://explorer.solana.com/tx/i1akE4NN3P73VviqX3SwsKVqruZ7WJSXnyjfPtrTLMUgZtizwhA9JxN2Qgt6i7KLeUpqittdPp4TeSYBVXPncJQ?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app"
+ },
+ {
+  "run": "p3-k-20261122-193419",
+  "ownSlot": "1",
+  "playingWindows": 8,
+  "corrPer5s": {
+   "mean": 1.13,
+   "max": 3
+  },
+  "updPerS": 20.5,
+  "rtt": 131,
+  "confirmP50": 192,
+  "confirmP95": 448,
+  "late": 7,
+  "rejected": 1,
+  "gaps": 0,
+  "lag": 54,
+  "lead": "0",
+  "championShown": "6",
+  "order": "6,4,1",
+  "championOnSolana": 6,
+  "solanaStatus": "completed",
+  "finalists": [
+   1,
+   4,
+   6
+  ],
+  "tickGapClientP95": 145,
+  "gameWall": 1,
+  "match": "2nHsXEdTX5DkA2DCvf6uhPAas5TUeS7Uoqo42HdQK14G",
+  "explorer": "https://explorer.solana.com/address/2nHsXEdTX5DkA2DCvf6uhPAas5TUeS7Uoqo42HdQK14G?cluster=devnet",
+  "finalizeTx": "https://explorer.solana.com/tx/3ALmqEvQixahEsYNpGVfBUN7PPmjibbp6mBjAJyohrPcgkTz1CC2jjxndpSfC9PHQhS6PBgJsxKT2KFr8GLuzYQf?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app"
+ }
+]

@@ -1,0 +1,7 @@
+p2_commit c534e375fd013adbaaaf7d3d659fe9814686fbce
+p2_subject test(p2.10): keep the Classic server jsonl used by the hybrid run (8 KB evidence)
+built_utc 2026-11-22T12:51:29Z
+rc_version 0x10001
+wasm_sha256 7fac23a9e1498cf024a5456766a07e73ef889c65e9ef9571d3434237032a4c6b
+wasm_bytes 307645
+bundle_sha256 3da1037c692c2c24a328fb3185a22f213ce9f3d726f766c423349af253c9ec23

@@ -1,0 +1,202 @@
+{
+  "version": 1,
+  "name": "local stack (P2)",
+  "_source": "P2 program 4yehffTS\u2026 (docs/proof/P2-onchain-sim.md \u00a72, \u00a710; IDL fall_rush.json; programs/fall_rush/src/sim.rs zero-copy layouts incl. the 8-byte discriminator). arena/world PDAs are derived from rollup.p2.arenaId unless addresses.arena/world are set.",
+  "transport": "rollup",
+  "addresses": {
+    "program": "4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4"
+  },
+  "world": {
+    "magicHex": "0e2efbf44a7086c5",
+    "offset": 208,
+    "lenOffset": 132,
+    "lenBytes": 4,
+    "tickOffset": 128,
+    "appliedTickOffset": 80,
+    "appliedTickCount": 12,
+    "coreVersionOffset": null,
+    "flagsOffset": null,
+    "arenaSeqOffset": null,
+    "completeOffset": 136,
+    "phaseOffset": 138,
+    "donePhase": 11
+  },
+  "queue": {
+    "maxWorlds": 64,
+    "maxEvents": 512
+  },
+  "rollup": {
+    "erHttp": "http://localhost:7799",
+    "erWs": "ws://localhost:7800",
+    "baseHttp": "http://localhost:8899",
+    "baseWs": null,
+    "commitment": "processed",
+    "baseTxPerSec": 1.5,
+    "baseBurst": 1,
+    "confirmPollMs": 50,
+    "confirmBatch": 256,
+    "confirmTimeoutMs": 5000,
+    "accountPollMs": 1000,
+    "stallMs": 2000,
+    "rttPollMs": 2000,
+    "blockhashRefreshMs": 10000,
+    "clonerRetryMs": 5000,
+    "clonerRetryEveryMs": 250,
+    "inputClonerRetryMs": 300,
+    "computeUnitLimit": null,
+    "submitInput": {
+      "programId": "$program",
+      "discriminator": "38b89a5bad3f158a",
+      "accounts": [
+        {
+          "name": "owner",
+          "address": "$player",
+          "signer": true
+        },
+        {
+          "name": "input",
+          "pda": {
+            "seeds": [
+              {
+                "utf8": "in"
+              },
+              {
+                "pubkey": "$arena"
+              },
+              {
+                "u8": "$slot"
+              }
+            ]
+          },
+          "writable": true
+        },
+        {
+          "name": "world",
+          "address": "$world"
+        },
+        {
+          "name": "session_token",
+          "address": "$sessionToken",
+          "optional": true
+        }
+      ],
+      "args": [
+        {
+          "type": "u8",
+          "from": "$slot"
+        },
+        {
+          "type": "u32",
+          "from": "$start"
+        },
+        {
+          "type": "raw",
+          "from": "$batch12"
+        }
+      ]
+    },
+    "p2": {
+      "arenaId": 0,
+      "arenaLayout": {
+        "matchOffset": 40,
+        "ownersOffset": 232,
+        "walletsOffset": 616,
+        "statusOffset": 1409,
+        "humanMaskOffset": 1412,
+        "minLen": 1432
+      },
+      "arenaStatus": {
+        "lobby": 1,
+        "running": 2
+      },
+      "matchLayout": {
+        "matchIdOffset": 10,
+        "statusOffset": 26,
+        "playerCountOffset": 128,
+        "currentRoundOffset": 129,
+        "roundTargetsOffset": 130,
+        "slotsOffset": 214,
+        "slotStride": 4,
+        "minLen": 295
+      },
+      "slotState": {
+        "alive": 1
+      },
+      "joinLobby": {
+        "programId": "$program",
+        "discriminator": "7f6677bed7dfd49f",
+        "accounts": [
+          {
+            "name": "player",
+            "address": "$player",
+            "signer": true
+          },
+          {
+            "name": "arena",
+            "address": "$arena",
+            "writable": true
+          },
+          {
+            "name": "input",
+            "pda": {
+              "seeds": [
+                {
+                  "utf8": "in"
+                },
+                {
+                  "pubkey": "$arena"
+                },
+                {
+                  "u8": "$slot"
+                }
+              ]
+            },
+            "writable": true
+          },
+          {
+            "name": "session_token",
+            "address": "$sessionToken",
+            "optional": true
+          }
+        ],
+        "args": [
+          {
+            "type": "u8",
+            "from": "$slot"
+          },
+          {
+            "type": "u8",
+            "from": "$cosmetic"
+          },
+          {
+            "type": "pubkey",
+            "from": "$wallet"
+          }
+        ]
+      },
+      "cosmetic": 0,
+      "useSession": true,
+      "watchMs": 250,
+      "joinRetryMs": 10000,
+      "lobbyTimeoutMs": 900000,
+      "startTimeoutMs": 900000,
+      "errors": {
+        "inputOutOfWindow": 6020,
+        "slotTaken": 6023,
+        "alreadyJoined": 6024
+      }
+    },
+    "join": {
+      "map": "CrumbleShelf",
+      "rate": 30
+    },
+    "rawWs": true
+  },
+  "session": {
+    "programId": "KeyspM2ssCJbqUhQ4k7sveSiY4WjnYsrXkC8oDbwde5",
+    "targetProgram": "$program",
+    "validitySec": 21600,
+    "topUp": true,
+    "topUpLamports": 2000000
+  }
+}

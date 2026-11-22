@@ -1,0 +1,46 @@
+[gs] mevt #0 DEAL r0 slot=- arg=4f7ef0beb4826c88… tick=830 transcript=4abf5f249f6f60c3
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=A modifier=ButterFloors seed=0xf485931fd8370e1d start=1075 qualify=8/12 intro=60 countdown=90 timer=4500 rush@1075 participants=12
+[gs] mevt #1 START_ROUND r1 slot=- arg=- tick=924 transcript=14218ff11dbafeb8
+[gs] mevt #2 QUALIFIED r1 slot=10 arg=1 tick=3973 transcript=f4a49755cdd39d9e
+[gs] mevt #3 QUALIFIED r1 slot=9 arg=2 tick=3973 transcript=237826d8ba6970f9
+[gs] mevt #4 QUALIFIED r1 slot=0 arg=3 tick=3973 transcript=fb7e09f4a34752e9
+[gs] mevt #5 QUALIFIED r1 slot=5 arg=4 tick=3973 transcript=b5a09fb91153f236
+[gs] mevt #6 QUALIFIED r1 slot=11 arg=5 tick=3973 transcript=b551c532988a20e5
+[gs] mevt #7 QUALIFIED r1 slot=4 arg=6 tick=3973 transcript=5678fffb2bcd9fbf
+[gs] mevt #8 QUALIFIED r1 slot=2 arg=7 tick=3973 transcript=24d3c87f7be2c478
+[gs] mevt #9 QUALIFIED r1 slot=6 arg=8 tick=3973 transcript=407e989a6fa426af
+[gs] mevt #10 ELIMINATED r1 slot=3 arg=0 tick=3973 transcript=6c5bdfa669fe8ccd
+[gs] mevt #11 ELIMINATED r1 slot=7 arg=0 tick=3973 transcript=dd4f3bc4805a2894
+[gs] mevt #12 ELIMINATED r1 slot=1 arg=0 tick=3973 transcript=0371a1f17726c305
+[gs] mevt #13 ELIMINATED r1 slot=8 arg=0 tick=3973 transcript=1d151c25d5bdbdea
+[gs] mevt #14 COMPLETE_ROUND r1 slot=- arg=8 tick=3973 transcript=df2a6d0acd074534
+[gs] round 2/4 GooTower (Survival) start: map=1 variant=A modifier=None seed=0xb1fe7218d27cb627 start=4549 qualify=5/8 intro=60 countdown=90 timer=4500 rush@4549 participants=8
+[gs] mevt #15 START_ROUND r2 slot=- arg=- tick=4398 transcript=3d1bd6efc10494ad
+[gs] mevt #16 QUALIFIED r2 slot=9 arg=1 tick=6261 transcript=d8ca69ba71379b1f
+[gs] mevt #17 QUALIFIED r2 slot=10 arg=2 tick=6261 transcript=ab9e5c59d55cec9f
+[gs] mevt #18 QUALIFIED r2 slot=0 arg=3 tick=6261 transcript=39570cca6506fb38
+[gs] mevt #19 QUALIFIED r2 slot=6 arg=4 tick=6261 transcript=af16ecc6d4456bf8
+[gs] mevt #20 QUALIFIED r2 slot=5 arg=5 tick=6261 transcript=821eb8e39f4231da
+[gs] mevt #21 ELIMINATED r2 slot=2 arg=0 tick=6261 transcript=6665ca489760eb22
+[gs] mevt #22 ELIMINATED r2 slot=11 arg=1 tick=6261 transcript=672a0a2331947dda
+[gs] mevt #23 ELIMINATED r2 slot=4 arg=1 tick=6261 transcript=2fe79c92c7689884
+[gs] mevt #24 COMPLETE_ROUND r2 slot=- arg=5 tick=6261 transcript=fcd84407a9979fb4
+[gs] round 3/4 StarScramble (Skill) start: map=2 variant=B modifier=TurboToys seed=0x1fc2f2d4d283d5b0 start=6840 qualify=3/5 intro=60 countdown=90 timer=1800 rush@6840 participants=5
+[gs] mevt #25 START_ROUND r3 slot=- arg=- tick=6689 transcript=ca577b273252ac69
+[gs] mevt #26 QUALIFIED r3 slot=9 arg=1 tick=8640 transcript=ded7de9b5b6576f4
+[gs] mevt #27 QUALIFIED r3 slot=6 arg=2 tick=8640 transcript=238f22a797655258
+[gs] mevt #28 QUALIFIED r3 slot=0 arg=3 tick=8640 transcript=cc489b5565dd10f9
+[gs] mevt #29 ELIMINATED r3 slot=5 arg=3 tick=8640 transcript=9ca529994800f1e2
+[gs] mevt #30 ELIMINATED r3 slot=10 arg=3 tick=8640 transcript=214bdf882a7a61f5
+[gs] mevt #31 COMPLETE_ROUND r3 slot=- arg=3 tick=8640 transcript=2783dd00e040be7c
+[gs] on-chain Final: handing round 4 (CrumbleShelf) to http://127.0.0.1:8797 with 3 players
+[gs] on-chain Final live: emu:5 (253 ms)
+[gs] fonc → 1 clients: {"t":"final_onchain","arena":"emu:5","match":"6abb32abec601bedf4cbcac20bdc5b25","url":"ws://127.0.0.1:8797/","slot_map":[{"slot":0,"name":"P3Probe","kind":"human"},{"slot":6,"name":"Doodle","kind":"bot"},{"slot":9,"name":"Clank","kind":"
+[gs] round 4/4 CrumbleShelf (Final) start: map=3 variant=A modifier=None seed=0xe8ea63b7efb3b4f3 start=9254 qualify=1/3 intro=60 countdown=90 timer=3600 rush@9254 participants=3
+[gs] mevt #32 START_ROUND r4 slot=- arg=- tick=9103 transcript=1642f43255837592
+[gs] on-chain Final result from emu:5: order 6,9,0 (champion 6)
+[gs] mevt #33 QUALIFIED r4 slot=6 arg=1 tick=11829 transcript=49c4203343892c9d
+[gs] mevt #34 ELIMINATED r4 slot=9 arg=2 tick=11829 transcript=40f3bbf357c4a8cf
+[gs] mevt #35 ELIMINATED r4 slot=0 arg=2 tick=11829 transcript=876fd97ec42c9a62
+[gs] mevt #36 COMPLETE_ROUND r4 slot=- arg=1 tick=11829 transcript=7cfd65af7dc3c8d5
+[gs] mevt #37 COMPLETE_MATCH r4 slot=6 arg=- tick=12009 transcript=2e9ddaef83f7611f
