@@ -39,7 +39,7 @@ done
 VEC=client-unity/Assets/_Game/Tests/Vectors/rushcore
 mkdir -p "$VEC" client-unity/Assets/StreamingAssets/rcvectors
 cp .p2-core/crates/rush-core/tests/vectors/*.bin "$VEC/"
-rm -f client-unity/Assets/StreamingAssets/rcvectors/*
+find client-unity/Assets/StreamingAssets/rcvectors -type f ! -name "*.meta" -delete
 VER=$(node -e "const fs=require('fs');WebAssembly.instantiate(fs.readFileSync('$T/wasm32-unknown-unknown/release/rush_core_wasm.wasm')).then(r=>console.log('0x'+r.instance.exports.rc_version().toString(16)))")
 cat > "$PLUG/rush_core_version.txt" <<TXT
 p2_commit $SHA
