@@ -250,7 +250,13 @@ Real maps, 12 bots, 60 s, `rush-sim counters` (`docs/proof/p1/qa/counters.md`). 
 
 ## OC-3 feel sign-off
 
-Waiting for the user: the A/B was handed over on 2026-11-21. Their answers to the two questions go here.
+A/B handed to the user on 2026-11-21 (Feel Lab Mac build).
+- **User, 2026-11-21:** "30 OK, 15 a bit laggy." So 30 Hz is acceptable and 15 Hz is not. 20 Hz: **not yet answered.**
+- The user asked about 60 Hz. Answer given: Classic itself simulates at 30 Hz (the screen is smoothed by interpolation),
+  so 60 Hz would not feel better than Classic. On-chain it is 3× the per-second cost of 20 Hz (2× of 30 Hz), with a tick
+  only ≈ 1.7 rollup slots long (10 ms slots). P0 measured 15/20/30 Hz only, so 60 Hz is UNVERIFIED and not recommended.
+- Doc 19 plans 20 Hz. If 20 Hz is not acceptable, the tick rate becomes 30 Hz (1.5× per-second load, same per-tick CU),
+  which is a doc 19 change for main.
 
 ## For main (merge later)
 
