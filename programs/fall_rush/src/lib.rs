@@ -380,15 +380,12 @@ pub mod fall_rush {
         Ok(())
     }
 
-    /// ER + commit_and_undelegate. M0 shortcut: also allowed from `RoundResolved` (doc 06 only
-    /// allows `Completed`/`Aborted`); M6 removes the `RoundResolved` case.
+    /// ER + commit_and_undelegate. Only from `Completed` / `Aborted` (doc 06; P2 0.4 removed the M0
+    /// `RoundResolved` shortcut: the on-chain director decides when a match is over).
     pub fn finalize_match(ctx: Context<FinalizeMatch>) -> Result<()> {
         let status = ctx.accounts.match_account.status;
         require!(
-            matches!(
-                status,
-                MatchStatus::RoundResolved | MatchStatus::Completed | MatchStatus::Aborted
-            ),
+            matches!(status, MatchStatus::Completed | MatchStatus::Aborted),
             FallRushError::InvalidStatus
         );
         ctx.accounts.match_account.exit(&crate::ID)?;
