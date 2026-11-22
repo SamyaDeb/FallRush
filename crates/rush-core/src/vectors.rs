@@ -216,21 +216,17 @@ pub fn run(kind: u8, seed: u64, n: u32, map: Option<&[u8]>) -> u64 {
 /// `world` is the scratch World for `KIND_WORLD` (the sBPF program passes a heap one).
 pub fn run_from(kind: u8, seed: u64, start: u32, n: u32, map: Option<&[u8]>, state: u64, mut world: Option<&mut crate::world::World>) -> u64 {
     let mut h = Fnv(state);
+    if kind == KIND_COLLIDE || kind == KIND_MOTOR {
+        if let Some(v) = map.and_then(|m| MapView::new(m).ok()) {
+            scene_cases(kind, v, seed, start, n, &mut h);
+        }
+        return h.0;
+    }
     let mut buf = [0u8; MAX_CASE];
-    let view = map.and_then(|m| MapView::new(m).ok());
-    let scene = view.map(Scene::new);
     let mut i = start;
     while i < start + n {
         let len = match kind {
             KIND_FX => fx_case(seed, i, &mut buf),
-            KIND_COLLIDE => match &scene {
-                Some(sc) => collide_case(sc, seed, i, &mut buf),
-                None => 0,
-            },
-            KIND_MOTOR => match &scene {
-                Some(sc) => motor_case(sc, seed, i, &mut buf),
-                None => 0,
-            },
             KIND_HAZARD => hazard_case(seed, i, &mut buf),
             KIND_WORLD => match (map, world.as_deref_mut()) {
                 (Some(m), Some(w)) => crate::world::vector_case(w, m, seed, i, &mut buf),
@@ -242,6 +238,19 @@ pub fn run_from(kind: u8, seed: u64, start: u32, n: u32, map: Option<&[u8]>, sta
         i += 1;
     }
     h.0
+}
+
+/// Collide / motor cases over one `Scene` (own frame: sBPF stack frames are 4 KB and a `Scene` is ≈ 2 KB).
+#[inline(never)]
+fn scene_cases(kind: u8, v: MapView, seed: u64, start: u32, n: u32, h: &mut Fnv) {
+    let sc = Scene::new(v);
+    let mut buf = [0u8; MAX_CASE];
+    let mut i = start;
+    while i < start + n {
+        let len = if kind == KIND_COLLIDE { collide_case(&sc, seed, i, &mut buf) } else { motor_case(&sc, seed, i, &mut buf) };
+        h.bytes(&buf[..len]);
+        i += 1;
+    }
 }
 
 /// Default seeds and counts (the committed `.bin` files).

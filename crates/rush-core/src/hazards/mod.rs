@@ -174,6 +174,73 @@ pub struct Hazards<'m> {
     pub variant: u8,
     pub seed: u64,
     pub m: HazardModifier,
+    /// This tick's seeded phases, when built ([`PhaseTable`]; `None` = computed per decode, same values).
+    pub ph: Option<&'m PhaseTable>,
+}
+
+/// Most hazards whose seeded phase / seed a [`PhaseTable`] keeps.
+pub const MAX_PHASES: usize = 96;
+
+/// The seeded phase (`phase16` after `Hazards::phase`) of every phased hazard, and each lid grid's seed, computed
+/// once per tick (P2 0.2: the obstacle hash + header reads were ≈ 400 CU per def decode on sBPF, and the bots decode
+/// the same defs thousands of times a tick). Same values as the per-decode path.
+#[derive(Clone, Copy)]
+pub struct PhaseTable {
+    pub ok: bool,
+    pub base: [u8; 16],
+    pub v: [i32; MAX_PHASES],
+}
+
+impl Default for PhaseTable {
+    fn default() -> Self {
+        PhaseTable { ok: false, base: [0; 16], v: [0; MAX_PHASES] }
+    }
+}
+
+impl PhaseTable {
+    /// Fills the table from `hz` (which must have `ph: None`).
+    pub fn build(&mut self, hz: &Hazards) {
+        self.ok = false;
+        let mut k = 0usize;
+        let mut t = 1u8;
+        while t <= 14 {
+            self.base[t as usize] = k.min(255) as u8;
+            if let Some(ty) = HazardType::from_u8(t) {
+                k += hz.count(ty);
+            }
+            t += 1;
+        }
+        if k > MAX_PHASES {
+            return;
+        }
+        let fill = |tab: &mut PhaseTable, ty: HazardType, f: &dyn Fn(usize) -> i32| {
+            let b = tab.base[ty as usize] as usize;
+            let n = hz.count(ty);
+            let mut i = 0;
+            while i < n {
+                tab.v[b + i] = f(i);
+                i += 1;
+            }
+        };
+        fill(self, HazardType::SpinnerBar, &|i| hz.sweeper(i).phase16);
+        fill(self, HazardType::MovingPlatform, &|i| hz.platform(i).phase16);
+        fill(self, HazardType::TurnTable, &|i| hz.turn_table(i).phase16);
+        fill(self, HazardType::GateDoor, &|i| hz.door(i).phase16);
+        fill(self, HazardType::MalletSwing, &|i| hz.mallet(i).phase16);
+        fill(self, HazardType::RollingBall, &|i| hz.ball(i).phase16);
+        fill(self, HazardType::LidFlip, &|i| hz.lid_grid(i).seed as i32);
+        self.ok = true;
+    }
+
+    #[inline]
+    fn get(&self, ty: HazardType, i: usize) -> Option<i32> {
+        let k = self.base[ty as usize] as usize + i;
+        if self.ok && k < MAX_PHASES {
+            Some(self.v[k])
+        } else {
+            None
+        }
+    }
 }
 
 /// Obstacle header flag: keep the def's baked phase (C# M2 sweepers / platforms without an obstacle id).
@@ -184,13 +251,18 @@ impl<'m> Hazards<'m> {
         self.map.hazard_count(self.variant, ty)
     }
 
-    fn words(&self, ty: HazardType, i: usize) -> [i32; crate::mapblob::MAX_DEF_WORDS] {
-        let mut w = [0i32; crate::mapblob::MAX_DEF_WORDS];
+    /// The def words at the def's own size `N` (P2 0.2: a `MAX_DEF_WORDS` buffer is 1.1 KB to clear and copy).
+    #[inline]
+    fn words<const N: usize>(&self, ty: HazardType, i: usize) -> [i32; N] {
+        let mut w = [0i32; N];
         self.map.hazard_words(self.variant, ty, i, &mut w);
         w
     }
 
     fn phase(&self, ty: HazardType, i: usize, baked: i32) -> i32 {
+        if let Some(v) = self.ph.and_then(|t| t.get(ty, i)) {
+            return v;
+        }
         let o = self.map.hazard_obstacle(self.variant, ty, i);
         if self.baked(ty, i) {
             baked
@@ -204,21 +276,21 @@ impl<'m> Hazards<'m> {
     }
 
     pub fn sweeper(&self, i: usize) -> SweeperDef {
-        let mut d = SweeperDef::read(&self.words(HazardType::SpinnerBar, i));
+        let mut d = SweeperDef::read(&self.words::<{ SweeperDef::WORDS }>(HazardType::SpinnerBar, i));
         d.phase16 = self.phase(HazardType::SpinnerBar, i, d.phase16);
         d.period_ticks = scale_period(d.period_ticks, self.m.hazard_speed_permille);
         d
     }
 
     pub fn platform(&self, i: usize) -> PlatformDef {
-        let mut d = PlatformDef::read(&self.words(HazardType::MovingPlatform, i));
+        let mut d = PlatformDef::read(&self.words::<{ PlatformDef::WORDS }>(HazardType::MovingPlatform, i));
         d.phase16 = self.phase(HazardType::MovingPlatform, i, d.phase16);
         d.period_ticks = scale_period(d.period_ticks, self.m.hazard_speed_permille);
         d
     }
 
     pub fn conveyor(&self, i: usize) -> ConveyorDef {
-        let mut d = ConveyorDef::read(&self.words(HazardType::Conveyor, i));
+        let mut d = ConveyorDef::read(&self.words::<{ ConveyorDef::WORDS }>(HazardType::Conveyor, i));
         let s = self.m.hazard_speed_permille;
         d.belt_x = scale_value(d.belt_x, s);
         d.belt_y = scale_value(d.belt_y, s);
@@ -227,18 +299,18 @@ impl<'m> Hazards<'m> {
     }
 
     pub fn pad(&self, i: usize) -> SpringPadDef {
-        SpringPadDef::read(&self.words(HazardType::SpringPad, i))
+        SpringPadDef::read(&self.words::<{ SpringPadDef::WORDS }>(HazardType::SpringPad, i))
     }
 
     pub fn turn_table(&self, i: usize) -> TurnTableDef {
-        let mut d = TurnTableDef::read(&self.words(HazardType::TurnTable, i));
+        let mut d = TurnTableDef::read(&self.words::<{ TurnTableDef::WORDS }>(HazardType::TurnTable, i));
         d.phase16 = self.phase(HazardType::TurnTable, i, d.phase16);
         d.period_ticks = scale_period(d.period_ticks, self.m.hazard_speed_permille);
         d
     }
 
     pub fn door(&self, i: usize) -> GateDoorDef {
-        let mut d = GateDoorDef::read(&self.words(HazardType::GateDoor, i));
+        let mut d = GateDoorDef::read(&self.words::<{ GateDoorDef::WORDS }>(HazardType::GateDoor, i));
         d.phase16 = self.phase(HazardType::GateDoor, i, d.phase16);
         let s = self.m.hazard_speed_permille;
         d.closed_ticks = scale_duration(d.closed_ticks, s);
@@ -251,7 +323,7 @@ impl<'m> Hazards<'m> {
     }
 
     pub fn mallet(&self, i: usize) -> MalletDef {
-        let mut d = MalletDef::read(&self.words(HazardType::MalletSwing, i));
+        let mut d = MalletDef::read(&self.words::<{ MalletDef::WORDS }>(HazardType::MalletSwing, i));
         d.phase16 = self.phase(HazardType::MalletSwing, i, d.phase16);
         d.period_ticks = scale_period(d.period_ticks, self.m.hazard_speed_permille);
         d.telegraph_ticks = scale_value(d.telegraph_ticks, self.m.telegraph_permille);
@@ -260,29 +332,29 @@ impl<'m> Hazards<'m> {
     }
 
     pub fn bumper(&self, i: usize) -> BumperDef {
-        let mut d = BumperDef::read(&self.words(HazardType::Bumper, i));
+        let mut d = BumperDef::read(&self.words::<{ BumperDef::WORDS }>(HazardType::Bumper, i));
         d.knockback_cms = scale_value(d.knockback_cms, self.m.knockback_permille);
         d
     }
 
     pub fn goo(&self, i: usize) -> GooDef {
-        GooDef::read(&self.words(HazardType::GooPlane, i))
+        GooDef::read(&self.words::<{ GooDef::WORDS }>(HazardType::GooPlane, i))
     }
 
     pub fn tile_grid(&self, i: usize) -> TileGridDef {
-        TileGridDef::read(&self.words(HazardType::CrumbleTile, i))
+        TileGridDef::read(&self.words::<{ TileGridDef::WORDS }>(HazardType::CrumbleTile, i))
     }
 
     pub fn star_field(&self, i: usize) -> StarFieldDef {
-        StarFieldDef::read(&self.words(HazardType::StarPickup, i))
+        StarFieldDef::read(&self.words::<{ StarFieldDef::WORDS }>(HazardType::StarPickup, i))
     }
 
     pub fn block(&self, i: usize) -> FallingBlockDef {
-        FallingBlockDef::read(&self.words(HazardType::FallingBlock, i))
+        FallingBlockDef::read(&self.words::<{ FallingBlockDef::WORDS }>(HazardType::FallingBlock, i))
     }
 
     pub fn ball(&self, i: usize) -> RollingBallDef {
-        let mut d = RollingBallDef::read(&self.words(HazardType::RollingBall, i));
+        let mut d = RollingBallDef::read(&self.words::<{ RollingBallDef::WORDS }>(HazardType::RollingBall, i));
         d.phase16 = self.phase(HazardType::RollingBall, i, d.phase16);
         let s = self.m.hazard_speed_permille;
         d.speed_mm_s = scale_value(d.speed_mm_s, s);
@@ -293,9 +365,11 @@ impl<'m> Hazards<'m> {
     }
 
     pub fn lid_grid(&self, i: usize) -> LidGridDef {
-        let mut d = LidGridDef::read(&self.words(HazardType::LidFlip, i));
-        let o = self.map.hazard_obstacle(self.variant, HazardType::LidFlip, i);
-        d.seed = obstacle_hash(self.seed, o.id);
+        let mut d = LidGridDef::read(&self.words::<{ LidGridDef::WORDS }>(HazardType::LidFlip, i));
+        d.seed = match self.ph.and_then(|t| t.get(HazardType::LidFlip, i)) {
+            Some(v) => v as u32,
+            None => obstacle_hash(self.seed, self.map.hazard_obstacle(self.variant, HazardType::LidFlip, i).id),
+        };
         d
     }
 
@@ -620,34 +694,71 @@ pub fn ball_max_alive(d: &RollingBallDef) -> i64 {
     (ball_travel_ticks(d) + p - 1) / p
 }
 
+/// The per-def constants of [`ball_pos`] (P2 0.2: `len_mm` is an `isqrt`, and `ball_pos` ran it twice per call).
+#[derive(Clone, Copy, Default)]
+pub struct BallK {
+    pub p: i64,
+    pub off: i64,
+    pub travel60: i64,
+    pub len: i64,
+    pub speed: i64,
+    pub start: IVec3,
+    pub end: IVec3,
+    pub radius: i32,
+    pub alive: i64,
+}
+
+impl BallK {
+    pub fn of(d: &RollingBallDef) -> BallK {
+        let p = d.period_ticks.max(1) as i64;
+        let len = d.len_mm();
+        let sp = d.speed_mm_s.max(1) as i64;
+        let travel = (len * 30 + sp - 1) / sp; // = ball_travel_ticks
+        BallK {
+            p,
+            off: ball_phase_offset(d),
+            travel60: 2 * travel,
+            len,
+            speed: sp,
+            start: IVec3::new(d.start_x, d.start_y, d.start_z),
+            end: IVec3::new(d.end_x, d.end_y, d.end_z),
+            radius: d.radius,
+            alive: (travel + p - 1) / p, // = ball_max_alive
+        }
+    }
+
+    /// [`ball_pos`] with the constants precomputed (same values).
+    #[inline]
+    pub fn pos(&self, t60: i64, j: i64) -> Option<(IVec3, i64)> {
+        let k = floor_div(t60 + 2 * self.off, 2 * self.p) - j;
+        let tk60 = 2 * (k * self.p - self.off);
+        let age60 = t60 - tk60;
+        if j < 0 || age60 < 0 || age60 >= self.travel60 {
+            return None;
+        }
+        let mut num = age60 * self.speed;
+        let den = 60 * self.len;
+        if num > den {
+            num = den;
+        }
+        let lerp = |a: i32, b: i32| a + div_round((b - a) as i64 * num, den) as i32;
+        Some((IVec3::new(lerp(self.start.x, self.end.x), lerp(self.start.y, self.end.y), lerp(self.start.z, self.end.z)), k))
+    }
+}
+
 /// `BallPosMm` at `t60`: the `j`-th newest ball (0 = newest) and its release index.
 pub fn ball_pos(d: &RollingBallDef, t60: i64, j: i64) -> Option<(IVec3, i64)> {
-    let p = d.period_ticks.max(1) as i64;
-    let off = ball_phase_offset(d);
-    let k = floor_div(t60 + 2 * off, 2 * p) - j;
-    let tk60 = 2 * (k * p - off);
-    let age60 = t60 - tk60;
-    let travel60 = 2 * ball_travel_ticks(d);
-    if j < 0 || age60 < 0 || age60 >= travel60 {
-        return None;
-    }
-    let len = d.len_mm();
-    let mut num = age60 * d.speed_mm_s.max(1) as i64;
-    let den = 60 * len;
-    if num > den {
-        num = den;
-    }
-    let lerp = |a: i32, b: i32| a + div_round((b - a) as i64 * num, den) as i32;
-    Some((IVec3::new(lerp(d.start_x, d.end_x), lerp(d.start_y, d.end_y), lerp(d.start_z, d.end_z)), k))
+    BallK::of(d).pos(t60, j)
 }
 
 /// `RollingBallContactMm`: newest ball first; push = roll direction + half the lateral offset.
 pub fn ball_contact(d: &RollingBallDef, t60: i64, f: IVec3, r: i32, h: i32) -> Option<[i32; 2]> {
-    let n = ball_max_alive(d).min(64);
+    let bk = BallK::of(d);
+    let n = bk.alive.min(64);
     let reach = (r + d.radius) as i64;
     let mut j = 0;
     while j < n {
-        let (b, _) = ball_pos(d, t60, j)?;
+        let (b, _) = bk.pos(t60, j)?;
         let y0 = (f.y + r) as i64;
         let y1 = (f.y + h - r) as i64;
         let by = b.y as i64;

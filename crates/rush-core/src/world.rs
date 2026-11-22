@@ -339,7 +339,7 @@ impl World {
 
     /// The hazards of the current round.
     pub fn hazards<'m>(&self, map: &MapView<'m>) -> Hazards<'m> {
-        Hazards { map: *map, variant: self.variant, seed: self.hazard_seed, m: modifiers::get(self.modifier).hazard }
+        Hazards { map: *map, variant: self.variant, seed: self.hazard_seed, m: modifiers::get(self.modifier).hazard, ph: None }
     }
 
     /// Hazard time (1/60 s) of `tick`.
@@ -362,6 +362,34 @@ impl World {
         } else {
             Some(w)
         }
+    }
+
+    /// Decodes canonical bytes into `self` in place (no 2 KB temporary: sBPF stack frames are 4 KB). Returns false
+    /// (and leaves `self` partly written) on short input or a wrong version.
+    pub fn load_from(&mut self, b: &[u8]) -> bool {
+        let mut d = Dec::new(b);
+        self.version = d.u8();
+        self.tick = d.u32();
+        self.rate = d.u8();
+        self.round_index = d.u8();
+        self.map_key = d.u8();
+        self.variant = d.u8();
+        self.modifier = d.u8();
+        self.hazard_seed = d.u64();
+        self.round_start = d.u32();
+        for p in self.players.iter_mut() {
+            *p = Player::dec(&mut d);
+        }
+        self.rx = Reactive::dec(&mut d);
+        for q in self.drop_queue.iter_mut() {
+            q.tick = d.u32();
+            q.kind = d.u8();
+            q.arg = d.u8();
+        }
+        self.round = crate::rules::RoundState::dec(&mut d);
+        self.dir = crate::rules::director::DirectorState::dec(&mut d);
+        self.event_seq = d.u32();
+        !d.err && self.version == WORLD_VERSION
     }
 
     /// FNV-1a 64 over the canonical bytes (parity only; the program uses sha256 where it matters).
@@ -493,6 +521,11 @@ pub fn emit_round(w: &mut World, ev: &mut StepEvents, tag: u8, tick: u32, slot: 
 /// sha256 provider (the program: `solana-sha256-hasher`; tests and the off-chain runners: `sha2`).
 pub trait Hasher {
     fn sha256(&mut self, parts: &[&[u8]]) -> [u8; 32];
+    /// Profiling hook at fixed points of [`step`] (P2 CU pass; the program logs compute units here). Never changes
+    /// the simulation. Tags: 1 after `before_tick`, 2 after `pose_scene` + `begin_tick`, 16 + slot after that slot's
+    /// input / bot brain, 32 + slot after its `player_step`, 3 after `separate`, 4 at the end.
+    #[inline(always)]
+    fn mark(&mut self, _tag: u8) {}
 }
 
 /// A hasher that is never called (worlds without a match director, e.g. sandbox and QA single rounds).
@@ -509,7 +542,18 @@ impl Hasher for NoHasher {
 /// Poses platforms, doors, lids, tiles and blocks for `tick` and fills the surface motions.
 pub fn pose_scene<'m>(w: &World, map: &MapView<'m>, cfg: &MotorConfig, tick: u32) -> Scene<'m> {
     let mut sc = Scene::new(*map);
-    let hz = w.hazards(map);
+    pose_scene_into(&mut sc, w, map, cfg, tick);
+    sc
+}
+
+/// [`pose_scene`] into existing storage (the program keeps the ≈ 3 KB `Scene` on the heap).
+#[inline(never)]
+pub fn pose_scene_into<'m>(sc: &mut Scene<'m>, w: &World, map: &MapView<'m>, cfg: &MotorConfig, tick: u32) {
+    sc.reset(*map);
+    sc.phases.build(&w.hazards(map));
+    let tab = sc.phases;
+    let mut hz = w.hazards(map);
+    hz.ph = Some(&tab);
     let t60 = w.t60(tick);
     let step60 = cfg.t60_per_tick as i64;
     let t30 = hazards::t30(t60);
@@ -532,10 +576,9 @@ pub fn pose_scene<'m>(w: &World, map: &MapView<'m>, cfg: &MotorConfig, tick: u32
     let mut base = 0usize;
     let mut g = 0;
     let mut states = [hazards::lid::LidState::Idle; hazards::lid::MAX_LIDS_PER_GRID];
-    let mut scratch = [0u8; hazards::lid::MAX_LIDS_PER_GRID];
     while g < ng {
         let d = hz.lid_grid(g);
-        hazards::lid::states(&d, t30, &mut states, &mut scratch);
+        sc.lid_states(g, &d, t30, &mut states);
         let n = (d.count() as usize).min(hazards::lid::MAX_LIDS_PER_GRID);
         let mut k = 0;
         while k < n {
@@ -602,7 +645,6 @@ pub fn pose_scene<'m>(w: &World, map: &MapView<'m>, cfg: &MotorConfig, tick: u32
         id += 1;
         i += 1;
     }
-    sc
 }
 
 /// `ReactiveSet.TileSolid` (one contact cycle kept per tile; see [`MAX_RX_TILES`]).
@@ -765,7 +807,7 @@ pub fn player_step(cfg: &MotorConfig, s: &mut MotorState, cmd: &InputCmd, w: &Wo
     if s.has(flag::RESPAWNING) {
         return 0;
     }
-    let hz = w.hazards(map);
+    let hz = sc.hz(w);
     let t60 = w.t60(tick);
     let mut r = 0u8;
     if apply_doors(s, &hz, t60, cfg) {
@@ -800,12 +842,23 @@ pub fn player_step(cfg: &MotorConfig, s: &mut MotorState, cmd: &InputCmd, w: &Wo
 /// is repeated with edges cleared for 3 ticks, then neutral). Bots ignore `inputs` and run [`crate::bots::bot_input`].
 #[inline(never)] // sBPF: keep step's frame separate from its callers (4 KB frames)
 pub fn step<H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], map: &MapView, params: &MovementParams, h: &mut H, ev: &mut StepEvents) {
+    let mut sc = Scene::new(*map);
+    step_with(w, inputs, map, params, h, ev, &mut sc);
+}
+
+/// [`step`] with caller-provided `Scene` storage (reset and posed here). The program passes a heap `Scene`, so no
+/// frame holds it next to the step's own locals.
+#[inline(never)]
+pub fn step_with<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], map: &MapView<'m>, params: &MovementParams, h: &mut H, ev: &mut StepEvents, scene: &mut Scene<'m>) {
     w.tick = w.tick.wrapping_add(1);
     let tick = w.tick;
     crate::rules::director::before_tick(w, map, tick, h, ev);
+    h.mark(1);
     let cfg = w.motor_config(params);
-    let sc = pose_scene(w, map, &cfg, tick);
+    pose_scene_into(scene, w, map, &cfg, tick);
+    let sc: &Scene<'m> = scene;
     crate::rules::begin_tick(w, map, tick, ev);
+    h.mark(2);
 
     let mut slot = 0;
     while slot < MAX_PLAYERS {
@@ -821,6 +874,7 @@ pub fn step<H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], 
             w.players[slot].input = t;
             c
         };
+        h.mark(16 + slot as u8);
         if !crate::rules::accepts_input(w, slot) {
             cmd = InputCmd { cam_yaw: cmd.cam_yaw, ..InputCmd::NEUTRAL };
         }
@@ -840,6 +894,7 @@ pub fn step<H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], 
         }
         let mut m = w.players[slot].m;
         let r = player_step(&cfg, &mut m, &cmd, w, map, &sc, tick);
+        h.mark(32 + slot as u8);
         let p = &mut w.players[slot];
         p.m = m;
         p.last_step = r;
@@ -854,8 +909,10 @@ pub fn step<H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], 
     }
 
     separate(w, &cfg, &sc);
+    h.mark(3);
     crate::rules::end_tick(w, map, &sc, tick, ev);
     crate::rules::director::after_tick(w, map, tick, h, ev);
+    h.mark(4);
 }
 
 /// `SimCore.Separate`: overlapping capsules pushed apart at up to `push.maxSpeed`; 66 pairs in slot order.

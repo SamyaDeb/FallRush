@@ -20,18 +20,53 @@ pub const ONE_Q15: i32 = 32768;
 /// One full turn in Q16 turns.
 pub const TURN_Q16: i32 = 65536;
 
+// sBPF (v0/v1) has no signed division: `i64 / i64` and `%` become a ~240 CU library call, while `u64 / u64` is one
+// instruction (P2 0.2, measured). Every signed division in the hot path therefore goes through [`idiv`] / [`irem`] /
+// [`div_round`], which divide the magnitudes unsigned. Results are bit-identical to Rust's `/` and `%` (truncation).
+
+/// `a / b` with Rust's truncating semantics, via an unsigned divide. `b == 0` returns 0 (no trap).
+#[inline(always)]
+pub const fn idiv(a: i64, b: i64) -> i64 {
+    if b == 0 {
+        return 0;
+    }
+    let q = (a.unsigned_abs() / b.unsigned_abs()) as i64;
+    if (a < 0) != (b < 0) {
+        q.wrapping_neg()
+    } else {
+        q
+    }
+}
+
+/// `a % b` with Rust's semantics (sign of `a`), via an unsigned remainder. `b == 0` returns 0.
+#[inline(always)]
+pub const fn irem(a: i64, b: i64) -> i64 {
+    if b == 0 {
+        return 0;
+    }
+    let r = (a.unsigned_abs() % b.unsigned_abs()) as i64;
+    if a < 0 {
+        r.wrapping_neg()
+    } else {
+        r
+    }
+}
+
 /// round(a / b), half away from zero. `b != 0` (a zero divisor returns 0 instead of trapping).
 #[inline]
 pub const fn div_round(a: i64, b: i64) -> i64 {
     if b == 0 {
         return 0;
     }
-    let (a, b) = if b < 0 { (-a, -b) } else { (a, b) };
-    // (a + ⌊b/2⌋) / b rounds half up for even b; for odd b an exact .5 cannot occur.
-    if a >= 0 {
-        (a + b / 2) / b
+    let neg = (a < 0) != (b < 0);
+    let (ua, ub) = (a.unsigned_abs(), b.unsigned_abs());
+    // (|a| + ⌊|b|/2⌋) / |b| rounds half up for even b; for odd b an exact .5 cannot occur. Same value as the
+    // signed form (a + b/2)/b on magnitudes; power-of-two divisors are a shift.
+    let q = if ub & (ub - 1) == 0 { (ua + (ub >> 1)) >> ub.trailing_zeros() } else { (ua + ub / 2) / ub };
+    if neg {
+        (q as i64).wrapping_neg()
     } else {
-        -((-a + b / 2) / b)
+        q as i64
     }
 }
 
@@ -49,17 +84,20 @@ pub const fn round_shift(a: i64, n: u32) -> i64 {
 /// floor(a / b) for `b > 0` (time sampling only; see the module rounding rule).
 #[inline]
 pub const fn floor_div(a: i64, b: i64) -> i64 {
+    if b <= 0 {
+        return idiv(a, b);
+    }
     if a >= 0 {
-        a / b
+        (a as u64 / b as u64) as i64
     } else {
-        -((-a + b - 1) / b)
+        -(((a.unsigned_abs() + b as u64 - 1) / b as u64) as i64)
     }
 }
 
 /// Non-negative modulo for `m > 0`.
 #[inline]
 pub const fn modp(a: i64, m: i64) -> i64 {
-    let r = a % m;
+    let r = irem(a, m);
     if r < 0 {
         r + m
     } else {
@@ -96,8 +134,26 @@ pub const fn sat_i32(v: i64) -> i32 {
     }
 }
 
-/// floor(√v), integers only, bit by bit (= `HazardMath.IntSqrt`, identical on every target).
+/// floor(√v), integers only (= `HazardMath.IntSqrt`: the floor square root is unique, so every exact method gives
+/// the same value on every target). Newton's method from an over-estimate (2^⌈bits/2⌉): ≈ 5 steps with the native
+/// unsigned divide instead of 32 bit-by-bit rounds (P2 0.2: 276 → ≈ 90 CU on sBPF).
 pub const fn isqrt_u64(v: u64) -> u64 {
+    if v < 2 {
+        return v;
+    }
+    let bits = 64 - v.leading_zeros();
+    let mut x: u64 = 1u64 << bits.div_ceil(2); // ≥ √v
+    loop {
+        let y = (x + v / x) >> 1;
+        if y >= x {
+            return x;
+        }
+        x = y;
+    }
+}
+
+/// The original bit-by-bit floor square root (reference for the Newton form in tests).
+pub const fn isqrt_u64_bitwise(v: u64) -> u64 {
     if v == 0 {
         return 0;
     }
@@ -383,6 +439,27 @@ pub const fn yaw_from_cam(cam: u16) -> u8 {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn isqrt_newton_equals_bitwise() {
+        let mut r = crate::vectors::Rng(7);
+        for v in 0u64..100_000 {
+            assert_eq!(super::isqrt_u64(v), super::isqrt_u64_bitwise(v), "{v}");
+        }
+        for _ in 0..1_000_000 {
+            let v = r.next() >> (r.next() % 64);
+            assert_eq!(super::isqrt_u64(v), super::isqrt_u64_bitwise(v), "{v}");
+        }
+        for k in 1u64..=32 {
+            for d in [0u64, 1] {
+                let q = (1u64 << k) - 1 + d;
+                let Some(qq) = q.checked_mul(q) else { continue };
+                for v in [qq - 1, qq, qq.saturating_add(1), u64::MAX] {
+                    assert_eq!(super::isqrt_u64(v), super::isqrt_u64_bitwise(v), "{v}");
+                }
+            }
+        }
+    }
+
     use super::*;
 
     #[test]

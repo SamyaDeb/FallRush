@@ -175,6 +175,57 @@ pub struct Scene<'m> {
     pub block_solid: [u64; MAX_BLOCKS / 64],
     pub surfaces: [SurfaceMotion; MAX_SURFACES],
     pub counters: Counters,
+    /// Per-tick memo of lid states (P2 0.2): the scene pose and every bot ask for the same (grid, t) many times.
+    pub lid_cache: core::cell::RefCell<LidCache>,
+    /// Broadphase memo (P2 0.2): the raw grid candidates of an inflated query box, reused by queries inside it.
+    pub bp_cache: core::cell::RefCell<BroadCache>,
+    /// This tick's seeded hazard phases (filled by `world::pose_scene`).
+    pub phases: crate::hazards::PhaseTable,
+    /// Bot route directory (offset / section / length per route, section start heights), built on first use
+    /// (P2 0.2: `nav::route` walked every earlier route on each call).
+    pub routes: core::cell::RefCell<RouteTable>,
+}
+
+/// See [`Scene::routes`]. `n = 255` = not built.
+#[derive(Clone, Copy)]
+pub struct RouteTable {
+    pub built: bool,
+    pub count: u8,
+    pub off: [u16; 64],
+    pub section: [i16; 64],
+    pub pts: [u8; 64],
+    /// Lowest first-waypoint y of each section (i32::MAX = no route), and how many sections exist.
+    pub sec_start: [i32; 32],
+    pub sec_count: u8,
+}
+
+impl Default for RouteTable {
+    fn default() -> Self {
+        RouteTable { built: false, count: 0, off: [0; 64], section: [0; 64], pts: [0; 64], sec_start: [i32::MAX; 32], sec_count: 0 }
+    }
+}
+
+/// Two (grid, t30) entries of [`crate::hazards::lid::states`].
+#[derive(Clone, Copy)]
+pub struct LidCache {
+    pub key: [(i32, i64); 2],
+    pub states: [[crate::hazards::lid::LidState; crate::hazards::lid::MAX_LIDS_PER_GRID]; 2],
+    pub next: u8,
+}
+
+impl Default for LidCache {
+    fn default() -> Self {
+        LidCache { key: [(-1, 0); 2], states: [[crate::hazards::lid::LidState::Idle; crate::hazards::lid::MAX_LIDS_PER_GRID]; 2], next: 0 }
+    }
+}
+
+/// The raw (pre fine-filter) grid + global candidates of the box `[mn, mx]`; `valid` false = empty.
+#[derive(Clone, Copy, Default)]
+pub struct BroadCache {
+    pub valid: bool,
+    pub mn: IVec3,
+    pub mx: IVec3,
+    pub raw: Bits,
 }
 
 /// Bitset over collider indices.
@@ -192,7 +243,58 @@ impl<'m> Scene<'m> {
             block_solid: [u64::MAX; MAX_BLOCKS / 64],
             surfaces: [SurfaceMotion::default(); MAX_SURFACES],
             counters: Counters::default(),
+            lid_cache: core::cell::RefCell::new(LidCache::default()),
+            bp_cache: core::cell::RefCell::new(BroadCache::default()),
+            phases: crate::hazards::PhaseTable::default(),
+            routes: core::cell::RefCell::new(RouteTable::default()),
         }
+    }
+
+    /// The round's hazards with this tick's phase table (= `World::hazards`, same values, cheaper decodes).
+    pub fn hz<'s>(&'s self, w: &crate::world::World) -> crate::hazards::Hazards<'s> {
+        let mut h = w.hazards(&self.map);
+        h.ph = Some(&self.phases);
+        h
+    }
+
+    /// Resets `self` to `Scene::new(map)` in place (no 3 KB temporary: sBPF stack frames are 4 KB).
+    pub fn reset(&mut self, map: MapView<'m>) {
+        self.map = map;
+        self.platform_off = [IVec3::ZERO; MAX_PLATFORMS];
+        self.door_off = [IVec3::ZERO; MAX_DOORS];
+        self.lid_solid = [u64::MAX; MAX_LIDS / 64];
+        self.tile_solid = [u64::MAX; MAX_TILES / 64];
+        self.block_solid = [u64::MAX; MAX_BLOCKS / 64];
+        self.surfaces = [SurfaceMotion::default(); MAX_SURFACES];
+        self.counters.reset();
+        {
+            let mut c = self.lid_cache.borrow_mut();
+            c.key = [(-1, 0); 2];
+            c.next = 0;
+        }
+        self.bp_cache.borrow_mut().valid = false;
+        self.phases.ok = false;
+        self.routes.borrow_mut().built = false;
+    }
+
+    /// `lid::states(d, t)` for lid grid `g` of this tick's hazards, memoised (same values, computed once per key).
+    pub fn lid_states(&self, g: usize, d: &crate::hazards::defs::LidGridDef, t: i64, out: &mut [crate::hazards::lid::LidState; crate::hazards::lid::MAX_LIDS_PER_GRID]) {
+        let key = (g as i32, t);
+        let mut c = self.lid_cache.borrow_mut();
+        let mut e = 0;
+        while e < 2 {
+            if c.key[e] == key {
+                *out = c.states[e];
+                return;
+            }
+            e += 1;
+        }
+        let mut scratch = [0u8; crate::hazards::lid::MAX_LIDS_PER_GRID];
+        crate::hazards::lid::states(d, t, out, &mut scratch);
+        let slot = c.next as usize & 1;
+        c.key[slot] = key;
+        c.states[slot] = *out;
+        c.next = c.next.wrapping_add(1);
     }
 
     /// Collider `i` posed for this tick and its pose offset, or `None` when it is switched off.
@@ -225,6 +327,21 @@ impl<'m> Scene<'m> {
             _ => IVec3::ZERO,
         };
         Some((c, off))
+    }
+
+    /// Collider `i`'s pose offset for this tick, or `None` when switched off (= [`Self::posed`] without the decode).
+    #[inline]
+    pub fn pose_of(&self, dk: u8, k: u16) -> Option<IVec3> {
+        let k = k as usize;
+        let bit = |b: &[u64], k: usize| k / 64 < b.len() && (b[k / 64] >> (k % 64)) & 1 == 1;
+        match dk {
+            dyn_kind::PLATFORM => Some(self.platform_off.get(k).copied().unwrap_or(IVec3::ZERO)),
+            dyn_kind::DOOR => Some(self.door_off.get(k).copied().unwrap_or(IVec3::ZERO)),
+            dyn_kind::LID => bit(&self.lid_solid, k).then_some(IVec3::ZERO),
+            dyn_kind::TILE => bit(&self.tile_solid, k).then_some(IVec3::ZERO),
+            dyn_kind::BLOCK => bit(&self.block_solid, k).then_some(IVec3::ZERO),
+            _ => Some(IVec3::ZERO),
+        }
     }
 
     /// Closest features between the capsule axis `s` and collider `c` posed at `off`.

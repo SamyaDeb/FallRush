@@ -57,7 +57,7 @@ fn star_target(c: &Ctx, hz: &Hazards, f: &StarFieldDef, id: i32, t30: i64) -> Op
 /// `SkillPlan` (simplified, see bots/mod.rs).
 #[inline(never)] // keeps bot_input under the 4 KB sBPF stack frame
 pub(crate) fn skill(c: &Ctx, b: &mut BotState) -> Plan {
-    let hz = c.w.hazards(c.map);
+    let hz = c.sc.hz(c.w);
     if hz.count(HazardType::StarPickup) == 0 {
         return Plan::default();
     }
@@ -239,7 +239,7 @@ fn avoid_pads(c: &Ctx, hz: &Hazards, cmd: &mut InputCmd) {
 /// `FinalPlan`: Lid Flip grids, else crumble shelves.
 #[inline(never)] // keeps bot_input under the 4 KB sBPF stack frame
 pub(crate) fn final_plan(c: &Ctx, b: &mut BotState) -> Plan {
-    let hz = c.w.hazards(c.map);
+    let hz = c.sc.hz(c.w);
     if hz.count(HazardType::LidFlip) > 0 {
         return Plan::of(lid_plan(c, b, &hz));
     }
@@ -320,9 +320,11 @@ fn crumble_plan(c: &Ctx, b: &mut BotState, hz: &Hazards) -> InputCmd {
             while o < MAX_PLAYERS {
                 if let Some(m) = c.other(o) {
                     let (ox, oz) = ((x - m.pos.x) as i64, (z - m.pos.z) as i64);
-                    let od = isqrt_i64(ox * ox + oz * oz);
-                    if od < 3000 {
-                        crowd += (3000 - od) * 8 / 10;
+                    if ox.abs() < 3000 && oz.abs() < 3000 {
+                        let od = isqrt_i64(ox * ox + oz * oz);
+                        if od < 3000 {
+                            crowd += (3000 - od) * 8 / 10;
+                        }
                     }
                 }
                 o += 1;
@@ -381,8 +383,7 @@ fn lid_plan(c: &Ctx, b: &mut BotState, hz: &Hazards) -> InputCmd {
     let s = c.s;
     let t30 = hazards::t30(c.t60(0));
     let mut seen = [LidState::Idle; MAX_LIDS_PER_GRID];
-    let mut scr = [0u8; MAX_LIDS_PER_GRID];
-    lid::states(&d, (t30 - c.sk.lid_lag as i64).max(0), &mut seen, &mut scr);
+    c.sc.lid_states(gi as usize, &d, (t30 - c.sk.lid_lag as i64).max(0), &mut seen);
     let grounded = s.has(flag::GROUNDED);
     let under = if grounded { d.lid_under(s.pos.x, s.pos.y, s.pos.z) } else { -1 };
     let under_lit = under >= 0 && !lid_safe(seen[under as usize]);
@@ -489,9 +490,12 @@ fn pick_lid(c: &Ctx, b: &mut BotState, d: &crate::hazards::defs::LidGridDef, see
             if let Some(m) = c.other(o) {
                 if (m.pos.y - d.top).abs() <= 1500 {
                     let (ox, oz) = ((x - m.pos.x) as i64, (z - m.pos.z) as i64);
-                    let od = isqrt_i64(ox * ox + oz * oz);
-                    if od < 2200 {
-                        score += (2200 - od) * 11 / 10;
+                    // cheap exact reject before the square root (od < 2200 needs |ox|, |oz| < 2200)
+                    if ox.abs() < 2200 && oz.abs() < 2200 {
+                        let od = isqrt_i64(ox * ox + oz * oz);
+                        if od < 2200 {
+                            score += (2200 - od) * 11 / 10;
+                        }
                     }
                 }
             }
