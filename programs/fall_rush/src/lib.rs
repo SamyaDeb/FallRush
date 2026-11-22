@@ -9,8 +9,9 @@ use ephemeral_rollups_sdk::anchor::{commit, delegate, ephemeral, vrf, vrf_callba
 use ephemeral_rollups_sdk::cpi::DelegateConfig;
 #[allow(unused_imports)]
 use ephemeral_rollups_sdk::ephem::{FoldableIntentBuilder, MagicIntentBundleBuilder};
+use ephemeral_rollups_sdk::vrf::consts::{program_identity_pubkey, scoped_vrf_identity_const};
 use ephemeral_rollups_sdk::vrf::instructions::{
-    create_request_scoped_randomness_ix, RequestRandomnessParams,
+    create_request_randomness_ix_const, RequestRandomnessParams,
 };
 use ephemeral_rollups_sdk::vrf::types::SerializableAccountMeta;
 
@@ -24,6 +25,17 @@ use events::*;
 use state::*;
 
 declare_id!("4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4");
+
+/// Request signer for VRF draws: `PDA(["identity"], crate::ID)`, derived at compile time
+/// (SDK 0.18; replaces the runtime lookup inside the removed `create_request_scoped_randomness_ix`).
+pub const PROGRAM_IDENTITY: Pubkey = program_identity_pubkey(&crate::ID);
+
+/// The only signer allowed to call `deal_callback`: the scoped VRF identity
+/// `PDA(["identity", crate::ID], VRF program)`. Declared here (not injected by `#[vrf_callback]`)
+/// because SDK 0.18.0's macro calls `scoped_vrf_identity_const` in a runtime expression: the
+/// ed25519 off-curve check then runs on-chain and burns the full 200k CU (measured, PB0 §3).
+pub const VRF_CALLBACK_IDENTITY: Pubkey =
+    Pubkey::new_from_array(scoped_vrf_identity_const(&crate::ID).0);
 
 /// VRF queue pinned per build: local MagicBlock stack vs devnet/mainnet ER (doc 07 §4.3).
 #[cfg(feature = "localnet")]
@@ -160,7 +172,9 @@ pub mod fall_rush {
             m.status = MatchStatus::Dealing;
             (m.key(), deal_caller_seed(m), m.match_id)
         };
-        let ix = create_request_scoped_randomness_ix(RequestRandomnessParams {
+        // Scoped request (`data[0] = 10`): the oracle signs the callback with
+        // `PDA(["identity", crate::ID], VRF program)`, which `#[vrf_callback]` checks.
+        let ix = create_request_randomness_ix_const(RequestRandomnessParams {
             payer: ctx.accounts.authority.key(),
             oracle_queue: ctx.accounts.oracle_queue.key(),
             callback_program_id: crate::ID,
@@ -172,7 +186,7 @@ pub mod fall_rush {
                 is_writable: true,
             }]),
             ..Default::default()
-        });
+        }, PROGRAM_IDENTITY);
         ctx.accounts
             .invoke_signed_vrf(&ctx.accounts.authority.to_account_info(), &ix)?;
         emit!(DealRequested {
@@ -434,8 +448,9 @@ pub struct CreateMatch<'info> {
     pub system_program: Program<'info, System>,
 }
 
-// NOTE: `#[delegate]` strips every "del" substring from the `#[account(...)]` attribute of the
-// field marked `del`, so keep identifiers containing "del" out of that attribute.
+// NOTE: SDK ≤ 0.16 stripped every "del" substring from the `#[account(...)]` attribute of the
+// field marked `del`; 0.18 matches the marker as a whole constraint. The `del` field must stay an
+// `UncheckedAccount` (0.18 compile check, SIMD-0460).
 #[delegate]
 #[derive(Accounts)]
 #[instruction(match_id: [u8; 16])]
@@ -466,6 +481,10 @@ pub struct RequestDeal<'info> {
 #[vrf_callback]
 #[derive(Accounts)]
 pub struct DealCallback<'info> {
+    /// Same field (name, position, check) `#[vrf_callback]` would inject; a const address keeps
+    /// the PDA derivation at compile time.
+    #[account(address = VRF_CALLBACK_IDENTITY)]
+    pub vrf_program_identity: Signer<'info>,
     #[account(mut, seeds = [MATCH_SEED, &match_account.match_id], bump = match_account.bump)]
     pub match_account: Box<Account<'info, Match>>,
 }
@@ -513,4 +532,19 @@ pub struct AbortMatch<'info> {
     pub config: Account<'info, GameConfig>,
     #[account(mut, seeds = [MATCH_SEED, &match_account.match_id], bump = match_account.bump)]
     pub match_account: Box<Account<'info, Match>>,
+}
+
+#[cfg(test)]
+mod identity_tests {
+    use super::*;
+
+    /// The compile-time VRF PDAs must equal the runtime derivation (SDK 0.18 port, PB0).
+    #[test]
+    fn const_vrf_identities_match_find_program_address() {
+        let (req, _) = Pubkey::find_program_address(&[b"identity"], &crate::ID);
+        assert_eq!(PROGRAM_IDENTITY, req);
+        let vrf_program = ephemeral_rollups_sdk::vrf::consts::VRF_PROGRAM_ID;
+        let (cb, _) = Pubkey::find_program_address(&[b"identity", crate::ID.as_ref()], &vrf_program);
+        assert_eq!(VRF_CALLBACK_IDENTITY, cb);
+    }
 }
