@@ -1,0 +1,22 @@
+{
+  "deterministic": true,
+  "extra0_avg": 1.06,
+  "extra1_avg": 0.61,
+  "falls_avg": 2.0,
+  "hits_avg": 1.83,
+  "map": "CrumbleShelf",
+  "median_s": 80.43333333333334,
+  "mode": 4,
+  "p90_s": 101.3,
+  "players": 3,
+  "qualified_avg": 0.98,
+  "rate": 30,
+  "runs": 100,
+  "softlocks": 0,
+  "stuck5s_players": 0,
+  "tier": 2,
+  "timer_endings": 2,
+  "tunnels": 0,
+  "valid": 100,
+  "wall_s": 1.13680725
+}
