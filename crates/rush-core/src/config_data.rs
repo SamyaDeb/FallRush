@@ -2,12 +2,12 @@
 use crate::config::MovementParams;
 
 /// sha256 of the canonical JSON of movement_v4 (sorted keys, no whitespace).
-pub const MOVEMENT_V4_SHA256: &str = "ff40f3525999d3ddd08378c1b1534bc057d71dd5b7afce61d280712d246144c6";
+pub const MOVEMENT_V4_SHA256: &str = "3c7fbce85def11e22d6e5f84f9bdbd1ea1002d2a86d373c6d524b506b5f7ce72";
 
 /// `movement_v4.json` as integers.
 pub const MOVEMENT_V4: MovementParams = MovementParams {
     version: 4,
-    tick_rate_hz: 20,
+    tick_rate_hz: 30,
     capsule_radius: 310,
     capsule_height: 1000,
     capsule_skin: 10,
