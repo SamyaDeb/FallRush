@@ -1,0 +1,18 @@
+{
+  "name": "@fall-rush/chain",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Fall Rush browser chain bundle (fallrush-chain.js): burner + session keys, emulator / rollup transports, World intake for Unity",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test 'test/*.test.ts'"
+  },
+  "dependencies": {
+    "@solana/web3.js": "1.99.0",
+    "buffer": "6.0.3"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
