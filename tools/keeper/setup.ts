@@ -65,7 +65,7 @@ for (const stem of MAP_STEMS) {
 // 4. arena settings (base, before delegation)
 const arenaInfo = await base.getAccountInfo(arena);
 if (arenaInfo && arenaInfo.owner.equals(PROGRAM_ID)) {
-  out.sigs.setArena = await sendBase([await pb.methods.setArena(maps, PARTS).accountsPartial({ authority: wallet.publicKey, arena }).instruction()], [wallet], "set_arena");
+  out.sigs.setArena = await sendBase([await pb.methods.setArena(maps, PARTS, NET === "local" ? 50 : 10).accountsPartial({ authority: wallet.publicKey, arena }).instruction()], [wallet], "set_arena");
 }
 // 5. delegation: arena, world, event log, inputs
 const val = [{ pubkey: EP.validator, isSigner: false, isWritable: false }];

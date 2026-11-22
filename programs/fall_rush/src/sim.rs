@@ -47,12 +47,11 @@ pub const MAP_LOBBY_SLOT: usize = 4;
 pub const INPUT_BATCH: usize = 3;
 /// `submit_input` accepts ticks in [World.tick − 8, World.tick + 8 + batch].
 pub const INPUT_WINDOW: u32 = 8;
-/// A new tick (part 0) starts at most once per this many slots (devnet-as slots are 10 ms → ≤ 33.3 Hz; the task
-/// interval sets the real pace). Parts 1.. run as soon as they are pending.
-pub const MIN_SLOTS_PER_TICK: u64 = 3;
 
 /// `Match::flags` bit set by `start_sim` (bits 1..=4 are `commit_round`'s per-round marks, bit 0 = unranked).
 pub const MATCH_SIM_STARTED: u8 = 0x20;
+/// `Match::flags` bit: the match's Final runs on-chain after Classic rounds 1–3 (`start_final`, doc 15 OC-11).
+pub const MATCH_FINAL_MODE: u8 = 0x40;
 
 pub mod arena_status {
     pub const IDLE: u8 = 0;
@@ -79,8 +78,11 @@ pub struct Arena {
     pub match_account: Pubkey,
     /// Map blob accounts: deal map ids 0..3, then the lobby.
     pub maps: [Pubkey; MAP_SLOTS],
-    /// Slot owners (the key allowed to write that slot's InputBuf); default = bot.
+    /// Slot owners (the key allowed to write that slot's InputBuf: the player's session signer, or the wallet);
+    /// default = bot.
     pub owners: [Pubkey; N],
+    /// The players' wallets (roster identity, RosterHash); default = bot.
+    pub wallets: [Pubkey; N],
     /// InputBuf of each slot (checked in `tick` instead of re-deriving PDAs).
     pub inputs: [Pubkey; N],
     pub task_id: i64,
@@ -93,7 +95,9 @@ pub struct Arena {
     pub bump: u8,
     pub human_mask: u16,
     pub cosmetic: [u8; N],
-    pub _pad: [u8; 6],
+    /// The rollup's slot length (ms: devnet-as 10, local 50) for the real-time tick gate.
+    pub slot_ms: u8,
+    pub _pad: [u8; 5],
 }
 
 #[account(zero_copy)]
@@ -124,6 +128,8 @@ pub struct WorldAcc {
     pub cur: [[u8; 4]; N],
     pub cur_some: u16,
     pub _pad2: [u8; 6],
+    /// Slot of the first tick of the match (the real-time gate counts ticks from it).
+    pub start_slot: u64,
     pub world: [u8; WORLD_BYTES],
 }
 
@@ -139,6 +145,8 @@ pub struct InEntry {
 pub struct InputBuf {
     pub arena: Pubkey,
     pub owner: Pubkey,
+    /// The owner's `SessionTokenV2` (default = the owner is the wallet itself); re-checked by every `submit_input`.
+    pub token: Pubkey,
     pub latest: u32,
     pub count: u32,
     pub slot: u8,
@@ -283,8 +291,17 @@ fn tick_inner(accs: &[AccountInfo]) -> u8 {
     // where the tick stands (rush-core `step_slice`): 0 = start a new tick, 1..=11 = continue at that slot,
     // 12 = the end-of-tick stage
     let part = wa.part_pending;
-    if part == 0 && wa.ticks_run > 0 && clock.slot < wa.last_slot + MIN_SLOTS_PER_TICK {
-        return tick_code::NOT_DUE;
+    if part == 0 {
+        if wa.ticks_run == 0 {
+            wa.start_slot = clock.slot;
+        } else {
+            // real time: tick n may start once n / 30 s have passed since the first tick (slot clock); behind
+            // schedule, ticks run back to back until caught up
+            let elapsed_ms = clock.slot.saturating_sub(wa.start_slot) * arena.slot_ms.max(1) as u64;
+            if elapsed_ms * (rush_core::config_data::MOVEMENT_V4.tick_rate_hz as u64) < wa.ticks_run * 1000 {
+                return tick_code::NOT_DUE;
+            }
+        }
     }
     let mut w = heap_world();
     if !w.load_from(&wa.world[..wa.len as usize]) {
@@ -420,6 +437,12 @@ fn mirror_match(info: &AccountInfo, w: &World) {
         Err(_) => return,
     };
     let d = &w.dir;
+    if m.flags & MATCH_FINAL_MODE != 0 {
+        mirror_final(&mut m, w);
+        let mut out: &mut [u8] = &mut data[..];
+        let _ = m.try_serialize(&mut out);
+        return;
+    }
     m.current_round = d.round;
     m.player_count = d.player_count.max(m.player_count);
     m.transcript_hash = d.transcript;
@@ -456,6 +479,37 @@ fn mirror_match(info: &AccountInfo, w: &World) {
     }
     let mut out: &mut [u8] = &mut data[..];
     let _ = m.try_serialize(&mut out);
+}
+
+/// Final mode: the Classic rounds' slots, transcript and event chain stay as recorded; the finalists' results and
+/// the champion come from the director, and the on-chain Final's transcript closes the event chain (TAG_COMPLETE_MATCH,
+/// arg = the director transcript) once.
+fn mirror_final(m: &mut Match, w: &World) {
+    use rush_core::rules::director::phase as dp;
+    let d = &w.dir;
+    m.current_round = d.round.max(m.current_round);
+    let mut i = 0;
+    while i < N && i < MAX_SLOTS {
+        if d.alive >> i & 1 == 0 && d.elim[i] >> 4 == 4 && m.slots[i].state != SLOT_ELIMINATED {
+            m.slots[i] = SlotResult { state: SLOT_ELIMINATED, round: 4, placement: 0, reason: d.elim[i] & 0xF };
+        }
+        i += 1;
+    }
+    match d.phase {
+        dp::ROUND_INTRO | dp::ROUND_ACTIVE => m.status = MatchStatus::RoundActive,
+        dp::ROUND_RESULT | dp::INTERMISSION => m.status = MatchStatus::RoundResolved,
+        dp::CHAMPION | dp::FINALIZING | dp::DONE if m.status != MatchStatus::Completed => {
+            m.champion_slot = d.champion;
+            if (d.champion as usize) < MAX_SLOTS {
+                m.slots[d.champion as usize].placement = 1;
+                m.slots[d.champion as usize].round = 4;
+            }
+            let _ = m.append(TAG_COMPLETE_MATCH, 4, d.champion, &d.transcript);
+            m.status = MatchStatus::Completed;
+            m.completed_at = Clock::get().map(|c| c.unix_timestamp).unwrap_or(0);
+        }
+        _ => {}
+    }
 }
 
 // ------------------------------------------------------------------ inputs
@@ -512,7 +566,7 @@ pub fn start_sim(arena: &mut Arena, wa: &mut WorldAcc, m: &Match, lobby: &[u8]) 
         }
         s += 1;
     }
-    let wallets: [[u8; 32]; N] = core::array::from_fn(|i| arena.owners[i].to_bytes());
+    let wallets: [[u8; 32]; N] = core::array::from_fn(|i| arena.wallets[i].to_bytes());
     let entries: [rush_core::transcript::RosterEntry; N] = core::array::from_fn(|i| {
         let human = arena.human_mask >> i & 1 == 1;
         rush_core::transcript::RosterEntry { bot: !human, user_id: if human { &wallets[i][..] } else { &ids[i][..id_len[i]] }, wallet: if human { Some(&wallets[i]) } else { None } }
@@ -529,6 +583,50 @@ pub fn start_sim(arena: &mut Arena, wa: &mut WorldAcc, m: &Match, lobby: &[u8]) 
     wa.results_round = 255;
     wa.phase = w.dir.phase;
     wa.round = w.dir.round;
+    arena.status = arena_status::RUNNING;
+    arena.matches_run = arena.matches_run.wrapping_add(1);
+    Ok(())
+}
+
+/// The Final on-chain after Classic rounds 1–3 (doc 15 OC-11): the `Match` must be `RoundResolved` after round 3
+/// with exactly `slots` alive; the director starts at round 4 from the match's VRF seed with the Classic
+/// eliminations (round << 4 | reason) taken from the `Match`.
+pub fn start_final(arena: &mut Arena, wa: &mut WorldAcc, m: &mut Match, lobby: &[u8], slots: &[u8; 3]) -> Result<()> {
+    require!(m.status == MatchStatus::RoundResolved && m.current_round == 3, FallRushError::InvalidStatus);
+    let mut alive = 0u16;
+    for &s in slots {
+        require!((s as usize) < N && (s as usize) < m.player_count as usize && m.slots[s as usize].state == SLOT_ALIVE, FallRushError::SlotNotAlive);
+        alive |= 1 << s;
+    }
+    require!(alive.count_ones() == 3 && m.count_slots(SLOT_ALIVE) == 3, FallRushError::InvalidChampion);
+    let v = MapView::new(lobby).map_err(|_| error!(FallRushError::BadMap))?;
+    let mut w = heap_world();
+    w.reset(&v, rush_core::config_data::MOVEMENT_V4.tick_rate_hz as u32);
+    let mut h = ProgHasher;
+    let mut elim = [0u8; N];
+    let mut s = 0;
+    while s < N && s < m.player_count as usize {
+        let r = m.slots[s];
+        if r.state == SLOT_ELIMINATED {
+            elim[s] = (r.round.min(15) << 4) | (r.reason & 0xF);
+        }
+        if arena.human_mask >> s & 1 == 1 {
+            w.add_player(&v, s, false);
+        }
+        s += 1;
+    }
+    let rh = m.roster_hash;
+    rush_core::rules::director::start_final(&mut w, &v, &m.vrf_seed, m.player_count.min(N as u8), &rh, alive, &elim, &mut h);
+    let n = w.to_bytes(&mut wa.world);
+    wa.len = n as u32;
+    wa.tick = w.tick;
+    wa.part_pending = 0;
+    wa.ticks_run = 0;
+    wa.applied_tick = [0; N];
+    wa.results_round = 255;
+    wa.phase = w.dir.phase;
+    wa.round = w.dir.round;
+    m.flags |= MATCH_SIM_STARTED | MATCH_FINAL_MODE;
     arena.status = arena_status::RUNNING;
     arena.matches_run = arena.matches_run.wrapping_add(1);
     Ok(())

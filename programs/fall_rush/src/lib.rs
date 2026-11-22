@@ -416,10 +416,11 @@ pub mod fall_rush {
     }
 
     /// Solana. Arena settings: map blob accounts (deal map ids 0..3, lobby) and parts per tick.
-    pub fn set_arena(ctx: Context<SetArena>, maps: [Pubkey; sim::MAP_SLOTS], parts: u8) -> Result<()> {
+    pub fn set_arena(ctx: Context<SetArena>, maps: [Pubkey; sim::MAP_SLOTS], parts: u8, slot_ms: u8) -> Result<()> {
         let mut a = ctx.accounts.arena.load_mut()?;
         a.maps = maps;
         a.parts = parts.clamp(1, sim::N as u8);
+        a.slot_ms = slot_ms.max(1);
         Ok(())
     }
 
@@ -492,6 +493,7 @@ pub mod fall_rush {
         require!(a.status != sim::arena_status::RUNNING, FallRushError::BadArenaState);
         a.match_account = match_account;
         a.owners = [Pubkey::default(); sim::N];
+        a.wallets = [Pubkey::default(); sim::N];
         a.human_mask = 0;
         a.cosmetic = [0; sim::N];
         a.status = sim::arena_status::LOBBY;
@@ -500,28 +502,61 @@ pub mod fall_rush {
             let ib = AccountLoader::<sim::InputBuf>::try_from(info)?;
             let mut ib = ib.load_mut()?;
             ib.owner = Pubkey::default();
+            ib.token = Pubkey::default();
             ib.ring = [sim::InEntry { tick: 0, input: [0; 4] }; sim::RING];
             ib.latest = 0;
         }
         Ok(())
     }
 
-    /// ER. A player (or session signer) takes `slot`: arena in Lobby, slot free, one slot per signer.
-    pub fn join_lobby(ctx: Context<JoinLobby>, slot: u8, cosmetic: u8) -> Result<()> {
+    /// ER. A player takes `slot`: arena in Lobby, slot free, one slot per wallet. The signer is either the wallet
+    /// itself or a session signer with a valid `SessionTokenV2` (authority = `wallet`, target = this program, not
+    /// expired; seeds checked). The signer becomes the slot's InputBuf writer, the wallet its roster identity.
+    pub fn join_lobby(ctx: Context<JoinLobby>, slot: u8, cosmetic: u8, wallet: Pubkey) -> Result<()> {
+        let me = ctx.accounts.player.key();
+        let token_key = match &ctx.accounts.session_token {
+            Some(t) => {
+                sim_session_check(t, &me, &wallet)?;
+                t.key()
+            }
+            None => {
+                require_keys_eq!(me, wallet, FallRushError::Unauthorized);
+                Pubkey::default()
+            }
+        };
         let mut a = ctx.accounts.arena.load_mut()?;
         require!(a.status == sim::arena_status::LOBBY, FallRushError::BadArenaState);
         let s = slot as usize;
         require!(s < sim::N, FallRushError::InvalidSlot);
         require!(a.human_mask >> s & 1 == 0, FallRushError::SlotTaken);
-        let me = ctx.accounts.player.key();
-        require!(!a.owners.contains(&me), FallRushError::AlreadyJoined);
+        require!(!a.wallets.contains(&wallet) && !a.owners.contains(&me), FallRushError::AlreadyJoined);
         require_keys_eq!(a.inputs[s], ctx.accounts.input.key(), FallRushError::InvalidSlot);
         a.owners[s] = me;
+        a.wallets[s] = wallet;
         a.human_mask |= 1 << s;
         a.cosmetic[s] = cosmetic;
         let mut ib = ctx.accounts.input.load_mut()?;
         ib.owner = me;
+        ib.token = token_key;
         Ok(())
+    }
+
+    /// ER. The Final on-chain after Classic rounds 1–3 (doc 15 OC-11): game authority; the `Match` after round 3 with
+    /// exactly `slots` alive. Then the keeper schedules ticks.
+    pub fn start_final(ctx: Context<StartSim>, slots: [u8; 3]) -> Result<()> {
+        let mut a = ctx.accounts.arena.load_mut()?;
+        require_keys_eq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
+        require!(a.status == sim::arena_status::LOBBY, FallRushError::BadArenaState);
+        require_keys_eq!(a.match_account, ctx.accounts.match_account.key(), FallRushError::BadArenaState);
+        require_keys_eq!(a.maps[sim::MAP_LOBBY_SLOT], ctx.accounts.lobby_map.key(), FallRushError::BadMap);
+        let info = ctx.accounts.lobby_map.to_account_info();
+        let d = info.try_borrow_data()?;
+        let lobby = sim::map_bytes(&info, &d).ok_or(error!(FallRushError::BadMap))?;
+        let mut w = ctx.accounts.world.load_mut()?;
+        require_keys_eq!(w.arena, ctx.accounts.arena.key(), FallRushError::BadArenaState);
+        let m = &mut ctx.accounts.match_account;
+        require!(m.flags & sim::MATCH_SIM_STARTED == 0, FallRushError::InvalidStatus);
+        sim::start_final(&mut a, &mut w, m, lobby, &slots)
     }
 
     /// ER. Roster lock + start: free slots become bots, the director starts from the match's VRF seed.
@@ -554,6 +589,12 @@ pub mod fall_rush {
         let w = ctx.accounts.world.load()?;
         let mut ib = ctx.accounts.input.load_mut()?;
         require!(ib.slot == slot && ib.arena == w.arena, FallRushError::InvalidSlot);
+        // a session signer's token must still be there (not revoked) and not expired
+        if ib.token != Pubkey::default() {
+            let t = ctx.accounts.session_token.as_ref().ok_or(error!(FallRushError::SessionInvalid))?;
+            require_keys_eq!(t.key(), ib.token, FallRushError::SessionInvalid);
+            require!(!t.is_expired()?, FallRushError::SessionInvalid);
+        }
         sim::submit_input(&mut ib, &ctx.accounts.owner.key(), w.tick, start, &batch)
     }
 
@@ -851,6 +892,23 @@ pub struct JoinLobby<'info> {
     pub arena: AccountLoader<'info, sim::Arena>,
     #[account(mut)]
     pub input: AccountLoader<'info, sim::InputBuf>,
+    /// The player's session token when `player` is a session signer (session-keys 3.1.1, `SessionTokenV2`).
+    pub session_token: Option<Box<Account<'info, session_keys::SessionTokenV2>>>,
+}
+
+/// `SessionTokenV2` checks (session-keys' own `validate` form, without its trait plumbing): this program, this
+/// signer, this wallet, the token PDA's seeds, not expired.
+fn sim_session_check(t: &Account<session_keys::SessionTokenV2>, signer: &Pubkey, wallet: &Pubkey) -> Result<()> {
+    require_keys_eq!(t.target_program, crate::ID, FallRushError::SessionInvalid);
+    require_keys_eq!(t.session_signer, *signer, FallRushError::SessionInvalid);
+    require_keys_eq!(t.authority, *wallet, FallRushError::SessionInvalid);
+    let (pda, _) = Pubkey::find_program_address(
+        &[session_keys::SessionTokenV2::SEED_PREFIX.as_bytes(), crate::ID.as_ref(), signer.as_ref(), wallet.as_ref()],
+        &session_keys::ID,
+    );
+    require_keys_eq!(pda, t.key(), FallRushError::SessionInvalid);
+    require!(!t.is_expired()?, FallRushError::SessionInvalid);
+    Ok(())
 }
 
 #[derive(Accounts)]
@@ -875,6 +933,8 @@ pub struct SubmitInput<'info> {
     #[account(mut)]
     pub input: AccountLoader<'info, sim::InputBuf>,
     pub world: AccountLoader<'info, sim::WorldAcc>,
+    /// Required when the slot was joined with a session key (`InputBuf::token`).
+    pub session_token: Option<Box<Account<'info, session_keys::SessionTokenV2>>>,
 }
 
 #[derive(Accounts)]

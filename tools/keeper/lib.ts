@@ -121,8 +121,8 @@ export const cu = (units: number) => ComputeBudgetProgram.setComputeUnitLimit({ 
 
 // ------------------------------------------------------------------ accounts
 
-export interface WorldView { tick: number; len: number; partPending: number; parts: number; phase: number; round: number; ticksRun: bigint; executions: bigint; notDue: bigint; budgetHit: bigint; lastSlot: bigint; lastCode: number; world: Buffer; appliedTick: number[] }
-/** WorldAcc layout (sim.rs): 8 disc | arena 32 | last_slot, ticks_run, executions, not_due, budget_hit u64 | applied_tick[12] u32 | tick u32 | len u32 | part_pending, parts, phase, round, results_round, last_code u8 | pad 2 | cur 48 | cur_some u16 | pad 6 | world 2048 */
+export interface WorldView { startSlot: bigint; tick: number; len: number; partPending: number; parts: number; phase: number; round: number; ticksRun: bigint; executions: bigint; notDue: bigint; budgetHit: bigint; lastSlot: bigint; lastCode: number; world: Buffer; appliedTick: number[] }
+/** WorldAcc layout (sim.rs): 8 disc | arena 32 | last_slot, ticks_run, executions, not_due, budget_hit u64 | applied_tick[12] u32 | tick u32 | len u32 | part_pending, parts, phase, round, results_round, last_code u8 | pad 2 | cur 48 | cur_some u16 | pad 6 | start_slot u64 | world 2048 */
 export function decodeWorld(d: Buffer): WorldView {
   let o = 8 + 32;
   const u64 = () => { const v = d.readBigUInt64LE(o); o += 8; return v; };
@@ -133,9 +133,10 @@ export function decodeWorld(d: Buffer): WorldView {
   const len = d.readUInt32LE(o); o += 4;
   const partPending = d[o], parts = d[o + 1], phase = d[o + 2], round = d[o + 3], lastCode = d[o + 5]; o += 8;
   o += 48 + 2 + 6;
-  return { tick, len, partPending, parts, phase, round, ticksRun, executions, notDue, budgetHit, lastSlot, lastCode, world: d.subarray(o, o + len), appliedTick };
+  const startSlot = d.readBigUInt64LE(o); o += 8;
+  return { startSlot, tick, len, partPending, parts, phase, round, ticksRun, executions, notDue, budgetHit, lastSlot, lastCode, world: d.subarray(o, o + len), appliedTick };
 }
-export const WORLD_OFFSET = 8 + 32 + 40 + 48 + 8 + 8 + 48 + 8;
+export const WORLD_OFFSET = 8 + 32 + 40 + 48 + 8 + 8 + 48 + 8 + 8;
 
 /** The tick() account list: arena, world, event log, match, 5 maps, 12 InputBufs. */
 export function tickAccounts(arena: PublicKey, match: PublicKey, maps: PublicKey[]): AccountMeta[] {

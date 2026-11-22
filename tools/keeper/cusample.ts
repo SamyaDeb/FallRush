@@ -3,7 +3,7 @@
 import { er } from "./lib.ts";
 import type { PublicKey } from "@solana/web3.js";
 export async function sampleCu(world: PublicKey, n = 60): Promise<{ cu: number; fallback: boolean; ok: boolean }[]> {
-  const sigs = await er.getSignaturesForAddress(world, { limit: n }).catch(() => []);
+  const sigs = await er.getSignaturesForAddress(world, { limit: n }, "confirmed").catch(() => []);
   const out: { cu: number; fallback: boolean; ok: boolean }[] = [];
   const txs = await er.getTransactions(sigs.map((s) => s.signature), { maxSupportedTransactionVersion: 0, commitment: "confirmed" } as any).catch(() => []);
   for (const t of txs as any[]) {

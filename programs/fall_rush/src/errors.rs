@@ -58,4 +58,6 @@ pub enum FallRushError {
     BadArenaState,
     #[msg("Round result not ready or already committed")]
     NothingToCommit,
+    #[msg("Session token missing, revoked, expired or not for this signer / wallet / program")]
+    SessionInvalid,
 }

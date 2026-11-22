@@ -24,6 +24,28 @@ fn pct(v: &mut [u64], p: f64) -> u64 {
     v[((v.len() - 1) as f64 * p).round() as usize]
 }
 
+/// Pile-up inputs: every active player runs (and jumps now and then) toward the first player's spawn + 6 m, so they
+/// all crowd one spot (12 × 4 bytes; [0,0,0,0xFF] = no input).
+fn pile_bytes(w: &World) -> Vec<u8> {
+    let mut out = vec![0u8; MAX_PLAYERS * 4];
+    let target = (w.players[0].m.pos.x as i64 + 0, w.players[0].m.pos.z as i64 + 0);
+    let _ = target;
+    for k in 0..MAX_PLAYERS {
+        let p = &w.players[k];
+        if !p.active() {
+            out[k * 4 + 3] = 0xFF;
+            continue;
+        }
+        // a fixed point near the arena centre (map origin) on every map
+        let (dx, dz) = (-(p.m.pos.x as i64), -(p.m.pos.z as i64));
+        let l = ((dx * dx + dz * dz) as f64).sqrt().max(1.0);
+        out[k * 4] = ((dx as f64 / l) * 127.0) as i8 as u8;
+        out[k * 4 + 1] = ((dz as f64 / l) * 127.0) as i8 as u8;
+        out[k * 4 + 2] = if (w.tick + k as u32) % 23 == 0 { 3 } else { 0 };
+    }
+    out
+}
+
 /// "tag:+CU" deltas between consecutive marks of one profiled tick.
 fn profile_of(logs: &[String]) -> String {
     let mut out = String::new();
@@ -44,16 +66,20 @@ fn profile_of(logs: &[String]) -> String {
     out
 }
 
-fn setup(m: &MapView, rate: u32, seed: u64, _scenario: &str) -> World {
+fn setup(m: &MapView, rate: u32, seed: u64, scenario: &str) -> World {
     let mut w = World::new(m, rate);
     w.hazard_seed = seed;
-    for s in 0..MAX_PLAYERS {
-        w.add_player(m, s, true);
+    let np: usize = std::env::var("BENCH_PLAYERS").ok().and_then(|v| v.parse().ok()).unwrap_or(MAX_PLAYERS);
+    for s in 0..np {
+        // pile-up: human slots (driven by the harness), else bots
+        w.add_player(m, s, scenario != "pileup");
     }
     let ranked = m.mode() != mode::SANDBOX as i32 && m.mode() != mode::LOBBY as i32;
     let mut ev = StepEvents::default();
     if ranked {
-        rush_core::rules::begin_round(&mut w, m, 0, 0, 0xFFF, rush_core::rules::ROUND_INTRO_30, rush_core::rules::ROUND_COUNTDOWN_30, &mut ev);
+        let mask = ((1u32 << np) - 1) as u16;
+        let target = if np <= 3 { 1 } else { 0 };
+        rush_core::rules::begin_round(&mut w, m, 0, target, mask, rush_core::rules::ROUND_INTRO_30, rush_core::rules::ROUND_COUNTDOWN_30, &mut ev);
     }
     w
 }
@@ -102,7 +128,8 @@ fn cu_per_tick_real_maps() {
             let profile = std::env::var("BENCH_PROFILE").is_ok();
             let parts: u8 = std::env::var("BENCH_PARTS").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
             let slice: u16 = std::env::var("BENCH_SLICE").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
-            let what = if guard == 1 { 1u8 } else if slice > 0 { 5u8 } else if parts > 1 { 4u8 } else if profile { 3u8 } else { 0u8 };
+            let pile = scenario == "pileup";
+            let what = if guard == 1 { 1u8 } else if pile { 6u8 } else if slice > 0 { 5u8 } else if parts > 1 { 4u8 } else if profile { 3u8 } else { 0u8 };
             // split tick: one transaction per part; the tick's CU is the most expensive part
             let mut meta_cu = 0u64;
             let mut meta = None;
@@ -110,7 +137,7 @@ fn cu_per_tick_real_maps() {
             let mut calls = 0;
             for part in 0..(if what == 4 { parts } else if what == 5 { 64 } else { 1 }) {
                 let b = slice.to_le_bytes();
-                let data = if what == 5 { vec![0x20, 5, from, b[0], b[1]] } else { vec![0x20, what, part, parts] };
+                let data = if what == 6 { let mut d = vec![0x20, 6]; d.extend_from_slice(&pile_bytes(&w)); d } else if what == 5 { vec![0x20, 5, from, b[0], b[1]] } else { vec![0x20, what, part, parts] };
                 let ix = Instruction { program_id: pid, accounts: vec![AccountMeta::new_readonly(map_key, false), AccountMeta::new(world_key, false)], data };
                 let msg = Message::new(&[ix], Some(&payer.pubkey()));
                 let tx = Transaction::new(&[&payer], msg, svm.latest_blockhash());
@@ -146,7 +173,17 @@ fn cu_per_tick_real_maps() {
                 continue;
             }
             ev.n = 0;
-            if what == 5 {
+            if what == 6 {
+                let b = pile_bytes(&w);
+                let mut inputs = [None; MAX_PLAYERS];
+                for (k, inp) in inputs.iter_mut().enumerate() {
+                    let q = &b[k * 4..k * 4 + 4];
+                    if q != [0, 0, 0, 0xFF] {
+                        *inp = Some(rush_core::input::InputCmd { move_x: q[0] as i8, move_y: q[1] as i8, buttons: q[2], cam_yaw: (q[3] as u16) << 8 });
+                    }
+                }
+                world::step(&mut w, &inputs, &m, &params, &mut NoHasher, &mut ev);
+            } else if what == 5 {
                 let mut sc = rush_core::collide::Scene::new(m);
                 let mut f = 0u8;
                 loop {

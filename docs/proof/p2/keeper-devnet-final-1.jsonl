@@ -1,0 +1,48 @@
+{"t":1795347026765,"act":"create_match","ms":1232,"ok":true,"sig":"6hJRqVNm9UreTijcrfGvmahHYipSZv1wQ78sVu1XF29wUXLu9BkQuo7TjT4bpSUY7CdWLKu2rpTVsfigzu2QMrt"}
+{"t":1795347029068,"act":"delegate_match","ms":948,"ok":true,"sig":"4v3ijyJXfdicvMGkmyqgHp6cmm46DpJYDNSt6Z4dz8XHNF1x9jALTPnSgrtRhvkKbRWLviq8gazzon8TbxHMy4q2"}
+{"t":1795347029646,"act":"open_lobby","ms":575,"ok":true,"sig":"5bpLhZ1fzHQbhyEt5zx7RHGsJKjjuj4STPDRdkoQRQk8yTExZoedmhnCtc2N7zcJ4hBe6zmdCHoHk2A45Pdjs5PE"}
+{"t":1795347029958,"act":"request_deal","ms":312,"ok":true,"sig":"4iAWjbCdpiF9z6BxUWsEDHUAZoRu569Dzo84r8SokpCgmaG3fuvneYwKXRKDh87NybFSy66Cf7RbvdHG6b4kdvFu"}
+{"t":1795347030113,"act":"vrf_callback_seen","ms":155}
+{"t":1795347039276,"act":"rounds_1_3","finalists":[3,2,8],"seq":32}
+{"t":1795347039611,"act":"start_final","ms":333,"ok":true,"sig":"4DWKvA7r1onf2Z2W2zJwsbnW7bDVpVeuqhLrEqGPbvPG8Sf3Fvc3Mcmvnc1DnuZjuJGhFPJqpeZ9eUAk1vkWSB8m"}
+{"t":1795347039877,"act":"schedule_ticks","ms":260,"ok":true,"sig":"29gkt3tBPabUXpr2rKUMBf2RNWqdSD8YqtTSw4P1uMGJcqnSZzaSVtGWDDoQpJuPGS2vBkik58T5C8uTEg2chiqK"}
+{"t":1795347040317,"ev":"phase","phase":5,"round":4,"tick":17,"ticksRun":17,"budgetHit":0}
+{"t":1795347045086,"ev":"phase","phase":6,"round":4,"tick":160,"ticksRun":159,"budgetHit":0}
+{"t":1795347150067,"ev":"phase","phase":7,"round":4,"tick":3309,"ticksRun":3309,"budgetHit":0}
+{"t":1795347150394,"act":"commit_round_4","ms":323,"ok":true,"sig":"2EGFT8fne9Gh83LWvrgnKPHEyzXDTxz1Th1ZWJ3EzzksMUXFaFY3B9RGyWD6LkDKZZQWAQcgFcxWTav5pKSRWnzg","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347150394,"act":"commit_round_4","ms":323,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347150733,"act":"commit_round_4","ms":337,"ok":true,"sig":"32gcySk5ZGZyuYGQVmjwKLNY1Q1GJmJ7cijjamQj5MXH2n7MFmtMCarFfg65uR3qjLDfBHKtqCYmadHHefA5ywbZ","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347150733,"act":"commit_round_4","ms":337,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347150992,"act":"commit_round_4","ms":257,"ok":true,"sig":"31GP6XwQE6SnoLN4eYMjW2nirChfzmGVUA9DXp2bbMfGzBNAhm3UE51oJMCBybA7zhar56bmnrWmg6oC3M51ktar","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347150993,"act":"commit_round_4","ms":258,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347151298,"act":"commit_round_4","ms":284,"ok":true,"sig":"5BPJEwfba2otMCBiNus3LwS1suepA9Wr6RkqLECD2skT98Kr28KYiMGG9qD5G9eJmQb36susjdvuJmp5hr32ecWq","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347151298,"act":"commit_round_4","ms":284,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347151541,"act":"commit_round_4","ms":231,"ok":true,"sig":"4V9ESeNLaR2EWgdLXeNFmvpPwzaGVGi83zz6caBoKQ7MYjau9SjUPKq8E3zsRn4fZHwxr94Vm75NUDterxRzfD3e","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347151542,"act":"commit_round_4","ms":232,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347152367,"act":"commit_round_4","ms":780,"ok":true,"sig":"57A3H6zY5XnYY9iibiKGPk5PHFsjAK5CTFhG1afxz8grBZRNuD3WuWpprbyiBauyc44ibNeqXgkwa6vrg1dyHBey","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347152367,"act":"commit_round_4","ms":780,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347152806,"act":"commit_round_4","ms":331,"ok":true,"sig":"3Y7NsPs8owQGa2wfaNWQ3gWnTbNgppddMHBC4Jw6dLhewNjAXm7g9v4s12UJAMjyAjMNEMi8TpfJctRxqMMpYR77","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347152806,"act":"commit_round_4","ms":331,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347153302,"act":"commit_round_4","ms":231,"ok":true,"sig":"2UuSE369rVXAvQuVk3E5XsPiUYosB1THv2AqvTztmtyHyRhmZBMyoa4CXGqT1YjeaAJLFwSzGg1dATugiCmxfKFn","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347153302,"act":"commit_round_4","ms":231,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347153590,"act":"commit_round_4","ms":244,"ok":true,"sig":"2cWgSNqTDeXCKcmjExLJABGMLdbrnkzT2hFvxRRscHXAhWWgEpoRYqeEb3z25fZbr3Q48TTafpBm4ybv13BYwNXn","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347153590,"act":"commit_round_4","ms":244,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347153930,"act":"commit_round_4","ms":305,"ok":true,"sig":"5ymRxjAPhh8Ax8FiiDrq72JULAwGr4tpXWmniu6oy6mHDfxnkhzeqzetZXv2gK1sQzi2KVe9iXrbbvtAV4B3RWK1","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347153930,"act":"commit_round_4","ms":305,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347154426,"act":"commit_round_4","ms":242,"ok":true,"sig":"2z8eMSVjPDctJxbhuM7NvJJu7ZY2SsVL7PFVFaMeoF4N4R1t6k2gBsnwJSbSN8LCcePZHd4qpTKmtZcyQ8oLUypK","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347154426,"act":"commit_round_4","ms":242,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347154683,"act":"commit_round_4","ms":226,"ok":true,"sig":"4AkQppLoKJvXhussF4TguND11RzWjH9rGztpTytCLPTqbHqGqk3VhCBpyEALtwxhbxrZ5r3CLWUSxP5rP7uviFi7","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347154684,"act":"commit_round_4","ms":227,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347155074,"act":"commit_round_4","ms":341,"ok":true,"sig":"3J9MjxxL1deuc76RVtrB8TyBQtp9d7QLyLTBhXmsaUrNPQ5yjThS1sGGTzUz85PP2eqhNpyuqdXnvyXqxsQzUqct","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347155075,"act":"commit_round_4","ms":342,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347155517,"act":"commit_round_4","ms":235,"ok":true,"sig":"5AdhK7bXFEoJaqzXvoojHk7oAad2JpF3Zv812eCR2PmaW2ps3fEsG5BCJeacHrpNPN2Sd6CySN79cXcEJHhELhvP","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347155520,"act":"commit_round_4","ms":238,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347155788,"act":"commit_round_4","ms":230,"ok":true,"sig":"21hZLmpyEcifYhTYUYKos5Ci1iroaN21drcQV3bUFDrtB2txUp5chWJxCrjjSxofYCukvCK8BsA8dzARaypMHSXH","err":"tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347155788,"act":"commit_round_4","ms":230,"ok":false,"err":"commit_round_4: tx:{\"InstructionError\":[0,{\"Custom\":6026}]}"}
+{"t":1795347156107,"ev":"phase","phase":9,"round":4,"tick":3490,"ticksRun":3490,"budgetHit":0}
+{"t":1795347156274,"act":"commit_round_4","ms":441,"ok":true,"sig":"5krfDtEbnHdUfhYadrcRHxNfjzwTVEhhk3mL7TwToCDYNxxSXkGoaPmQYUTemw6QCoCitY9b6dUwcTycEJusmGS9"}
+{"t":1795347164222,"ev":"phase","phase":11,"round":4,"tick":3731,"ticksRun":3731,"budgetHit":0}
+{"t":1795347164796,"act":"cancel_ticks","ms":317,"ok":true,"sig":"5KgJrZjgmfxqtFp37tdXgcL5amcJCaGeA6WP6RsdF31h3Z6Mw4WyobmejXTuEe7wUP14SD42aZeENdjEQqjp2KH4"}
+{"t":1795347165009,"act":"end_sim","ms":213,"ok":true,"sig":"ANFNKm3Y1xSZqY6NYvkR6FZdDtR65ktDgALEcZK4zenZoZtskCZE5iTFutUP2JJpejAaJbszAbxoTAyjQP2YD51"}
+{"t":1795347166771,"act":"finalize_match","ms":261,"ok":true,"sig":"3Raxr5Jsu6Kj1KJ2ocKK3tZRgUxrdGRhL4VNqwRDLw15K2uWL1umk2sSadAzZne37bvg8tvKGjY8usV1aJgTBpzn"}
+{"t":1795347168788,"ev":"match_done","realTime":{"gameS":123.83333333333333,"wallS":123.938,"ratio":0.9991554917243567,"gapP50":17.8,"gapP95":118,"gapP99":179,"gapMax":300,"samples":3588},"finalists":[2,3,8],"match":1,"matchPda":"4mphMwpH8K7vTPUZbTEoMCJFsw9TDpuFAiFmZrCcstDH","complete":true,"wallS":124.53,"gameS":124.36666666666666,"ticks":3731,"executions":11281,"notDue":7544,"execPerTick":3.023586169927633,"budgetHit":0,"restarts":0,"fallback":0,"cuPerPart":{"r4":{"n":0,"p50":null,"p95":null,"max":null}},"gapMs":{"p50":34.25,"p95":45.5,"max":104.125},"onSolana":{"status":"completed","champion":3,"round":4,"transcript":"45e11c4bcf17d94230140b15da897104296b9026b5fc63c6d4458297fb741910","vrfSeed":"e99cd4b75610cfcedad53d6d2165c9644c27dcb0676dc620b4d918193754fb86"},"sigs":{"create":"6hJRqVNm9UreTijcrfGvmahHYipSZv1wQ78sVu1XF29wUXLu9BkQuo7TjT4bpSUY7CdWLKu2rpTVsfigzu2QMrt","delegate":"4v3ijyJXfdicvMGkmyqgHp6cmm46DpJYDNSt6Z4dz8XHNF1x9jALTPnSgrtRhvkKbRWLviq8gazzon8TbxHMy4q2","openLobby":"5bpLhZ1fzHQbhyEt5zx7RHGsJKjjuj4STPDRdkoQRQk8yTExZoedmhnCtc2N7zcJ4hBe6zmdCHoHk2A45Pdjs5PE","requestDeal":"4iAWjbCdpiF9z6BxUWsEDHUAZoRu569Dzo84r8SokpCgmaG3fuvneYwKXRKDh87NybFSy66Cf7RbvdHG6b4kdvFu","startFinal":"4DWKvA7r1onf2Z2W2zJwsbnW7bDVpVeuqhLrEqGPbvPG8Sf3Fvc3Mcmvnc1DnuZjuJGhFPJqpeZ9eUAk1vkWSB8m","schedule":"29gkt3tBPabUXpr2rKUMBf2RNWqdSD8YqtTSw4P1uMGJcqnSZzaSVtGWDDoQpJuPGS2vBkik58T5C8uTEg2chiqK","commit4":"5krfDtEbnHdUfhYadrcRHxNfjzwTVEhhk3mL7TwToCDYNxxSXkGoaPmQYUTemw6QCoCitY9b6dUwcTycEJusmGS9","endSim":"ANFNKm3Y1xSZqY6NYvkR6FZdDtR65ktDgALEcZK4zenZoZtskCZE5iTFutUP2JJpejAaJbszAbxoTAyjQP2YD51","finalize":"3Raxr5Jsu6Kj1KJ2ocKK3tZRgUxrdGRhL4VNqwRDLw15K2uWL1umk2sSadAzZne37bvg8tvKGjY8usV1aJgTBpzn"}}

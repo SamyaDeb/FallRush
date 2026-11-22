@@ -7,10 +7,11 @@
 // and logs every action with its latency (docs/proof/p2/keeper-<run>.jsonl).
 //   P2_NET=local|devnet ARENA=0 MATCHES=1 INTERVAL_MS=8 node --experimental-strip-types tools/keeper/run.ts
 import { PublicKey, Keypair, Transaction } from "@solana/web3.js";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { mkdirSync, appendFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { sampleCu } from "./cusample.ts";
+import { header, bridgeRounds13, readLines } from "../chain-worker/worker.ts";
 import { NET, EP, base, er, wallet, pb, pe, pda, key, sendBase, sendEr, ROOT, PROGRAM_ID, MAGIC_PROGRAM, MAGIC_CONTEXT, N, sleep, decodeWorld, tickAccounts, log, cu, pct, BN } from "./lib.ts";
 
 const ARENA = Number(process.env.ARENA ?? 0);
@@ -23,6 +24,32 @@ const DRIVE_GAP_MS = Number(process.env.DRIVE_GAP_MS ?? (NET === "local" ? 40 : 
 const RUN = process.env.RUN ?? `${NET}-${new Date().toISOString().replace(/[:.]/g, "-")}`;
 const LOG = join(ROOT, `docs/proof/p2/keeper-${RUN}.jsonl`);
 const DONE = 11;
+const HYBRID = (process.env.MODE ?? "slice") === "hybrid"; // P2.10: Classic jsonl (CLASSIC_JSONL) rounds 1–3 → on-chain Final
+const FINAL = (process.env.MODE ?? "slice") === "final" || HYBRID;
+
+/** Rounds 1–3 recorded the way the Classic server's chain worker does (start_round / record_qualified /
+ * record_eliminated / complete_round, game authority, idempotent by event_seq). Qualifiers: a deterministic pick from
+ * the match id (bots). Returns the 3 finalists. */
+async function recordRounds13(matchPda: PublicKey, matchId: Buffer): Promise<number[]> {
+  const m0: any = await pe.account.match.fetch(matchPda);
+  let seq: number = m0.eventSeq;
+  const targets: number[] = m0.roundTargets;
+  let alive = Array.from({ length: m0.playerCount }, (_, i) => i);
+  const gp = { authority: wallet.publicKey, matchAccount: matchPda };
+  const ev = async (what: string, ix: Promise<any>) => { const r = await sendEr([await ix], [wallet], what, 10); if (r.err) throw new Error(`${what}: ${r.err}`); seq++; return r; };
+  for (let r = 1; r <= 3; r++) {
+    await ev(`start_round ${r}`, pe.methods.startRound(r, seq).accountsPartial(gp).instruction());
+    const order = [...alive].sort((a, b) => sha(matchId, r, a) - sha(matchId, r, b));
+    const q = order.slice(0, targets[r - 1]), out = order.slice(targets[r - 1]);
+    for (let i = 0; i < q.length; i++) await ev(`q ${r}/${q[i]}`, pe.methods.recordQualified(r, q[i], i + 1, seq).accountsPartial(gp).instruction());
+    for (const sl of out) await ev(`e ${r}/${sl}`, pe.methods.recordEliminated(r, sl, 1, seq).accountsPartial(gp).instruction());
+    await ev(`complete_round ${r}`, pe.methods.completeRound(r, seq).accountsPartial(gp).instruction());
+    alive = q;
+  }
+  log(LOG, { act: "rounds_1_3", finalists: alive, seq });
+  return alive.sort((a, b) => a - b);
+}
+function sha(id: Buffer, r: number, s: number) { return createHash("sha256").update(Buffer.concat([id, Buffer.from([r, s])])).digest().readUInt32LE(0); }
 mkdirSync(join(ROOT, "docs/proof/p2/runs"), { recursive: true });
 
 const arena = pda.arena(ARENA);
@@ -41,15 +68,18 @@ if (arenaAcc.status === 2) {
 }
 const summary: any[] = [];
 for (let mi = 1; mi <= MATCHES; mi++) {
-  const matchId = randomBytes(16);
+  const classic = HYBRID ? await header(process.env.CLASSIC_JSONL!) : null;
+  const matchId = classic ? classic.matchId : randomBytes(16);
   const matchPda = pda.match(matchId);
   const mdir = join(ROOT, `docs/proof/p2/runs/${RUN}-m${mi}`);
   mkdirSync(mdir, { recursive: true });
   const sigs: Record<string, string> = {};
   console.log(`== match ${mi}/${MATCHES} ${matchPda.toBase58()}`);
   // ---- Solana: create + delegate the match
-  const rosterHash = randomBytes(32); // the director computes the authoritative roster hash; Match keeps the pool's
-  sigs.create = (await act("create_match", async () => sendBase([await pb.methods.createMatch([...matchId], [...rosterHash], N).accountsPartial({ authority: wallet.publicKey }).instruction()], [wallet], "create_match")));
+  const rosterHash = classic ? classic.rosterHash : randomBytes(32); // hybrid: the Classic roster hash
+  sigs.create = (await act("create_match", async () => sendBase([await pb.methods.createMatch([...matchId], [...rosterHash], classic ? classic.players : N).accountsPartial({ authority: wallet.publicKey }).instruction()], [wallet], "create_match")));
+  // the public RPC can lag behind the confirmation: wait until the new Match is visible before delegating it
+  for (let i = 0; i < 60; i++) { const ai = await base.getAccountInfo(matchPda, "confirmed").catch(() => null); if (ai && ai.owner.equals(PROGRAM_ID)) break; await sleep(1000); }
   sigs.delegate = (await act("delegate_match", async () => sendBase([await pb.methods.delegateMatch([...matchId]).accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).remainingAccounts([{ pubkey: EP.validator, isSigner: false, isWritable: false }]).instruction()], [wallet], "delegate_match")));
   // ---- ER: lobby → VRF → start
   const inputMetas = inputs.map((pubkey) => ({ pubkey, isSigner: false, isWritable: true }));
@@ -63,7 +93,18 @@ for (let mi = 1; mi <= MATCHES; mi++) {
     await sleep(300);
   }
   log(LOG, { act: "vrf_callback_seen", ms: Date.now() - tDeal });
-  sigs.startSim = (await act("start_sim", async () => sendEr([cu(400_000), await pe.methods.startSim().accountsPartial({ authority: wallet.publicKey, arena, world, matchAccount: matchPda, lobbyMap: maps[4] }).instruction()], [wallet], "start_sim"))).sig;
+  let finalists: number[] = [];
+  let preFinal: any = null;
+  if (FINAL) {
+    // Classic rounds 1–3 → Match (here: synthetic bot results; P2.10's chain worker sends the Classic server's), then
+    // the on-chain Final from the 3 survivors
+    finalists = HYBRID ? (await bridgeRounds13(process.env.CLASSIC_JSONL!, matchPda, LOG)).finalists : await recordRounds13(matchPda, matchId);
+    const mp: any = await pe.account.match.fetch(matchPda);
+    preFinal = { transcript: Buffer.from(mp.transcriptHash).toString("hex"), eventSeq: mp.eventSeq };
+    sigs.startFinal = (await act("start_final", async () => sendEr([cu(400_000), await pe.methods.startFinal(finalists).accountsPartial({ authority: wallet.publicKey, arena, world, matchAccount: matchPda, lobbyMap: maps[4] }).instruction()], [wallet], "start_final"))).sig;
+  } else {
+    sigs.startSim = (await act("start_sim", async () => sendEr([cu(400_000), await pe.methods.startSim().accountsPartial({ authority: wallet.publicKey, arena, world, matchAccount: matchPda, lobbyMap: maps[4] }).instruction()], [wallet], "start_sim"))).sig;
+  }
   // ---- the timed task
   const tickMetas = tickAccounts(arena, matchPda, maps);
   const iterations = 2_000_000;
@@ -80,8 +121,10 @@ for (let mi = 1; mi <= MATCHES; mi++) {
   const gaps: number[] = [];
   const committed = new Set<number>();
   let lastSnapKey = "";
+  const tickAt: [number, number, number][] = [];
   const record = (buf: Buffer) => {
     const w = decodeWorld(buf);
+    if (w.partPending === 0 && (tickAt.length === 0 || w.tick > tickAt[tickAt.length - 1][0])) tickAt.push([w.tick, Date.now(), Number(w.lastSlot)]);
     const k = `${w.tick}:${w.partPending}`;
     if (k === lastSnapKey) return w;
     lastSnapKey = k;
@@ -145,6 +188,19 @@ for (let mi = 1; mi <= MATCHES; mi++) {
     if (now - t0 > 60 * 60_000) { log(LOG, { ev: "timeout" }); break; }
   }
   await er.removeAccountChangeListener(sub);
+  // real time: game time vs wall clock over the round's ticks; per-tick gaps from the websocket arrivals
+  const g: number[] = [];
+  for (let i = 1; i < tickAt.length; i++) g.push((tickAt[i][1] - tickAt[i - 1][1]) / Math.max(1, tickAt[i][0] - tickAt[i - 1][0]));
+  const span = tickAt.length > 1 ? { ticks: tickAt[tickAt.length - 1][0] - tickAt[0][0], wallMs: tickAt[tickAt.length - 1][1] - tickAt[0][1] } : { ticks: 0, wallMs: 1 };
+  // on-chain tick spacing: the slot each tick started in (rollup slots: SLOT_MS each), consecutive ticks only
+  const SLOT_MS = NET === "local" ? 50 : 10;
+  const gs: number[] = [];
+  for (let i = 1; i < tickAt.length; i++) if (tickAt[i][0] === tickAt[i - 1][0] + 1) gs.push((tickAt[i][2] - tickAt[i - 1][2]) * SLOT_MS);
+  const slotSpan = tickAt.length > 1 ? (tickAt[tickAt.length - 1][2] - tickAt[0][2]) * SLOT_MS / 1000 : 1;
+  const realTime = { gameS: span.ticks / 30, wallS: span.wallMs / 1000, ratio: span.ticks / 30 / (span.wallMs / 1000), slotWallS: slotSpan, slotRatio: span.ticks / 30 / slotSpan,
+    tickGapOnChainMs: { p50: pct(gs, 50), p95: pct(gs, 95), p99: pct(gs, 99), max: Math.max(...gs), n: gs.length },
+    tickGapClientMs: { p50: pct(g, 50), p95: pct(g, 95), p99: pct(g, 99), max: Math.max(...g), n: g.length } };
+  writeFileSync(join(mdir, "ticks.json"), JSON.stringify(tickAt));
   const dur = (Date.now() - t0) / 1000;
   for (const t of tasks.splice(0)) await cancel(new BN(t)).catch(() => {});
   sigs.endSim = (await act("end_sim", async () => sendEr([await pe.methods.endSim().accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "end_sim"))).sig;
@@ -155,6 +211,7 @@ for (let mi = 1; mi <= MATCHES; mi++) {
   let mb: any = null;
   for (; Date.now() - tf < 90_000;) { const i = await base.getAccountInfo(matchPda); if (i && i.owner.equals(PROGRAM_ID)) { mb = await pb.account.match.fetch(matchPda); break; } await sleep(1000); }
   const res = {
+    realTime, finalists, preFinal,
     match: mi, matchPda: matchPda.toBase58(), complete: w.phase >= DONE, wallS: dur, gameS: w.tick / 30, ticks: w.tick, executions: Number(w.executions - base0.executions), notDue: Number(w.notDue - base0.notDue),
     execPerTick: Number(w.executions - base0.executions) / Math.max(1, w.tick), budgetHit: Number(w.budgetHit - base0.budgetHit), restarts, fallback,
     cuPerPart: Object.fromEntries(Object.entries(cuByRound).map(([k, v]) => [k, { n: v.length, p50: pct(v, 50), p95: pct(v, 95), max: Math.max(...v) }])), gapMs: { p50: pct(gaps, 50), p95: pct(gaps, 95), max: Math.max(...gaps) }, onSolana: mb ? { status: Object.keys(mb.status)[0], champion: mb.championSlot, round: mb.currentRound, transcript: Buffer.from(mb.transcriptHash).toString("hex"), vrfSeed: Buffer.from(mb.vrfSeed).toString("hex") } : null, sigs,

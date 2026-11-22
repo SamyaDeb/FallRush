@@ -1,10 +1,11 @@
 // P2.8 security suite (local stack, arena SEC_ARENA=1). Each check prints PASS / FAIL; exit code = failures.
 //   P2_NET=local ARENA=1 tsx tools/keeper/security.ts
-import { Keypair, PublicKey, SystemProgram, LAMPORTS_PER_SOL, Transaction } from "@solana/web3.js";
+import { Keypair, PublicKey, SystemProgram, LAMPORTS_PER_SOL, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { createHash } from "node:crypto";
 import { randomBytes } from "node:crypto";
 import { writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { NET, EP, base, er, wallet, pb, pe, pda, sendBase, sendEr, ROOT, MAGIC_CONTEXT, N, sleep, decodeWorld, tickAccounts, cu, BN } from "./lib.ts";
+import { NET, EP, base, er, wallet, pb, pe, pda, PROGRAM_ID, sendBase, sendEr, ROOT, MAGIC_CONTEXT, N, sleep, decodeWorld, tickAccounts, cu, BN } from "./lib.ts";
 
 const ARENA = Number(process.env.ARENA ?? 1);
 const arena = pda.arena(ARENA), world = pda.world(arena);
@@ -32,11 +33,49 @@ await sendBase([await pb.methods.delegateMatch([...matchId]).accountsPartial({ a
 await sendEr([await pe.methods.openLobby(matchPda).accountsPartial({ authority: wallet.publicKey, arena, world }).remainingAccounts(inputMetas).instruction()], [wallet], "open_lobby", 40);
 
 // --- lobby
-const join_ = async (who: Keypair, slot: number) => sendEr([await pe.methods.joinLobby(slot, 1).accountsPartial({ player: who.publicKey, arena, input: inputs[slot] }).instruction()], [who], "join", 3);
+const join_ = async (who: Keypair, slot: number) => sendEr([await pe.methods.joinLobby(slot, 1, who.publicKey).accountsPartial({ player: who.publicKey, arena, input: inputs[slot], sessionToken: null }).instruction()], [who], "join", 3);
 check("join_lobby slot 0 (player 1)", !(await join_(p1, 0)).err);
 await expectCode("double join (same signer, another slot)", join_(p1, 1), "AlreadyJoined");
 await expectCode("join a taken slot", join_(p2, 0), "SlotTaken");
-await expectCode("join with another slot's InputBuf", (async () => sendEr([await pe.methods.joinLobby(2, 1).accountsPartial({ player: p2.publicKey, arena, input: inputs[3] }).instruction()], [p2], "join", 3))(), "InvalidSlot");
+await expectCode("join with another slot's InputBuf", (async () => sendEr([await pe.methods.joinLobby(2, 1, p2.publicKey).accountsPartial({ player: p2.publicKey, arena, input: inputs[3], sessionToken: null }).instruction()], [p2], "join", 3))(), "InvalidSlot");
+// --- session keys (SessionTokenV2, session-keys 3.1.1; program cloned from devnet into the local stack)
+const SESSION_PROGRAM = new PublicKey("KeyspM2ssCJbqUhQ4k7sveSiY4WjnYsrXkC8oDbwde5");
+const SYS = new PublicKey("11111111111111111111111111111111");
+const tokenPda = (signer: PublicKey, authority: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from("session_token_v2"), PROGRAM_ID.toBuffer(), signer.toBuffer(), authority.toBuffer()], SESSION_PROGRAM)[0];
+const disc = (n: string) => createHash("sha256").update(`global:${n}`).digest().subarray(0, 8);
+const createSession = async (owner: Keypair, signer: Keypair, validUntil: number) => {
+  const data = Buffer.concat([disc("create_session_v2"), Buffer.from([1, 0]), Buffer.from([1]), (() => { const b = Buffer.alloc(8); b.writeBigInt64LE(BigInt(validUntil)); return b; })(), Buffer.from([0])]);
+  const keys = [
+    { pubkey: tokenPda(signer.publicKey, owner.publicKey), isSigner: false, isWritable: true },
+    { pubkey: signer.publicKey, isSigner: true, isWritable: true },
+    { pubkey: owner.publicKey, isSigner: true, isWritable: true },
+    { pubkey: owner.publicKey, isSigner: true, isWritable: false },
+    { pubkey: PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: SYS, isSigner: false, isWritable: false },
+  ];
+  // the authority is both fee payer and authority: dedupe the metas
+  const ix = new TransactionInstruction({ programId: SESSION_PROGRAM, keys, data });
+  return sendBase([ix], [owner, signer], "create_session");
+};
+const revokeSession = async (owner: Keypair, signer: Keypair) => sendBase([new TransactionInstruction({ programId: SESSION_PROGRAM, data: disc("revoke_session_v2"), keys: [
+  { pubkey: tokenPda(signer.publicKey, owner.publicKey), isSigner: false, isWritable: true },
+  { pubkey: owner.publicKey, isSigner: false, isWritable: true },
+  { pubkey: owner.publicKey, isSigner: true, isWritable: false },
+  { pubkey: SYS, isSigner: false, isWritable: false },
+] })], [owner], "revoke_session");
+const joinS = async (signer: Keypair, wallet_: PublicKey, slot: number, token: PublicKey | null) => sendEr([await pe.methods.joinLobby(slot, 1, wallet_).accountsPartial({ player: signer.publicKey, arena, input: inputs[slot], sessionToken: token }).instruction()], [signer], "joinS", 3);
+const now = Math.floor(Date.now() / 1000);
+const p3 = Keypair.generate(), s3 = Keypair.generate(), s3b = Keypair.generate(), p4 = Keypair.generate(), s4 = Keypair.generate();
+for (const p of [p3, p4]) await sendBase([SystemProgram.transfer({ fromPubkey: wallet.publicKey, toPubkey: p.publicKey, lamports: LAMPORTS_PER_SOL / 10 })]);
+await createSession(p3, s3b, now - 60); // already expired
+await createSession(p3, s3, now + 25); // expires during the test
+await createSession(p4, s4, now + 3600);
+await sleep(2500);
+await expectCode("join with an expired session token", joinS(s3b, p3.publicKey, 6, tokenPda(s3b.publicKey, p3.publicKey)), "SessionInvalid");
+await expectCode("join: session signer without a token", joinS(s4, p4.publicKey, 6, null), "Unauthorized");
+await expectCode("join: token of another wallet", joinS(s4, p3.publicKey, 6, tokenPda(s4.publicKey, p4.publicKey)), "SessionInvalid");
+check("join with a valid session token (slot 6)", !(await joinS(s3, p3.publicKey, 6, tokenPda(s3.publicKey, p3.publicKey))).err);
+check("join with a valid session token (slot 7)", !(await joinS(s4, p4.publicKey, 7, tokenPda(s4.publicKey, p4.publicKey))).err);
 // --- commits / tick before the match runs
 await expectCode("commit_round before any round", (async () => sendEr([await pe.methods.commitRound(1).accountsPartial({ payer: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "commit", 3))(), "NothingToCommit");
 const tickMetas = tickAccounts(arena, matchPda, maps);
@@ -54,7 +93,7 @@ check("start_sim after the VRF deal", !(await sendEr([cu(400_000), await pe.meth
 await expectCode("join after the roster is locked (claiming a bot slot)", join_(p2, 5), "BadArenaState");
 // --- inputs
 w0 = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
-const sub = async (who: Keypair, slot: number, start: number, batch: number[]) => sendEr([await pe.methods.submitInput(slot, start, batch).accountsPartial({ owner: who.publicKey, input: inputs[slot], world }).instruction()], [who], "input", 3);
+const sub = async (who: Keypair, slot: number, start: number, batch: number[], token: PublicKey | null = null) => sendEr([await pe.methods.submitInput(slot, start, batch).accountsPartial({ owner: who.publicKey, input: inputs[slot], world, sessionToken: token }).instruction()], [who], "input", 3);
 check("submit_input by the slot owner", !(await sub(p1, 0, w0.tick + 3, [10, 20, 1, 0, 10, 20, 1, 0, 10, 20, 1, 0])).err);
 await expectCode("submit_input signed by another key", sub(p2, 0, w0.tick + 3, Array(12).fill(0)), "Unauthorized");
 await expectCode("input tick out of window (+50)", sub(p1, 0, w0.tick + 50, Array(12).fill(0)), "InputOutOfWindow");
@@ -68,6 +107,18 @@ const e = ib.ring[(wt + 2) % 16];
 if (hs.err) console.log("hostile submit failed:", hs.err);
 const mx = (e.input[0] << 24) >> 24, my = (e.input[1] << 24) >> 24;
 check("sanitiser clamps hostile values (stick −128,−128, buttons 0xFF)", mx * mx + my * my <= 127 * 127 + 254 && e.input[2] !== 0xff, `stored ${JSON.stringify(e.input)}`);
+// session-key inputs: valid, without the token, after revocation, after expiry
+w0 = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
+check("submit_input by a session signer with its token", !(await sub(s4, 7, w0.tick + 3, Array(12).fill(0), tokenPda(s4.publicKey, p4.publicKey))).err);
+await expectCode("submit_input by a session signer without its token", sub(s4, 7, w0.tick + 3, Array(12).fill(0), null), "SessionInvalid");
+await revokeSession(p4, s4);
+let revoked: any = { err: undefined };
+for (let i = 0; i < 20; i++) { await sleep(1000); const wt2 = decodeWorld((await er.getAccountInfo(world))!.data as Buffer).tick; revoked = await sub(s4, 7, wt2 + 3, Array(12).fill(0), tokenPda(s4.publicKey, p4.publicKey)); if (revoked.err) break; }
+check("submit_input after the session token is revoked (rollup sees the closed token)", !!revoked.err, revoked.err?.slice(0, 100) ?? "still accepted after 20 s");
+const waitS = Math.max(0, now + 27 - Math.floor(Date.now() / 1000));
+await sleep(waitS * 1000);
+const wt3 = decodeWorld((await er.getAccountInfo(world))!.data as Buffer).tick;
+await expectCode("submit_input after the session token expired", sub(s3, 6, wt3 + 3, Array(12).fill(0), tokenPda(s3.publicKey, p3.publicKey)), "SessionInvalid");
 // --- hot tick robustness
 const wBefore = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
 const noop = async (name: string, metas: any[]) => { const r = await tickTx(metas); const w = decodeWorld((await er.getAccountInfo(world))!.data as Buffer); check(name, !r.err && w.tick === wBefore.tick && w.partPending === wBefore.partPending, r.err ?? `code ${w.lastCode}`); };

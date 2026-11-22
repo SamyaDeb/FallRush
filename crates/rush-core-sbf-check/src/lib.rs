@@ -123,6 +123,21 @@ fn bench_step(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
         let mut ev: Box<rush_core::world::StepEvents> = Box::default();
         let params = rush_core::config::MovementParams::default();
         let mut sc = new_scene(v);
+        if what == 6 {
+            // whole tick with human inputs: [0x20, 6, 12 × (mx, my, buttons, yaw_hi)]
+            let mut inputs = [None; rush_core::world::MAX_PLAYERS];
+            for (k, inp) in inputs.iter_mut().enumerate() {
+                if let Some(b) = data.get(2 + k * 4..6 + k * 4) {
+                    if b != [0, 0, 0, 0xFF] {
+                        *inp = Some(rush_core::input::InputCmd { move_x: b[0] as i8, move_y: b[1] as i8, buttons: b[2], cam_yaw: (b[3] as u16) << 8 });
+                    }
+                }
+            }
+            rush_core::world::step_with(&mut world, &inputs, &v, &params, &mut rush_core::world::NoHasher, &mut ev, &mut sc);
+            let n = world.to_bytes(&mut wd);
+            set_return_data(&(n as u32).to_le_bytes());
+            return Ok(());
+        }
         if what == 5 {
             // slice: [0x20, 5, from, budget u16 LE] → return data [next]
             let from = data.get(2).copied().unwrap_or(0);
