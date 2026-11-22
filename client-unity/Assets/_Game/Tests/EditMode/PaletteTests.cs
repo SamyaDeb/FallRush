@@ -314,6 +314,29 @@ namespace FallRush.Tests
             TestContext.WriteLine(report.ToString());
         }
 
+        /// <summary>
+        /// G4.13 (bug B): a flipped lid reads as a hole, never black. Soft: the open colour is a dark lavender (luma 0.35–0.55 on a lit
+        /// face, its underside vertex tint keeps ≥ 0.22), clearly darker than every calm lid and off the lit / warn colours.
+        /// </summary>
+        [Test]
+        public void LidFlip_OpenLid_DarkLavender_NotBlack()
+        {
+            float Luma(Color c) => c.r * 0.2126f + c.g * 0.7152f + c.b * 0.0722f;
+            var open = LidGridView.OpenFor(LookId.Soft);
+            Assert.That(Luma(open), Is.InRange(0.35f, 0.55f), "soft open lid luma");
+            var l = open.linear;
+            const float under = 0.36f; // LidMesh underside vertex colour (≈ its red / green), applied to the albedo
+            var underside = new Color(l.r * under, l.g * under, l.b * under).gamma;
+            Assert.That(Luma(underside), Is.GreaterThanOrEqualTo(0.22f), "soft open lid underside");
+            Color.RGBToHSV(open, out var h, out var s, out _);
+            Assert.That(h * 360f, Is.InRange(240f, 290f), "lavender hue");
+            Assert.That(s, Is.InRange(0.25f, 0.6f), "a soft lavender, not ink");
+            foreach (var c in LidGridView.SolidColoursFor(LookId.Soft))
+                if (c != LidGridView.LowEdgeFor(LookId.Soft))
+                    Assert.That(Luma(c) - Luma(open), Is.GreaterThanOrEqualTo(0.3f), $"open vs calm {ColorUtility.ToHtmlStringRGB(c)}: a hole");
+            Assert.That(LidGridView.OpenFor(LookId.Candy), Is.EqualTo(LidGridView.Open), "candy unchanged");
+        }
+
         [Test]
         public void EachSection_OneHue_AndEveryMapUsesSeveral()
         {

@@ -324,5 +324,41 @@ namespace FallRush.Tests
                 Assert.That(MapPoolV1.ModifierAllowed(def.mapId, m), Is.True);
             Assert.That(def.timerCapSeconds, Is.EqualTo(120), "the Final timer is unchanged");
         }
+
+        /// <summary>
+        /// G4.13 (bug B, "the floor getting black and somehow broken"): a flipped lid swings about its bottom hinge edge and stays
+        /// inside its own hole at every angle: no corner of its box crosses the hinge plane toward the neighbour lid (with the old top
+        /// hinge the 0.4 m body cut 0.34 m into the neighbour and showed as black shards at its rounded corners), and none rises above
+        /// the walkable top.
+        /// </summary>
+        [Test]
+        public void FlippedLid_StaysInsideItsOwnHole_EveryAngle()
+        {
+            foreach (var d in new[] { LidGridDef.Default(0, 6000, 0, 9), LidGridDef.Default(0, 0, 0, 5) })
+            {
+                var size = new Vector3(d.LidMm * 0.001f, d.ThicknessMm * 0.001f, d.LidMm * 0.001f);
+                var top = d.TopMm * 0.001f;
+                for (var lid = 0; lid < d.Count; lid++)
+                {
+                    d.LidCenterMm(lid, out var x, out var y, out var z);
+                    var pos = new Vector3(x * 0.001f, y * 0.001f, z * 0.001f);
+                    var n = LidGridView.HingeNormal(in d, lid);
+                    var hingePlane = Vector3.Dot(pos, n) + size.x * 0.5f; // the lid's edge facing the centre
+                    for (var a = 0f; a <= 90f; a += 7.5f)
+                    {
+                        var m = LidGridView.LidMatrix(in d, lid, pos, size, top, a);
+                        for (var k = 0; k < 8; k++)
+                        {
+                            var c = m.MultiplyPoint3x4(new Vector3((k & 1) - 0.5f, ((k >> 1) & 1) - 0.5f, ((k >> 2) & 1) - 0.5f));
+                            Assert.That(Vector3.Dot(c, n), Is.LessThanOrEqualTo(hingePlane + 1e-3f), $"lid {lid} at {a}°: corner past the hinge into the neighbour");
+                            Assert.That(c.y, Is.LessThanOrEqualTo(top + 1e-3f), $"lid {lid} at {a}°: above the top");
+                        }
+                    }
+
+                    var open = LidGridView.LidMatrix(in d, lid, pos, size, top, 90f);
+                    Assert.That(open.MultiplyPoint3x4(new Vector3(0f, 0.5f, 0f)).y, Is.LessThan(top - 0.5f), $"lid {lid}: open = hanging in the hole");
+                }
+            }
+        }
     }
 }

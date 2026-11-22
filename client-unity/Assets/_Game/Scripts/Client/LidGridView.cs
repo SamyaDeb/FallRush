@@ -16,7 +16,7 @@ namespace FallRush.Client
     /// Bubblegum (G4.6-5: Sour apple read too close to the lit lemon in luminance); the lower shelf Grape fizz with a Grape-fizz-side outer ring so its edge reads from above). Never mint
     /// (reserved for goal / spring / spawn), never Lemon drop (the lit telegraph is lemon);</item>
     /// <item>lit = sun yellow for the whole lit window (≥ 1 s, no blink: the telegraph never goes dark);</item>
-    /// <item>flipped = the lid swings down on a hinge along its edge facing the grid centre (90° over 6 ticks, back over the
+    /// <item>flipped = the lid swings down on a hinge along its bottom edge facing the grid centre (G4.13; it was the top edge) (90° over 6 ticks, back over the
     /// last 6), showing its dark underside and the gap;</item>
     /// <item>retire warn = pulses magenta from the warning tick; retired = drops away (1.5 s).</item>
     /// </list>
@@ -49,6 +49,18 @@ namespace FallRush.Client
         public static readonly Color WarnMagenta = new Color(1f, 0.24f, 0.65f);
         public static readonly Color WarnLight = new Color(1f, 0.62f, 0.85f);
         public static readonly Color Open = new Color(0.32f, 0.24f, 0.5f);
+
+        /// <summary>
+        /// G4.13: the open (flipped) lid in the soft look: a dark lavender, lighter than the candy ink. Next to the pastel lids the
+        /// ink (luma 0.27 on screen, 0.15 on the underside) read as a black, broken floor (user report on build #4).
+        /// </summary>
+        public static readonly Color OpenSoft = PaletteTokens.Hex(0x7E6BB4);
+
+        /// <summary>Share of the sun an open lid keeps in full cast shadow, soft look (it hangs in its neighbours' shadow).</summary>
+        public const float OpenShadowKeep = 0.6f;
+
+        /// <summary>The open (flipped) lid colour of a look.</summary>
+        public static Color OpenFor(LookId look) => look == LookId.Candy ? Open : OpenSoft;
 
         /// <summary>The calm colour of a top-shelf lid in ring <paramref name="ring"/> (candy, G4.6).</summary>
         public static Color TopRingColour(int ring) => ring >= 4 ? TopRing4 : ring == 3 ? TopRing3 : ring == 2 ? TopRing2 : TopRing10;
@@ -94,7 +106,7 @@ namespace FallRush.Client
         /// <summary>The batch colours of a look (rings 4 and 1–0 share Bubblegum: one batch).</summary>
         public static Color[] BatchColours(LookId look) => new[]
         {
-            TopRingColour(4, look), TopRingColour(3, look), TopRingColour(2, look), LowCalmFor(look), LowEdgeFor(look), LitFor(look), WarnMagenta, WarnLight, Open,
+            TopRingColour(4, look), TopRingColour(3, look), TopRingColour(2, look), LowCalmFor(look), LowEdgeFor(look), LitFor(look), WarnMagenta, WarnLight, OpenFor(look),
         };
 
         /// <summary>G4.8: recolours the batches for a look (the colours are on-screen colours: baked through that look's grade).</summary>
@@ -114,6 +126,7 @@ namespace FallRush.Client
             // The shadow still shows as a faint lavender patch (~7 % darker); lit / warning lids keep the normal shadow.
             for (var i = 0; i <= (int)B.LowEdge; i++)
                 _mats[i].SetFloat(ShadowKeepId, look == LookId.Soft ? CalmShadowKeep : 0.25f);
+            _mats[(int)B.Open].SetFloat(ShadowKeepId, look == LookId.Soft ? OpenShadowKeep : 0.25f);
 
             // The telegraph colours glow a little so they read in shade too.
             _mats[(int)B.Lit].SetColor("_Emission", look == LookId.Candy ? new Color(0.28f, 0.2f, 0.02f) : new Color(0.3f, 0.15f, 0.01f));
@@ -237,14 +250,18 @@ namespace FallRush.Client
             }
         }
 
-        /// <summary>The lid's matrix: centred at <paramref name="pos"/>, swung down by <paramref name="angleDeg"/> about its hinge.</summary>
+        /// <summary>
+        /// The lid's matrix: centred at <paramref name="pos"/>, swung down by <paramref name="angleDeg"/> about its hinge. G4.13: the
+        /// hinge is the lid's <b>bottom</b> edge facing the grid centre (it was the top edge: the 0.4 m body then swept through the
+        /// neighbour lid and showed as black shards at its rounded corners), so the swung lid stays inside its own hole.
+        /// </summary>
         public static Matrix4x4 LidMatrix(in LidGridDef d, int lid, Vector3 pos, Vector3 size, float top, float angleDeg)
         {
             var m = Matrix4x4.TRS(pos, Quaternion.identity, size);
             if (angleDeg <= 0f)
                 return m;
             var n = HingeNormal(in d, lid);
-            var hinge = new Vector3(pos.x + n.x * size.x * 0.5f, top, pos.z + n.z * size.z * 0.5f);
+            var hinge = new Vector3(pos.x + n.x * size.x * 0.5f, top - size.y, pos.z + n.z * size.z * 0.5f);
             var rot = Quaternion.AngleAxis(angleDeg, Vector3.Cross(n, Vector3.up));
             return Matrix4x4.Translate(hinge) * Matrix4x4.Rotate(rot) * Matrix4x4.Translate(-hinge) * m;
         }
