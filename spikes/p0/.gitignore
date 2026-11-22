@@ -1,0 +1,7 @@
+target/
+*-keypair.json
+keys/
+node_modules/
+test-ledger/
+magicblock-test-storage/
+.p0-logs/
