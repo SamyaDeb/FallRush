@@ -70,7 +70,9 @@ namespace FallRush.OnChain
             if (lo < 0 || _at[hi] - _at[lo] < 1.5)
                 return _rate;
             var r = (_tick[hi] - _tick[lo]) / (_at[hi] - _at[lo]);
-            return r < 5 || r > _rate * 1.1 ? _rate : r;
+            // only a clearly slower chain (the local stack: 20/s) overrides the nominal rate: on devnet-as the chain runs
+            // at exactly 30/s and an estimate from bunched arrivals would only add error (late inputs, measured)
+            return r < 5 || r > _rate * 0.85 ? _rate : r;
         }
 
         /// <summary>The chain's current tick (fractional) at <paramref name="now"/>.</summary>

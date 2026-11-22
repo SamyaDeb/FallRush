@@ -375,8 +375,8 @@ namespace FallRush.OnChain
             var key = view.RushTick ^ (uint)view.HazardSeed;
             if (_hasNewest && view.Tick + 30 < _newestTick)
             {
-                if (view.Tick >= 150)
-                    return; // a stale read (a slow backup-poll reply), not a restart: a new match starts near tick 0
+                if (view.Tick >= 30 || _newestTick < 300)
+                    return; // a stale read (a slow poll reply / the slower socket), not a restart: a new match restarts at tick 0
                 NewArena(cs); // the arena restarted
             }
             if (_hasNewest && view.Tick <= _newestTick)

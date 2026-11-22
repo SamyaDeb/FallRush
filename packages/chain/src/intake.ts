@@ -104,7 +104,7 @@ export class WorldIntake {
       // no restart counter in the account: a tick far behind the last one = a new match on the same arena
       // a new match restarts the World near tick 0; anything else far behind is a stale read (a slow poll reply)
       if (this.stats.lastTick >= 0 && p.tick + 30 < this.stats.lastTick) {
-        if (p.tick >= 150) return false;
+        if (p.tick >= 30 || this.stats.lastTick < 300) { this.stats.staleDrops++; return false; }
         this.epoch++;
       }
       vdv.setUint32(8, this.epoch, true);

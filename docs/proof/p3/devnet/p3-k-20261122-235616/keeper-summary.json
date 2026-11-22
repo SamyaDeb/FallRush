@@ -1,0 +1,86 @@
+{
+ "realTime": {
+  "gameS": 42.96666666666667,
+  "wallS": 42.99,
+  "ratio": 0.9994572381173916,
+  "slotWallS": 42.97,
+  "slotRatio": 0.999922426499108,
+  "tickGapOnChainMs": {
+   "p50": 30,
+   "p95": 40,
+   "p99": 50,
+   "max": 50,
+   "n": 249
+  },
+  "tickGapClientMs": {
+   "p50": 31.11111111111111,
+   "p95": 120,
+   "p99": 193,
+   "max": 281,
+   "n": 375
+  }
+ },
+ "finalists": [
+  3,
+  5,
+  6
+ ],
+ "preFinal": {
+  "transcript": "ab9820ea9baa9bed8f644464f69c09da981307cdd44965bbb0168e9db5cf7544",
+  "eventSeq": 32
+ },
+ "match": 1,
+ "matchPda": "7Wh5QZHao3xdr9quDsHJptQBxTr7jnSqjRkvkobm5yog",
+ "complete": true,
+ "wallS": 43.593,
+ "gameS": 43.6,
+ "ticks": 1308,
+ "executions": 3942,
+ "notDue": 2641,
+ "execPerTick": 3.0137614678899083,
+ "budgetHit": 0,
+ "restarts": 0,
+ "fallback": 0,
+ "cuPerPart": {
+  "r4": {
+   "n": 58,
+   "p50": 104571,
+   "p95": 165506,
+   "max": 231125
+  }
+ },
+ "gapMs": {
+  "p50": 33.125,
+  "p95": 43.57142857142857,
+  "max": 73.5
+ },
+ "onSolana": {
+  "status": "completed",
+  "champion": 5,
+  "round": 4,
+  "transcript": "b6991039005b6e6073f18d850a4f2538338e193b8c3025d2992e42430fc0dcd8",
+  "vrfSeed": "1b08b7fcbfa2f4fe0ee8f2c067733d695b0d38ce8914453321968eed5094deec"
+ },
+ "sigs": {
+  "create": "3xfiFG3xfnzzRDZNcZSi3fpEq52BEnefY8AahK7YhYK2FWFu7MfxDznrYMgkmnydoGKyNLryh6ASHEbJyEyr5DsH",
+  "delegate": "ync14K6XML3BWtt6TPapPARnmUrbUuxsKew3FdiM4pSFvw2w3dxX95NBWrfF3GqgCvK7LZsgsyYCv4q2Vrq341p",
+  "openLobby": "TPWJexhVbUkhcfAGvsahwoeSh8kZZvQ8QY1XNpkA56b4jJLvpssiC2rfrs9hoTPDsG6TvbTpAPTQNWg3KjGVs9U",
+  "requestDeal": "2vweNASn8kxqpxTQ8VgUxYPywpynPiD82gRrARrcBFFuxAYCyw4TfLKnDLNXMR3afmUa9QtwHd1SvK8vxft9yNqK",
+  "startFinal": "3ofdXQGqu2qmL9cbqngNvVTmwYUCnUBaB5dPp4sLsoKGMpyF3dAYzgiZLn28Zx7Uw66HwVZaxz1jCw8srC3HzGVm",
+  "schedule": "4cUxJfrAiaXmsYro3GfHCxb6D4fYPX3R5LyoKZK1Eb5TojmznqzVEReg1FAmPUbHTvQ13fZ1RDrYjM7DWnt6nZaH",
+  "commit4": "4uwLtoM8cNTZG2EhoJVSJN9uWa3Xwy3qGyyyibSyEizHPinFRa7f4u5YLNoDUVgUcqBjKNppkViVUosw3VhtMFtu",
+  "endSim": "3kVadFQVZ4qGiLQ8thadfUf9Xm1zHf6usQyXEQ9bhGvWC9VfbDmmZMcZDsDMX3s1VnnCSdtFGpVKY3wPMabQPMHv",
+  "finalize": "nAfLuMxU7XqCg9Qa8HiBjz66XuYqsagJ5dvQU9X2LzJNLk4S5c5XLMhthU3mmdAimKwFn3prh5QQJovjqdeZJ4Y"
+ },
+ "mode": "final",
+ "parts": 1,
+ "interval": 11,
+ "arena": "HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt",
+ "maps": [
+  "86hLenUHLLULngacRGesYdVUaLhTVQtMSgx2UsF9ZKuv",
+  "Dh2MMQSM3MXATAvoHPXWPCifBHF1g6hyzAxRA2zFN8za",
+  "GYeqhxkkjzvXAS1Mv2FLM3EqALH5TjZfqJKiQqu6E8LG",
+  "2zzJi24AJTKVopXd9UMz2j1poAzway5ZMSvuw9jNBCgC",
+  "DxuXdFPfomJW6SXNiCkNgDauW3p2xkiEoPfoPjuYVsCD"
+ ]
+}

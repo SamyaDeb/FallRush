@@ -1,0 +1,17 @@
+[onchain] session: target devnet via emulator-ws ws://127.0.0.1:8788/, lead T+3, 3 ticks per tx, core 0x10001
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 243 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase -
+[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 214 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase -
+[onchain] joined HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt slot 3, map CrumbleShelf
+[onchain] tick 34 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 15 late 0 replay 9/10 rtt 194 confirm p50 0 p95 0 gaps 0 polls 1 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundIntro
+[onchain] new arena: resetting the feed and the prediction
+[onchain] tick 185 upd/s 31.5 batches/s 9.8 corr/5s 0 corr 0 match 7 late 0 replay 10/10 rtt 194 confirm p50 200 p95 484 gaps 0 polls 1 resync 2 lag 1 rejected 4 unconfirmed 0 lead +3 fps 60 playing True phase RoundActive
+[onchain] tick 332 upd/s 26.8 batches/s 8.9 corr/5s 4 corr 4 match 150 late 1 replay 12/17 rtt 164 confirm p50 202 p95 484 gaps 0 polls 1 resync 2 lag 1 rejected 6 unconfirmed 0 lead +3 fps 58 playing True phase RoundActive
+[onchain] tick 480 upd/s 32.5 batches/s 9.8 corr/5s 2 corr 6 match 287 late 3 replay 17/18 rtt 163 confirm p50 202 p95 434 gaps 0 polls 1 resync 2 lag 1 rejected 7 unconfirmed 0 lead +3 fps 58 playing True phase RoundActive
+[onchain] tick 631 upd/s 21.9 batches/s 9.9 corr/5s 1 corr 7 match 427 late 4 replay 13/18 rtt 152 confirm p50 217 p95 397 gaps 0 polls 1 resync 2 lag 1 rejected 7 unconfirmed 0 lead +3 fps 59 playing True phase RoundActive
+[onchain] tick 781 upd/s 26.0 batches/s 11.0 corr/5s 3 corr 10 match 563 late 7 replay 13/18 rtt 153 confirm p50 234 p95 504 gaps 0 polls 1 resync 2 lag 1 rejected 8 unconfirmed 0 lead +3 fps 60 playing True phase RoundActive
+[onchain] RESULT champion 5 order 5,3,6 own slot 3 arena HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt tick 882
+[onchain] tick 935 upd/s 30.5 batches/s 0.0 corr/5s 4 corr 14 match 708 late 11 replay 10/18 rtt 156 confirm p50 234 p95 505 gaps 0 polls 1 resync 2 lag 1 rejected 8 unconfirmed 0 lead +3 fps 59 playing False phase RoundResult
+[onchain] tick 1083 upd/s 33.0 batches/s 0.0 corr/5s 0 corr 14 match 853 late 11 replay 14/18 rtt 157 confirm p50 234 p95 505 gaps 0 polls 1 resync 2 lag 1 rejected 8 unconfirmed 0 lead +3 fps 56 playing False phase Champion
+[onchain] tick 1234 upd/s 32.6 batches/s 0.0 corr/5s 0 corr 14 match 1001 late 11 replay 11/18 rtt 155 confirm p50 234 p95 505 gaps 0 polls 1 resync 2 lag 1 rejected 8 unconfirmed 0 lead +2 fps 60 playing False phase Champion
+[onchain] tick 1323 upd/s 1.0 batches/s 0.0 corr/5s 0 corr 14 match 1087 late 11 replay 41/41 rtt 153 confirm p50 234 p95 505 gaps 0 polls 2 resync 16 lag 3 rejected 8 unconfirmed 0 lead +2 fps 59 playing False phase Done
+[onchain] tick 1323 upd/s 1.0 batches/s 0.0 corr/5s 0 corr 14 match 1092 late 11 replay 64/64 rtt 157 confirm p50 234 p95 505 gaps 0 polls 7 resync 203 lag 8 rejected 8 unconfirmed 0 lead +1 fps 60 playing False phase Done
