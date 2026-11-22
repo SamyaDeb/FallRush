@@ -24,7 +24,7 @@ mergeInto(LibraryManager.library, {
       var j = JSON.parse(res);
       if (!j.ok) throw new Error(j.err || res);
       FRC.state = 1;
-      console.log('[frc] chain bundle ready: ' + j.name + ' via ' + j.transport);
+      console.log('[frc] chain bundle ready: ' + j.name + ' via ' + j.transport + ', burner ' + j.burner + ' (public key)');
     }).catch(function (e) { FRC.state = -1; FRC.err = String(e); console.error('[frc] ' + e); });
   },
 
@@ -52,6 +52,11 @@ mergeInto(LibraryManager.library, {
     if (!FRC.join) return 0;
     var v = FRC.join; FRC.join = null;
     var n = lengthBytesUTF8(v) + 1, b = _malloc(n); stringToUTF8(v, b, n); return b;
+  },
+
+  fr_subscribe: function (addrPtr) {
+    var r = window.FallRushChain.subscribe(UTF8ToString(addrPtr) || '$world');
+    if (r && r.indexOf('"ok":false') >= 0) console.warn('[frc] subscribe: ' + r);
   },
 
   fr_send_inputs: function (ptr, len) {

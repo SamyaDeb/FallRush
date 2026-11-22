@@ -69,6 +69,8 @@ namespace FallRush.OnChain
                 expected = req.downloadHandler.text;
                 foreach (var l in expected.Split('\n'))
                 {
+                    if (l.TrimStart().StartsWith("#", StringComparison.Ordinal))
+                        continue;
                     var p = l.Trim().Split(' ');
                     if (p.Length > 5 && p[5] != "-" && !names.Contains(p[5]))
                         names.Add(p[5]);

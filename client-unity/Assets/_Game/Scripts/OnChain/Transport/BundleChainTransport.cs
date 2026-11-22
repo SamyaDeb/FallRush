@@ -20,6 +20,7 @@ namespace FallRush.OnChain
         [DllImport("__Internal")] private static extern string fr_error();
         [DllImport("__Internal")] private static extern void fr_join(string args);
         [DllImport("__Internal")] private static extern string fr_join_result();
+        [DllImport("__Internal")] private static extern void fr_subscribe(string addr);
         [DllImport("__Internal")] private static extern uint fr_send_inputs(byte[] ptr, int len);
         [DllImport("__Internal")] private static extern int fr_drain_worlds(byte[] ptr, int cap, int maxItems);
         [DllImport("__Internal")] private static extern string fr_drain_events();
@@ -32,6 +33,7 @@ namespace FallRush.OnChain
         private static string fr_error() => "WebGL only";
         private static void fr_join(string a) { }
         private static string fr_join_result() => null;
+        private static void fr_subscribe(string a) { }
         private static uint fr_send_inputs(byte[] p, int l) => 0;
         private static int fr_drain_worlds(byte[] p, int c, int m) => 0;
         private static string fr_drain_events() => "[]";
@@ -67,9 +69,8 @@ namespace FallRush.OnChain
         public void Connect(ChainConfig cfg)
         {
             var sa = Application.streamingAssetsPath;
-            var url = cfg.url;
-            if (string.IsNullOrEmpty(FallRush.Shared.NetTargets.GetQueryParam(Application.absoluteURL, "onchainurl")))
-                url = ""; // keep the config's URL (the page's host when served by the emulator)
+            // emulator: the session's URL (config default, ?onchainurl=, or the game server's fonc); rollup: the config's RPCs
+            var url = cfg.target == "emu" ? cfg.url : "";
             fr_boot(sa + "/fallrush-chain.js", sa + "/chain/" + cfg.bundleConfig, url);
         }
 
@@ -106,7 +107,10 @@ namespace FallRush.OnChain
             {
                 var r = JsonUtility.FromJson<JoinReply>(jr);
                 if (r.ok)
+                {
                     Joined = JsonUtility.FromJson<JoinInfo>(jr);
+                    fr_subscribe("$world"); // the bundle queues World notifications only while subscribed
+                }
                 else
                     Error = "join failed: " + r.err;
             }
