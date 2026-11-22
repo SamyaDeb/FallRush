@@ -340,3 +340,33 @@ pub fn case(seed: u64, i: u32, out: &mut [u8]) -> usize {
     }
     w.n
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `TurnTableCarryMm`'s property: an idle rider keeps the same table-frame offset every tick, so one full turn
+    /// returns them to (nearly) the same millimetre — no random-walk drift.
+    #[test]
+    fn turn_table_idle_rider_no_drift() {
+        for rate in [15i64, 20, 30] {
+            for (period, radius) in [(360, 2500), (-300, 3500), (600, 8000), (360, 9000)] {
+                let d = TurnTableDef { center_x: 1000, center_y: 0, center_z: -2000, radius, thickness: 300, period_ticks: period, phase16: 1234 };
+                let c = IVec3::new(d.center_x, d.center_y, d.center_z);
+                let step60 = 60 / rate;
+                let (mut x, mut z) = (d.center_x + radius - 300, d.center_z + 77);
+                let (x0, z0) = (x, z);
+                let turn60 = 2 * (period as i64).abs();
+                let mut t60 = 0;
+                while t60 < turn60 {
+                    t60 += step60;
+                    let (dx, dz) = turn_table_carry(c, turn_table_phase(&d, t60 - step60), turn_table_phase(&d, t60), x, z);
+                    x += dx;
+                    z += dz;
+                }
+                let d2 = ((x - x0) as i64).pow(2) + ((z - z0) as i64).pow(2);
+                assert!(d2 <= 36, "{rate} Hz period {period} r {radius}: drift² {d2} mm² after one turn");
+            }
+        }
+    }
+}
