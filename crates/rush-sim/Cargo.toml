@@ -1,0 +1,16 @@
+[package]
+name = "rush-sim"
+description = "Headless rush-core runner: map blobs, movement gen, vectors, traces, bot QA."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "rush-sim"
+path = "src/main.rs"
+
+[dependencies]
+rush-core = { path = "../rush-core", features = ["builder", "counters"] }
+serde_json = "=1.0.149"
+sha2 = "=0.10.9"
