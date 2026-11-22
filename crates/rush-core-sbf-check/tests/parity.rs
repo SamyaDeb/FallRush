@@ -10,14 +10,17 @@ use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
 
-const CHUNK: [(u8, u32); 5] = [(1, 250), (2, 40), (3, 10), (4, 250), (5, 1)];
+const CHUNK: [(u8, u32); 5] = [(1, 1000), (2, 200), (3, 50), (4, 1000), (5, 4)];
 
 #[test]
 fn sbf_matches_native() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let so = root.join("crates/target/deploy/rush_core_sbf_check.so");
     let bytes = std::fs::read(&so).unwrap_or_else(|e| panic!("{}: {e} (run cargo build-sbf first)", so.display()));
-    let mut svm = LiteSVM::new();
+    // A large compute limit so long vector chunks run in one transaction (parity, not pricing); CU per case is reported.
+    let mut cb = solana_compute_budget::compute_budget::ComputeBudget::new_with_defaults(false, false);
+    cb.compute_unit_limit = 2_000_000_000;
+    let mut svm = LiteSVM::new().with_compute_budget(cb);
     let pid = Pubkey::new_unique();
     svm.add_program(pid, &bytes).unwrap();
     let payer = Keypair::new();

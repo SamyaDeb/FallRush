@@ -222,12 +222,14 @@ fn target(c: &Ctx, r: &Route, k: usize) -> (i32, i32) {
 }
 
 /// Race (`WaypointBot.Next` with the checkpoints reached as the section).
+#[inline(never)] // keeps bot_input under the 4 KB sBPF stack frame
 pub(crate) fn race(c: &Ctx, b: &mut BotState) -> Plan {
     let cp = c.w.players[c.slot].r.checkpoint as i32;
     waypoint_next(c, b, cp, false)
 }
 
 /// Survival: the section (spiral side) from the height of the last ground contact (`SurvivalSection`).
+#[inline(never)] // keeps bot_input under the 4 KB sBPF stack frame
 pub(crate) fn survival(c: &Ctx, b: &mut BotState) -> Plan {
     let mut section = b.section as i32;
     if c.s.has(flag::GROUNDED) || !b.has(bf::NAV_LIVE) {

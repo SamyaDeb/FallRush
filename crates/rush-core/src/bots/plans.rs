@@ -55,6 +55,7 @@ fn star_target(c: &Ctx, hz: &Hazards, f: &StarFieldDef, id: i32, t30: i64) -> Op
 }
 
 /// `SkillPlan` (simplified, see bots/mod.rs).
+#[inline(never)] // keeps bot_input under the 4 KB sBPF stack frame
 pub(crate) fn skill(c: &Ctx, b: &mut BotState) -> Plan {
     let hz = c.w.hazards(c.map);
     if hz.count(HazardType::StarPickup) == 0 {
@@ -236,6 +237,7 @@ fn avoid_pads(c: &Ctx, hz: &Hazards, cmd: &mut InputCmd) {
 }
 
 /// `FinalPlan`: Lid Flip grids, else crumble shelves.
+#[inline(never)] // keeps bot_input under the 4 KB sBPF stack frame
 pub(crate) fn final_plan(c: &Ctx, b: &mut BotState) -> Plan {
     let hz = c.w.hazards(c.map);
     if hz.count(HazardType::LidFlip) > 0 {
