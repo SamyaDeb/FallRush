@@ -24,7 +24,7 @@ localnet = []
 
 [dependencies]
 anchor-lang = { version = "=1.0.2" }
-ephemeral-rollups-sdk = { version = "=0.16.2", features = ["anchor", "vrf"] }
+ephemeral-rollups-sdk = { version = "=0.18.0", features = ["anchor", "vrf"] }
 # sha256 for caller seed / transcript / deal (anchor-lang 1.0.2 no longer re-exports `hash`);
 # same version the SDK already pulls in (magicblock-delegation-program-api 3.1.0).
 solana-sha256-hasher = { version = "=3.1.0" }
