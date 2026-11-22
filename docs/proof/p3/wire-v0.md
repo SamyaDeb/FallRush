@@ -38,7 +38,7 @@ README); rush-core 0x10001: players at 22 (stride 115, slot rules +46), round st
 Config keys: `world.offset` (72), `world.lenOffset` (68), `world.tickOffset` (12), `world.appliedTickOffset` (16),
 `world.coreVersionOffset` (8), `world.flagsOffset` (70). Real P2 values replace these at G-layout.
 
-## 4. Emulator transport (local WebSocket, default `ws://127.0.0.1:8787/`)
+## 4. Emulator transport (local WebSocket, default `ws://127.0.0.1:8797/`; 8787 clashed with a local wrangler dev server)
 Text frames are JSON control; binary frames carry inputs and World.
 
 Client → emulator:

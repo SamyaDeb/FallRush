@@ -102,7 +102,7 @@ On the emulator, all four are simulated locally (`emulated: true`).
 | `world.magicHex` | magic bytes at offset 0 (emu `FRWORLD0`), or `null` to skip the check |
 | `storage.burnerKey` / `sessionKey` | localStorage keys (default `fallrush.burner.v1` / `fallrush.session.v1`) |
 | `queue.maxWorlds` / `maxEvents` | 64 / 512 |
-| `emulator.url` | `ws://127.0.0.1:8787/` |
+| `emulator.url` | `ws://127.0.0.1:8797/` |
 | `emulator.pollMs` / `pingMs` / `joinTimeoutMs` | 1000 / 1000 / 5000 |
 | `emulator.reconnect.minMs` / `maxMs` | 250 / 5000 |
 | `rollup.erHttp` / `erWs` | `https://devnet-as.magicblock.app` / `wss://devnet-as.magicblock.app` |

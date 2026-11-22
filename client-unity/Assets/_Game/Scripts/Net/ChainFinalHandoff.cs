@@ -61,7 +61,7 @@ namespace FallRush.Net
             ErUrl = ServerSim.ArgStr("-fallrushOnchainEr", "GAMESERVER_ONCHAIN_ER") ?? (Net == "local" ? "http://127.0.0.1:7799" : "https://devnet-as.magicblock.app");
             ArenaKey = ServerSim.ArgStr("-fallrushOnchainArena", "GAMESERVER_ONCHAIN_ARENA") ?? "HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt";
             WorldKey = ServerSim.ArgStr("-fallrushOnchainWorld", "GAMESERVER_ONCHAIN_WORLD");
-            ControlUrl = (ServerSim.ArgStr("-fallrushOnchainFinalUrl", "GAMESERVER_ONCHAIN_FINAL_URL") ?? "http://127.0.0.1:8787").TrimEnd('/');
+            ControlUrl = (ServerSim.ArgStr("-fallrushOnchainFinalUrl", "GAMESERVER_ONCHAIN_FINAL_URL") ?? "http://127.0.0.1:8797").TrimEnd('/');
             ClientUrl = ServerSim.ArgStr("-fallrushOnchainClientUrl", "GAMESERVER_ONCHAIN_CLIENT_URL") ?? ControlUrl.Replace("http", "ws") + "/";
         }
 

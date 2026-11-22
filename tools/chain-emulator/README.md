@@ -8,7 +8,7 @@ dependencies** (the WebSocket server is hand-written over `node:http`). The wire
 ## Run
 
 ```sh
-node tools/chain-emulator/src/main.mjs                       # Lid Flip Final, slot 0 human + 2 bots, ws://127.0.0.1:8787/
+node tools/chain-emulator/src/main.mjs                       # Lid Flip Final, slot 0 human + 2 bots, ws://127.0.0.1:8797/
 node tools/chain-emulator/src/main.mjs --players 12          # 1 human + 11 bots
 node tools/chain-emulator/src/main.mjs --humans 0 --once     # 3 bots play one Final, then exit
 node tools/chain-emulator/src/main.mjs --map Lobby           # free-play lobby, no round
@@ -18,7 +18,7 @@ node tools/chain-emulator/src/probe-client.mjs --seconds 10  # headless client: 
 
 | flag | default | meaning |
 |---|---|---|
-| `--port` | 8787 | HTTP + WebSocket port |
+| `--port` | 8797 | HTTP + WebSocket port |
 | `--host` | 127.0.0.1 | bind address |
 | `--map` | CrumbleShelf | `bin/maps/<Key>.mapblob` (CrumbleShelf = Lid Flip Final; Lobby / Sandbox = free play; the race / survival / skill maps run one round with the mode-default target) |
 | `--players` / `--humans` | 3 / 1 | roster size; humans take the lowest slots, the rest are bots |

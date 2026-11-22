@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fall Rush chain emulator — a fake MagicBlock Ephemeral Rollup running rush-core at 30 Hz (see ../README.md).
-//   node tools/chain-emulator/src/main.mjs [--port 8787] [--map CrumbleShelf] [--players 3] [--humans 1]
+//   node tools/chain-emulator/src/main.mjs [--port 8797] [--map CrumbleShelf] [--players 3] [--humans 1]
 //     [--delay 45] [--jitter 10] [--loss 0.001] [--confirm 120] [--seed <16 hex>] [--no-shaping]
 //     [--autostart <s>] [--restart <s>] [--once] [--static <dir>] [--log <file.jsonl>] [--host 127.0.0.1]
 import { Emulator } from './server.mjs';
@@ -36,7 +36,7 @@ let o;
 try { o = parse(process.argv.slice(2)); } catch (e) { console.error(`chain-emulator: ${e.message} (--help)`); process.exit(2); }
 if (o.help) {
   console.log(`usage: node tools/chain-emulator/src/main.mjs [flags]
-  --port 8787        HTTP + WebSocket port (ws://127.0.0.1:<port>/)
+  --port 8797        HTTP + WebSocket port (ws://127.0.0.1:<port>/)
   --host 127.0.0.1   bind address
   --map CrumbleShelf arena map key in bin/maps (CrumbleShelf = Lid Flip Final; Lobby = free play, no round)
   --players 3        roster size (1..12); --humans 1: humans in the lowest slots, the rest bots

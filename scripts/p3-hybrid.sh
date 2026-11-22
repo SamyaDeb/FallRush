@@ -18,6 +18,7 @@ WORLD=HYJRSXpSGZ3HdjmZr4oMy3x6VgTWLcarkgHav7L4hSTQ
 ARENA=HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt
 [[ "$MODE" == fail ]] && WORLD=11111111111111111111111111111111
 echo "$(date -u +%T) balances: admin $(solana balance -u devnet -k ~/.config/solana/id.json) authority $(solana balance -u devnet -k ~/.config/fall-rush/devnet-game-authority.json)" | tee "$OUT/balances.txt"
+bash scripts/m1-macserver.sh stop >/dev/null 2>&1; sleep 1
 : > .m1-logs/macserver.log
 bash scripts/m1-macserver.sh start -fallrushBots 12 -fallrushMatchSize 12 -fallrushMatchLogDir "$LOGDIR" \
   -fallrushOnchainFinal -fallrushOnchainFinalNet devnet -fallrushOnchainArena "$ARENA" -fallrushOnchainWorld "$WORLD"

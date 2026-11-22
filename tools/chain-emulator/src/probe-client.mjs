@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // probe-client.mjs — a headless test client: joins, sends one 3-tick input batch every 100 ms (lead 3) like the Unity
 // client will, and prints what it sees (notification rate / loss, confirm statuses, RTT, accepted vs late).
-//   node tools/chain-emulator/src/probe-client.mjs [--url ws://127.0.0.1:8787/] [--seconds 10] [--slot N] [--lead 3]
+//   node tools/chain-emulator/src/probe-client.mjs [--url ws://127.0.0.1:8797/] [--seconds 10] [--slot N] [--lead 3]
 import { decodeWorldAcc } from './world-view.mjs';
 import { Core } from './core.mjs';
 import { inputFrame, FRAME } from './server.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
-const url = arg('url', 'ws://127.0.0.1:8787/');
+const url = arg('url', 'ws://127.0.0.1:8797/');
 const seconds = Number(arg('seconds', 10));
 const lead = Number(arg('lead', 3));
 const slotArg = arg('slot');

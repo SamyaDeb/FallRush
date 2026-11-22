@@ -19,7 +19,7 @@
   },
   "queue": { "maxWorlds": 64, "maxEvents": 512 },
   "emulator": {
-    "url": "ws://127.0.0.1:8787/",
+    "url": "ws://127.0.0.1:8797/",
     "pollMs": 1000,
     "pingMs": 1000,
     "joinTimeoutMs": 5000,

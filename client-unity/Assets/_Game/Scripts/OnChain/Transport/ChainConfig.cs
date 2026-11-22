@@ -16,7 +16,7 @@ namespace FallRush.OnChain
         /// <summary>"emu" (local chain emulator), "local" (P2's local stack), "devnet" (devnet-as).</summary>
         public string target = "emu";
         /// <summary>Emulator / relay WebSocket (Editor and Mac player; WebGL uses the bundle with the same target).</summary>
-        public string url = "ws://127.0.0.1:8787/";
+        public string url = "ws://127.0.0.1:8797/";
         /// <summary>Bundle config file under StreamingAssets/chain/ (WebGL).</summary>
         public string bundleConfig = "emulator.json";
         public string arena = "";

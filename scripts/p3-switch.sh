@@ -17,6 +17,7 @@ if [[ "$MODE" != fail ]]; then
 fi
 cleanup() { [[ -n "$EMU" ]] && kill $EMU 2>/dev/null; bash scripts/m1-macserver.sh stop >/dev/null 2>&1 || true; }
 trap cleanup EXIT
+bash scripts/m1-macserver.sh stop >/dev/null 2>&1; sleep 1
 : > .m1-logs/macserver.log
 bash scripts/m1-macserver.sh start -fallrushBots 12 -fallrushMatchSize 12 -fallrushOnchainFinal
 APP="client-unity/Builds/Mac-p1-feellab/FallRush.app/Contents/MacOS/Fall Rush"
@@ -26,6 +27,8 @@ LOG="$ROOT/.m1-logs/p3-switch-client-$STAMP.log"
   -fallrushOnchainAuto "$SECS" -fallrushOnchainShot "$ROOT/docs/proof/p3/switch-$MODE-$STAMP.png" -fallrushName P3Probe &
 PID=$!
 ( sleep $((SECS + 90)); kill $PID 2>/dev/null ) &
+# one match: stop 25 s after the server completes it (the champion / receipt screens)
+( until grep -q "COMPLETE_MATCH" .m1-logs/macserver.log; do sleep 2; done; sleep 25; kill $PID 2>/dev/null ) &
 wait $PID || true
 echo "--- server"; grep -E "\[gs\] (round |on-chain|fonc|mevt .*(COMPLETE|CHAMPION|START_ROUND))|handoff" .m1-logs/macserver.log | cut -c1-260 | tail -25
 echo "--- client"; grep -E "^\[onchain\]|\[net\] fonc|\[probe\]" "$LOG" | cut -c1-260 | tail -30

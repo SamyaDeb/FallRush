@@ -24,7 +24,7 @@ test('init + join over the emulator protocol', async () => {
   const { chain, init, ws } = await setup();
   assert.equal(init.ok, true, JSON.stringify(init));
   assert.equal(init.transport, 'emulator');
-  assert.equal(ws().url, 'ws://127.0.0.1:8787/');
+  assert.equal(ws().url, 'ws://127.0.0.1:8797/');
   assert.equal(ws().binaryType, 'arraybuffer');
   const jp = chain.join(JSON.stringify({ name: 'sam' }));
   await flush();

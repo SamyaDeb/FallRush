@@ -53,12 +53,12 @@ export function accFrame(kind, seq, acc) {
 
 export class Emulator {
   /**
-   * o: port (8787), host ('127.0.0.1'), map, players (3), humans (1), delay (45), jitter (10), loss (0.001),
+   * o: port (8797), host ('127.0.0.1'), map, players (3), humans (1), delay (45), jitter (10), loss (0.001),
    * confirm (120), seed (hex | BigInt), shaping (true), autostart (20 s), restart (8 s), once, static (dir), log
    * (file), clock (realClock), ticker (true: run the 30 Hz real-time loop), quiet.
    */
   constructor(o = {}) {
-    this.o = { port: 8787, host: '127.0.0.1', map: 'CrumbleShelf', players: 3, humans: 1, delay: 45, jitter: 10, loss: 0.001, confirm: 120, shaping: true, autostart: 20, restart: 8, once: false, clock: realClock, ticker: true, quiet: false, ...o };
+    this.o = { port: 8797, host: '127.0.0.1', map: 'CrumbleShelf', players: 3, humans: 1, delay: 45, jitter: 10, loss: 0.001, confirm: 120, shaping: true, autostart: 20, restart: 8, once: false, clock: realClock, ticker: true, quiet: false, ...o };
     if (!this.o.shaping) Object.assign(this.o, { delay: 0, jitter: 0, loss: 0 });
     this.clock = this.o.clock;
     this.seed = this.o.seed === undefined ? BigInt('0x' + [...crypto.getRandomValues(new Uint8Array(8))].map((x) => x.toString(16).padStart(2, '0')).join('')) : parseSeed(this.o.seed);
