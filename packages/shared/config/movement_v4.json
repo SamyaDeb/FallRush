@@ -54,7 +54,7 @@
     "minFallHeight": 3000,
     "speedPermille": 550
   },
-  "tickRateHz": 20,
+  "tickRateHz": 30,
   "ticks": {
     "15": {
       "bumpStagger": 4,

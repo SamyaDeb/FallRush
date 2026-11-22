@@ -1,0 +1,22 @@
+{
+  "deterministic": true,
+  "extra0_avg": 0.0,
+  "extra1_avg": 0.0,
+  "falls_avg": 2.53,
+  "hits_avg": 62.98,
+  "map": "BlockPartyDash",
+  "median_s": 87.86666666666667,
+  "mode": 1,
+  "p90_s": 103.26666666666667,
+  "players": 12,
+  "qualified_avg": 8.0,
+  "rate": 30,
+  "runs": 100,
+  "softlocks": 0,
+  "stuck5s_players": 244,
+  "tier": 2,
+  "timer_endings": 0,
+  "tunnels": 0,
+  "valid": 100,
+  "wall_s": 8.838916333
+}

@@ -18,7 +18,11 @@ use ephemeral_rollups_sdk::vrf::types::SerializableAccountMeta;
 pub mod deal;
 pub mod errors;
 pub mod events;
+pub mod sim;
 pub mod state;
+
+#[cfg(target_os = "solana")]
+pub mod sdiv;
 
 use errors::FallRushError;
 use events::*;
@@ -380,15 +384,288 @@ pub mod fall_rush {
         Ok(())
     }
 
-    /// ER + commit_and_undelegate. M0 shortcut: also allowed from `RoundResolved` (doc 06 only
-    /// allows `Completed`/`Aborted`); M6 removes the `RoundResolved` case.
+    // ================================================================== P2 on-chain simulation (sim.rs)
+
+    /// Solana. Arena + World + EventLog PDAs for arena `id` (reused across matches). `parts` = parts per tick.
+    pub fn init_arena(ctx: Context<InitArena>, id: u8, parts: u8) -> Result<()> {
+        let mut a = ctx.accounts.arena.load_init()?;
+        a.authority = ctx.accounts.authority.key();
+        a.id = id;
+        a.parts = parts.clamp(1, sim::N as u8);
+        a.status = sim::arena_status::IDLE;
+        a.bump = ctx.bumps.arena;
+        let mut w = ctx.accounts.world.load_init()?;
+        w.arena = ctx.accounts.arena.key();
+        w.parts = a.parts;
+        w.results_round = 255;
+        let mut l = ctx.accounts.event_log.load_init()?;
+        l.arena = ctx.accounts.arena.key();
+        Ok(())
+    }
+
+    /// Solana. The InputBuf of `slot` (owner set when a player joins).
+    pub fn init_input(ctx: Context<InitInput>, id: u8, slot: u8) -> Result<()> {
+        let _ = id;
+        require!((slot as usize) < sim::N, FallRushError::InvalidSlot);
+        let mut ib = ctx.accounts.input.load_init()?;
+        ib.arena = ctx.accounts.arena.key();
+        ib.slot = slot;
+        let mut a = ctx.accounts.arena.load_mut()?;
+        a.inputs[slot as usize] = ctx.accounts.input.key();
+        Ok(())
+    }
+
+    /// Solana. Arena settings: map blob accounts (deal map ids 0..3, lobby) and parts per tick.
+    pub fn set_arena(ctx: Context<SetArena>, maps: [Pubkey; sim::MAP_SLOTS], parts: u8, slot_ms: u8) -> Result<()> {
+        let mut a = ctx.accounts.arena.load_mut()?;
+        a.maps = maps;
+        a.parts = parts.clamp(1, sim::N as u8);
+        a.slot_ms = slot_ms.max(1);
+        Ok(())
+    }
+
+    /// Solana. Writes a chunk of a map blob into a program-owned account the client created
+    /// (`MAP_HDR + len` bytes). The first call claims it for the game authority.
+    pub fn upload_map_chunk(ctx: Context<MapWrite>, map_id: u8, offset: u32, total_len: u32, data: Vec<u8>) -> Result<()> {
+        let info = ctx.accounts.map.to_account_info();
+        require_keys_eq!(*info.owner, crate::ID, FallRushError::Unauthorized);
+        let mut d = info.try_borrow_mut_data()?;
+        require!(d.len() >= sim::MAP_HDR + total_len as usize, FallRushError::BadMap);
+        if d[0..8] != sim::MAP_MAGIC {
+            require!(d[0..8].iter().all(|b| *b == 0), FallRushError::Unauthorized);
+            d[0..8].copy_from_slice(&sim::MAP_MAGIC);
+            d[8..40].copy_from_slice(ctx.accounts.authority.key().as_ref());
+        }
+        require!(d[8..40] == *ctx.accounts.authority.key().as_ref(), FallRushError::Unauthorized);
+        require!(d[44] == 0, FallRushError::BadMap); // sealed blobs are immutable
+        d[40..44].copy_from_slice(&total_len.to_le_bytes());
+        d[45] = map_id;
+        let o = sim::MAP_HDR + offset as usize;
+        require!(data.len() <= sim::MAP_CHUNK && o + data.len() <= sim::MAP_HDR + total_len as usize, FallRushError::BadMap);
+        d[o..o + data.len()].copy_from_slice(&data);
+        Ok(())
+    }
+
+    /// Solana. Seals a blob: sha256 must equal `maps/map_blob_hashes_v1.txt` (passed in, checked here) and the blob
+    /// must parse.
+    pub fn seal_map(ctx: Context<MapWrite>, sha256: [u8; 32]) -> Result<()> {
+        let info = ctx.accounts.map.to_account_info();
+        require_keys_eq!(*info.owner, crate::ID, FallRushError::Unauthorized);
+        let mut d = info.try_borrow_mut_data()?;
+        require!(d.len() >= sim::MAP_HDR && d[0..8] == sim::MAP_MAGIC && d[8..40] == *ctx.accounts.authority.key().as_ref(), FallRushError::BadMap);
+        let len = u32::from_le_bytes([d[40], d[41], d[42], d[43]]) as usize;
+        let body = &d[sim::MAP_HDR..sim::MAP_HDR + len];
+        let got = solana_sha256_hasher::hashv(&[body]).to_bytes();
+        if got != sha256 {
+            msg!("seal_map: sha256 {:?} len {} != expected", &got[..8], len);
+        }
+        require!(got == sha256, FallRushError::BadMap);
+        require!(rush_core::mapblob::MapView::new(body).is_ok(), FallRushError::BadMap);
+        d[46..48].copy_from_slice(&[0, 0]);
+        d[48..80].copy_from_slice(&sha256);
+        d[44] = 1;
+        Ok(())
+    }
+
+    /// Solana. Delegates one sim PDA to the ER validator (remaining_accounts[0], optional).
+    /// kind 0 arena · 1 world · 2 event log · 3 input `slot`.
+    pub fn delegate_sim(ctx: Context<DelegateSim>, kind: u8, id: u8, slot: u8) -> Result<()> {
+        let validator = ctx.remaining_accounts.first().map(|a| a.key());
+        let idb = [id];
+        let sb = [slot];
+        let arena = Pubkey::find_program_address(&[sim::ARENA_SEED, &idb], &crate::ID).0;
+        let cfg = DelegateConfig { validator, ..Default::default() };
+        match kind {
+            0 => ctx.accounts.delegate_pda(&ctx.accounts.authority, &[sim::ARENA_SEED, &idb], cfg)?,
+            1 => ctx.accounts.delegate_pda(&ctx.accounts.authority, &[sim::WORLD_SEED, arena.as_ref()], cfg)?,
+            2 => ctx.accounts.delegate_pda(&ctx.accounts.authority, &[sim::EVLOG_SEED, arena.as_ref()], cfg)?,
+            3 => ctx.accounts.delegate_pda(&ctx.accounts.authority, &[sim::INPUT_SEED, arena.as_ref(), &sb], cfg)?,
+            _ => return err!(FallRushError::InvalidSlot),
+        }
+        Ok(())
+    }
+
+    /// ER. Opens the lobby for the next match: roster cleared, the arena points at `match_account`.
+    /// remaining_accounts: the 12 InputBufs (owners cleared).
+    pub fn open_lobby<'info>(ctx: Context<'info, ArenaAuth<'info>>, match_account: Pubkey) -> Result<()> {
+        let mut a = ctx.accounts.arena.load_mut()?;
+        require_keys_eq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
+        require!(a.status != sim::arena_status::RUNNING, FallRushError::BadArenaState);
+        a.match_account = match_account;
+        a.owners = [Pubkey::default(); sim::N];
+        a.wallets = [Pubkey::default(); sim::N];
+        a.human_mask = 0;
+        a.cosmetic = [0; sim::N];
+        a.status = sim::arena_status::LOBBY;
+        for info in ctx.remaining_accounts.iter() {
+            require!(a.inputs.contains(&info.key()), FallRushError::InvalidSlot);
+            let ib = AccountLoader::<sim::InputBuf>::try_from(info)?;
+            let mut ib = ib.load_mut()?;
+            ib.owner = Pubkey::default();
+            ib.token = Pubkey::default();
+            ib.ring = [sim::InEntry { tick: 0, input: [0; 4] }; sim::RING];
+            ib.latest = 0;
+        }
+        Ok(())
+    }
+
+    /// ER. A player takes `slot`: arena in Lobby, slot free, one slot per wallet. The signer is either the wallet
+    /// itself or a session signer with a valid `SessionTokenV2` (authority = `wallet`, target = this program, not
+    /// expired; seeds checked). The signer becomes the slot's InputBuf writer, the wallet its roster identity.
+    pub fn join_lobby(ctx: Context<JoinLobby>, slot: u8, cosmetic: u8, wallet: Pubkey) -> Result<()> {
+        let me = ctx.accounts.player.key();
+        let token_key = match &ctx.accounts.session_token {
+            Some(t) => {
+                sim_session_check(t, &me, &wallet)?;
+                t.key()
+            }
+            None => {
+                require_keys_eq!(me, wallet, FallRushError::Unauthorized);
+                Pubkey::default()
+            }
+        };
+        let mut a = ctx.accounts.arena.load_mut()?;
+        require!(a.status == sim::arena_status::LOBBY, FallRushError::BadArenaState);
+        let s = slot as usize;
+        require!(s < sim::N, FallRushError::InvalidSlot);
+        require!(a.human_mask >> s & 1 == 0, FallRushError::SlotTaken);
+        require!(!a.wallets.contains(&wallet) && !a.owners.contains(&me), FallRushError::AlreadyJoined);
+        require_keys_eq!(a.inputs[s], ctx.accounts.input.key(), FallRushError::InvalidSlot);
+        a.owners[s] = me;
+        a.wallets[s] = wallet;
+        a.human_mask |= 1 << s;
+        a.cosmetic[s] = cosmetic;
+        let mut ib = ctx.accounts.input.load_mut()?;
+        ib.owner = me;
+        ib.token = token_key;
+        Ok(())
+    }
+
+    /// ER. The Final on-chain after Classic rounds 1–3 (doc 15 OC-11): game authority; the `Match` after round 3 with
+    /// exactly `slots` alive. Then the keeper schedules ticks.
+    pub fn start_final(ctx: Context<StartSim>, slots: [u8; 3]) -> Result<()> {
+        let mut a = ctx.accounts.arena.load_mut()?;
+        require_keys_eq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
+        require!(a.status == sim::arena_status::LOBBY, FallRushError::BadArenaState);
+        require_keys_eq!(a.match_account, ctx.accounts.match_account.key(), FallRushError::BadArenaState);
+        require_keys_eq!(a.maps[sim::MAP_LOBBY_SLOT], ctx.accounts.lobby_map.key(), FallRushError::BadMap);
+        let info = ctx.accounts.lobby_map.to_account_info();
+        let d = info.try_borrow_data()?;
+        let lobby = sim::map_bytes(&info, &d).ok_or(error!(FallRushError::BadMap))?;
+        let mut w = ctx.accounts.world.load_mut()?;
+        require_keys_eq!(w.arena, ctx.accounts.arena.key(), FallRushError::BadArenaState);
+        let m = &mut ctx.accounts.match_account;
+        require!(m.flags & sim::MATCH_SIM_STARTED == 0, FallRushError::InvalidStatus);
+        sim::start_final(&mut a, &mut w, m, lobby, &slots)
+    }
+
+    /// ER. Roster lock + start: free slots become bots, the director starts from the match's VRF seed.
+    pub fn start_sim(ctx: Context<StartSim>) -> Result<()> {
+        let mut a = ctx.accounts.arena.load_mut()?;
+        require_keys_eq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
+        require!(a.status == sim::arena_status::LOBBY, FallRushError::BadArenaState);
+        require_keys_eq!(a.match_account, ctx.accounts.match_account.key(), FallRushError::BadArenaState);
+        require_keys_eq!(a.maps[sim::MAP_LOBBY_SLOT], ctx.accounts.lobby_map.key(), FallRushError::BadMap);
+        let info = ctx.accounts.lobby_map.to_account_info();
+        let d = info.try_borrow_data()?;
+        let lobby = sim::map_bytes(&info, &d).ok_or(error!(FallRushError::BadMap))?;
+        let mut w = ctx.accounts.world.load_mut()?;
+        require_keys_eq!(w.arena, ctx.accounts.arena.key(), FallRushError::BadArenaState);
+        // a Match runs once: an arena can never re-enter an old match
+        let m = &mut ctx.accounts.match_account;
+        require!(m.flags & sim::MATCH_SIM_STARTED == 0, FallRushError::InvalidStatus);
+        m.flags |= sim::MATCH_SIM_STARTED;
+        sim::start_sim(&mut a, &mut w, m, lobby)
+    }
+
+    /// ER. The hot tick (see `sim::tick`). Accounts: arena, world, event log, match, 5 maps, 12 InputBufs — all in
+    /// remaining_accounts, checked by hand; never fails.
+    pub fn tick<'info>(ctx: Context<'info, Tick>) -> Result<()> {
+        sim::tick(ctx.remaining_accounts)
+    }
+
+    /// ER. 3 inputs for ticks `start .. start + 3`, signed by the slot's owner.
+    pub fn submit_input(ctx: Context<SubmitInput>, slot: u8, start: u32, batch: [u8; 12]) -> Result<()> {
+        let w = ctx.accounts.world.load()?;
+        let mut ib = ctx.accounts.input.load_mut()?;
+        require!(ib.slot == slot && ib.arena == w.arena, FallRushError::InvalidSlot);
+        // a session signer's token must still be there (not revoked) and not expired
+        if ib.token != Pubkey::default() {
+            let t = ctx.accounts.session_token.as_ref().ok_or(error!(FallRushError::SessionInvalid))?;
+            require_keys_eq!(t.key(), ib.token, FallRushError::SessionInvalid);
+            require!(!t.is_expired()?, FallRushError::SessionInvalid);
+        }
+        sim::submit_input(&mut ib, &ctx.accounts.owner.key(), w.tick, start, &batch)
+    }
+
+    /// ER. Schedules the timed task driving `tick()` (any payer: the keeper is permissionless). The task id comes
+    /// from the arena's next nonce. remaining_accounts = the tick account list.
+    pub fn schedule_ticks<'info>(ctx: Context<'info, ScheduleTicks<'info>>, interval_ms: i64, iterations: i64) -> Result<()> {
+        let world = ctx.remaining_accounts.get(1).ok_or(error!(FallRushError::BadTask))?.key();
+        let tid = {
+            let mut a = ctx.accounts.arena.load_mut()?;
+            a.nonce = a.nonce.wrapping_add(1);
+            a.task_id = sim::task_id(&world, a.nonce);
+            a.task_id
+        };
+        sim::schedule(&ctx.accounts.payer.to_account_info(), &ctx.accounts.magic_program.to_account_info(), ctx.remaining_accounts, tid, interval_ms, iterations)
+    }
+
+    /// ER. Cancels a task. remaining_accounts[0] = the task context account (MagicContext).
+    pub fn cancel_ticks<'info>(ctx: Context<'info, CancelTicks<'info>>, task_id: i64) -> Result<()> {
+        let tc = ctx.remaining_accounts.first().ok_or(error!(FallRushError::BadTask))?;
+        sim::cancel(&ctx.accounts.payer.to_account_info(), &ctx.accounts.magic_program.to_account_info(), tc, task_id)
+    }
+
+    /// ER. Commits `Match` once per resolved round (any payer). Bits 1..=4 of `Match::flags` mark committed rounds,
+    /// so at most 4 round commits + the finalize commit happen per match (under the 10-commit limit).
+    pub fn commit_round(ctx: Context<CommitRound>, round: u8) -> Result<()> {
+        {
+            let m = &mut ctx.accounts.match_account;
+            require!(round >= 1 && round as usize <= ROUNDS && m.current_round >= round, FallRushError::NothingToCommit);
+            require!(
+                matches!(m.status, MatchStatus::RoundResolved | MatchStatus::Completed) || m.current_round > round,
+                FallRushError::NothingToCommit
+            );
+            let bit = 1u8 << round;
+            require!(m.flags & bit == 0, FallRushError::NothingToCommit);
+            m.flags |= bit;
+        }
+        ctx.accounts.match_account.exit(&crate::ID)?;
+        MagicIntentBundleBuilder::new(
+            ctx.accounts.payer.to_account_info(),
+            ctx.accounts.magic_context.to_account_info(),
+            ctx.accounts.magic_program.to_account_info(),
+        )
+        .commit(&[ctx.accounts.match_account.to_account_info()])
+        .build_and_invoke()?;
+        Ok(())
+    }
+
+    /// ER. The director reached DONE: the arena is free for the next match (the keeper then runs finalize_match).
+    pub fn end_sim(ctx: Context<ArenaAuth>) -> Result<()> {
+        let mut a = ctx.accounts.arena.load_mut()?;
+        require_keys_eq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
+        let w = ctx.accounts.world.load()?;
+        require!(w.phase >= rush_core::rules::director::phase::DONE || a.status != sim::arena_status::RUNNING, FallRushError::BadArenaState);
+        a.status = sim::arena_status::DONE;
+        Ok(())
+    }
+
+    /// ER. Stops the arena (authority): no more ticks run; the keeper cancels the task and aborts the match.
+    pub fn abort_arena(ctx: Context<ArenaAuth>) -> Result<()> {
+        let mut a = ctx.accounts.arena.load_mut()?;
+        require_keys_eq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
+        a.status = sim::arena_status::ABORTED;
+        Ok(())
+    }
+
+    /// ER + commit_and_undelegate. Only from `Completed` / `Aborted` (doc 06; P2 0.4 removed the M0
+    /// `RoundResolved` shortcut: the on-chain director decides when a match is over).
     pub fn finalize_match(ctx: Context<FinalizeMatch>) -> Result<()> {
         let status = ctx.accounts.match_account.status;
         require!(
-            matches!(
-                status,
-                MatchStatus::RoundResolved | MatchStatus::Completed | MatchStatus::Aborted
-            ),
+            matches!(status, MatchStatus::Completed | MatchStatus::Aborted),
             FallRushError::InvalidStatus
         );
         ctx.accounts.match_account.exit(&crate::ID)?;
@@ -530,6 +807,161 @@ pub struct AbortMatch<'info> {
     pub authority: Signer<'info>,
     #[account(seeds = [CONFIG_SEED], bump = config.bump)]
     pub config: Account<'info, GameConfig>,
+    #[account(mut, seeds = [MATCH_SEED, &match_account.match_id], bump = match_account.bump)]
+    pub match_account: Box<Account<'info, Match>>,
+}
+
+
+// ---------------------------------------------------------------- P2 sim accounts
+
+#[derive(Accounts)]
+#[instruction(id: u8)]
+pub struct InitArena<'info> {
+    #[account(mut, address = config.game_authority @ FallRushError::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, GameConfig>,
+    #[account(init, payer = authority, space = 8 + core::mem::size_of::<sim::Arena>(), seeds = [sim::ARENA_SEED, &[id]], bump)]
+    pub arena: AccountLoader<'info, sim::Arena>,
+    #[account(init, payer = authority, space = 8 + core::mem::size_of::<sim::WorldAcc>(), seeds = [sim::WORLD_SEED, arena.key().as_ref()], bump)]
+    pub world: AccountLoader<'info, sim::WorldAcc>,
+    #[account(init, payer = authority, space = 8 + core::mem::size_of::<sim::EventLog>(), seeds = [sim::EVLOG_SEED, arena.key().as_ref()], bump)]
+    pub event_log: AccountLoader<'info, sim::EventLog>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(id: u8, slot: u8)]
+pub struct InitInput<'info> {
+    #[account(mut, address = config.game_authority @ FallRushError::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, GameConfig>,
+    #[account(mut, seeds = [sim::ARENA_SEED, &[id]], bump)]
+    pub arena: AccountLoader<'info, sim::Arena>,
+    #[account(init, payer = authority, space = 8 + core::mem::size_of::<sim::InputBuf>(), seeds = [sim::INPUT_SEED, arena.key().as_ref(), &[slot]], bump)]
+    pub input: AccountLoader<'info, sim::InputBuf>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SetArena<'info> {
+    #[account(address = config.game_authority @ FallRushError::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, GameConfig>,
+    #[account(mut)]
+    pub arena: AccountLoader<'info, sim::Arena>,
+}
+
+#[derive(Accounts)]
+pub struct MapWrite<'info> {
+    #[account(address = config.game_authority @ FallRushError::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, GameConfig>,
+    /// CHECK: program-owned raw blob account (header checked by hand)
+    #[account(mut)]
+    pub map: UncheckedAccount<'info>,
+}
+
+#[delegate]
+#[derive(Accounts)]
+pub struct DelegateSim<'info> {
+    #[account(mut, address = config.game_authority @ FallRushError::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, GameConfig>,
+    /// CHECK: one of the sim PDAs; its seeds are rebuilt in the handler and checked by the delegation program
+    #[account(mut, del)]
+    pub pda: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ArenaAuth<'info> {
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub arena: AccountLoader<'info, sim::Arena>,
+    pub world: AccountLoader<'info, sim::WorldAcc>,
+}
+
+#[derive(Accounts)]
+pub struct JoinLobby<'info> {
+    pub player: Signer<'info>,
+    #[account(mut)]
+    pub arena: AccountLoader<'info, sim::Arena>,
+    #[account(mut)]
+    pub input: AccountLoader<'info, sim::InputBuf>,
+    /// The player's session token when `player` is a session signer (session-keys 3.1.1, `SessionTokenV2`).
+    pub session_token: Option<Box<Account<'info, session_keys::SessionTokenV2>>>,
+}
+
+/// `SessionTokenV2` checks (session-keys' own `validate` form, without its trait plumbing): this program, this
+/// signer, this wallet, the token PDA's seeds, not expired.
+fn sim_session_check(t: &Account<session_keys::SessionTokenV2>, signer: &Pubkey, wallet: &Pubkey) -> Result<()> {
+    require_keys_eq!(t.target_program, crate::ID, FallRushError::SessionInvalid);
+    require_keys_eq!(t.session_signer, *signer, FallRushError::SessionInvalid);
+    require_keys_eq!(t.authority, *wallet, FallRushError::SessionInvalid);
+    let (pda, _) = Pubkey::find_program_address(
+        &[session_keys::SessionTokenV2::SEED_PREFIX.as_bytes(), crate::ID.as_ref(), signer.as_ref(), wallet.as_ref()],
+        &session_keys::ID,
+    );
+    require_keys_eq!(pda, t.key(), FallRushError::SessionInvalid);
+    require!(!t.is_expired()?, FallRushError::SessionInvalid);
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct StartSim<'info> {
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub arena: AccountLoader<'info, sim::Arena>,
+    #[account(mut)]
+    pub world: AccountLoader<'info, sim::WorldAcc>,
+    #[account(mut)]
+    pub match_account: Box<Account<'info, Match>>,
+    /// CHECK: the lobby map blob (key checked against the arena, header checked by hand)
+    pub lobby_map: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct Tick {}
+
+#[derive(Accounts)]
+pub struct SubmitInput<'info> {
+    pub owner: Signer<'info>,
+    #[account(mut)]
+    pub input: AccountLoader<'info, sim::InputBuf>,
+    pub world: AccountLoader<'info, sim::WorldAcc>,
+    /// Required when the slot was joined with a session key (`InputBuf::token`).
+    pub session_token: Option<Box<Account<'info, session_keys::SessionTokenV2>>>,
+}
+
+#[derive(Accounts)]
+pub struct ScheduleTicks<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    #[account(mut)]
+    pub arena: AccountLoader<'info, sim::Arena>,
+    /// CHECK: MagicBlock magic program
+    #[account(address = ephemeral_rollups_sdk::consts::MAGIC_PROGRAM_ID)]
+    pub magic_program: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct CancelTicks<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    /// CHECK: MagicBlock magic program
+    #[account(address = ephemeral_rollups_sdk::consts::MAGIC_PROGRAM_ID)]
+    pub magic_program: UncheckedAccount<'info>,
+}
+
+#[commit]
+#[derive(Accounts)]
+pub struct CommitRound<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
     #[account(mut, seeds = [MATCH_SEED, &match_account.match_id], bump = match_account.bump)]
     pub match_account: Box<Account<'info, Match>>,
 }

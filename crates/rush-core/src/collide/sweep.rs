@@ -6,6 +6,12 @@ use crate::fx::{div_round, isqrt_i64, normalize_q15, ONE_Q15};
 use crate::mapblob::{shape, Collider};
 use crate::vec::IVec3;
 
+/// Clearance (mm) beyond which a candidate's AABB is skipped in a sweep sample (see `capsule_sweep`).
+pub const AABB_SKIP_MM: i64 = 8;
+
+/// Candidates a sweep keeps decoded (see `capsule_sweep`).
+const DEC_CACHE: usize = 8;
+
 /// Most candidates one query keeps (ascending collider order; bounded).
 pub const MAX_CANDIDATES: usize = 64;
 
@@ -71,13 +77,51 @@ impl<'m> Scene<'m> {
             return None;
         }
         let f0 = [feet.x as i64 * S, feet.y as i64 * S, feet.z as i64 * S];
+        // Posed AABB of each candidate (P2 0.2): a capsule whose box is more than AABB_SKIP_MM clear of it cannot
+        // touch it, so the decode + closest-feature test is skipped (exact: the blob AABBs are conservative).
+        let mut ab = [[0i32; 6]; MAX_CANDIDATES];
+        let mut k = 0;
+        while k < n {
+            let (dk, di, amin, amax) = self.map.collider_aabb(cands[k] as u32);
+            let off = self.pose_of(dk, di).unwrap_or(IVec3::ZERO);
+            ab[k] = [amin.x + off.x, amin.y + off.y, amin.z + off.z, amax.x + off.x, amax.y + off.y, amax.z + off.z];
+            k += 1;
+        }
+        let clear = |k: usize, f: [i64; 3]| -> bool {
+            let b = &ab[k];
+            let m = AABB_SKIP_MM * S;
+            let rr = r as i64 * S;
+            f[0] + rr < b[0] as i64 * S - m
+                || f[0] - rr > b[3] as i64 * S + m
+                || f[2] + rr < b[2] as i64 * S - m
+                || f[2] - rr > b[5] as i64 * S + m
+                || f[1] + h as i64 * S < b[1] as i64 * S - m
+                || f[1] > b[4] as i64 * S + m
+        };
+        // Decoded candidates, memoised for the first DEC_CACHE (P2 0.2: each sample / bisection step re-decoded them).
+        let dec: [core::cell::Cell<Option<Cand>>; DEC_CACHE] = Default::default();
+        let get = |k: usize| -> Option<Cand> {
+            if k < DEC_CACHE {
+                if let Some(c) = dec[k].get() {
+                    return Some(c);
+                }
+                let c = cand(self, &cands, k);
+                dec[k].set(c);
+                c
+            } else {
+                cand(self, &cands, k)
+            }
+        };
         // Ignore colliders already overlapped at the start (PhysX CapsuleCast semantics).
         let s0 = Seg::of(f0, r, h);
         let mut live = [false; MAX_CANDIDATES];
         let mut any = false;
         let mut k = 0;
         while k < n {
-            if let Some(cd) = &cand(self, &cands, k) {
+            if clear(k, f0) {
+                live[k] = true; // gathered candidates are enabled; clear of the start → not overlapped
+                any |= live[k];
+            } else if let Some(cd) = &get(k) {
                 let nr = self.near(&cd.c, cd.off, &s0);
                 live[k] = nr.gap2 >= reach2(r, &nr);
                 any |= live[k];
@@ -88,11 +132,12 @@ impl<'m> Scene<'m> {
             return None;
         }
         let overlap_at = |s_sub: i64| -> bool {
-            let seg = Seg::of(feet_at(f0, dir, s_sub), r, h);
+            let fs = feet_at(f0, dir, s_sub);
+            let seg = Seg::of(fs, r, h);
             let mut k = 0;
             while k < n {
-                if live[k] {
-                    if let Some(cd) = &cand(self, &cands, k) {
+                if live[k] && !clear(k, fs) {
+                    if let Some(cd) = &get(k) {
                         let nr = self.near(&cd.c, cd.off, &seg);
                         if nr.gap2 < reach2(r, &nr) {
                             return true;
@@ -134,13 +179,14 @@ impl<'m> Scene<'m> {
             b += 1;
         }
         // The contact collider: overlapping at `hi`, smallest clearance at `lo` (ties: lowest index).
+        let f_hi = feet_at(f0, dir, hi);
         let seg_lo = Seg::of(feet_at(f0, dir, lo), r, h);
-        let seg_hi = Seg::of(feet_at(f0, dir, hi), r, h);
+        let seg_hi = Seg::of(f_hi, r, h);
         let mut best: Option<(i64, usize, Near)> = None;
         let mut k = 0;
         while k < n {
-            if live[k] {
-                if let Some(cd) = &cand(self, &cands, k) {
+            if live[k] && !clear(k, f_hi) {
+                if let Some(cd) = &get(k) {
                     let nh = self.near(&cd.c, cd.off, &seg_hi);
                     if nh.gap2 < reach2(r, &nh) {
                         let nl = self.near(&cd.c, cd.off, &seg_lo);
@@ -154,7 +200,7 @@ impl<'m> Scene<'m> {
             k += 1;
         }
         let (_, k, nl) = best?;
-        let cd = cand(self, &cands, k)?;
+        let cd = get(k)?;
         let (normal, point) = contact(&nl, dir);
         Some(Hit { distance: div_round(lo, S), point, normal, surface: cd.c.surface, collider: cd.i })
     }
@@ -175,6 +221,9 @@ impl<'m> Scene<'m> {
         while k < n {
             if let Some(cd) = &cand(self, &cands, k) {
                 self.counters.add(ctr::NARROW, 1);
+                if !self.spend(if cd.c.kind == shape::PRISM { 3 + cd.c.prism_n / 2 } else { 3 }) {
+                    break;
+                }
                 let o = [(origin.x - cd.off.x) as i64, (origin.y - cd.off.y) as i64, (origin.z - cd.off.z) as i64];
                 let hit = match cd.c.kind {
                     shape::OBB => obb::ray(&cd.c, o, d, max),

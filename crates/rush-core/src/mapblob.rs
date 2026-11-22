@@ -269,7 +269,12 @@ impl<'a> MapView<'a> {
     pub fn collider(&self, i: u32) -> Collider {
         let (o, _) = self.section(tag::COLLIDERS);
         let b = o + i as usize * COLLIDER_WORDS * 4;
-        let w = |k: usize| rd_i32(self.data, b + k * 4);
+        // One bounds check for the whole record (P2 0.2: 24 checked word reads cost ≈ 1,000 CU on sBPF).
+        let rec: &[u8; COLLIDER_WORDS * 4] = match self.data.get(b..b + COLLIDER_WORDS * 4) {
+            Some(r) => r.try_into().unwrap_or(&[0; COLLIDER_WORDS * 4]),
+            None => &[0; COLLIDER_WORDS * 4],
+        };
+        let w = |k: usize| i32::from_le_bytes([rec[k * 4], rec[k * 4 + 1], rec[k * 4 + 2], rec[k * 4 + 3]]);
         let v3 = |k: usize| IVec3::new(w(k), w(k + 1), w(k + 2));
         let h = w(0) as u32;
         let kind = (h & 0xFF) as u8;
@@ -300,19 +305,40 @@ impl<'a> MapView<'a> {
         c
     }
 
+    /// The broadphase fields of collider `i` only: (dyn_kind, dyn_index, aabb_min, aabb_max). Same values as
+    /// [`Self::collider`], 7 words instead of 24 (P2 0.2).
+    #[inline]
+    pub fn collider_aabb(&self, i: u32) -> (u8, u16, IVec3, IVec3) {
+        let (o, _) = self.section(tag::COLLIDERS);
+        let b = o + i as usize * COLLIDER_WORDS * 4;
+        let rec: &[u8; 32] = match self.data.get(b..b + 32) {
+            Some(r) => r.try_into().unwrap_or(&[0; 32]),
+            None => &[0; 32],
+        };
+        let w = |k: usize| i32::from_le_bytes([rec[k * 4], rec[k * 4 + 1], rec[k * 4 + 2], rec[k * 4 + 3]]);
+        let h = w(0) as u32;
+        (((h >> 8) & 0xFF) as u8, (h >> 16) as u16, IVec3::new(w(2), w(3), w(4)), IVec3::new(w(5), w(6), w(7)))
+    }
+
     /// Prism vertex `k` of a collider: (x, z, nx, nz, off) with `off = n · v` (mm·Q15).
     #[inline]
     pub fn prism_vertex(&self, c: &Collider, k: u32) -> (i32, i32, i32, i32, i64) {
         let base = (c.prism_off + k * PRISM_VERTEX_WORDS as u32) as usize;
-        let lo = self.word(tag::PRISMS, base + 4) as u32 as i64;
-        let hi = self.word(tag::PRISMS, base + 5) as i64;
-        (
-            self.word(tag::PRISMS, base),
-            self.word(tag::PRISMS, base + 1),
-            self.word(tag::PRISMS, base + 2),
-            self.word(tag::PRISMS, base + 3),
-            (hi << 32) | lo,
-        )
+        // One bounds check per vertex record (as `word`: out of range reads as zeros).
+        let (o, l) = self.section(tag::PRISMS);
+        const N: usize = PRISM_VERTEX_WORDS * 4;
+        let rec: &[u8; N] = if base * 4 + N <= l {
+            match self.data.get(o + base * 4..o + base * 4 + N) {
+                Some(r) => r.try_into().unwrap_or(&[0; N]),
+                None => &[0; N],
+            }
+        } else {
+            &[0; N]
+        };
+        let w = |k: usize| i32::from_le_bytes([rec[k * 4], rec[k * 4 + 1], rec[k * 4 + 2], rec[k * 4 + 3]]);
+        let lo = w(4) as u32 as i64;
+        let hi = w(5) as i64;
+        (w(0), w(1), w(2), w(3), (hi << 32) | lo)
     }
 
     /// Global collider `k` (index into COLLIDERS).
@@ -353,6 +379,44 @@ impl<'a> MapView<'a> {
             guard += 1;
         }
         None
+    }
+
+    /// The grid cells with ids in `[id0, id1]`, ascending, as (start, count) into `f` (P2 0.2: one lower-bound search
+    /// per run of consecutive ids instead of one search per cell; same cells, same order).
+    pub fn grid_cells_in(&self, id0: u32, id1: u32, mut f: impl FnMut(u32, u32)) {
+        let (o, l) = self.section(tag::GRID);
+        let sec = match self.data.get(o..o + l) {
+            Some(x) => x,
+            None => return,
+        };
+        let rd = |i: usize| -> u32 {
+            match sec.get(i * 4..i * 4 + 4) {
+                Some(b) => u32::from_le_bytes([b[0], b[1], b[2], b[3]]),
+                None => 0,
+            }
+        };
+        let n = rd(7);
+        let (mut lo, mut hi) = (0u32, n);
+        let mut guard = 0;
+        while lo < hi && guard < 40 {
+            let mid = (lo + hi) / 2;
+            if rd(GRID_HDR_WORDS + mid as usize * 3) < id0 {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+            guard += 1;
+        }
+        let mut k = lo;
+        while k < n {
+            let b = GRID_HDR_WORDS + k as usize * 3;
+            let cid = rd(b);
+            if cid > id1 {
+                break;
+            }
+            f(rd(b + 1), rd(b + 2));
+            k += 1;
+        }
     }
 
     #[inline]
@@ -422,10 +486,15 @@ impl<'a> MapView<'a> {
     /// The def words of hazard `(variant, ty, i)` into `out` (≥ `ty.words()`).
     pub fn hazard_words(&self, variant: u8, ty: HazardType, i: usize, out: &mut [i32]) {
         let p = self.hazard_rec(variant, ty, i) + HAZ_HDR_WORDS * 4;
-        let n = ty.words();
+        let n = ty.words().min(out.len());
+        // One bounds check for the record.
+        let rec = match self.data.get(p..p + n * 4) {
+            Some(r) => r,
+            None => return,
+        };
         let mut k = 0;
         while k < n {
-            out[k] = rd_i32(self.data, p + k * 4);
+            out[k] = i32::from_le_bytes([rec[k * 4], rec[k * 4 + 1], rec[k * 4 + 2], rec[k * 4 + 3]]);
             k += 1;
         }
     }

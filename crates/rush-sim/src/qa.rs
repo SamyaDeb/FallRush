@@ -48,6 +48,37 @@ pub struct RunResult {
     pub extra: [i64; 3],
 }
 
+thread_local! {
+    /// step_slice calls so far (SLICE mode): executions per tick for the report.
+    pub static SLICES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// One tick as the chain runs it: `PARTS` env (default 1 = `world::step`) parts in order on one heap-free Scene.
+pub fn qa_step<H: Hasher>(w: &mut World, m: &MapView, params: &MovementParams, h: &mut H, ev: &mut StepEvents) {
+    // SLICE=<work units>: the chain's step (world::step_slice calls until the tick completes)
+    if let Some(budget) = std::env::var("SLICE").ok().and_then(|v| v.parse::<u32>().ok()) {
+        let mut sc = rush_core::collide::Scene::new(*m);
+        let mut from = 0u8;
+        loop {
+            from = world::step_slice(w, &[None; MAX_PLAYERS], m, params, h, ev, &mut sc, from, budget);
+            SLICES.with(|c| c.set(c.get() + 1));
+            if from == 0 {
+                break;
+            }
+        }
+        return;
+    }
+    let parts: u8 = std::env::var("PARTS").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
+    if parts <= 1 {
+        world::step(w, &[None; MAX_PLAYERS], m, params, h, ev);
+        return;
+    }
+    let mut sc = rush_core::collide::Scene::new(*m);
+    for p in 0..parts {
+        world::step_part(w, &[None; MAX_PLAYERS], m, params, h, ev, &mut sc, p, parts);
+    }
+}
+
 pub fn players_for(m: u8) -> (u32, u8) {
     match m {
         mode::SURVIVAL => (8, 5),
@@ -90,7 +121,7 @@ pub fn run_round(blob: &[u8], seed: u64, rate: u32, tier: u8) -> RunResult {
     let mut t = 0u64;
     while !rules::is_over(&w) && t < cap {
         ev.n = 0;
-        world::step(&mut w, &[None; MAX_PLAYERS], &m, &params, &mut world::NoHasher, &mut ev);
+        qa_step(&mut w, &m, &params, &mut world::NoHasher, &mut ev);
         t += 1;
         if w.round.phase != rules::phase::RUSH {
             for i in 0..np as usize {
@@ -279,7 +310,7 @@ pub fn run_match(maps: &[(u8, Vec<u8>)], lobby: &[u8], seed: u64, rate: u32) -> 
         }
         let v = MapView::new(&cur).unwrap();
         ev.n = 0;
-        world::step(&mut w, &[None; MAX_PLAYERS], &v, &params, &mut h, &mut ev);
+        qa_step(&mut w, &v, &params, &mut h, &mut ev);
         if w.dir.phase >= rules::director::phase::DONE {
             break;
         }
@@ -342,4 +373,155 @@ pub fn soak(args: &[String]) -> i32 {
     } else {
         1
     }
+}
+
+/// `rush-sim split-check [--runs N] [--parts 2,3,4]` (P2 split tick): full 12-bot matches through the director, one
+/// copy stepped whole and one with `world::step_part` in K parts; the World hash must match after every tick.
+pub fn split_check(args: &[String]) -> i32 {
+    use rush_core::collide::Scene;
+    let dir = crate::arg(args, "--maps").map(std::path::PathBuf::from).unwrap_or_else(|| crate::repo_root().join("maps"));
+    let runs: u64 = crate::arg(args, "--runs").and_then(|v| v.parse().ok()).unwrap_or(3);
+    let rate: u32 = crate::arg(args, "--rate").and_then(|v| v.parse().ok()).unwrap_or(30);
+    let parts: Vec<u8> = crate::arg(args, "--parts").unwrap_or_else(|| "2,3,4,6".into()).split(',').map(|x| x.parse().unwrap()).collect();
+    let (maps, lobby) = load_maps(&dir);
+    let mut bad = 0;
+    for &k in &parts {
+        for seed in 1..=runs {
+            let lm = MapView::new(&lobby).unwrap();
+            let mut h = Sha;
+            let mut s32 = [0u8; 32];
+            s32[..8].copy_from_slice(&seed.to_le_bytes());
+            let ids: Vec<String> = (0..12).map(|s| format!("bot:{s}")).collect();
+            let e: Vec<rush_core::transcript::RosterEntry> = (0..12).map(|s| rush_core::transcript::RosterEntry { bot: true, user_id: ids[s].as_bytes(), wallet: None }).collect();
+            let rh = rush_core::transcript::roster_hash(&mut h, &e);
+            let mut a = World::new(&lm, rate);
+            rules::director::start_match(&mut a, &lm, &s32, 12, &rh, &mut h);
+            let mut b = a;
+            let params = MovementParams::default();
+            let mut cur: Vec<u8> = lobby.clone();
+            let (mut ea, mut eb) = (StepEvents::default(), StepEvents::default());
+            let mut ticks = 0u64;
+            let mut ok = true;
+            let mut capped_at: Option<u32> = None;
+            for _ in 0..rate as u64 * 1500 {
+                if let Some(id) = rules::director::needs_map(&a) {
+                    cur = maps.iter().find(|(x, _)| *x == id).unwrap().1.clone();
+                    let v = MapView::new(&cur).unwrap();
+                    rules::director::load_round(&mut a, &v, &mut h);
+                    rules::director::load_round(&mut b, &v, &mut h);
+                }
+                let v = MapView::new(&cur).unwrap();
+                ea.n = 0;
+                eb.n = 0;
+                world::step(&mut a, &[None; MAX_PLAYERS], &v, &params, &mut h, &mut ea);
+                let mut sc = Scene::new(v);
+                eb.capped = 0;
+                ea.capped = 0;
+                for p in 0..k {
+                    world::step_part(&mut b, &[None; MAX_PLAYERS], &v, &params, &mut h, &mut eb, &mut sc, p, k);
+                }
+                ticks += 1;
+                if eb.capped > 0 || ea.capped > 0 {
+                    // a work budget fired: per-part budgets make the K-part step differ from the whole step from here
+                    // on (by design: the chain and every client run the K-part step). Equal up to here.
+                    capped_at = Some(a.tick);
+                    break;
+                }
+                if a.hash() != b.hash() || ea.n != eb.n {
+                    eprintln!("split {k} seed {seed}: differs at tick {}", a.tick);
+                    ok = false;
+                    break;
+                }
+                if a.dir.phase >= rules::director::phase::DONE {
+                    break;
+                }
+            }
+            println!("split {k} parts, match seed {seed}: {} ticks, {}", ticks, if !ok { "MISMATCH".to_string() } else if let Some(t) = capped_at { format!("identical every tick until the first work-budget cap (tick {t})") } else { "identical every tick".to_string() });
+            if !ok {
+                bad += 1;
+            }
+        }
+    }
+    if bad == 0 {
+        0
+    } else {
+        1
+    }
+}
+
+/// A Final through the director, as the chain runs it (`start_final` → step_slice until DONE). Slots `alive` play;
+/// the others are eliminated in round 3. Returns (game seconds of the Final round, champion, timer ending, transcript,
+/// World hash at the end, slices).
+pub fn run_final(maps: &[(u8, Vec<u8>)], lobby: &[u8], seed: u64, alive: u16) -> (f64, u8, bool, String, u64, u64) {
+    use rush_core::collide::Scene;
+    let lm = MapView::new(lobby).unwrap();
+    let mut h = Sha;
+    let mut w = World::new(&lm, 30);
+    let mut s32 = [0u8; 32];
+    s32[..8].copy_from_slice(&seed.to_le_bytes());
+    let ids: Vec<String> = (0..12).map(|s| format!("bot:{s}")).collect();
+    let e: Vec<rush_core::transcript::RosterEntry> = (0..12).map(|s| rush_core::transcript::RosterEntry { bot: true, user_id: ids[s].as_bytes(), wallet: None }).collect();
+    let rh = rush_core::transcript::roster_hash(&mut h, &e);
+    rules::director::start_final(&mut w, &lm, &s32, 12, &rh, alive, &[0; MAX_PLAYERS], &mut h);
+    let params = MovementParams::default();
+    let mut cur: Vec<u8> = lobby.to_vec();
+    let mut ev = StepEvents::default();
+    let (mut rush_from, mut rush_to) = (0u32, 0u32);
+    let mut slices = 0u64;
+    for _ in 0..30 * 600 {
+        if let Some(id) = rules::director::needs_map(&w) {
+            cur = maps.iter().find(|(k, _)| *k == id).unwrap().1.clone();
+            let v = MapView::new(&cur).unwrap();
+            rules::director::load_round(&mut w, &v, &mut h);
+        }
+        let v = MapView::new(&cur).unwrap();
+        let mut sc = Scene::new(v);
+        let mut from = 0u8;
+        loop {
+            ev.n = 0;
+            from = world::step_slice(&mut w, &[None; MAX_PLAYERS], &v, &params, &mut h, &mut ev, &mut sc, from, world::SLICE_WORK);
+            slices += 1;
+            if from == 0 {
+                break;
+            }
+        }
+        if w.round.phase == rules::phase::RUSH {
+            if rush_from == 0 {
+                rush_from = w.tick;
+            }
+            rush_to = w.tick;
+        }
+        if w.dir.phase >= rules::director::phase::DONE {
+            break;
+        }
+    }
+    let hex: String = w.dir.transcript.iter().map(|b| format!("{b:02x}")).collect();
+    (rush_to.saturating_sub(rush_from) as f64 / 30.0, w.dir.champion, w.round.timer_expired, hex, w.hash(), slices)
+}
+
+/// `rush-sim final-qa [--runs N]`: N Finals (3 bots, alive slots rotate with the seed) through `start_final`.
+pub fn final_qa(args: &[String]) -> i32 {
+    let dir = crate::arg(args, "--maps").map(std::path::PathBuf::from).unwrap_or_else(|| crate::repo_root().join("maps"));
+    let runs: u64 = crate::arg(args, "--runs").and_then(|v| v.parse().ok()).unwrap_or(100);
+    let (maps, lobby) = load_maps(&dir);
+    let (mut lens, mut timers, mut det, mut slices, mut ticks) = (Vec::new(), 0, 0, 0u64, 0f64);
+    for s in 1..=runs {
+        let a = (s % 10) as usize;
+        let alive = (1u16 << a) | (1 << ((a + 3) % 12)) | (1 << ((a + 7) % 12));
+        let r1 = run_final(&maps, &lobby, s, alive);
+        let r2 = run_final(&maps, &lobby, s, alive);
+        if r1.4 == r2.4 && r1.3 == r2.3 {
+            det += 1;
+        }
+        assert!(alive >> r1.1 & 1 == 1, "champion {} not a finalist", r1.1);
+        lens.push(r1.0);
+        if r1.2 {
+            timers += 1;
+        }
+        slices += r1.5;
+        ticks += r1.0 * 30.0;
+    }
+    let j = json!({ "finals": runs, "median_s": median(&mut lens.clone()), "p90_s": p90(&mut lens.clone()), "timer_endings": timers, "deterministic": det, "champion_is_finalist": runs, "slices_per_tick_rush_approx": slices as f64 / ticks.max(1.0) });
+    println!("{j}");
+    0
 }

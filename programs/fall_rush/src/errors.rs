@@ -43,4 +43,21 @@ pub enum FallRushError {
     InvalidMapPool,
     #[msg("Arithmetic overflow")]
     Overflow,
+    // ---- P2 on-chain simulation
+    #[msg("Input tick outside the accepted window")]
+    InputOutOfWindow,
+    #[msg("Map blob invalid, unsealed or hash mismatch")]
+    BadMap,
+    #[msg("Timed task instruction could not be built")]
+    BadTask,
+    #[msg("Slot already taken")]
+    SlotTaken,
+    #[msg("Signer already holds a slot in this arena")]
+    AlreadyJoined,
+    #[msg("Arena is not in the required state")]
+    BadArenaState,
+    #[msg("Round result not ready or already committed")]
+    NothingToCommit,
+    #[msg("Session token missing, revoked, expired or not for this signer / wallet / program")]
+    SessionInvalid,
 }

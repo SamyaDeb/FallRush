@@ -320,7 +320,7 @@ pub fn cmd(args: &[String]) -> i32 {
         }
         md += "\n";
     }
-    let out = root.join("docs/proof/p1/trace-compare.md");
+    let out = crate::arg(args, "--out").map(PathBuf::from).unwrap_or_else(|| root.join("docs/proof/p1/trace-compare.md"));
     std::fs::write(&out, &md).unwrap();
     print!("{md}");
     println!("{fails} failing rows → {}", out.display());

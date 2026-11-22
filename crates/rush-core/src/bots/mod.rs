@@ -220,7 +220,19 @@ pub(crate) struct Ctx<'a, 'm> {
     pub s: MotorState,
     pub sk: Skill,
     pub reference: bool,
+    /// Hazard samples left for this tick's path checks (P2 0.2 deterministic work budget, [`BOT_PROBES`]).
+    pub probes: core::cell::Cell<u16>,
 }
+
+/// Most hazard samples (`nav::hazard_at`) one bot's path checks may take in a tick. When a check runs out, the part
+/// not sampled is taken as clear (a player does not look further ahead either). Counted, so identical on every target.
+pub const BOT_PROBES: u16 = 96;
+
+/// A bot waiting for a clear path re-checks every this many ticks (30 Hz), on its own slot-staggered tick.
+pub const WAIT_GLANCE_TICKS: u32 = 3;
+
+/// Race rounds: bots' (non-precise) stick scale ‰ on top of the tier's (P2 0.3 pacing; 1000 = P1).
+pub const RACE_PACE_PERMILLE: i32 = 875;
 
 impl Ctx<'_, '_> {
     /// A 30 Hz tick count at the configured rate (≥ 1 for positive counts).
@@ -328,6 +340,7 @@ pub fn bot_input(slot: usize, w: &mut World, map: &MapView, sc: &Scene) -> Input
             s: w.players[slot].m,
             sk: skill(b.tier),
             reference: b.tier == tier::REFERENCE,
+            probes: core::cell::Cell::new(BOT_PROBES),
         };
         let m = if free { mode::RACE } else { w.round.mode };
         let mut plan = match m {
@@ -390,6 +403,8 @@ fn noise(c: &Ctx, b: &mut BotState, plan: Plan) -> InputCmd {
         let rx = div_round(mx * cs - my * sn, ONE_Q15 as i64);
         let ry = div_round(mx * sn + my * cs, ONE_Q15 as i64);
         let k = if precise { 1000 } else { c.sk.speed_permille };
+        // P2 0.3: race bots pace (on-chain bots define the round length; Capsule Run Normal median 85–110 s)
+        let k = if c.w.round.mode == mode::RACE && !c.reference { div_round(k * RACE_PACE_PERMILLE as i64, 1000) } else { k };
         let mut ox = div_round(rx * k, 1000);
         let mut oy = div_round(ry * k, 1000);
         let l = isqrt_i64(ox * ox + oy * oy);

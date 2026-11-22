@@ -308,6 +308,9 @@ pub struct StarFieldDef {
     pub drop_pop_ticks: i32,
     pub drop_life_ticks: i32,
     pub drop_distance: i32,
+    /// Derived on read (P2 0.2, not in the blob): the non-golden anchors in ascending order (`star_slot`'s pool).
+    pub pool: [u8; MAX_ANCHORS],
+    pub pool_n: u8,
 }
 
 impl Default for StarFieldDef {
@@ -328,6 +331,8 @@ impl Default for StarFieldDef {
             drop_pop_ticks: 0,
             drop_life_ticks: 0,
             drop_distance: 0,
+            pool: [0; MAX_ANCHORS],
+            pool_n: 0,
         }
     }
 }
@@ -355,6 +360,14 @@ impl StarFieldDef {
         d.drop_pop_ticks = w[o + 7];
         d.drop_life_ticks = w[o + 8];
         d.drop_distance = w[o + 9];
+        let mut i = 0;
+        while i < d.anchor_count && (d.pool_n as usize) < MAX_ANCHORS {
+            if !d.is_golden_anchor(i) {
+                d.pool[d.pool_n as usize] = i as u8;
+                d.pool_n += 1;
+            }
+            i += 1;
+        }
         d
     }
     pub fn write(&self, out: &mut [i32]) {

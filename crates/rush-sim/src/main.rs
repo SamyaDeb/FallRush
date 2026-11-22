@@ -14,6 +14,7 @@ mod hazcmp;
 mod mapjson;
 mod movement;
 mod qa;
+mod replay;
 mod trace;
 mod vectors_cmd;
 
@@ -44,9 +45,14 @@ fn main() {
         ["trace", ..] => trace::cmd(&args),
         ["ffi-expect", ..] => ffi_expect(),
         ["counters", ..] => counters::cmd(&args),
+        ["probe", ..] => counters::probe_cmd(&args),
+        ["player-counters", ..] => counters::player_cmd(&args),
         ["qa", ..] => qa::qa(&args),
         ["run", ..] => qa::run(&args),
         ["soak", ..] => qa::soak(&args),
+        ["replay", ..] => replay::cmd(&args),
+        ["final-qa", ..] => qa::final_qa(&args),
+        ["split-check", ..] => qa::split_check(&args),
         ["vectors", "gen", ..] => vectors_cmd::gen(&args),
         ["vectors", "check", ..] => vectors_cmd::check(&args),
         _ => {

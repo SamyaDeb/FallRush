@@ -339,7 +339,7 @@ impl World {
 
     /// The hazards of the current round.
     pub fn hazards<'m>(&self, map: &MapView<'m>) -> Hazards<'m> {
-        Hazards { map: *map, variant: self.variant, seed: self.hazard_seed, m: modifiers::get(self.modifier).hazard }
+        Hazards { map: *map, variant: self.variant, seed: self.hazard_seed, m: modifiers::get(self.modifier).hazard, ph: None }
     }
 
     /// Hazard time (1/60 s) of `tick`.
@@ -362,6 +362,34 @@ impl World {
         } else {
             Some(w)
         }
+    }
+
+    /// Decodes canonical bytes into `self` in place (no 2 KB temporary: sBPF stack frames are 4 KB). Returns false
+    /// (and leaves `self` partly written) on short input or a wrong version.
+    pub fn load_from(&mut self, b: &[u8]) -> bool {
+        let mut d = Dec::new(b);
+        self.version = d.u8();
+        self.tick = d.u32();
+        self.rate = d.u8();
+        self.round_index = d.u8();
+        self.map_key = d.u8();
+        self.variant = d.u8();
+        self.modifier = d.u8();
+        self.hazard_seed = d.u64();
+        self.round_start = d.u32();
+        for p in self.players.iter_mut() {
+            *p = Player::dec(&mut d);
+        }
+        self.rx = Reactive::dec(&mut d);
+        for q in self.drop_queue.iter_mut() {
+            q.tick = d.u32();
+            q.kind = d.u8();
+            q.arg = d.u8();
+        }
+        self.round = crate::rules::RoundState::dec(&mut d);
+        self.dir = crate::rules::director::DirectorState::dec(&mut d);
+        self.event_seq = d.u32();
+        !d.err && self.version == WORLD_VERSION
     }
 
     /// FNV-1a 64 over the canonical bytes (parity only; the program uses sha256 where it matters).
@@ -461,11 +489,17 @@ pub struct StepEvents {
     pub n: usize,
     pub ev: [Event; MAX_EVENTS],
     pub dropped: u32,
+    /// Players whose work budget ran out this step (they kept their last safe state; P2 0.2 step 5). Not reset by
+    /// the step: the caller clears it.
+    pub capped: u32,
+    /// Largest bot-brain and motor work (units) of one player this step (diagnostics; the caller clears them).
+    pub bot_work_max: u32,
+    pub motor_work_max: u32,
 }
 
 impl Default for StepEvents {
     fn default() -> Self {
-        StepEvents { n: 0, ev: [Event::default(); MAX_EVENTS], dropped: 0 }
+        StepEvents { n: 0, ev: [Event::default(); MAX_EVENTS], dropped: 0, capped: 0, bot_work_max: 0, motor_work_max: 0 }
     }
 }
 
@@ -493,6 +527,11 @@ pub fn emit_round(w: &mut World, ev: &mut StepEvents, tag: u8, tick: u32, slot: 
 /// sha256 provider (the program: `solana-sha256-hasher`; tests and the off-chain runners: `sha2`).
 pub trait Hasher {
     fn sha256(&mut self, parts: &[&[u8]]) -> [u8; 32];
+    /// Profiling hook at fixed points of [`step`] (P2 CU pass; the program logs compute units here). Never changes
+    /// the simulation. Tags: 1 after `before_tick`, 2 after `pose_scene` + `begin_tick`, 16 + slot after that slot's
+    /// input / bot brain, 32 + slot after its `player_step`, 3 after `separate`, 4 at the end.
+    #[inline(always)]
+    fn mark(&mut self, _tag: u8) {}
 }
 
 /// A hasher that is never called (worlds without a match director, e.g. sandbox and QA single rounds).
@@ -509,7 +548,27 @@ impl Hasher for NoHasher {
 /// Poses platforms, doors, lids, tiles and blocks for `tick` and fills the surface motions.
 pub fn pose_scene<'m>(w: &World, map: &MapView<'m>, cfg: &MotorConfig, tick: u32) -> Scene<'m> {
     let mut sc = Scene::new(*map);
-    let hz = w.hazards(map);
+    pose_scene_into(&mut sc, w, map, cfg, tick);
+    sc
+}
+
+/// [`pose_scene`] into existing storage (the program keeps the ≈ 3 KB `Scene` on the heap).
+#[inline(never)]
+pub fn pose_scene_into<'m>(sc: &mut Scene<'m>, w: &World, map: &MapView<'m>, cfg: &MotorConfig, tick: u32) {
+    sc.reset(*map);
+    sc.phases.build(&w.hazards(map));
+    let tab = sc.phases;
+    let mut hz = w.hazards(map);
+    hz.ph = Some(&tab);
+    let nb = hz.count(HazardType::RollingBall);
+    if nb <= crate::collide::MAX_BALLK {
+        let mut i = 0;
+        while i < nb {
+            sc.balls[i] = hazards::BallK::of(&hz.ball(i));
+            i += 1;
+        }
+        sc.balls_n = nb as u8;
+    }
     let t60 = w.t60(tick);
     let step60 = cfg.t60_per_tick as i64;
     let t30 = hazards::t30(t60);
@@ -532,10 +591,9 @@ pub fn pose_scene<'m>(w: &World, map: &MapView<'m>, cfg: &MotorConfig, tick: u32
     let mut base = 0usize;
     let mut g = 0;
     let mut states = [hazards::lid::LidState::Idle; hazards::lid::MAX_LIDS_PER_GRID];
-    let mut scratch = [0u8; hazards::lid::MAX_LIDS_PER_GRID];
     while g < ng {
         let d = hz.lid_grid(g);
-        hazards::lid::states(&d, t30, &mut states, &mut scratch);
+        sc.lid_states(g, &d, t30, &mut states);
         let n = (d.count() as usize).min(hazards::lid::MAX_LIDS_PER_GRID);
         let mut k = 0;
         while k < n {
@@ -602,7 +660,6 @@ pub fn pose_scene<'m>(w: &World, map: &MapView<'m>, cfg: &MotorConfig, tick: u32
         id += 1;
         i += 1;
     }
-    sc
 }
 
 /// `ReactiveSet.TileSolid` (one contact cycle kept per tile; see [`MAX_RX_TILES`]).
@@ -765,7 +822,7 @@ pub fn player_step(cfg: &MotorConfig, s: &mut MotorState, cmd: &InputCmd, w: &Wo
     if s.has(flag::RESPAWNING) {
         return 0;
     }
-    let hz = w.hazards(map);
+    let hz = sc.hz(w);
     let t60 = w.t60(tick);
     let mut r = 0u8;
     if apply_doors(s, &hz, t60, cfg) {
@@ -800,34 +857,52 @@ pub fn player_step(cfg: &MotorConfig, s: &mut MotorState, cmd: &InputCmd, w: &Wo
 /// is repeated with edges cleared for 3 ticks, then neutral). Bots ignore `inputs` and run [`crate::bots::bot_input`].
 #[inline(never)] // sBPF: keep step's frame separate from its callers (4 KB frames)
 pub fn step<H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], map: &MapView, params: &MovementParams, h: &mut H, ev: &mut StepEvents) {
-    w.tick = w.tick.wrapping_add(1);
-    let tick = w.tick;
-    crate::rules::director::before_tick(w, map, tick, h, ev);
-    let cfg = w.motor_config(params);
-    let sc = pose_scene(w, map, &cfg, tick);
-    crate::rules::begin_tick(w, map, tick, ev);
+    let mut sc = Scene::new(*map);
+    step_with(w, inputs, map, params, h, ev, &mut sc);
+}
 
-    let mut slot = 0;
-    while slot < MAX_PLAYERS {
-        if !w.players[slot].active() {
-            slot += 1;
-            continue;
-        }
+/// Work units (≈ 100 sBPF CU each) a bot brain may spend per tick; past it the bot plans with what it has sampled
+/// (P2 0.2 deterministic work budget).
+pub const BOT_WORK: u32 = 1200;
+
+/// Work units a part may spend per slot it steps (the part's hard total: slots × this). Once a part's total is
+/// spent, its remaining players keep their state this tick (stopped). Bounds every part's compute units.
+pub const PART_WORK_PER_SLOT: u32 = 600;
+
+/// Work units one player's motor step may spend per tick; past it the player keeps its last safe state (stopped).
+pub const MOTOR_WORK: u32 = 1500;
+
+/// [`step`] with caller-provided `Scene` storage (reset and posed here). The program passes a heap `Scene`, so no
+/// frame holds it next to the step's own locals.
+#[inline(never)]
+pub fn step_with<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], map: &MapView<'m>, params: &MovementParams, h: &mut H, ev: &mut StepEvents, scene: &mut Scene<'m>) {
+    step_part(w, inputs, map, params, h, ev, scene, 0, 1);
+}
+
+
+/// One player's step inside a tick (bot brain or input, motor, budgets): the body shared by [`step_part`] and
+/// [`step_slice`].
+#[inline(never)]
+#[allow(clippy::too_many_arguments)]
+fn step_player<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], map: &MapView<'m>, cfg: &MotorConfig, sc: &Scene<'m>, h: &mut H, ev: &mut StepEvents, tick: u32, slot: usize, part_limit: u32) {
+        // the bot brain's work budget (BOT_WORK): past it the bot plans with what it has looked at (no revert)
+        let w0 = sc.work.get();
+        sc.work_cap.set(w0.saturating_add(BOT_WORK).min(part_limit));
         let mut cmd = if w.players[slot].is_bot() {
-            crate::bots::bot_input(slot, w, map, &sc)
+            crate::bots::bot_input(slot, w, map, sc)
         } else {
             let mut t = w.players[slot].input;
             let c = t.consume(inputs[slot]);
             w.players[slot].input = t;
             c
         };
+        h.mark(16 + slot as u8);
         if !crate::rules::accepts_input(w, slot) {
             cmd = InputCmd { cam_yaw: cmd.cam_yaw, ..InputCmd::NEUTRAL };
         }
         w.players[slot].last_step = 0;
         if !crate::rules::simulates(w, slot) {
-            slot += 1;
-            continue;
+            return;
         }
         if w.players[slot].m.has(flag::RESPAWNING) {
             let rt = w.players[slot].respawn_ticks.saturating_sub(1);
@@ -835,11 +910,24 @@ pub fn step<H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], 
             if rt == 0 && !crate::rules::respawn(w, map, slot, ev) {
                 w.players[slot].m = w.spawn_state(map, slot);
             }
-            slot += 1;
-            continue;
+            return;
         }
         let mut m = w.players[slot].m;
-        let r = player_step(&cfg, &mut m, &cmd, w, map, &sc, tick);
+        // the motor's work budget (MOTOR_WORK): past it the step is reverted below
+        let w1 = sc.work.get();
+        ev.bot_work_max = ev.bot_work_max.max(w1 - w0);
+        sc.work_cap.set(w1.saturating_add(MOTOR_WORK).min(part_limit.max(w1 + MOTOR_WORK / 4)));
+        let mut r = player_step(cfg, &mut m, &cmd, w, map, sc, tick);
+        ev.motor_work_max = ev.motor_work_max.max(sc.work.get() - w1);
+        h.mark(32 + slot as u8);
+        if sc.over() {
+            // Work budget spent: queries reported nothing past the limit, so the step is not trusted. The player keeps
+            // its last safe state, stopped (deterministic on every target).
+            m = w.players[slot].m;
+            m.vel = IVec3::ZERO;
+            r = 0;
+            ev.capped = ev.capped.saturating_add(1);
+        }
         let p = &mut w.players[slot];
         p.m = m;
         p.last_step = r;
@@ -850,12 +938,120 @@ pub fn step<H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], 
             p.respawn_ticks = cfg.respawn_ticks.clamp(1, 255) as u8;
             p.falls = p.falls.saturating_add(1);
         }
+}
+
+/// Part `part` of `parts` of one tick (P2 split tick): part 0 advances the tick and runs the director / round
+/// start-of-tick rules, every part re-poses the scene for that tick and steps its slots
+/// `[part·12/parts, (part+1)·12/parts)`, the last part separates and runs the end-of-tick rules. Running parts
+/// 0..parts in order gives exactly the unsplit step (the slots are stepped in the same order on the same state;
+/// the scene of a tick depends only on state the player loop does not change). Proven by `rush-sim split-check`.
+#[allow(clippy::too_many_arguments)]
+pub fn step_part<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], map: &MapView<'m>, params: &MovementParams, h: &mut H, ev: &mut StepEvents, scene: &mut Scene<'m>, part: u8, parts: u8) {
+    let parts = parts.clamp(1, MAX_PLAYERS as u8) as usize;
+    let part = (part as usize).min(parts - 1);
+    if part == 0 {
+        w.tick = w.tick.wrapping_add(1);
+        crate::rules::director::before_tick(w, map, w.tick, h, ev);
+    }
+    let tick = w.tick;
+    h.mark(1);
+    let cfg = w.motor_config(params);
+    pose_scene_into(scene, w, map, &cfg, tick);
+    let sc: &Scene<'m> = scene;
+    if part == 0 {
+        crate::rules::begin_tick(w, map, tick, ev);
+    }
+    h.mark(2);
+
+    let mut slot = part * MAX_PLAYERS / parts;
+    let end = (part + 1) * MAX_PLAYERS / parts;
+    let part_limit = sc.work.get().saturating_add(PART_WORK_PER_SLOT * (end - slot) as u32);
+    while slot < end {
+        if !w.players[slot].active() {
+            slot += 1;
+            continue;
+        }
+        if sc.work.get() >= part_limit && crate::rules::simulates(w, slot) && !w.players[slot].m.has(flag::RESPAWNING) {
+            // the part's work total is spent: this player holds still this tick (inputs are not consumed)
+            w.players[slot].m.vel = IVec3::ZERO;
+            w.players[slot].last_step = 0;
+            ev.capped = ev.capped.saturating_add(1);
+            slot += 1;
+            continue;
+        }
+        step_player(w, inputs, map, &cfg, sc, h, ev, tick, slot, part_limit);
         slot += 1;
     }
+    sc.work_cap.set(u32::MAX);
+    if part + 1 == parts {
+        separate(w, &cfg, sc);
+        h.mark(3);
+        crate::rules::end_tick(w, map, sc, tick, ev);
+        crate::rules::director::after_tick(w, map, tick, h, ev);
+    }
+    h.mark(4);
+}
 
-    separate(w, &cfg, &sc);
-    crate::rules::end_tick(w, map, &sc, tick, ev);
+
+/// Work units one [`step_slice`] call may spend on players before it stops (the chain: one timed-task execution).
+pub const SLICE_WORK: u32 = 1000;
+
+/// Fixed work units charged per player stepped in a slice (its cost outside the metered queries).
+pub const PLAYER_BASE_WORK: u32 = 150;
+
+/// The P2 tick as the chain runs it: a slice of one tick, sized by the deterministic work meter. `from` is where the
+/// tick stands: 0 = start a new tick (tick + 1, director, start-of-tick rules, then players from slot 0), 1..=11 =
+/// continue with that slot, 12 = only the end of the tick (separation, end-of-tick rules). Players are stepped in
+/// slot order while this call's work stays under `budget` (at least one player per call); the end-of-tick stage runs
+/// when the players are done and budget is left. Returns the next `from` (0 = the tick is complete).
+/// A heavy tick therefore takes more calls; every call's work is bounded. Same results on every target.
+#[allow(clippy::too_many_arguments)]
+pub fn step_slice<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], map: &MapView<'m>, params: &MovementParams, h: &mut H, ev: &mut StepEvents, scene: &mut Scene<'m>, from: u8, budget: u32) -> u8 {
+    let from = (from as usize).min(MAX_PLAYERS);
+    if from == 0 {
+        w.tick = w.tick.wrapping_add(1);
+        crate::rules::director::before_tick(w, map, w.tick, h, ev);
+    }
+    let tick = w.tick;
+    h.mark(1);
+    let cfg = w.motor_config(params);
+    pose_scene_into(scene, w, map, &cfg, tick);
+    let sc: &Scene<'m> = scene;
+    if from == 0 {
+        crate::rules::begin_tick(w, map, tick, ev);
+    }
+    h.mark(2);
+    let w_start = sc.work.get();
+    let limit = w_start.saturating_add(budget);
+    let mut slot = from;
+    let mut stepped = 0;
+    while slot < MAX_PLAYERS {
+        if !w.players[slot].active() {
+            slot += 1;
+            continue;
+        }
+        if stepped > 0 && sc.work.get() >= limit {
+            sc.work_cap.set(u32::MAX);
+            h.mark(4);
+            return slot as u8;
+        }
+        // the per-player cost the meter does not see (input / bot bookkeeping, hazard contacts, motor set-up)
+        sc.spend(PLAYER_BASE_WORK);
+        step_player(w, inputs, map, &cfg, sc, h, ev, tick, slot, u32::MAX);
+        stepped += 1;
+        slot += 1;
+    }
+    sc.work_cap.set(u32::MAX);
+    if stepped > 0 && sc.work.get() >= limit {
+        h.mark(4);
+        return MAX_PLAYERS as u8; // the end of the tick runs in the next call
+    }
+    separate(w, &cfg, sc);
+    h.mark(3);
+    crate::rules::end_tick(w, map, sc, tick, ev);
     crate::rules::director::after_tick(w, map, tick, h, ev);
+    h.mark(4);
+    0
 }
 
 /// `SimCore.Separate`: overlapping capsules pushed apart at up to `push.maxSpeed`; 66 pairs in slot order.
@@ -972,6 +1168,13 @@ fn stagger(s: &mut MotorState, cfg: &MotorConfig) -> bool {
 /// The 40 random ticks of a world vector case (own frame: sBPF stack frames are 4 KB).
 #[inline(never)]
 fn vector_ticks(w: &mut World, map: &MapView, r: &mut crate::vectors::Rng) {
+    let mut sc = Scene::new(*map);
+    vector_ticks_with(w, map, r, &mut sc);
+}
+
+/// [`vector_ticks`] on caller `Scene` storage (the sBPF parity harness keeps it on the heap).
+#[inline(never)]
+fn vector_ticks_with<'m>(w: &mut World, map: &MapView<'m>, r: &mut crate::vectors::Rng, sc: &mut Scene<'m>) {
     let params = MovementParams::default();
     let mut ev = StepEvents::default();
     let mut k = 0;
@@ -985,9 +1188,28 @@ fn vector_ticks(w: &mut World, map: &MapView, r: &mut crate::vectors::Rng) {
             s += 1;
         }
         ev.n = 0;
-        step(w, &inputs, map, &params, &mut NoHasher, &mut ev);
+        step_with(w, &inputs, map, &params, &mut NoHasher, &mut ev, sc);
         k += 1;
     }
+}
+
+/// [`vector_case`] with caller `Scene` storage (`sc` must be a scene of `map`).
+pub fn vector_case_with<'m>(w: &mut World, sc: &mut Scene<'m>, map: &MapView<'m>, seed: u64, i: u32, out: &mut [u8]) -> usize {
+    let mut r = crate::vectors::Rng(seed ^ 0x5017_0000 ^ (i as u64).wrapping_mul(0xD6E8_FEB8_6659_FD93));
+    r.next();
+    let rate = [15u32, 20, 30][r.range(0, 2) as usize];
+    w.reset(map, rate);
+    w.hazard_seed = r.next();
+    let mut s = 0;
+    while s < MAX_PLAYERS {
+        w.add_player(map, s, s % 2 == 1);
+        s += 1;
+    }
+    vector_ticks_with(w, map, &mut r, sc);
+    let mut wr = crate::vectors::W { b: out, n: 0 };
+    wr.u8(rate as u8);
+    wr.i64(w.hash() as i64);
+    wr.n
 }
 
 pub fn vector_case(w: &mut World, map_bytes: &[u8], seed: u64, i: u32, out: &mut [u8]) -> usize {

@@ -36,11 +36,12 @@ fn knock_out(w: &mut World, slot: usize, tick: u32, why: u8, ev: &mut StepEvents
 }
 
 /// `TimedRoundRules.EndTick` (Rush phase only).
-pub fn end_tick(w: &mut World, map: &MapView, tick: u32, ev: &mut StepEvents) {
+/// `sc`: this tick's scene (its phase table makes the hazard decodes cheap; `None` = decode per use, same values).
+pub fn end_tick(w: &mut World, map: &MapView, sc: Option<&crate::collide::Scene>, tick: u32, ev: &mut StepEvents) {
     match w.round.mode {
         mode::SURVIVAL => survival_tick(w, map, tick, ev),
-        mode::SKILL => skill_tick(w, map, tick, ev),
-        _ => final_tick(w, map, tick, ev),
+        mode::SKILL => skill_tick(w, map, sc, tick, ev),
+        _ => final_tick(w, map, sc, tick, ev),
     }
     if w.round.phase == super::phase::ENDED {
         return;
@@ -269,8 +270,58 @@ pub fn live_stars(w: &World, f: &crate::hazards::defs::StarFieldDef, seed: u64, 
     n
 }
 
-fn skill_tick(w: &mut World, map: &MapView, tick: u32, ev: &mut StepEvents) {
-    let hz = w.hazards(map);
+/// The timeline stars spawned and unexpired at `t` (taken or not), in `live_stars` order: (id, value, anchor) into
+/// `out`. Returns how many there are (more than `out.len()` = overflow, the caller falls back).
+fn star_candidates(f: &crate::hazards::defs::StarFieldDef, seed: u64, t: i64, out: &mut [(i32, i32, IVec3); STAR_CANDS]) -> usize {
+    let mut n = 0;
+    if t < 0 || f.wave_every_ticks <= 0 {
+        return 0;
+    }
+    let mut put = |id: i32, out: &mut [(i32, i32, IVec3); STAR_CANDS]| {
+        if let Some(s) = hazards::star_slot(f, seed, id) {
+            if t >= s.spawn_t as i64 && t < s.expire_t as i64 {
+                if n < out.len() {
+                    out[n] = (id, s.value, IVec3::new(s.anchor, 0, 0));
+                }
+                n += 1;
+            }
+        }
+    };
+    let every = f.wave_every_ticks as i64;
+    let w1 = t / every;
+    let w0 = ((t - f.wave_life_ticks as i64) / every).max(0);
+    let mut wv = w0;
+    while wv <= w1 {
+        let mut k = 0;
+        while k < f.wave_size {
+            let id = (wv * f.wave_size as i64 + k as i64) as i32;
+            if id >= STAR_GOLDEN_BASE {
+                break;
+            }
+            put(id, out);
+            k += 1;
+        }
+        wv += 1;
+    }
+    if f.golden_every_ticks > 0 {
+        let mut g = 1i64;
+        while g * f.golden_every_ticks as i64 <= t && g < 64 {
+            put(STAR_GOLDEN_BASE + g as i32, out);
+            g += 1;
+        }
+    }
+    n
+}
+
+/// Most timeline stars `skill_tick` precomputes per tick (more: the per-player `live_stars` path).
+const STAR_CANDS: usize = 64;
+
+#[inline(never)] // own sBPF frame (the star field def is 1.1 KB)
+fn skill_tick(w: &mut World, map: &MapView, sc: Option<&crate::collide::Scene>, tick: u32, ev: &mut StepEvents) {
+    let hz = match sc {
+        Some(sc) => sc.hz(w),
+        None => w.hazards(map),
+    };
     if hz.count(HazardType::StarPickup) == 0 {
         return;
     }
@@ -305,6 +356,16 @@ fn skill_tick(w: &mut World, map: &MapView, tick: u32, ev: &mut StepEvents) {
     let t60 = w.t60(tick);
     let t = hazards::t30(t60);
     let step60 = 60 / w.rate.max(1) as i64;
+    // P2 0.2: the spawned, unexpired stars and their anchor positions are the same for every player this tick, so
+    // they are computed once; each player then walks them in the same id order, skipping stars taken so far and
+    // keeping `live_stars`' 96-entry cap, exactly as the per-player `live_stars` form did.
+    let mut cand = [(0i32, 0i32, IVec3::ZERO); STAR_CANDS];
+    let nc = star_candidates(&f, w.hazard_seed, t, &mut cand);
+    let mut k = 0;
+    while k < nc.min(cand.len()) {
+        cand[k].2 = hazards::star_anchor(&f, &hz, cand[k].2.x, t60);
+        k += 1;
+    }
     let mut live = [0i32; 96];
     for i in 0..MAX_PLAYERS {
         if !in_play(w, i) || !w.players[i].active() {
@@ -314,15 +375,37 @@ fn skill_tick(w: &mut World, map: &MapView, tick: u32, ev: &mut StepEvents) {
         if s.has(flag::RESPAWNING) {
             continue;
         }
-        let n = live_stars(w, &f, w.hazard_seed, t, &mut live);
-        for &id in &live[..n] {
-            let sl = match hazards::star_slot(&f, w.hazard_seed, id) {
-                Some(x) => x,
-                None => continue,
-            };
-            let p = hazards::star_anchor(&f, &hz, sl.anchor, t60);
-            if hazards::star_touch(p, s.pos, cfg_r, cfg_h, f.pickup_radius) {
-                collect(w, i, id, sl.value, tick, ev);
+        if nc > cand.len() {
+            // more than 96 timeline stars alive: the original path
+            let n = live_stars(w, &f, w.hazard_seed, t, &mut live);
+            for &id in &live[..n] {
+                let sl = match hazards::star_slot(&f, w.hazard_seed, id) {
+                    Some(x) => x,
+                    None => continue,
+                };
+                let p = hazards::star_anchor(&f, &hz, sl.anchor, t60);
+                if hazards::star_touch(p, s.pos, cfg_r, cfg_h, f.pickup_radius) {
+                    collect(w, i, id, sl.value, tick, ev);
+                }
+            }
+        } else {
+            // the live list as `live_stars` would build it now (not taken, first 96), then the pickups in order
+            let mut n = 0;
+            let mut k = 0;
+            while k < nc && n < live.len() {
+                if !star_taken(w, cand[k].0) {
+                    live[n] = k as i32;
+                    n += 1;
+                }
+                k += 1;
+            }
+            let mut q = 0;
+            while q < n {
+                let (id, value, p) = cand[live[q] as usize];
+                if hazards::star_touch(p, s.pos, cfg_r, cfg_h, f.pickup_radius) {
+                    collect(w, i, id, value, tick, ev);
+                }
+                q += 1;
             }
         }
         let first = (w.rx.drop_count as u32).saturating_sub(MAX_DROPS as u32);
@@ -386,8 +469,11 @@ fn tile_idle(w: &World, d: &crate::hazards::defs::TileGridDef, k: usize, tick: u
     back != 0 && tick >= c + d.wobble_ticks as u32 + back
 }
 
-fn final_tick(w: &mut World, map: &MapView, tick: u32, ev: &mut StepEvents) {
-    let hz = w.hazards(map);
+fn final_tick(w: &mut World, map: &MapView, sc: Option<&crate::collide::Scene>, tick: u32, ev: &mut StepEvents) {
+    let hz = match sc {
+        Some(sc) => sc.hz(w),
+        None => w.hazards(map),
+    };
     let lids = lid_mode(w, map);
     let has_grid = hz.count(HazardType::CrumbleTile) > 0;
     let grid = if has_grid { Some(hz.tile_grid(0)) } else { None };

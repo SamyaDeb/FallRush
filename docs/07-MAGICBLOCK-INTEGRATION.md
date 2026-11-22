@@ -317,3 +317,20 @@ See 18-HACKATHON-STRATEGY §4. The chain worker writes every signature into `cha
 | 12 | §8 ER explorer | — | MagicBlock docs (docs.magicblock.gg → get-started → how-integrate-your-program → anchor) link ER txs as `https://solscan.io/tx/<sig>?cluster=custom&customUrl=https://devnet.magicblock.app`. Using it with `devnet-as` is **UNVERIFIED**. |
 | 13 | §4.4 callback (PB0, SDK 0.18.0) | macro-injected `vrf_program_identity` | Injected check derives the PDA at runtime → 200k CU, `ProgramFailedToComplete`; the VRF oracle's callback fails the same way, so no deal ever lands. Fix: our own field with a `const` address (§4.4). Unit test `identity_tests` checks both const PDAs against `find_program_address`. |
 | 14 | §7 local stack (PB0) | — | SDK 0.18.0 programs run on the local `ephemeral-validator 0.14.10` stack unchanged (lifecycle 10/10). `mb-stack --version` also starts the stack (like `--help`). `m0-test-local.sh`'s "already running" guard is a `pgrep -f` on names like `mb-stack`/`vrf-oracle`, so it also trips on any shell whose command line merely contains those words. |
+
+## 10. P2 on-chain simulation (2026-11-22, measured on devnet-as)
+- **Timed task:** hand-built `MagicBlockInstruction::ScheduleTask` / `CancelTask` CPI (`magicblock-magic-program-api =0.10.1`,
+  `bincode =1.3.3`), the scheduled `tick()` has no signers and every account in `remaining_accounts`; task id
+  FNV-1a64(program ‖ world ‖ nonce) & i64::MAX, a new nonce per schedule. **At most one task execution per 10 ms slot**
+  (100 / s measured with an 8 ms interval). A failed execution ends the task: `tick()` never returns an error, and the
+  keeper re-schedules after 500 ms without progress (0 needed in the 5 Finals).
+- **Real-time gate:** tick *n* starts once *n*/30 s of slot clock (`Arena.slot_ms` = 10) passed since the first tick
+  (11 ms task interval → 1.02 executions per tick for the Final).
+- **sBPF cost traps (P2 0.2):** signed `i64 /` and `%` are ≈ 240–350 CU library calls on sBPF v0 (unsigned 12 CU): the
+  program defines `__divdi3 / __moddi3 / __divsi3 / __modsi3` (`programs/fall_rush/src/sdiv.rs`). 4 KB stack frames:
+  the 3.8 KB `Scene` and the 2 KB `World` live on the heap; borsh `Match` code overflows a frame at `opt-level = "z"`
+  (`fall_rush` is built at `"s"`, rush-core at 3 without overflow checks, dependencies at `"z"`).
+- **Read-only clones:** map blobs up to **53.7 KB** (Capsule Run) clone into the rollup read-only (P0 had only shown
+  28.8 KB). The session-keys `SessionTokenV2` (on Solana) is read by the rollup; a revoked (closed) token is seen as
+  missing on the next transaction (local stack).
+- **Commits:** per match 3 `complete_round` (Classic rounds, hybrid) + 1 `commit_round` + `finalize_match` = 5 < 10.

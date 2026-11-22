@@ -1,0 +1,22 @@
+{
+  "deterministic": true,
+  "extra0_avg": 16.79,
+  "extra1_avg": 12.51,
+  "falls_avg": 0.0,
+  "hits_avg": 7.63,
+  "map": "StarScramble",
+  "median_s": 60.0,
+  "mode": 3,
+  "p90_s": 60.0,
+  "players": 5,
+  "qualified_avg": 3.0,
+  "rate": 30,
+  "runs": 100,
+  "softlocks": 0,
+  "stuck5s_players": 0,
+  "tier": 2,
+  "timer_endings": 100,
+  "tunnels": 0,
+  "valid": 100,
+  "wall_s": 1.969638
+}

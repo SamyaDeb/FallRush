@@ -23,38 +23,48 @@ fn seg_point(ax: i64, az: i64, bx: i64, bz: i64, qx: i64, qz: i64) -> (i64, i64,
 }
 
 /// Horizontal closest point of the polygon to (x, z) (sub-mm) and the squared distance (0 inside).
+///
+/// P2 0.2: one pass, each vertex read once. Outside a convex polygon the closest boundary point lies on an edge
+/// whose plane faces the point (n·q > off), so only those edges are measured; the first strictly closer edge in
+/// index order wins, as before (the closest point of a convex set is unique).
 pub fn near2d(m: &MapView, c: &Collider, x: i64, z: i64) -> (i64, i64, i64) {
     let n = c.prism_n.min(crate::mapblob::MAX_PRISM_VERTS as u32);
+    if n == 0 {
+        return (x, z, 0);
+    }
+    let mut best = (0i64, 0i64, i64::MAX);
     let mut inside = true;
+    let first = m.prism_vertex(c, 0);
+    let mut cur = first;
     let mut k = 0;
     while k < n {
-        let (_, _, nx, nz, off) = m.prism_vertex(c, k);
+        let next = if k + 1 == n { first } else { m.prism_vertex(c, k + 1) };
+        let (ax, az, nx, nz, off) = cur;
         // n·q − off with q in sub-mm: (n·q_sub)/S − off
         if (nx as i64 * x + nz as i64 * z) - off * S > 0 {
             inside = false;
-            break;
+            let p = seg_point(ax as i64 * S, az as i64 * S, next.0 as i64 * S, next.1 as i64 * S, x, z);
+            if p.2 < best.2 {
+                best = p;
+            }
         }
+        cur = next;
         k += 1;
     }
     if inside {
         return (x, z, 0);
     }
-    let mut best = (0i64, 0i64, i64::MAX);
-    let mut k = 0;
-    while k < n {
-        let (ax, az, _, _, _) = m.prism_vertex(c, k);
-        let (bx, bz, _, _, _) = m.prism_vertex(c, if k + 1 == n { 0 } else { k + 1 });
-        let p = seg_point(ax as i64 * S, az as i64 * S, bx as i64 * S, bz as i64 * S, x, z);
-        if p.2 < best.2 {
-            best = p;
-        }
-        k += 1;
-    }
     best
 }
 
 pub fn near(m: &MapView, c: &Collider, s: &Seg) -> Near {
-    let (qx, qz, dh2) = near2d(m, c, s.x, s.z);
+    near_from(c, s, near2d(m, c, s.x, s.z))
+}
+
+/// [`near`] given the horizontal closest point (`near2d`'s result).
+#[inline]
+pub fn near_from(c: &Collider, s: &Seg, h: (i64, i64, i64)) -> Near {
+    let (qx, qz, dh2) = h;
     let yb = c.y0 as i64 * S;
     let yt = c.y1 as i64 * S;
     let (sy0, sy1) = (s.y0, s.y1);

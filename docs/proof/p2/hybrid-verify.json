@@ -1,0 +1,17 @@
+{
+ "rounds_1_3_eliminations_match_jsonl": true,
+ "finalists_equal_jsonl_round3_qualifiers": true,
+ "finalists": [
+  1,
+  6,
+  8
+ ],
+ "onchain_champion": 6,
+ "champion_is_finalist": true,
+ "finalists_out_in_round4": true,
+ "match_status": "completed",
+ "event_seq": 33,
+ "classic_own_final_champion": [
+  6
+ ]
+}

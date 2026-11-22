@@ -17,10 +17,72 @@ fn overlaps(amin: IVec3, amax: IVec3, bmin: IVec3, bmax: IVec3) -> bool {
 
 impl<'m> Scene<'m> {
     /// Colliders whose (posed, enabled) AABB overlaps `[mn, mx]` (mm), into `out` (cleared first).
+    ///
+    /// P2 0.2: the raw grid candidates come from a memo of an inflated box ([`BP_INFLATE_MM`]) when the query lies
+    /// inside it. The raw set of a containing box is a superset of the query's own, and the fine filter keeps exactly
+    /// the colliders whose posed AABB overlaps the query, so the result is the same set either way.
     pub fn gather(&self, mn: IVec3, mx: IVec3, out: &mut Bits) {
         *out = [0; crate::mapblob::MAX_COLLIDERS / 64];
-        let mut raw: Bits = [0; crate::mapblob::MAX_COLLIDERS / 64];
-        // GLOBAL list.
+        let raw: Bits = {
+            let hit = {
+                let c = self.bp_cache.borrow();
+                c.valid && c.mn.x <= mn.x && c.mn.y <= mn.y && c.mn.z <= mn.z && c.mx.x >= mx.x && c.mx.y >= mx.y && c.mx.z >= mx.z
+            };
+            if hit {
+                self.bp_cache.borrow().raw
+            } else {
+                let d = IVec3::new(BP_INFLATE_MM, BP_INFLATE_MM, BP_INFLATE_MM);
+                let (imn, imx) = (mn.sub(d), mx.add(d));
+                let mut r0: Bits = [0; crate::mapblob::MAX_COLLIDERS / 64];
+                self.raw_candidates(imn, imx, &mut r0);
+
+                // keep only colliders enabled and overlapping the inflated box this tick (the scene is per tick):
+                // every query inside the box only ever keeps a subset of these
+                let mut r: Bits = [0; crate::mapblob::MAX_COLLIDERS / 64];
+                self.fine_filter(&r0, imn, imx, &mut r);
+                let mut c = self.bp_cache.borrow_mut();
+                c.valid = true;
+                c.mn = imn;
+                c.mx = imx;
+                c.raw = r;
+                r
+            }
+        };
+        if self.over() {
+            return; // work budget spent: nothing gathered
+        }
+        self.fine_filter(&raw, mn, mx, out);
+        // charged by the result (the same set with or without the memo, so the meter never depends on cache state)
+        let mut k = 0u32;
+        for wd in out.iter() {
+            k += wd.count_ones();
+        }
+        self.spend(4 + 2 * k);
+    }
+
+    /// Of `raw`, the colliders enabled this tick whose posed AABB overlaps `[mn, mx]`, into `out` (cleared by caller).
+    fn fine_filter(&self, raw: &Bits, mn: IVec3, mx: IVec3, out: &mut Bits) {
+        let mut w = 0;
+        while w < raw.len() {
+            let mut bits = raw[w];
+            while bits != 0 {
+                let b = bits.trailing_zeros();
+                bits &= bits - 1;
+                let i = (w as u32) * 64 + b;
+                let (dk, dx, amin, amax) = self.map.collider_aabb(i);
+                if let Some(off) = self.pose_of(dk, dx) {
+                    if overlaps(amin.add(off), amax.add(off), mn, mx) {
+                        out[w] |= 1 << b;
+                    }
+                }
+            }
+            w += 1;
+        }
+    }
+
+    /// GLOBAL list + the grid cells overlapping `[mn, mx]` (every collider when that is more than
+    /// [`MAX_QUERY_CELLS`] cells), before the fine filter.
+    fn raw_candidates(&self, mn: IVec3, mx: IVec3, raw: &mut Bits) {
         let ng = self.map.global_count.min(crate::mapblob::MAX_COLLIDERS as u32);
         let mut k = 0;
         while k < ng {
@@ -30,7 +92,6 @@ impl<'m> Scene<'m> {
             }
             k += 1;
         }
-        // Grid cells.
         let h = self.map.grid_header();
         let cell = h[0] as i64;
         if cell > 0 {
@@ -56,21 +117,18 @@ impl<'m> Scene<'m> {
                     while ix <= cx1 {
                         let mut iy = cy0;
                         while iy <= cy1 {
-                            let mut iz = cz0;
-                            while iz <= cz1 {
-                                let id = ((ix * ny + iy) * nz + iz) as u32;
-                                if let Some((start, count)) = self.map.grid_cell(id) {
-                                    let mut j = 0;
-                                    while j < count {
-                                        let ci = self.map.grid_index(start + j) as usize;
-                                        if ci < crate::mapblob::MAX_COLLIDERS {
-                                            raw[ci / 64] |= 1 << (ci % 64);
-                                        }
-                                        j += 1;
+                            // ids of this (ix, iy) column are consecutive in iz
+                            let base = (ix * ny + iy) * nz;
+                            self.map.grid_cells_in((base + cz0) as u32, (base + cz1) as u32, |start, count| {
+                                let mut j = 0;
+                                while j < count {
+                                    let ci = self.map.grid_index(start + j) as usize;
+                                    if ci < crate::mapblob::MAX_COLLIDERS {
+                                        raw[ci / 64] |= 1 << (ci % 64);
                                     }
+                                    j += 1;
                                 }
-                                iz += 1;
-                            }
+                            });
                             iy += 1;
                         }
                         ix += 1;
@@ -78,24 +136,11 @@ impl<'m> Scene<'m> {
                 }
             }
         }
-        // Fine filter: posed AABB overlap and enabled.
-        let mut w = 0;
-        while w < raw.len() {
-            let mut bits = raw[w];
-            while bits != 0 {
-                let b = bits.trailing_zeros();
-                bits &= bits - 1;
-                let i = (w as u32) * 64 + b;
-                if let Some((c, off)) = self.posed(i) {
-                    if overlaps(c.aabb_min.add(off), c.aabb_max.add(off), mn, mx) {
-                        out[w] |= 1 << b;
-                    }
-                }
-            }
-            w += 1;
-        }
     }
 }
+
+/// Inflation (mm, each side) of a memoised broadphase box.
+pub const BP_INFLATE_MM: i32 = 1024;
 
 /// Iterates the set bits of a bitset in ascending order (bounded by its size).
 #[inline]

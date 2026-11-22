@@ -1,0 +1,22 @@
+{
+  "deterministic": true,
+  "extra0_avg": 4.83,
+  "extra1_avg": 0.0,
+  "falls_avg": 2.33,
+  "hits_avg": 36.63,
+  "map": "GooTower",
+  "median_s": 54.86666666666667,
+  "mode": 2,
+  "p90_s": 57.96666666666667,
+  "players": 8,
+  "qualified_avg": 4.83,
+  "rate": 30,
+  "runs": 100,
+  "softlocks": 0,
+  "stuck5s_players": 1,
+  "tier": 2,
+  "timer_endings": 0,
+  "tunnels": 0,
+  "valid": 100,
+  "wall_s": 2.1455315
+}

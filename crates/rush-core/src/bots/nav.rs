@@ -51,23 +51,70 @@ pub fn route_count(c: &Ctx) -> usize {
     }
 }
 
+/// The route directory of this map (built once per scene; same values as walking the blob).
+fn table(c: &Ctx) -> crate::collide::RouteTable {
+    {
+        let t = c.sc.routes.borrow();
+        if t.built {
+            return *t;
+        }
+    }
+    let mut t = crate::collide::RouteTable::default();
+    let n = route_count(c);
+    let mut o = 1usize;
+    let mut i = 0;
+    while i < n {
+        let pts = (c.map.bot_word(o + 1).max(0) as usize).min(MAX_POINTS);
+        t.off[i] = (o + 2).min(u16::MAX as usize) as u16;
+        t.section[i] = c.map.bot_word(o).clamp(i16::MIN as i32, i16::MAX as i32) as i16;
+        t.pts[i] = pts as u8;
+        o += 2 + pts * PW;
+        i += 1;
+    }
+    t.count = n as u8;
+    // survival_section: sections 0.. while some route has that section.
+    let mut sec = 0;
+    while sec < 32 {
+        let mut start = i32::MAX;
+        let mut any = false;
+        let mut i = 0;
+        while i < n {
+            if t.pts[i] > 0 && t.section[i] as i32 == sec as i32 {
+                any = true;
+                start = start.min(c.map.bot_word(t.off[i] as usize + 1));
+            }
+            i += 1;
+        }
+        if !any {
+            break;
+        }
+        t.sec_start[sec] = start;
+        sec += 1;
+    }
+    t.sec_count = sec as u8;
+    t.built = true;
+    *c.sc.routes.borrow_mut() = t;
+    t
+}
+
 pub fn route(c: &Ctx, r: usize) -> Option<Route> {
     let n = route_count(c);
     if r >= n {
         return None;
     }
-    let mut o = 1usize;
-    let mut i = 0;
-    while i < r {
-        let pts = (c.map.bot_word(o + 1).max(0) as usize).min(MAX_POINTS);
-        o += 2 + pts * PW;
-        i += 1;
-    }
-    let pts = (c.map.bot_word(o + 1).max(0) as usize).min(MAX_POINTS);
+    let t = c.sc.routes.borrow();
+    let (off, sec, pts) = if t.built {
+        (t.off[r] as usize, t.section[r] as i32, t.pts[r] as usize)
+    } else {
+        drop(t);
+        let t = table(c);
+        (t.off[r] as usize, t.section[r] as i32, t.pts[r] as usize)
+    };
     if pts == 0 {
         return None;
     }
-    Some(Route { off: o + 2, section: c.map.bot_word(o), n: pts })
+    // the directory clamps the section to i16; blob sections are small (≤ 32 in every map)
+    Some(Route { off, section: sec, n: pts })
 }
 
 pub fn point(c: &Ctx, r: &Route, k: usize) -> Wp {
@@ -78,7 +125,7 @@ pub fn point(c: &Ctx, r: &Route, k: usize) -> Wp {
 
 /// `BotBrainSet.UsableRoutes`: a route through a gate the variant keeps (practically) closed is left out.
 fn usable(c: &Ctx, r: &Route) -> bool {
-    let hz = c.w.hazards(c.map);
+    let hz = c.sc.hz(c.w);
     let nd = hz.count(HazardType::GateDoor);
     let mut k = 0;
     while k < r.n {
@@ -194,7 +241,7 @@ fn advance(c: &Ctx, b: &mut BotState) {
 /// point ride with it (`Ride`).
 fn target(c: &Ctx, r: &Route, k: usize) -> (i32, i32) {
     let p = point(c, r, k);
-    let hz = c.w.hazards(c.map);
+    let hz = c.sc.hz(c.w);
     let np = hz.count(HazardType::MovingPlatform);
     if p.action == act::PLATFORM && (p.arg as usize) < np {
         let ctr = hazards::platform_center(&hz.platform(p.arg as usize), c.t60(0));
@@ -240,27 +287,12 @@ pub(crate) fn survival(c: &Ctx, b: &mut BotState) -> Plan {
 
 /// The last section whose start (its routes' lowest first waypoint) is at or below y + 0.3 m.
 pub fn survival_section(c: &Ctx, y: i32) -> i32 {
-    let n = route_count(c);
+    let t = table(c);
     let mut k = 0;
     let mut sec = 0;
-    while sec < 32 {
-        let mut start = i32::MAX;
-        let mut any = false;
-        let mut i = 0;
-        while i < n {
-            if let Some(r) = route(c, i) {
-                if r.section == sec {
-                    any = true;
-                    start = start.min(point(c, &r, 0).y);
-                }
-            }
-            i += 1;
-        }
-        if !any {
-            break;
-        }
-        if start <= y + 300 {
-            k = sec;
+    while sec < t.sec_count as usize {
+        if t.sec_start[sec] <= y + 300 {
+            k = sec as i32;
         }
         sec += 1;
     }
@@ -354,7 +386,9 @@ fn waypoint_next(c: &Ctx, b: &mut BotState, section: i32, start_at_first: bool) 
                 if b.aux_tick == 0 {
                     b.aux_tick = lo(c.tick).max(1);
                 }
-                let clear = if p.arg > 0 { path_clear_ahead(c, &r, k, p.arg as usize) } else { path_clear(c, &r, k) };
+                // glance on this bot's staggered tick only (WAIT_GLANCE_TICKS); otherwise keep waiting
+                let glance = (c.tick + c.slot as u32) % super::WAIT_GLANCE_TICKS == 0;
+                let clear = glance && if p.arg > 0 { path_clear_ahead(c, &r, k, p.arg as usize) } else { path_clear(c, &r, k) };
                 if clear {
                     b.aux_tick = 0;
                     advance(c, b);
@@ -485,7 +519,12 @@ fn course_fallback(c: &Ctx, b: &mut BotState) -> Plan {
 /// Any knock hazard (spinner from its start time, mallet head, rolling ball within `ball_margin`) at (x, y, z)
 /// `ahead` ticks from now, for a capsule of radius `r`.
 fn hazard_at(c: &Ctx, x: i32, y: i32, z: i32, ahead: i64, r: i32, ball_margin: i32) -> bool {
-    let hz = c.w.hazards(c.map);
+    let hz = c.sc.hz(c.w);
+    let left = c.probes.get();
+    if left == 0 || !c.sc.spend(12) {
+        return false; // work budget spent: not sampled = clear (see BOT_PROBES)
+    }
+    c.probes.set(left - 1);
     let t60 = c.t60(ahead);
     let f = crate::vec::IVec3::new(x, y, z);
     let h = c.cfg.height;
@@ -513,16 +552,17 @@ fn hazard_at(c: &Ctx, x: i32, y: i32, z: i32, ahead: i64, r: i32, ball_margin: i
 
 /// `BallNear`: a rolling ball within (ball r + capsule r + margin) of a standing capsule at (x, y, z) at `t60`.
 fn ball_near(c: &Ctx, x: i32, y: i32, z: i32, t60: i64, margin: i32) -> bool {
-    let hz = c.w.hazards(c.map);
+    let hz = c.sc.hz(c.w);
     let n = hz.count(HazardType::RollingBall);
     let mut i = 0;
     while i < n {
-        let d = hz.ball(i);
-        let reach = (d.radius + c.cfg.radius + margin) as i64;
-        let alive = hazards::ball_max_alive(&d).min(16);
+        let bk = if (c.sc.balls_n as usize) == n { c.sc.balls[i] } else { hazards::BallK::of(&hz.ball(i)) };
+        let reach = (bk.radius + c.cfg.radius + margin) as i64;
+        let d = &bk;
+        let alive = bk.alive.min(16);
         let mut j = 0;
         while j < alive {
-            match hazards::ball_pos(&d, t60, j) {
+            match bk.pos(t60, j) {
                 None => break,
                 Some((p, _)) => {
                     if (p.y - (y + 500)).abs() <= d.radius + 900 {
@@ -610,7 +650,7 @@ fn path_clear_ahead(c: &Ctx, r: &Route, k: usize, n: usize) -> bool {
 
 /// `DoorPassable`: open, and stays open long enough to reach the next point (+ 10 ticks).
 fn door_passable(c: &Ctx, door: i32, r: &Route, k: usize) -> bool {
-    let hz = c.w.hazards(c.map);
+    let hz = c.sc.hz(c.w);
     if door < 0 || door as usize >= hz.count(HazardType::GateDoor) {
         return true;
     }
@@ -627,7 +667,7 @@ fn door_passable(c: &Ctx, door: i32, r: &Route, k: usize) -> bool {
 
 /// `PlatformInReach`: where the block will be when we land (~18 ticks at 30 Hz of flight).
 fn platform_in_reach(c: &Ctx, pl: i32) -> bool {
-    let hz = c.w.hazards(c.map);
+    let hz = c.sc.hz(c.w);
     if pl < 0 || pl as usize >= hz.count(HazardType::MovingPlatform) {
         return true;
     }
@@ -643,7 +683,7 @@ fn platform_in_reach(c: &Ctx, pl: i32) -> bool {
 /// high one (bar bottom ≥ 650 mm above the feet).
 pub(crate) fn react_to_bars(c: &Ctx, _cmd: &mut InputCmd, jump: &mut bool, dive: &mut bool) {
     let s = &c.s;
-    let hz = c.w.hazards(c.map);
+    let hz = c.sc.hz(c.w);
     let n = hz.count(HazardType::SpinnerBar);
     if n == 0 || s.immunity > 0 || !s.has(flag::GROUNDED) {
         return;
@@ -687,7 +727,7 @@ pub(crate) fn react_to_bars(c: &Ctx, _cmd: &mut InputCmd, jump: &mut bool, dive:
 /// Lanes farther than 16 m are ignored. Integer port: headings from the Q15 table, positions in mm per 30 Hz tick.
 fn dodge_balls(c: &Ctx, cmd: &mut InputCmd, moving: bool) {
     use crate::fx::{cos_q15, deg_to_turn_q16, normalize_q15, sin_q15, ONE_Q15};
-    let hz = c.w.hazards(c.map);
+    let hz = c.sc.hz(c.w);
     let n = hz.count(HazardType::RollingBall);
     if n == 0 {
         return;
@@ -696,8 +736,9 @@ fn dodge_balls(c: &Ctx, cmd: &mut InputCmd, moving: bool) {
     if !s.has(flag::GROUNDED) {
         return;
     }
-    // lanes in range
-    let mut near = [0u8; 16];
+    // lanes in range (each near ball's kinematics computed once: P2 0.2)
+    let mut near = [hazards::BallK::default(); 16];
+    let mut lane_d = [0i64; 16];
     let mut nn = 0usize;
     let mut i = 0;
     while i < n && nn < near.len() {
@@ -709,7 +750,8 @@ fn dodge_balls(c: &Ctx, cmd: &mut InputCmd, moving: bool) {
         let (cx, cz) = (d.start_x as i64 + ux * f / 4096 - s.pos.x as i64, d.start_z as i64 + uz * f / 4096 - s.pos.z as i64);
         let vertical_ok = (d.start_y - s.pos.y).abs() <= 9000 || (d.end_y - s.pos.y).abs() <= 9000;
         if cx * cx + cz * cz <= 16_000i64 * 16_000 && vertical_ok {
-            near[nn] = i as u8;
+            near[nn] = if (c.sc.balls_n as usize) == n { c.sc.balls[i] } else { hazards::BallK::of(&d) };
+            lane_d[nn] = isqrt_i64(cx * cx + cz * cz);
             nn += 1;
         }
         i += 1;
@@ -721,31 +763,64 @@ fn dodge_balls(c: &Ctx, cmd: &mut InputCmd, moving: bool) {
     let horizon = (20 - 2 * c.sk.timing_slop).max(6) as i64;
     let run = (c.cfg.max_speed as i64 / 30).max(60); // RunPerTick (mm per 30 Hz tick)
     let t0 = c.w.t60(c.tick);
-    // First tick a ball reaches us on Q15 heading (hx, hz); stop = brake.
-    let first_hit = |hx: i64, hz_: i64, stop: bool| -> i64 {
+    // First tick a ball reaches us on each of up to 9 Q15 headings (hx, hz, stop = brake), all simulated together so
+    // the ball positions of a tick are computed once (`WaypointBot.FirstHit` per heading; same values).
+    let first_hits = |hd: &[(i64, i64, bool)], out: &mut [i64]| {
+        let m = hd.len();
         let (vx, vz) = (s.vel.x as i64 / 30, s.vel.z as i64 / 30);
-        let top = if stop { 0 } else { run };
-        let (mut x, mut z) = (s.pos.x as i64, s.pos.z as i64);
+        let vmax = vx.abs().max(vz.abs());
+        let mut x = [s.pos.x as i64; 9];
+        let mut z = [s.pos.z as i64; 9];
+        let mut open = m;
+        let mut h = 0;
+        while h < m {
+            out[h] = horizon + 1;
+            h += 1;
+        }
         let mut k = 1;
-        while k <= horizon {
+        while k <= horizon && open > 0 {
             let a = k.min(5);
-            x += vx + (hx * top / ONE_Q15 as i64 - vx) * a / 5;
-            z += vz + (hz_ * top / ONE_Q15 as i64 - vz) * a / 5;
+            let mut h = 0;
+            while h < m {
+                let top = if hd[h].2 { 0 } else { run };
+                x[h] += vx + (hd[h].0 * top / ONE_Q15 as i64 - vx) * a / 5;
+                z[h] += vz + (hd[h].1 * top / ONE_Q15 as i64 - vz) * a / 5;
+                h += 1;
+            }
             let t60 = t0 + 2 * k;
             let mut q = 0;
-            while q < nn {
-                let d = hz.ball(near[q] as usize);
-                let alive = hazards::ball_max_alive(&d).min(16);
+            while q < nn && open > 0 {
+                let d = &near[q];
+                // ≈ 100 CU per ball position (up to 16) checked against up to 9 headings
+                if !c.sc.spend(2 + d.alive.min(16) as u32 * 2) {
+                    break; // work budget spent: the rest of this tick's ball look-ahead is skipped
+                }
+                // Exact reject (P2 0.2): balls stay on their lane, and each tick a heading moves us by
+                // v + (h·top − v)·a/5, at most 2|v|/30 + run per axis; so a lane farther than k times that (×2 ≥ √2,
+                // + reach + the lane-point rounding) is never within reach at tick k.
+                let reach_q = (d.radius + c.cfg.radius + 150) as i64;
+                if lane_d[q] > 2 * k * (2 * vmax + run) + reach_q + 64 {
+                    q += 1;
+                    continue;
+                }
+                let alive = d.alive.min(16);
                 let reach = (d.radius + c.cfg.radius + 150) as i64;
                 let mut j = 0;
                 while j < alive {
-                    match hazards::ball_pos(&d, t60, j) {
+                    match d.pos(t60, j) {
                         None => break,
                         Some((p, _)) => {
                             if (p.y - (s.pos.y + 500)).abs() <= d.radius + 1200 {
-                                let (dx, dz) = (x - p.x as i64, z - p.z as i64);
-                                if dx * dx + dz * dz < reach * reach {
-                                    return k;
+                                let mut h = 0;
+                                while h < m {
+                                    if out[h] > horizon {
+                                        let (dx, dz) = (x[h] - p.x as i64, z[h] - p.z as i64);
+                                        if dx * dx + dz * dz < reach * reach {
+                                            out[h] = k;
+                                            open -= 1;
+                                        }
+                                    }
+                                    h += 1;
                                 }
                             }
                         }
@@ -756,7 +831,6 @@ fn dodge_balls(c: &Ctx, cmd: &mut InputCmd, moving: bool) {
             }
             k += 1;
         }
-        horizon + 1
     };
     let (mx, mz) = if moving { (cmd.move_x as i64, cmd.move_y as i64) } else { (0, 0) };
     let has_plan = mx * mx + mz * mz > 1;
@@ -766,31 +840,47 @@ fn dodge_balls(c: &Ctx, cmd: &mut InputCmd, moving: bool) {
     } else {
         (0, ONE_Q15 as i64)
     };
-    let plan_hit = if has_plan { first_hit(ux, uz, false) } else { first_hit(0, 0, true) };
+    let mut one = [0i64; 1];
+    first_hits(&[if has_plan { (ux, uz, false) } else { (0, 0, true) }], &mut one);
+    let plan_hit = one[0];
     if plan_hit > horizon {
         return;
     }
+    // The 7 turned headings (+ the stop when there is a plan) together.
+    let flip: i64 = if c.slot & 1 == 1 { -1 } else { 1 };
+    let mut hd = [(0i64, 0i64, false); 9];
+    let mut cas = [0i64; 8];
+    let mut m = 0;
+    for deg in [45i64, -45, 90, -90, 135, -135, 180] {
+        let t = deg_to_turn_q16(flip * deg);
+        let (ca, sa) = (cos_q15(t) as i64, sin_q15(t) as i64);
+        hd[m] = ((ux * ca - uz * sa) / ONE_Q15 as i64, (ux * sa + uz * ca) / ONE_Q15 as i64, false);
+        cas[m] = ca;
+        m += 1;
+    }
+    if has_plan {
+        hd[m] = (0, 0, true);
+        m += 1;
+    }
+    let mut hits = [0i64; 9];
+    first_hits(&hd[..m], &mut hits[..m]);
     let mut best = plan_hit * 100 + if has_plan { 40 } else { 0 };
     let (mut bx, mut bz) = if has_plan { (ux, uz) } else { (0, 0) };
-    let stop_hit = if has_plan { first_hit(0, 0, true) } else { plan_hit };
+    let stop_hit = if has_plan { hits[7] } else { plan_hit };
     if stop_hit * 100 + 10 > best {
         best = stop_hit * 100 + 10;
         bx = 0;
         bz = 0;
     }
-    let flip: i64 = if c.slot & 1 == 1 { -1 } else { 1 };
-    for deg in [45i64, -45, 90, -90, 135, -135, 180] {
-        let t = deg_to_turn_q16(flip * deg);
-        let (ca, sa) = (cos_q15(t) as i64, sin_q15(t) as i64);
-        let cx = (ux * ca - uz * sa) / ONE_Q15 as i64;
-        let cz = (ux * sa + uz * ca) / ONE_Q15 as i64;
-        let hit = first_hit(cx, cz, false);
-        let score = hit * 100 + ca * 30 / ONE_Q15 as i64;
+    let mut h = 0;
+    while h < 7 {
+        let score = hits[h] * 100 + cas[h] * 30 / ONE_Q15 as i64;
         if score > best {
             best = score;
-            bx = cx;
-            bz = cz;
+            bx = hd[h].0;
+            bz = hd[h].1;
         }
+        h += 1;
     }
     let ox = div_round(bx * 127, ONE_Q15 as i64);
     let oz = div_round(bz * 127, ONE_Q15 as i64);

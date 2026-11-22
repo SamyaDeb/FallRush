@@ -1,5 +1,5 @@
 //! `rush-sim movement gen`: `movement_v4.json` from `movement_v3.json` (= v2 + the bump flag) with tick counts at
-//! 15 / 20 / 30 Hz and `tickRateHz: 20`, plus `crates/rush-core/src/config_data.rs`. Tuning edits go into
+//! 15 / 20 / 30 Hz and `tickRateHz: 30` (OC-3), plus `crates/rush-core/src/config_data.rs`. Tuning edits go into
 //! `crates/rush-sim/src/movement.rs::TUNING` (empty = v3 values unchanged), never the maps.
 //! `rush-sim movement table`: the D.3 analytic table at the three rates (markdown).
 
@@ -27,7 +27,7 @@ pub fn build_v4() -> Value {
     let v3: Value = serde_json::from_str(&std::fs::read_to_string(root.join("packages/shared/config/movement_v3.json")).expect("movement_v3.json")).unwrap();
     let mut v = v3.clone();
     v["version"] = json!(4);
-    v["tickRateHz"] = json!(20);
+    v["tickRateHz"] = json!(30); // OC-3 (user, 2026-11-21): 30 Hz on-chain; the 15 / 20 tables stay as reference
     for (sec, key, val) in TUNING {
         v[*sec][*key] = json!(val);
     }

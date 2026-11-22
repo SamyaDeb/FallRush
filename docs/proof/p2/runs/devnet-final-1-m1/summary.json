@@ -1,0 +1,71 @@
+{
+ "realTime": {
+  "gameS": 123.83333333333333,
+  "wallS": 123.938,
+  "ratio": 0.9991554917243567,
+  "gapP50": 17.8,
+  "gapP95": 118,
+  "gapP99": 179,
+  "gapMax": 300,
+  "samples": 3588
+ },
+ "finalists": [
+  2,
+  3,
+  8
+ ],
+ "match": 1,
+ "matchPda": "4mphMwpH8K7vTPUZbTEoMCJFsw9TDpuFAiFmZrCcstDH",
+ "complete": true,
+ "wallS": 124.53,
+ "gameS": 124.36666666666666,
+ "ticks": 3731,
+ "executions": 11281,
+ "notDue": 7544,
+ "execPerTick": 3.023586169927633,
+ "budgetHit": 0,
+ "restarts": 0,
+ "fallback": 0,
+ "cuPerPart": {
+  "r4": {
+   "n": 0,
+   "p50": null,
+   "p95": null,
+   "max": null
+  }
+ },
+ "gapMs": {
+  "p50": 34.25,
+  "p95": 45.5,
+  "max": 104.125
+ },
+ "onSolana": {
+  "status": "completed",
+  "champion": 3,
+  "round": 4,
+  "transcript": "45e11c4bcf17d94230140b15da897104296b9026b5fc63c6d4458297fb741910",
+  "vrfSeed": "e99cd4b75610cfcedad53d6d2165c9644c27dcb0676dc620b4d918193754fb86"
+ },
+ "sigs": {
+  "create": "6hJRqVNm9UreTijcrfGvmahHYipSZv1wQ78sVu1XF29wUXLu9BkQuo7TjT4bpSUY7CdWLKu2rpTVsfigzu2QMrt",
+  "delegate": "4v3ijyJXfdicvMGkmyqgHp6cmm46DpJYDNSt6Z4dz8XHNF1x9jALTPnSgrtRhvkKbRWLviq8gazzon8TbxHMy4q2",
+  "openLobby": "5bpLhZ1fzHQbhyEt5zx7RHGsJKjjuj4STPDRdkoQRQk8yTExZoedmhnCtc2N7zcJ4hBe6zmdCHoHk2A45Pdjs5PE",
+  "requestDeal": "4iAWjbCdpiF9z6BxUWsEDHUAZoRu569Dzo84r8SokpCgmaG3fuvneYwKXRKDh87NybFSy66Cf7RbvdHG6b4kdvFu",
+  "startFinal": "4DWKvA7r1onf2Z2W2zJwsbnW7bDVpVeuqhLrEqGPbvPG8Sf3Fvc3Mcmvnc1DnuZjuJGhFPJqpeZ9eUAk1vkWSB8m",
+  "schedule": "29gkt3tBPabUXpr2rKUMBf2RNWqdSD8YqtTSw4P1uMGJcqnSZzaSVtGWDDoQpJuPGS2vBkik58T5C8uTEg2chiqK",
+  "commit4": "5krfDtEbnHdUfhYadrcRHxNfjzwTVEhhk3mL7TwToCDYNxxSXkGoaPmQYUTemw6QCoCitY9b6dUwcTycEJusmGS9",
+  "endSim": "ANFNKm3Y1xSZqY6NYvkR6FZdDtR65ktDgALEcZK4zenZoZtskCZE5iTFutUP2JJpejAaJbszAbxoTAyjQP2YD51",
+  "finalize": "3Raxr5Jsu6Kj1KJ2ocKK3tZRgUxrdGRhL4VNqwRDLw15K2uWL1umk2sSadAzZne37bvg8tvKGjY8usV1aJgTBpzn"
+ },
+ "mode": "final",
+ "parts": 1,
+ "interval": 11,
+ "arena": "HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt",
+ "maps": [
+  "86hLenUHLLULngacRGesYdVUaLhTVQtMSgx2UsF9ZKuv",
+  "Dh2MMQSM3MXATAvoHPXWPCifBHF1g6hyzAxRA2zFN8za",
+  "GYeqhxkkjzvXAS1Mv2FLM3EqALH5TjZfqJKiQqu6E8LG",
+  "2zzJi24AJTKVopXd9UMz2j1poAzway5ZMSvuw9jNBCgC",
+  "DxuXdFPfomJW6SXNiCkNgDauW3p2xkiEoPfoPjuYVsCD"
+ ]
+}

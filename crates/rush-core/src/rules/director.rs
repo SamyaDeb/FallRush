@@ -199,6 +199,28 @@ pub fn start_match<H: Hasher>(w: &mut World, lobby: &MapView, seed: &[u8; 32], s
     set_phase(w, phase::ROSTER_LOCKED, now, 1);
 }
 
+/// P2 hybrid / Final-first (doc 15 OC-11): starts the director at the Final, rounds 1–3 having been played elsewhere
+/// (the Classic server; their results are in the `Match`). Same set-up as [`start_match`] (roster, bot tiers, deal,
+/// transcript from `seed`), then: only the slots in `alive` stay in the match, `elim[i]` (round << 4 | reason)
+/// records how the others went out, the eliminated players leave the world, and round 4's intro begins (the runner
+/// loads the Final's map when [`needs_map`] asks). Everything after that is the normal director path.
+#[allow(clippy::too_many_arguments)]
+pub fn start_final<H: Hasher>(w: &mut World, lobby: &MapView, seed: &[u8; 32], size: u8, roster_hash: &[u8; 32], alive: u16, elim: &[u8; MAX_PLAYERS], h: &mut H) {
+    start_match(w, lobby, seed, size, roster_hash, h);
+    let now = w.tick;
+    let mut i = 0;
+    while i < MAX_PLAYERS {
+        if bit(w.dir.roster, i) && !bit(alive, i) {
+            w.dir.alive &= !(1 << i);
+            w.dir.elim[i] = if elim[i] >> 4 == 0 { (3 << 4) | (elim[i] & 0xF) } else { elim[i] };
+            w.players[i].flags = 0; // out of the match: no longer simulated
+        }
+        i += 1;
+    }
+    w.dir.round = 3;
+    enter_round_intro(w, 4, now);
+}
+
 /// The map the runner must load now (`Some(map_id)`), or `None`.
 pub fn needs_map(w: &World) -> Option<u8> {
     if w.dir.phase == phase::ROUND_INTRO && !w.dir.map_ready && w.dir.round >= 1 {

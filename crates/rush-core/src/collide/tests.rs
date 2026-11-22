@@ -47,7 +47,7 @@ fn obb_face_side() {
     // wall face at x = 2000
     with_scene(vec![boxc(2500, 1000, 0, 500, 1000, 3000)], |sc| {
         let h = sc.capsule_sweep(IVec3::new(0, 0, 0), R, H, IVec3::new(ONE_Q15, 0, 0), 3000).unwrap();
-        assert!((h.distance - (2000 - R as i64)).abs() <= 1, "{h:?}");
+        assert!((h.distance - (2000 - R as i64)).abs() <= TOI_TOL, "{h:?}"); // ≤ one bisection step (P2: 6 steps)
         assert_eq!(h.normal, IVec3::new(-ONE_Q15, 0, 0));
     });
 }
@@ -110,7 +110,7 @@ fn prism_hits() {
     with_scene(cols, |sc| {
         // vertex at −x: contact at x = −1000 − 310
         let h = sc.capsule_sweep(IVec3::new(-3000, 100, 0), R, H, IVec3::new(ONE_Q15, 0, 0), 4000).unwrap();
-        assert!((h.distance - (3000 - 1000 - R as i64)).abs() <= 1, "{h:?}");
+        assert!((h.distance - (3000 - 1000 - R as i64)).abs() <= TOI_TOL, "{h:?}"); // ≤ one bisection step (P2: 6 steps)
         assert!(h.normal.x < -32000, "{h:?}");
         // face: the flat side at z = −866 (apothem), approached along +z
         let h = sc.capsule_sweep(IVec3::new(0, 100, -3000), R, H, IVec3::new(0, 0, ONE_Q15), 4000).unwrap();
@@ -135,7 +135,7 @@ fn sphere_hits() {
         assert!((h.distance - 1000).abs() <= 1, "{h:?}");
         assert_eq!(h.normal, IVec3::new(0, ONE_Q15, 0));
         let h = sc.capsule_sweep(IVec3::new(-3000, 500, 0), R, H, IVec3::new(ONE_Q15, 0, 0), 3000).unwrap();
-        assert!((h.distance - (3000 - 1000 - R as i64)).abs() <= 1, "{h:?}");
+        assert!((h.distance - (3000 - 1000 - R as i64)).abs() <= TOI_TOL, "{h:?}"); // ≤ one bisection step (P2: 6 steps)
         let rh = sc.raycast(IVec3::new(0, 3000, 0), DOWN, 2000).unwrap();
         assert_eq!(rh.distance, 1000);
     });
@@ -264,3 +264,14 @@ mod props {
         }
     }
 }
+
+#[test]
+fn p2_sizes() {
+    std::println!("Scene {} B, MapView {} B, Collider {} B, World {} B, BallK {} B, SweeperDef {} B, MalletDef {} B",
+        core::mem::size_of::<crate::collide::Scene>(), core::mem::size_of::<crate::mapblob::MapView>(), core::mem::size_of::<crate::mapblob::Collider>(),
+        core::mem::size_of::<crate::world::World>(), core::mem::size_of::<crate::hazards::BallK>(),
+        core::mem::size_of::<crate::hazards::defs::SweeperDef>(), core::mem::size_of::<crate::hazards::defs::MalletDef>());
+}
+
+/// Sweep contact tolerance (mm): one time-of-impact bisection step of a SUBSTEP_MM sample, rounded up.
+const TOI_TOL: i64 = (super::SUBSTEP_MM >> super::TOI_BISECT) + 1;

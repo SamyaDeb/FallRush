@@ -1,0 +1,86 @@
+{
+ "match": "2w3imVZkiqouCLfEU2d3a4A42aTgvsRcnahYS2NuanoU",
+ "status": "completed",
+ "playerCount": 12,
+ "currentRound": 4,
+ "champion": 7,
+ "rosterHash": "5082a4c68e6230334b7a73835e2da15ea02779d15cd5dd5a7d9760cf6672c94f",
+ "vrfSeed": "405237ade1596d740d1544259ed0e7ea82d19a0dd5f64b0e789029fdc0db53a5",
+ "transcript": "bd4cc6bcf3ec84b1bc8fed69eb57d4e60dd095657d1a4d6077496af0b9dd5351",
+ "eventSeq": 33,
+ "flags": 112,
+ "slots": [
+  {
+   "state": 3,
+   "round": 2,
+   "placement": 0,
+   "reason": 1
+  },
+  {
+   "state": 3,
+   "round": 2,
+   "placement": 0,
+   "reason": 1
+  },
+  {
+   "state": 3,
+   "round": 1,
+   "placement": 0,
+   "reason": 1
+  },
+  {
+   "state": 3,
+   "round": 4,
+   "placement": 0,
+   "reason": 2
+  },
+  {
+   "state": 3,
+   "round": 1,
+   "placement": 0,
+   "reason": 1
+  },
+  {
+   "state": 3,
+   "round": 4,
+   "placement": 0,
+   "reason": 2
+  },
+  {
+   "state": 3,
+   "round": 3,
+   "placement": 0,
+   "reason": 1
+  },
+  {
+   "state": 1,
+   "round": 4,
+   "placement": 1,
+   "reason": 0
+  },
+  {
+   "state": 3,
+   "round": 1,
+   "placement": 0,
+   "reason": 1
+  },
+  {
+   "state": 3,
+   "round": 1,
+   "placement": 0,
+   "reason": 1
+  },
+  {
+   "state": 3,
+   "round": 2,
+   "placement": 0,
+   "reason": 1
+  },
+  {
+   "state": 3,
+   "round": 3,
+   "placement": 0,
+   "reason": 1
+  }
+ ]
+}
