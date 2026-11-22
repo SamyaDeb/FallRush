@@ -185,23 +185,23 @@ namespace FallRush.FeelLab
         private void Update()
         {
             var t0 = Time.realtimeSinceStartupAsDouble;
-            var kb = Keyboard.current;
+            var kb = Keyboard.current; // number keys 1–5 mirror F5/F8/F4/F10/F2 (on a Mac the F keys are media keys unless fn is held)
             if (kb != null)
             {
-                if (kb.f5Key.wasPressedThisFrame)
+                if ((kb.f5Key.wasPressedThisFrame || kb.digit1Key.wasPressedThisFrame))
                     SwitchEngine();
-                if (kb.f8Key.wasPressedThisFrame && _h >= 0)
+                if ((kb.f8Key.wasPressedThisFrame || kb.digit2Key.wasPressedThisFrame) && _h >= 0)
                 {
                     _rate = _rate == 15 ? 20 : _rate == 20 ? 30 : 15;
                     RushCoreNative.rc_set_rate(_h, (uint)_rate);
                     _acc = 0;
                 }
 
-                if (kb.f10Key.wasPressedThisFrame)
+                if ((kb.f10Key.wasPressedThisFrame || kb.digit4Key.wasPressedThisFrame))
                     _overlay = !_overlay;
-                if (kb.f4Key.wasPressedThisFrame)
+                if ((kb.f4Key.wasPressedThisFrame || kb.digit3Key.wasPressedThisFrame))
                     Respawn();
-                if (kb.f2Key.wasPressedThisFrame)
+                if ((kb.f2Key.wasPressedThisFrame || kb.digit5Key.wasPressedThisFrame))
                     FeelLabBoot.Enter(FeelLabBoot.Maps[(Array.IndexOf(FeelLabBoot.Maps, _key) + 1) % FeelLabBoot.Maps.Length]);
                 if (kb.bKey.wasPressedThisFrame && _blob != null)
                 {
@@ -433,7 +433,7 @@ namespace FallRush.FeelLab
                 return;
             GUI.Box(new Rect(8, 8, 980, 26), GUIContent.none);
             GUI.Label(new Rect(14, 11, 970, 22), OverlayText());
-            GUI.Label(new Rect(14, Screen.height - 26, 980, 22), "F5 engine · F8 rate 15/20/30 · F4 respawn · F10 overlay · F2 next map · B bots 0/5/11");
+            GUI.Label(new Rect(14, Screen.height - 26, 980, 22), "1/F5 engine · 2/F8 rate 15/20/30 · 3/F4 respawn · 4/F10 overlay · 5/F2 next map · B bots 0/5/11 (Mac: F keys need fn)");
         }
 
         private static Vector3 Mm(int x, int y, int z) => new Vector3(x * 0.001f, y * 0.001f, z * 0.001f);

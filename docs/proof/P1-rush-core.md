@@ -199,7 +199,7 @@ Notes:
   + 2 `P1FeelLabTests`).
 - Run it: in `../FallRush-p1`, `open client-unity/Builds/Mac-p1-feellab/FallRush.app --args -feellab`. Or use the menu button
   "Feel Lab: Classic vs rush-core (dev)", which shows only in development builds or with `-feellab`.
-- Controls: **F5** engine (Classic `KinematicMotor` + PhysX at 30 Hz ↔ rush-core through `rush_core.bundle`, interpolated),
+- Controls (number keys 1–5 mirror F5 / F8 / F4 / F10 / F2; on a Mac the F keys need fn): **F5** engine (Classic `KinematicMotor` + PhysX at 30 Hz ↔ rush-core through `rush_core.bundle`, interpolated),
   **F8** rush-core rate 15 / 20 / 30 Hz, **F4** respawn, **F10** overlay (engine, rate, speed, grounded, last apex, frame time),
   **F2** next map, **B** rush-core bots 0 / 5 / 11.
 - Smoke (`scripts/p1-smoke.sh`, locked: `-feellab -map all -autotest`): all five maps under both engines; 10 screenshots in `docs/proof/p1/feellab/`
