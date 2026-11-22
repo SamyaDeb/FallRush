@@ -75,7 +75,10 @@ namespace FallRush.OnChain
             }
 
             if (OnChainSession.Instance != null)
-                return; // pre-joined: the session takes over when the arena starts the Final
+            {
+                OnChainSession.Instance.ServerConfirmed = true; // pre-joined: the server confirms the on-chain Final
+                return;
+            }
             Debug.Log($"[onchain] switch: Final on {f.arena} ({cfg.url}), {(slot >= 0 ? "playing slot " + slot : "spectating")}");
             OnChainSession.StartFinal(cfg, cs.ServerMatch, slot);
         }

@@ -182,8 +182,19 @@ namespace FallRush.Net
                 // live = the arena is RUNNING the Final (start_final done: WorldAcc round 4) and its tick advances
                 while ((DateTime.UtcNow - t0).TotalSeconds < LiveTimeoutSeconds)
                 {
-                    var a = await ReadAccount(ErUrl, ArenaKey).ConfigureAwait(false);
-                    var w = await ReadAccount(ErUrl, WorldKey).ConfigureAwait(false);
+                    byte[] a = null, w = null;
+                    try
+                    {
+                        a = await ReadAccount(ErUrl, ArenaKey).ConfigureAwait(false);
+                        w = await ReadAccount(ErUrl, WorldKey).ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        // one slow / failed RPC must not decide the handoff (measured: a 3 s timeout did, and the arena
+                        // and the server then both ran a Final): retry until the window closes
+                        Debug.LogWarning($"[gs] on-chain Final liveness read: {e.Message} (retrying)");
+                    }
+
                     if (a != null && w != null && a.Length > ArenaStatus && w.Length > WaWorld && a[ArenaStatus] == 2 && w[WaRound] == 4)
                     {
                         var tick = BitConverter.ToUInt32(w, WaTick);

@@ -1,0 +1,16 @@
+[gs] fonc prejoin → 1 clients: {"t":"final_prejoin","net":"devnet","arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","match":"f510e54fab621a92935253f6aa509078","slot_map":[{"slot":0,"name":"P3Hybrid","kind":"human"}]}
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=B modifier=None seed=0x055fe3f288233d85 start=1088 qualify=8/12 intro=60 countdown=90 timer=4500 rush@1088 participants=12
+[gs] mevt #1 START_ROUND r1 slot=- arg=- tick=937 transcript=6cfdee6d72896c56
+[gs] mevt #14 COMPLETE_ROUND r1 slot=- arg=8 tick=4075 transcript=906f752a5f42f1af
+[gs] round 2/4 GooTower (Survival) start: map=1 variant=B modifier=None seed=0xdd3756a2253362fc start=4647 qualify=5/8 intro=60 countdown=90 timer=4500 rush@4647 participants=8
+[gs] mevt #15 START_ROUND r2 slot=- arg=- tick=4496 transcript=3acc69137d427070
+[gs] mevt #24 COMPLETE_ROUND r2 slot=- arg=5 tick=6562 transcript=c94e2338f90d786f
+[gs] round 3/4 StarScramble (Skill) start: map=2 variant=B modifier=None seed=0xe9f875796709274e start=7134 qualify=3/5 intro=60 countdown=90 timer=1800 rush@7134 participants=5
+[gs] mevt #25 START_ROUND r3 slot=- arg=- tick=6983 transcript=97be6d83d91faf4d
+[gs] mevt #31 COMPLETE_ROUND r3 slot=- arg=3 tick=8934 transcript=56fb619592abaf90
+[gs] on-chain Final: handing round 4 (CrumbleShelf) to http://127.0.0.1:8797 with 3 players
+[gs] round 4/4 CrumbleShelf (Final) start: map=3 variant=A modifier=None seed=0xbeb8f0a854b6c966 start=9644 qualify=1/3 intro=60 countdown=90 timer=3600 rush@9644 participants=3
+[gs] mevt #32 START_ROUND r4 slot=- arg=- tick=9493 transcript=e2987458ed9bab0e
+[gs] on-chain Final handoff failed (The operation was canceled.): the server runs the Final (Classic)
+[gs] mevt #36 COMPLETE_ROUND r4 slot=- arg=1 tick=12023 transcript=e9a8ec2e2f6cd15a
+[gs] mevt #37 COMPLETE_MATCH r4 slot=1 arg=- tick=12203 transcript=fe90b7f94d365063

@@ -182,7 +182,10 @@ namespace FallRush.OnChain
 
         // ------------------------------------------------------------------ IChainFeed
 
-        public bool OverridesServer => isActiveAndEnabled && !_handedBack;
+        public bool OverridesServer => isActiveAndEnabled && !_handedBack && (MatchHex == null || ServerConfirmed);
+        /// <summary>P3-M: a pre-joined session takes over only once the game server confirms the on-chain Final
+        /// (<c>fonc final_onchain</c>); if the server runs the Final itself, the client stays on its screens.</summary>
+        public bool ServerConfirmed;
         private bool _handedBack;
 
         public double PresentTick => _pred != null && _pred.HasState && OwnPlaying ? _pred.Present + _frac : double.NaN;
@@ -228,12 +231,29 @@ namespace FallRush.OnChain
             var j = _tx.Joined;
             if (j == null)
                 return;
-            if (!_sceneRequested || j.slot != _ownSlot && j.slot < 255)
+            if ((!_sceneRequested || j.slot != _ownSlot && j.slot < 255) && (MatchHex == null || ServerConfirmed))
                 OnJoined(j);
+            else if (_joinedAt < 0)
+                _joinedAt = ClientSim.Now;
 
             var cs = ClientSim.Instance;
-            if (cs != null && !ReferenceEquals(cs.Feed, this) && !_handedBack)
+            if (cs != null && !ReferenceEquals(cs.Feed, this) && !_handedBack && OverridesServer)
                 cs.Feed = this;
+            if (MatchHex != null && !ServerConfirmed)
+            {
+                // pre-joined, not confirmed: keep the arena link warm but do not touch the screens; the server's own
+                // Final (failure path) ends this session when its match moves on
+                var sm0 = cs != null ? cs.ServerMatch : null;
+                if (sm0 != null && (sm0.Phase >= MatchPhase.Champion || sm0.Phase == MatchPhase.LobbyOpen) && _resultLogged == false && _joinedAt >= 0 && now - _joinedAt > 20)
+                {
+                    Debug.Log("[onchain] the server ran the Final itself (no final_onchain): leaving the arena");
+                    End();
+                }
+
+                _tx.DrainWorlds(_worlds);
+                _worlds.Clear();
+                return;
+            }
 
             _worlds.Clear();
             _tx.DrainWorlds(_worlds);
@@ -328,6 +348,7 @@ namespace FallRush.OnChain
 
         private float _solanaAt;
         private bool _solanaPolling;
+        private int _solanaChecks;
 
         /// <summary>P3-M: after the Final, the receipt chip turns ⬢ Solana ✓ once the Match account is owned by the game
         /// program on Solana again (finalize_match committed + undelegated it).</summary>
@@ -349,6 +370,12 @@ namespace FallRush.OnChain
             {
                 _solanaPolling = false;
                 var t = req.result == UnityEngine.Networking.UnityWebRequest.Result.Success ? req.downloadHandler.text : null;
+                if (_solanaChecks++ < 3 || t == null)
+                {
+                    var oi = t?.IndexOf("\"owner\":", StringComparison.Ordinal) ?? -1;
+                    Debug.Log($"[onchain] Solana check {_matchPda}: {(t == null ? "error " + req.error : oi >= 0 ? t.Substring(oi, Math.Min(56, t.Length - oi)) : "no account yet")}");
+                }
+
                 req.Dispose();
                 if (t != null && t.Contains("\"owner\":\"" + ProgramId + "\""))
                 {

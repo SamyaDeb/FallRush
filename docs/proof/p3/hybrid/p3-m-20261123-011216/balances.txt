@@ -1,0 +1,2 @@
+19:42:16 balances: admin 5.657852687 SOL authority 3.51204068 SOL
+19:50:22 balances: admin 5.657852687 SOL authority 3.50120716 SOL

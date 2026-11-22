@@ -1,0 +1,18 @@
+[gs] fonc prejoin → 1 clients: {"t":"final_prejoin","net":"devnet","arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","match":"4e6458447450a20589df170f6bfcf8ca","slot_map":[{"slot":0,"name":"P3Hybrid","kind":"human"}]}
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=B modifier=ButterFloors seed=0x0a1be1e9aaf3f3dc start=1112 qualify=8/12 intro=60 countdown=90 timer=4500 rush@1112 participants=12
+[gs] mevt #1 START_ROUND r1 slot=- arg=- tick=961 transcript=21533613390f0e9a
+[gs] mevt #14 COMPLETE_ROUND r1 slot=- arg=8 tick=5612 transcript=b86ad05a652189f2
+[gs] round 2/4 GooTower (Survival) start: map=1 variant=B modifier=None seed=0x14e540c3e4486e3e start=6184 qualify=5/8 intro=60 countdown=90 timer=4500 rush@6184 participants=8
+[gs] mevt #15 START_ROUND r2 slot=- arg=- tick=6033 transcript=a876e83963b35942
+[gs] mevt #24 COMPLETE_ROUND r2 slot=- arg=5 tick=7839 transcript=a16889f71d98df64
+[gs] round 3/4 StarScramble (Skill) start: map=2 variant=A modifier=MoonBounce seed=0x19c2dca49dc71539 start=8411 qualify=3/5 intro=60 countdown=90 timer=1800 rush@8411 participants=5
+[gs] mevt #25 START_ROUND r3 slot=- arg=- tick=8260 transcript=5ed0cda278082357
+[gs] mevt #31 COMPLETE_ROUND r3 slot=- arg=3 tick=10211 transcript=d72855fed75bbb8c
+[gs] on-chain Final: handing round 4 (CrumbleShelf) to http://127.0.0.1:8797 with 3 players
+[gs] on-chain Final live on devnet: arena HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt tick 395
+[gs] fonc → 1 clients: {"t":"final_onchain","net":"devnet","arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","match":"4e6458447450a20589df170f6bfcf8ca","url":"","slot_map":[{"slot":1,"name":"Sprocket","kind":"bot"},{"slot":2,"name":"Pip","kind":"bot"},{"slot":4,"name":"Widget","kind":"bot"}]}
+[gs] round 4/4 CrumbleShelf (Final) start: map=3 variant=B modifier=None seed=0xe8fdf1b519785265 start=10859 qualify=1/3 intro=60 countdown=90 timer=3600 rush@10859 participants=3
+[gs] mevt #32 START_ROUND r4 slot=- arg=- tick=10708 transcript=b8c4f488cdf14789
+[gs] on-chain Final result from the arena World: order 2,4,1 (champion 2)
+[gs] mevt #36 COMPLETE_ROUND r4 slot=- arg=1 tick=12924 transcript=fc191e4ec95dfb1f
+[gs] mevt #37 COMPLETE_MATCH r4 slot=2 arg=- tick=13104 transcript=5e9b4502f641e5e8
