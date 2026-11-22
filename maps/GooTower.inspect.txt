@@ -1,0 +1,7 @@
+name GooTower map_id 1 mode 2 variants 2 kill_y -10000
+colliders 129 (obb 122 prism 7 sphere 0 capsule 0) static 121 platform 2 door 3 lid 0 tile 0 block 3 global 22
+grid cell 2000 origin (-20000,-2000,-26000) dims 20x17x23 non-empty cells 829
+checkpoints 1 course points 0 bot words 791
+hazards[A] SpinnerBarx1 MovingPlatformx2 Conveyorx2 SpringPadx2 GateDoorx3 MalletSwingx3 Bumperx7 GooPlanex1 FallingBlockx3 RollingBallx2
+hazards[B] SpinnerBarx1 MovingPlatformx2 Conveyorx2 SpringPadx2 GateDoorx3 MalletSwingx3 Bumperx7 GooPlanex1 FallingBlockx3 RollingBallx2
+bytes 43664 sha256 e02df2f224908e887acfa940d5abec1e7060bcd656f0ec6fa8768917ab8daf6a

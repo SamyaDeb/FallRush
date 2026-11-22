@@ -1,0 +1,7 @@
+name StarScramble map_id 2 mode 3 variants 2 kill_y -10000
+colliders 61 (obb 57 prism 3 sphere 1 capsule 0) static 58 platform 3 door 0 lid 0 tile 0 block 0 global 5
+grid cell 2000 origin (-20000,-2000,-20000) dims 20x4x20 non-empty cells 232
+checkpoints 0 course points 0 bot words 1
+hazards[A] SpinnerBarx3 MovingPlatformx3 SpringPadx3 TurnTablex1 StarPickupx1
+hazards[B] SpinnerBarx3 MovingPlatformx3 SpringPadx3 TurnTablex1 StarPickupx1
+bytes 17800 sha256 9ca114e137e10cb3762d6fb446db65515063ace2508ed4ebde8b469524055857

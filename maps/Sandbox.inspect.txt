@@ -1,0 +1,7 @@
+name Sandbox map_id 255 mode 0 variants 2 kill_y -20000
+colliders 92 (obb 89 prism 3 sphere 0 capsule 0) static 40 platform 2 door 1 lid 49 tile 0 block 0 global 11
+grid cell 2000 origin (-62000,-2000,-52000) dims 64x5x56 non-empty cells 738
+checkpoints 0 course points 0 bot words 1
+hazards[A] SpinnerBarx2 MovingPlatformx2 Conveyorx1 SpringPadx1 TurnTablex1 GateDoorx1 MalletSwingx1 Bumperx2 RollingBallx1 LidFlipx1
+hazards[B] SpinnerBarx2 MovingPlatformx2 Conveyorx1 SpringPadx1 TurnTablex1 GateDoorx1 MalletSwingx1 Bumperx2 RollingBallx1 LidFlipx1
+bytes 27964 sha256 84250df6b9ff9bf6959b036080478e8b9f6826d44ca461628ce10ad1a8b29704

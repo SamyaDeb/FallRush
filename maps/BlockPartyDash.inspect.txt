@@ -1,0 +1,7 @@
+name BlockPartyDash map_id 0 mode 1 variants 2 kill_y -10000
+colliders 127 (obb 122 prism 5 sphere 0 capsule 0) static 106 platform 15 door 6 lid 0 tile 0 block 0 global 37
+grid cell 2000 origin (-12000,-2000,-2000) dims 12x13x116 non-empty cells 733
+checkpoints 5 course points 8 bot words 2951
+hazards[A] SpinnerBarx2 MovingPlatformx15 Conveyorx1 SpringPadx2 GateDoorx6 MalletSwingx6 Bumperx3 RollingBallx8
+hazards[B] SpinnerBarx2 MovingPlatformx15 Conveyorx1 SpringPadx2 GateDoorx6 MalletSwingx6 Bumperx3 RollingBallx8
+bytes 53736 sha256 71e871b165477fd4627edbb5fb8ae06f515830bd37ea206f6d2ecfde5305b8f7
