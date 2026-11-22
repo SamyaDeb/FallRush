@@ -38,7 +38,7 @@ The Unity server is not used in on-chain mode.
 Browser (Unity WebGL)                         MagicBlock Ephemeral Rollup (devnet-as, MAS1…)
 ├─ rush_core.wasm  (prediction, own player)   ├─ fall_rush program (Anchor 1.0.2, ER SDK 0.18.x)
 ├─ fallrush-chain.js (bridge file → JS)       │   ├─ Arena / Lobby / Matchmaker      (timed task)
-│   ├─ burner keypair + SessionTokenV2        │   ├─ tick(): rush-core sBPF, 20 Hz   (timed task)
+│   ├─ burner keypair + SessionTokenV2        │   ├─ tick(): rush-core sBPF, 30 Hz   (timed task)
 │   ├─ send InputBatch  ────────────────────► │   ├─ Round rules: Race / Survival / Skill / Final
 │   └─ onAccountChange(World, Events)  ◄───── │   ├─ Bots (rush-core, VRF-seeded)
 └─ renders (visuals unchanged)                │   ├─ Markets · Chaos Drops · Pots   (rollup token balances)
@@ -97,11 +97,11 @@ Unity side: `Scripts/Chain/` holds the bridge file `FallRushChain.jslib`, `OnCha
 |---|---|
 | Units | Lengths in **mm, i32**. Speeds in **mm/s, i32**. Acceleration in mm/s². Time in **ticks** (u32). Angles as **yaw256** (u8, as today) for input; internally Q16 turns. These match `movement_v2.json`'s units and today's wire precision. |
 | Maths | `i64` intermediates, never `f32`/`f64`, enforced by `#![deny(clippy::float_arithmetic)]`. `isqrt` by integer Newton iteration. sin/cos from a 1024-entry Q15 table (generated, hashed). |
-| Tick | **20 Hz (50 ms)** on-chain (P0 decides: 20, 15 or 30). `movement_v4.json` re-expresses every ms constant in ticks. |
+| Tick | **30 Hz (33.3 ms)** on-chain. Decided 2026-11-21: P0 measured 15 / 20 / 30 Hz scheduling as precise (30 Hz: 3,637 / 3,637, gap p95 42 ms), and in the user's Feel Lab A/B (OC-3) 30 Hz feels like Classic while 15 Hz is laggy. Classic also simulates at 30 Hz. `movement_v4.json` re-expresses every ms constant in ticks; the rate is a `rush-core` parameter (15 / 20 / 30). |
 | Determinism | No hash maps with random order, no allocation-order dependence, fixed iteration order (slot ascending). Every step returns the transcript events it produced. |
 | Hashes | The map blob hash replaces the map content hash on-chain. `rush_core_version` and the `movement_v4` hash go into the ruleset. |
 | Accounts | Hot accounts are **zero-copy** (`#[account(zero_copy)]`, `bytemuck`). Every delegated account is ≤ 10,240 B (the commit limit). |
-| Compute budget | `tick()` ≤ **150k CU** at 12 players (instruction cap 200k, transaction cap 1.4M). Measured in P0, and re-checked in CI on every map. |
+| Compute budget | `tick()` ≤ **300k CU worst case** at 12 players (P0-1 condition: a timed-task execution has 400k CU in total, and one failed execution ends the task). P1 measured `rush-core` at ≈ 493k CU per 12-player tick (LiteSVM, `docs/proof/P1-rush-core.md` §12), so P1b must cut it by about 40 % or more before P2. The per-tick budget is the same at 30 Hz; the per-second load is 1.5× that of 20 Hz. Re-checked in CI on every map. |
 
 ---
 
@@ -200,7 +200,7 @@ Six throw-away prototypes. They live in `spikes/p0-*`, are never shipped, and ar
    - stun/knockback override and 0.5 s immunity;
    - respawn on fall.
 
-   Constants come from the new **`movement_v4.json`** (the same keys, retuned for 20 Hz); `pnpm gen:movement` emits Rust and C#.
+   Constants come from the new **`movement_v4.json`** (the same keys, re-expressed in ticks at the chosen rate; on-chain 30 Hz); `pnpm gen:movement` emits Rust and C#.
 4. **Hazards** (`hazards/`): port `HazardMath.cs` (340 lines, already pure `f(def, variant, seed, tick)`). All 14 types:
    - SpinnerBar, MovingPlatform, Conveyor, SpringPad, TurnTable, GateDoor, MalletSwing, Bumper;
    - GooPlane, CrumbleTile, StarPickup, FallingBlock, RollingBall, LidFlip.
@@ -266,8 +266,8 @@ Six throw-away prototypes. They live in `spikes/p0-*`, are never shipped, and ar
 | `leave_lobby` | player | |
 | `lobby_tick` (timed task) | timed-task signer / anyone | Countdown, roster lock, bots fill free slots, then `create_match` on Solana |
 | `request_deal` / `deal_callback` | (existing, VRF in the rollup) | The seed drives the map plan, modifiers, hazard seeds, star bursts and bot tiers |
-| `submit_input(batch)` | session key of that slot | Writes `InputBuf` only. Sanitiser runs here (`InputSanitizer` rules). Rejects ticks older than `World.tick` − 8 or newer than + 8 |
-| **`tick()`** (timed task, 20 Hz) | timed-task signer / anyone (checks `now ≥ next_tick_time`) | Reads `World` + 12 `InputBuf`s + `MapBlob`, runs `rush_core::step`, writes `World`, appends events, applies due Chaos Drops, closes markets at phase edges |
+| `submit_input(batch)` | session key of that slot | Writes `InputBuf` only. Sanitiser runs here (`InputSanitizer` rules). Rejects ticks older than `World.tick` − 8 or newer than + 8. At 30 Hz a client sends one batch every 100 ms carrying 3 ticks: 120 tx/s for 12 players, the rate P0.3 measured |
+| **`tick()`** (timed task, 30 Hz) | timed-task signer / anyone (checks `now ≥ next_tick_time`) | Reads `World` + 12 `InputBuf`s + `MapBlob`, runs `rush_core::step`, writes `World`, appends events, applies due Chaos Drops, closes markets at phase edges |
 | `complete_round` + commit | inside `tick()` at round end | Uses an intent bundle with a delegated fee payer, so the 10-commit limit doesn't apply |
 | `finalize` | inside `tick()` at match end | Writes `MatchReceipt`, then commit + undelegate it, with the payout follow-up call (P4) |
 | `abort_arena` | game authority | Emergency reset; the match is marked aborted and bets are refunded (P4) |
@@ -276,7 +276,7 @@ Six throw-away prototypes. They live in `spikes/p0-*`, are never shipped, and ar
 1. **P2.1 Zero-copy World + inputs.** Layout structs with `bytemuck::Pod`, size asserts, a version byte.
 2. **P2.2 `tick()`.** Map the input accounts by `remaining_accounts` in slot order, then call `rush_core::step`. Missing or late input means the last input is repeated, as today's server does. Log a compute-unit meter in debug builds.
 3. **P2.3 Timed tasks.** Schedule the `tick()` task at arena start and cancel it at the end. Unique `task_id = hash(program, arena, match)`. Write a watchdog: if no tick happens for 500 ms, anyone may call `tick()` (the permissionless fallback).
-4. **P2.4 Director on-chain.** Lobby → Countdown → Dealing (VRF) → Dealt → per round: Intro / Countdown / Rush / Resolve / Intermission → Champion → Receipt. Same tick counts as `MatchDirector`, converted to 20 Hz.
+4. **P2.4 Director on-chain.** Lobby → Countdown → Dealing (VRF) → Dealt → per round: Intro / Countdown / Rush / Resolve / Intermission → Champion → Receipt. Same tick counts as `MatchDirector` (already 30 Hz).
 5. **P2.5 Rounds.** Enable them in order:
    1. Lid Flip (the Final);
    2. Star Fountain (Skill);
@@ -568,7 +568,7 @@ Render only; no map, rules or hash change. Kept for last (user call). Nothing he
 |---|---|
 | OC-1 | Target = fully on-chain sim on the rollup; Classic mode is the fallback until on-chain mode matches it (user, 2026-11-21). |
 | OC-2 | RUSH devnet SPL chips replace ADR-006's "no tokens". No real money; mainnet needs a legal review (user, 2026-11-21). |
-| OC-3 | Motor retune in `rush-core` / `movement_v4`; the user signs off on the A/B (user, 2026-11-21). |
+| OC-3 | Motor retune in `rush-core` / `movement_v4`; the user signs off on the A/B (user, 2026-11-21). **Signed off at 30 Hz** in the P1 Feel Lab (2026-11-21; 15 Hz laggy). |
 | OC-4 | ER SDK 0.18.x on Anchor 1.0.2 and devnet-as; not 0.20 (needs Anchor ≥ 1.2.2 + validator v2). |
 | OC-5 | One Rust core compiled to sBPF + WASM (bit-for-bit by construction). |
 | OC-6 | Solana.Unity-SDK removed from the WebGL build; chain I/O through the bridge file → TS bundle. |

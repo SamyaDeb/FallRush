@@ -278,5 +278,5 @@ A/B handed to the user on 2026-11-21 (Feel Lab Mac build).
   - the user's 30 Hz pick changes P0-1's 20 Hz. P0 measured 30 Hz scheduling as precise, but the load is 1.5× per second;
   - rush-core's measured ≈ 493k CU per 12-player tick misses the 300k condition at any rate. P1b's work budget has to cut
     about 40 % or more (bisections, touch-test-first narrowphase, moving-hazard AABB reject, split players).
-  - Needs a user decision when P0-1 / doc 19 are updated.
+  - **Decided (user, 2026-11-21): 30 Hz.** Applied in doc 19 (tick, budget, `tick()`, `submit_input` batching), doc 15 (OC-3, P0-1) and `PROJECT_STATUS.md`.
 - Doc 19: tick rate 20 Hz → **30 Hz** (§ tick table, `tick()` row, P2.4 tick conversions); input tx rate 360/s needs batching or a measurement.

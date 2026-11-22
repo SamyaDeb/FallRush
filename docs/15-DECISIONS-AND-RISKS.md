@@ -222,7 +222,7 @@
 |---|---|---|---|
 | OC-1 | Fully on-chain sim on the MagicBlock ER (`tick()` by timed task, `rush-core` in the program); Classic mode (ADR-002) is the fallback until on-chain mode matches it | ✅ (user, 2026-11-21) | Supersedes ADR-002/003 for on-chain mode, D-12/D-13 there |
 | OC-2 | RUSH devnet SPL chips (faucet, no real money) for markets, Chaos Drops and pots; mainnet needs a legal review | ✅ (user, 2026-11-21) | Supersedes ADR-006 |
-| OC-3 | Motor retuned in `rush-core` / `movement_v4` (integer, 20 Hz); the user signs off on the A/B feel test | ✅ (user, 2026-11-21) | |
+| OC-3 | Motor retuned in `rush-core` / `movement_v4` (integer); the user signs off on the A/B feel test. **Signed off at 30 Hz** after the P1 Feel Lab A/B ("30 OK, 15 a bit laggy"); 60 Hz considered and dropped: no gain over Classic's 30 Hz, 3× the on-chain load of 20 Hz | ✅ (user, 2026-11-21) | `docs/proof/P1-rush-core.md` (OC-3 section) |
 | OC-4 | ER SDK 0.18.x on Anchor 1.0.2 + devnet-as; not 0.20 | 🟡 | Supersedes D-2's SDK version |
 | OC-5 | One Rust core compiled to sBPF + WASM (prediction = authority by construction) | 🟡 | |
 | OC-6 | Solana.Unity-SDK removed from WebGL; chain I/O via the bridge file → TS bundle | 🟡 | Supersedes D-8, D-15 |
@@ -230,7 +230,7 @@
 | OC-8 | Drop the M5 Rush Relay (Postgres) and the M8 Next.js site; program + optional stateless helpers + a Vite web app | 🟡 | Supersedes D-9 |
 | OC-9 | Chaos Drops: map-wide, 0.75 s telegraph, capped, never target a slot | 🟡 | |
 | OC-10 | Pots pay humans only; markets seeded by a labelled market-maker bot | 🟡 | |
-| P0-1 | **REDUCED (conditional GO)** after the P0 spikes: whole sim on the ER at **20 Hz**, timed task + permissionless keeper / `NotDue` tick fallback, **bots on-chain**. Conditions: (1) `rush-core` deterministic work budget, tick ≤ 300k CU worst case (a task execution has 400k CU; one failed execution ends the task); (2) own-player prediction + 2–3 tick input delay (end-to-end p95 337 ms); (3) relay optional for spectators. If (1) fails on Capsule Run in P1, go on-chain round by round (Final → Skill → Survival → Race), Classic serves the rest | ✅ (user, 2026-11-21) | Evidence: `docs/proof/P0-feasibility.md` |
+| P0-1 | **REDUCED (conditional GO)** after the P0 spikes: whole sim on the ER at **30 Hz** (was 20 Hz; changed by the user 2026-11-21 after the P1 Feel Lab, see OC-3: same per-tick budget, 1.5× per-second load, inputs batched 3 ticks per 100 ms), timed task + permissionless keeper / `NotDue` tick fallback, **bots on-chain**. Conditions: (1) `rush-core` deterministic work budget, tick ≤ 300k CU worst case (a task execution has 400k CU; one failed execution ends the task); (2) own-player prediction + 2–3 tick input delay (end-to-end p95 337 ms); (3) relay optional for spectators. **P1 measured ≈ 493k CU per 12-player tick, so condition (1) is not yet met: P1b work budget.** If (1) still fails on Capsule Run after P1b, go on-chain round by round (Final → Skill → Survival → Race), Classic serves the rest | ✅ (user, 2026-11-21) | Evidence: `docs/proof/P0-feasibility.md` |
 
 ## Top risks (live; update daily in PROJECT_STATUS)
 
