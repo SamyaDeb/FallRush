@@ -1,7 +1,7 @@
 {
  "net": "local",
- "at": "2026-11-22T09:00:46.323Z",
- "passed": 26,
+ "at": "2026-11-22T11:54:02.456Z",
+ "passed": 35,
  "failed": 0,
  "results": [
   {
@@ -23,6 +23,31 @@
    "check": "join with another slot's InputBuf",
    "pass": true,
    "detail": "InvalidSlot"
+  },
+  {
+   "check": "join with an expired session token",
+   "pass": true,
+   "detail": "SessionInvalid"
+  },
+  {
+   "check": "join: session signer without a token",
+   "pass": true,
+   "detail": "Unauthorized"
+  },
+  {
+   "check": "join: token of another wallet",
+   "pass": true,
+   "detail": "SessionInvalid"
+  },
+  {
+   "check": "join with a valid session token (slot 6)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "join with a valid session token (slot 7)",
+   "pass": true,
+   "detail": ""
   },
   {
    "check": "commit_round before any round",
@@ -55,6 +80,11 @@
    "detail": "BadArenaState"
   },
   {
+   "check": "early tick() is a NotDue no-op (3 tick() in the first slot: one tick, the rest NotDue / its slices)",
+   "pass": true,
+   "detail": "tick 0→1, not_due 1→2 "
+  },
+  {
    "check": "submit_input by the slot owner",
    "pass": true,
    "detail": ""
@@ -70,7 +100,7 @@
    "detail": "InputOutOfWindow"
   },
   {
-   "check": "input tick out of window (−10 at tick 14)",
+   "check": "input tick out of window (−10 at tick 20)",
    "pass": true,
    "detail": "InputOutOfWindow"
   },
@@ -78,6 +108,26 @@
    "check": "sanitiser clamps hostile values (stick −128,−128, buttons 0xFF)",
    "pass": true,
    "detail": "stored [167,167,15,127]"
+  },
+  {
+   "check": "submit_input by a session signer with its token",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "submit_input by a session signer without its token",
+   "pass": true,
+   "detail": "SessionInvalid"
+  },
+  {
+   "check": "submit_input after the session token is revoked (rollup sees the closed token)",
+   "pass": true,
+   "detail": "tx:{\"InstructionError\":[0,{\"Custom\":3012}]}"
+  },
+  {
+   "check": "submit_input after the session token expired",
+   "pass": true,
+   "detail": "SessionInvalid"
   },
   {
    "check": "tick with no accounts: no-op success",
@@ -105,14 +155,9 @@
    "detail": "code 3"
   },
   {
-   "check": "early tick() is a NotDue no-op (5 tick() in one slot: one tick, then NotDue)",
-   "pass": true,
-   "detail": "tick 14→15, not_due 0→1 "
-  },
-  {
    "check": "task ids are unique per schedule (arena nonce)",
    "pass": true,
-   "detail": "170635987694491277 vs 2697061803646498858"
+   "detail": "4929377210614088267 vs 7455803026566095848"
   },
   {
    "check": "start_sim while running",

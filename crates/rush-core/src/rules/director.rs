@@ -204,6 +204,7 @@ pub fn start_match<H: Hasher>(w: &mut World, lobby: &MapView, seed: &[u8; 32], s
 /// transcript from `seed`), then: only the slots in `alive` stay in the match, `elim[i]` (round << 4 | reason)
 /// records how the others went out, the eliminated players leave the world, and round 4's intro begins (the runner
 /// loads the Final's map when [`needs_map`] asks). Everything after that is the normal director path.
+#[allow(clippy::too_many_arguments)]
 pub fn start_final<H: Hasher>(w: &mut World, lobby: &MapView, seed: &[u8; 32], size: u8, roster_hash: &[u8; 32], alive: u16, elim: &[u8; MAX_PLAYERS], h: &mut H) {
     start_match(w, lobby, seed, size, roster_hash, h);
     let now = w.tick;

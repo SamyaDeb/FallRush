@@ -91,6 +91,16 @@ await sendEr([await pe.methods.requestDeal().accountsPartial({ authority: wallet
 for (let i = 0; i < 100; i++) { const m: any = await pe.account.match.fetch(matchPda); if (Object.keys(m.status)[0] === "dealt") break; await sleep(300); }
 check("start_sim after the VRF deal", !(await sendEr([cu(400_000), await pe.methods.startSim().accountsPartial({ authority: wallet.publicKey, arena, world, matchAccount: matchPda, lobbyMap: maps[4] }).instruction()])).err);
 await expectCode("join after the roster is locked (claiming a bot slot)", join_(p2, 5), "BadArenaState");
+// NotDue (real-time gate): right after the start, 3 tick() in one transaction (one slot) run the first tick only;
+// the 2 others are NotDue no-ops (tick n may start once n/30 s of slot clock have passed)
+{
+  const tm = tickAccounts(arena, matchPda, maps);
+  const wd0 = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
+  const tIx = await pe.methods.tick().remainingAccounts(tm).instruction();
+  const r = await sendEr([cu(1_400_000), tIx, tIx, tIx], [wallet], "3 ticks", 3);
+  const wd1 = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
+  check("early tick() is a NotDue no-op (3 tick() in the first slot: one tick, the rest NotDue / its slices)", !r.err && wd1.tick === wd0.tick + 1 && wd1.notDue >= wd0.notDue + 1n, `tick ${wd0.tick}→${wd1.tick}, not_due ${wd0.notDue}→${wd1.notDue} ${r.err ?? ""}`);
+}
 // --- inputs
 w0 = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
 const sub = async (who: Keypair, slot: number, start: number, batch: number[], token: PublicKey | null = null) => sendEr([await pe.methods.submitInput(slot, start, batch).accountsPartial({ owner: who.publicKey, input: inputs[slot], world, sessionToken: token }).instruction()], [who], "input", 3);
@@ -119,7 +129,8 @@ const waitS = Math.max(0, now + 27 - Math.floor(Date.now() / 1000));
 await sleep(waitS * 1000);
 const wt3 = decodeWorld((await er.getAccountInfo(world))!.data as Buffer).tick;
 await expectCode("submit_input after the session token expired", sub(s3, 6, wt3 + 3, Array(12).fill(0), tokenPda(s3.publicKey, p3.publicKey)), "SessionInvalid");
-// --- hot tick robustness
+// --- hot tick robustness (from a tick boundary: a continuation slice does not read the InputBufs)
+for (let i = 0; i < 12; i++) { const w = decodeWorld((await er.getAccountInfo(world))!.data as Buffer); if (w.partPending === 0) break; await sendEr([cu(1_400_000), await pe.methods.tick().remainingAccounts(tickAccounts(arena, matchPda, maps)).instruction()], [wallet], "finish", 2); }
 const wBefore = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
 const noop = async (name: string, metas: any[]) => { const r = await tickTx(metas); const w = decodeWorld((await er.getAccountInfo(world))!.data as Buffer); check(name, !r.err && w.tick === wBefore.tick && w.partPending === wBefore.partPending, r.err ?? `code ${w.lastCode}`); };
 await noop("tick with no accounts: no-op success", []);
@@ -127,14 +138,6 @@ await noop("tick with 5 accounts: no-op success", tickMetas.slice(0, 5));
 await noop("tick with reordered maps: no-op success", [...tickMetas.slice(0, 4), tickMetas[5], tickMetas[4], ...tickMetas.slice(6)]);
 await noop("tick with a wrong (read-only) match account: no-op success", [...tickMetas.slice(0, 3), { pubkey: Keypair.generate().publicKey, isSigner: false, isWritable: false }, ...tickMetas.slice(4)]);
 await noop("tick with 8 foreign accounts inserted: hostile length / order", [...tickMetas.slice(0, 9), ...Array.from({ length: 8 }, () => ({ pubkey: Keypair.generate().publicKey, isSigner: false, isWritable: false })), ...tickMetas.slice(9)]);
-// NotDue: once a tick completes, a new tick (part 0) starts at most once per 3 slots. One transaction (one slot)
-// with parts + 1 tick() instructions: the parts run, the extra part 0 is a NotDue no-op.
-for (let i = 0; i < 8; i++) { const w = decodeWorld((await er.getAccountInfo(world))!.data as Buffer); if (w.partPending === 0) break; await tickTx(tickMetas); }
-const wd0 = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
-const tickIx = await pe.methods.tick().remainingAccounts(tickMetas).instruction();
-const rnd = await sendEr([cu(1_400_000), tickIx, tickIx, tickIx, tickIx, tickIx], [wallet], "5 ticks", 3);
-const wd1 = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
-check("early tick() is a NotDue no-op (5 tick() in one slot: one tick, then NotDue)", !rnd.err && wd1.tick === wd0.tick + 1 && wd1.notDue === wd0.notDue + 1n && wd1.partPending === 0, `tick ${wd0.tick}→${wd1.tick}, not_due ${wd0.notDue}→${wd1.notDue} ${rnd.err ?? ""}`);
 // --- task ids
 const sched = async () => sendEr([cu(400_000), await pe.methods.scheduleTicks(new BN(1000), new BN(2)).accountsPartial({ payer: wallet.publicKey, arena }).remainingAccounts(tickMetas).instruction()]);
 await sched(); const t1 = ((await pe.account.arena.fetch(arena)) as any).taskId.toString();

@@ -57,7 +57,7 @@ pub fn cmd(args: &[String]) -> i32 {
     w.reset(&lm, 30);
     // a Final (fall_rush start_final): the Match's roster hash, the 3 finalists, the earlier rounds' eliminations
     let mj: serde_json::Value = std::fs::read_to_string(run.join("match.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::Value::Null);
-    let is_final = summary["finalists"].as_array().map_or(false, |a| a.len() == 3);
+    let is_final = summary["finalists"].as_array().is_some_and(|a| a.len() == 3);
     if is_final {
         let mut alive = 0u16;
         for f in summary["finalists"].as_array().unwrap() {

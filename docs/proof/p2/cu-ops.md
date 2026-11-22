@@ -5,23 +5,23 @@
 | div_round i64 | 47 |
 | mul_div (i128) | 277 |
 | isqrt_i64 | 90 |
-| normalize_q15 | 268 |
-| map.collider(i) decode | 331 |
-| capsule_sweep down 100 mm at spawn | 8401 |
-| raycast down 3 m at spawn | 3803 |
-| penetration at spawn | 2403 |
-| gather 1x2x1 m box at spawn | 2189 |
-| capsule_sweep fwd 300 mm at spawn | 2477 |
+| normalize_q15 | 267 |
+| map.collider(i) decode | 329 |
+| capsule_sweep down 100 mm at spawn | 8995 |
+| raycast down 3 m at spawn | 4201 |
+| penetration at spawn | 2791 |
+| gather 1x2x1 m box at spawn | 2574 |
+| capsule_sweep fwd 300 mm at spawn | 2865 |
 | sin_q15 | 27 |
-| i64 / i64 | 30 |
+| i64 / i64 | 33 |
 | u64 / u64 | 12 |
 | i64 / 3 (const) | 25 |
 | idiv(x, 3) | 11 |
 | i32 / 10 (const) | 29 |
-| x*7/1000 (const) | 28 |
+| x*7/1000 (const) | 27 |
 | div_round(x, 1000) | 38 |
 | near() by shape | count, mean, max |
-| shape 1 | 106 colliders, mean 688, max 694 |
+| shape 1 | 106 colliders, mean 722, max 728 |
 | tilted (general) OBBs | 0 colliders, max 0 |
 
 ## StarScramble (61 colliders)
@@ -30,25 +30,25 @@
 | div_round i64 | 47 |
 | mul_div (i128) | 277 |
 | isqrt_i64 | 90 |
-| normalize_q15 | 268 |
-| map.collider(i) decode | 317 |
-| capsule_sweep down 100 mm at spawn | 24507 |
-| raycast down 3 m at spawn | 5460 |
-| penetration at spawn | 1693 |
-| gather 1x2x1 m box at spawn | 1479 |
-| capsule_sweep fwd 300 mm at spawn | 1767 |
+| normalize_q15 | 267 |
+| map.collider(i) decode | 315 |
+| capsule_sweep down 100 mm at spawn | 7772 |
+| raycast down 3 m at spawn | 5859 |
+| penetration at spawn | 2079 |
+| gather 1x2x1 m box at spawn | 1862 |
+| capsule_sweep fwd 300 mm at spawn | 2153 |
 | sin_q15 | 27 |
-| i64 / i64 | 30 |
+| i64 / i64 | 33 |
 | u64 / u64 | 12 |
 | i64 / 3 (const) | 25 |
 | idiv(x, 3) | 11 |
 | i32 / 10 (const) | 29 |
-| x*7/1000 (const) | 28 |
+| x*7/1000 (const) | 27 |
 | div_round(x, 1000) | 38 |
 | near() by shape | count, mean, max |
-| shape 1 | 57 colliders, mean 691, max 722 |
-| shape 2 | 3 colliders, mean 3065, max 3452 |
-| shape 3 | 1 colliders, mean 556, max 556 |
+| shape 1 | 57 colliders, mean 725, max 756 |
+| shape 2 | 3 colliders, mean 5758, max 6831 |
+| shape 3 | 1 colliders, mean 585, max 585 |
 | tilted (general) OBBs | 0 colliders, max 0 |
 
 ## GooTower (129 colliders)
@@ -57,25 +57,25 @@
 | div_round i64 | 47 |
 | mul_div (i128) | 277 |
 | isqrt_i64 | 90 |
-| normalize_q15 | 268 |
-| map.collider(i) decode | 331 |
-| capsule_sweep down 100 mm at spawn | 7966 |
-| raycast down 3 m at spawn | 3027 |
-| penetration at spawn | 2007 |
-| gather 1x2x1 m box at spawn | 2033 |
-| capsule_sweep fwd 300 mm at spawn | 2321 |
+| normalize_q15 | 267 |
+| map.collider(i) decode | 329 |
+| capsule_sweep down 100 mm at spawn | 8558 |
+| raycast down 3 m at spawn | 3423 |
+| penetration at spawn | 2393 |
+| gather 1x2x1 m box at spawn | 2416 |
+| capsule_sweep fwd 300 mm at spawn | 2707 |
 | sin_q15 | 27 |
-| i64 / i64 | 30 |
+| i64 / i64 | 33 |
 | u64 / u64 | 12 |
 | i64 / 3 (const) | 25 |
 | idiv(x, 3) | 11 |
 | i32 / 10 (const) | 29 |
-| x*7/1000 (const) | 28 |
+| x*7/1000 (const) | 27 |
 | div_round(x, 1000) | 38 |
 | near() by shape | count, mean, max |
-| shape 1 | 122 colliders, mean 753, max 1063 |
-| shape 2 | 7 colliders, mean 3466, max 3484 |
-| tilted (general) OBBs | 17 colliders, max 1063 |
+| shape 1 | 122 colliders, mean 787, max 1095 |
+| shape 2 | 7 colliders, mean 6845, max 6865 |
+| tilted (general) OBBs | 17 colliders, max 1095 |
 
 ## BlockPartyDash (127 colliders)
 | op | CU / call |
@@ -83,25 +83,25 @@
 | div_round i64 | 47 |
 | mul_div (i128) | 277 |
 | isqrt_i64 | 90 |
-| normalize_q15 | 268 |
-| map.collider(i) decode | 331 |
-| capsule_sweep down 100 mm at spawn | 8343 |
-| raycast down 3 m at spawn | 3389 |
-| penetration at spawn | 2409 |
-| gather 1x2x1 m box at spawn | 2195 |
-| capsule_sweep fwd 300 mm at spawn | 2483 |
+| normalize_q15 | 267 |
+| map.collider(i) decode | 329 |
+| capsule_sweep down 100 mm at spawn | 8934 |
+| raycast down 3 m at spawn | 3786 |
+| penetration at spawn | 2794 |
+| gather 1x2x1 m box at spawn | 2578 |
+| capsule_sweep fwd 300 mm at spawn | 2868 |
 | sin_q15 | 27 |
-| i64 / i64 | 30 |
+| i64 / i64 | 33 |
 | u64 / u64 | 12 |
 | i64 / 3 (const) | 25 |
 | idiv(x, 3) | 11 |
 | i32 / 10 (const) | 29 |
-| x*7/1000 (const) | 28 |
+| x*7/1000 (const) | 27 |
 | div_round(x, 1000) | 38 |
 | near() by shape | count, mean, max |
-| shape 1 | 122 colliders, mean 754, max 2299 |
-| shape 2 | 5 colliders, mean 3470, max 3482 |
-| tilted (general) OBBs | 14 colliders, max 2299 |
+| shape 1 | 122 colliders, mean 787, max 2331 |
+| shape 2 | 5 colliders, mean 6851, max 6864 |
+| tilted (general) OBBs | 14 colliders, max 2331 |
 
 ## Lobby (13 colliders)
 | op | CU / call |
@@ -109,22 +109,22 @@
 | div_round i64 | 47 |
 | mul_div (i128) | 277 |
 | isqrt_i64 | 90 |
-| normalize_q15 | 268 |
-| map.collider(i) decode | 331 |
-| capsule_sweep down 100 mm at spawn | 7347 |
-| raycast down 3 m at spawn | 2513 |
-| penetration at spawn | 1376 |
-| gather 1x2x1 m box at spawn | 1162 |
-| capsule_sweep fwd 300 mm at spawn | 1450 |
+| normalize_q15 | 267 |
+| map.collider(i) decode | 329 |
+| capsule_sweep down 100 mm at spawn | 7939 |
+| raycast down 3 m at spawn | 2910 |
+| penetration at spawn | 1762 |
+| gather 1x2x1 m box at spawn | 1545 |
+| capsule_sweep fwd 300 mm at spawn | 1836 |
 | sin_q15 | 27 |
-| i64 / i64 | 30 |
+| i64 / i64 | 33 |
 | u64 / u64 | 12 |
 | i64 / 3 (const) | 25 |
 | idiv(x, 3) | 11 |
 | i32 / 10 (const) | 29 |
-| x*7/1000 (const) | 28 |
+| x*7/1000 (const) | 27 |
 | div_round(x, 1000) | 38 |
 | near() by shape | count, mean, max |
-| shape 1 | 9 colliders, mean 711, max 722 |
-| shape 2 | 4 colliders, mean 3479, max 3507 |
+| shape 1 | 9 colliders, mean 745, max 756 |
+| shape 2 | 4 colliders, mean 6860, max 6889 |
 | tilted (general) OBBs | 0 colliders, max 0 |

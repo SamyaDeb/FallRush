@@ -20,6 +20,7 @@ WALLET=$(solana-keygen pubkey "$HOME/.config/solana/id.json")
 RUST_LOG=info mb-stack --reset \
   --account mAGicPQYBMvcYveUZA5F5UNNwyHvfYh5xkLS2Fr1mev "$PROG/tests/fixtures/local-validator-identity-account.json" \
   --upgradeable-program "$PROG/target/deploy/fall_rush-keypair.json" "$PROG/target/deploy/fall_rush.so" "$WALLET" \
+  --url https://api.devnet.solana.com --clone-upgradeable-program KeyspM2ssCJbqUhQ4k7sveSiY4WjnYsrXkC8oDbwde5 \
   > "$LOGS/mb-stack.log" 2>&1 < /dev/null &
 PIDS="$!"
 for i in $(seq 1 240); do
