@@ -242,7 +242,7 @@ Real maps, 12 bots, 60 s, `rush-sim counters` (`docs/proof/p1/qa/counters.md`). 
 
 ## 13. UNVERIFIED
 
-- Feel: whether rush-core at 15 / 20 / 30 Hz feels as good as Classic. That is the user's A/B (OC-3, below).
+- Feel at 20 Hz on its own (the user chose 30 Hz; 15 Hz felt laggy).
 - CU per tick of a real-map `step()` on the rollup and on devnet (§12). Measured here only in LiteSVM, on the vector map (≈ 493k CU per tick).
 - WASM in a browser (Chrome) for rush-core. Only Node was run; P0 ran Chrome for its own spike.
 - The not-ported QA metrics in §10 (route cost, goo margin, Star Fountain items, camper, Lid Flip fairness).
@@ -255,13 +255,23 @@ A/B handed to the user on 2026-11-21 (Feel Lab Mac build).
 - The user asked about 60 Hz. Answer given: Classic itself simulates at 30 Hz (the screen is smoothed by interpolation),
   so 60 Hz would not feel better than Classic. On-chain it is 3× the per-second cost of 20 Hz (2× of 30 Hz), with a tick
   only ≈ 1.7 rollup slots long (10 ms slots). P0 measured 15/20/30 Hz only, so 60 Hz is UNVERIFIED and not recommended.
-- Doc 19 plans 20 Hz. If 20 Hz is not acceptable, the tick rate becomes 30 Hz (1.5× per-second load, same per-tick CU),
-  which is a doc 19 change for main.
+- **User, 2026-11-21: "okk then 30 is fine".** **OC-3 signed off for rush-core at 30 Hz.** The on-chain tick rate becomes
+  **30 Hz** (doc 19 planned 20 Hz). The user did not judge 20 Hz on its own; they chose 30.
+- Consequences:
+  - 30 Hz has the same per-tick CU as 20 Hz but 1.5× the per-second load (P0 measured 30 Hz scheduling: 3,637/3,637 ticks, gap p95 42 ms).
+  - Input transactions: 12 × 30 = 360/s at one input per tick, above P0's best clean 253 tx/s. P2 needs input batching
+    (e.g. 2 ticks per input tx) or a measured higher rate.
+  - The 15 Hz trace misses (§9) no longer matter: 15 Hz is not used.
+  - QA at 30 Hz (§10): Capsule Run Normal median 68.7 s (open, fast bots), Goo Tower escape 4.79 (just under 4.80), Lid Flip
+    and Star Fountain pass.
+  - `movement_v4.json` keeps `tickRateHz: 20` as the authored default. The rate is a parameter everywhere (`MotorConfig::new`,
+    `rc_set_rate`), so P2 sets 30. Changing the default is left to the main merge, together with doc 19.
 
 ## For main (merge later)
 
 - `PROJECT_STATUS.md`: "P1 rush-core: done on branch `p1` (proof `docs/proof/P1-rush-core.md`). Native = WASM = sBPF = FFI on
   every golden vector, 30 / 30 traces at 30 and 20 Hz, real-map QA at 15/20/30 Hz, soak 20/20, Feel Lab Mac build. Open:
-  Capsule Run bots fast (73.6 s), Goo Tower escape 4.55, two 15 Hz traces, unported QA metrics, OC-3 feel sign-off, CU ≈ 493k per 12-player tick (P1b CU pass)."
-- Doc 15 note: "OC-3 (rush-core feel = Classic) waits for the user's Feel Lab sign-off. P0-1 (tick budget, 400k per timed
-  task) is still open unless the user decided it."
+  Capsule Run bots fast (73.6 s), Goo Tower escape 4.55, two 15 Hz traces, unported QA metrics, CU ≈ 493k per 12-player tick (P1b CU pass). OC-3 signed off at 30 Hz (user, 2026-11-21)."
+- Doc 15 note: "OC-3 closed: rush-core feel accepted at **30 Hz** (15 Hz laggy). P0-1 (tick budget, 400k per timed task) is
+  still open, and at 30 Hz the per-second load is 1.5× the 20 Hz plan."
+- Doc 19: tick rate 20 Hz → **30 Hz** (§ tick table, `tick()` row, P2.4 tick conversions); input tx rate 360/s needs batching or a measurement.
