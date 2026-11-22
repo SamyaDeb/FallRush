@@ -92,6 +92,7 @@ namespace FallRush.Net
             _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.MatchEvent, OnMatchEvent);
             _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Reactive, OnReactive);
             _nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Emote, OnEmote);
+            _nm.CustomMessagingManager.RegisterNamedMessageHandler(ChainFinalHandoff.Msg, OnFinalOnchain);
         }
 
         // ---------------------------------------------------------------- match (v4)
@@ -112,8 +113,6 @@ namespace FallRush.Net
 
         private void OnMatch(ulong sender, FastBufferReader reader)
         {
-            if (Feed != null && Feed.OverridesServer)
-                return; // P3: the chain feed drives these
             var len = reader.Length - reader.Position;
             if (len <= 0 || len > _msgBuf.Length)
                 return;
@@ -127,11 +126,14 @@ namespace FallRush.Net
 
             MatchMsgs++;
             MatchBytesIn += len;
+            ServerMatch = m; // P3: kept while the chain feed drives the screens (the switch hands back to it)
+            SessionToken.Save(m.Token);
+            if (Feed != null && Feed.OverridesServer)
+                return;
             var newMatch = Match == null || Match.MatchSerial != m.MatchSerial || m.Phase == MatchPhase.LobbyOpen;
             if (newMatch && (Match == null || m.MatchSerial != Match.MatchSerial))
                 MatchEvents.Clear();
             Match = m;
-            SessionToken.Save(m.Token);
             MatchChanged?.Invoke();
         }
 
@@ -743,6 +745,37 @@ namespace FallRush.Net
         /// <summary>The tick the local player's inputs are stamped for now (the predicted present), or the interpolated server time.</summary>
         public double LocalTick => Feed != null && Feed.OverridesServer ? FeedTick(0) : Prediction != null && Prediction.HasState && !OwnOutOfSim ? Prediction.Tick + TickFraction : Remote.RenderTick;
         // ---------------------------------------------------------------- P3: chain feed (on-chain session)
+
+        /// <summary>P3: the newest <c>match</c> from the game server, also while the chain feed overrides <see cref="Match"/>.</summary>
+        public MatchStateMessage ServerMatch { get; private set; }
+
+        /// <summary>P3-F: the server handed the Final to an arena (<c>fonc</c> JSON: arena, match, url, slot_map).</summary>
+        public event Action<string> FinalOnchain;
+        public string LastFinalOnchain { get; private set; }
+
+        private void OnFinalOnchain(ulong sender, FastBufferReader reader)
+        {
+            var len = reader.Length - reader.Position;
+            if (len <= 0 || len > _msgBuf.Length)
+                return;
+            var buf = _msgBuf;
+            reader.ReadBytesSafe(ref buf, len);
+            LastFinalOnchain = System.Text.Encoding.UTF8.GetString(buf, 0, len);
+            Debug.Log("[net] fonc: " + LastFinalOnchain);
+            FinalOnchain?.Invoke(LastFinalOnchain);
+        }
+
+        /// <summary>P3-F: back to the game server's screens (the on-chain Final ended or failed).</summary>
+        public void FeedHandBack()
+        {
+            Feed = null;
+            FeedReset();
+            if (ServerMatch != null)
+            {
+                Match = ServerMatch;
+                MatchChanged?.Invoke();
+            }
+        }
 
         /// <summary>P3: the on-chain session (null in Classic play). See <see cref="IChainFeed"/>.</summary>
         public IChainFeed Feed;

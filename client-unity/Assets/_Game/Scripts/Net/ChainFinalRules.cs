@@ -1,0 +1,88 @@
+using System;
+using System.Collections.Generic;
+using FallRush.Shared;
+
+namespace FallRush.Net
+{
+    /// <summary>
+    /// P3-F (server): the Final's rules while the Final runs on an arena (<see cref="ChainFinalHandoff"/>). Phases,
+    /// timer and HUD state come from the inner Classic rules (intro → countdown → rush on the server clock), but the
+    /// server simulates nobody (inputs off, players frozen and out of collisions), and the round ends with the arena's
+    /// result: <see cref="IsOver"/> once the handoff has it, <see cref="RoundOutcome"/> = the arena's placements, so the
+    /// director's ROUND_RESULT / CHAMPION / receipt and the jsonl log carry the on-chain champion.
+    /// </summary>
+    public sealed class ChainFinalRules : IRoundRules
+    {
+        private readonly IRoundRules _inner;
+        private readonly ChainFinalHandoff _h;
+        private bool _endedSent;
+
+        public ChainFinalRules(IRoundRules inner, ChainFinalHandoff handoff)
+        {
+            _inner = inner;
+            _h = handoff;
+        }
+
+        public string Mode => _inner.Mode;
+        public RoundPhase Phase => _h.ResultOrder != null ? RoundPhase.Ended : _inner.Phase == RoundPhase.Ended ? RoundPhase.Rush : _inner.Phase;
+        public bool IsOver => _h.ResultOrder != null;
+        public int IntroTicks { get => _inner.IntroTicks; set => _inner.IntroTicks = value; }
+        public int CountdownTicks { get => _inner.CountdownTicks; set => _inner.CountdownTicks = value; }
+        public uint TimerTicks => _inner.TimerTicks;
+        public uint RushTick => _inner.RushTick;
+        public int Target { get => _inner.Target; set => _inner.Target = value; }
+        public bool[] Participants { get => _inner.Participants; set => _inner.Participants = value; }
+        public uint Begin(SimCore sim, uint tick) => _inner.Begin(sim, tick);
+        public List<RaceEvent> Pending => _inner.Pending;
+        public RaceStateMessage StateMessage() => _inner.StateMessage();
+
+        public event Action<RoundPhase> PhaseChanged
+        {
+            add => _inner.PhaseChanged += value;
+            remove => _inner.PhaseChanged -= value;
+        }
+
+        public int LiveCount => _inner.LiveCount;
+        public bool InRound(int slot) => _inner.InRound(slot);
+
+        public RoundResult RoundOutcome
+        {
+            get
+            {
+                var o = _h.ResultOrder;
+                if (o == null)
+                    return null;
+                var n = o.Length;
+                var r = new RoundResult
+                {
+                    Mode = Mode, Target = 1, Order = (int[])o.Clone(), Qualified = new bool[n], Reasons = (ElimReason[])_h.ResultReasons.Clone(),
+                    Value = new int[n], StartTick = RushTick, EndTick = RushTick + _h.ResultTicks,
+                };
+                if (n > 0)
+                    r.Qualified[0] = true;
+                return r;
+            }
+        }
+
+        // ---- ISimRules: the server simulates nobody in an on-chain Final
+        public void BeginTick(SimCore sim, uint tick) => _inner.BeginTick(sim, tick);
+
+        public void EndTick(SimCore sim, uint tick)
+        {
+            _h.Poll();
+            if (_inner.Phase != RoundPhase.Ended)
+                _inner.EndTick(sim, tick); // phases + timer; nobody moves, so nobody falls
+            if (_h.ResultOrder != null && !_endedSent)
+            {
+                _endedSent = true;
+                Pending.Add(new RaceEvent { Type = RaceEventType.Phase, Tick = tick, Slot = 255, Arg = (int)RoundPhase.Ended });
+            }
+        }
+
+        public bool AcceptsInput(SimCore sim, int slot) => false;
+        public bool Simulates(SimCore sim, int slot) => false;
+        public bool Collides(SimCore sim, int slot) => false;
+        public bool Respawn(SimCore sim, int slot) => false;
+        public byte RaceByte(int slot) => _inner.RaceByte(slot);
+    }
+}

@@ -105,6 +105,8 @@ namespace FallRush.OnChain
             DontDestroyOnLoad(go);
             var s = go.AddComponent<OnChainSession>();
             s.Cfg = cfg;
+            // P3-G: watch only (late joiners, eliminated players): no slot, no inputs, the same spectate camera (Tab).
+            s.Spectate = Array.IndexOf(Environment.GetCommandLineArgs(), "-fallrushOnchainSpectate") >= 0 || NetTargets.GetQueryParam(Application.absoluteURL, "onchainspectate") == "1";
             return s;
         }
 
@@ -150,8 +152,13 @@ namespace FallRush.OnChain
             var cs = ClientSim.Instance;
             if (cs != null && ReferenceEquals(cs.Feed, this))
             {
-                cs.Feed = null;
-                cs.FeedReset();
+                if (BaseMatch != null)
+                    cs.FeedHandBack(); // the switch: back to the game server's screens (its champion = the arena's)
+                else
+                {
+                    cs.Feed = null;
+                    cs.FeedReset();
+                }
             }
 
             if (ReferenceEquals(ChainAdapters.Override, _adapter))
@@ -246,7 +253,43 @@ namespace FallRush.OnChain
                 _lastLagAt = -1;
             _adapter.Live = _hasNewest && !lag;
             Stats(now);
+            if (BaseMatch != null)
+                SuperviseSwitch(cs, now);
         }
+
+        private double _startedAt = -1;
+
+        /// <summary>
+        /// P3-F: in the Classic → on-chain switch, hand the screens back to the game server once it has the arena's
+        /// result (its match reaches CHAMPION: same champion), or when the arena never delivered a World (failure path:
+        /// chip ! Pending, then ● Server).
+        /// </summary>
+        private void SuperviseSwitch(ClientSim cs, double now)
+        {
+            if (_startedAt < 0)
+                _startedAt = now;
+            var sm = cs != null ? cs.ServerMatch : null;
+            if (sm != null && sm.Phase >= MatchPhase.Champion && sm.Phase != MatchPhase.Aborted)
+            {
+                Debug.Log($"[onchain] switch done: server match {sm.Phase}, champion {sm.Champion}; handing back");
+                End();
+                return;
+            }
+
+            if (sm != null && (sm.Phase == MatchPhase.LobbyOpen || sm.Phase == MatchPhase.Aborted))
+            {
+                End();
+                return;
+            }
+
+            if (!_hasNewest && now - _startedAt > SwitchTimeoutSeconds)
+            {
+                Debug.LogWarning($"[onchain] switch failed: no World from {Cfg.url} in {SwitchTimeoutSeconds} s; back to the game server");
+                End();
+            }
+        }
+
+        public const float SwitchTimeoutSeconds = 8f;
 
         private void OnJoined(JoinInfo j)
         {
@@ -401,6 +444,7 @@ namespace FallRush.OnChain
                 var cmd = new InputCmd { Tick = tick };
                 if (playing)
                     cs?.InputSource?.Sample(ref cmd);
+                cmd.CamYaw &= 0xFF00; // the program stores cam yaw >> 8 (P2 §10): predict exactly what the arena applies
                 _pred.SetInput(tick, in cmd);
                 _pred.StepTo(tick);
                 if (playing)
