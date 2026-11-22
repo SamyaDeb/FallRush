@@ -1,0 +1,17 @@
+[package]
+name = "rush-core-ffi"
+description = "rush-core for native hosts (Unity Editor / Mac player): the same C ABI as rush-core-wasm."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "rush_core_ffi"
+doctest = false
+crate-type = ["cdylib", "staticlib", "rlib"]
+path = "src/lib.rs"
+
+[dependencies]
+rush-core = { path = "../rush-core" }
+sha2 = { version = "=0.10.9", default-features = false }

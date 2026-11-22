@@ -1,0 +1,11 @@
+[package]
+name = "gen-trig"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Generates crates/rush-core/src/fx/trig_table.rs (floats allowed here only)."
+
+# Standalone (not in the crates/ workspace): `cargo run --manifest-path tools/gen-trig/Cargo.toml`.
+[workspace]
+
+[dependencies]

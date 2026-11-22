@@ -1,0 +1,28 @@
+# rush-core workspace (doc 19 §2). Its own workspace: it never joins programs/ (PB0 owns that one).
+[workspace]
+resolver = "2"
+members = ["rush-core", "rush-core-wasm", "rush-core-ffi", "rush-core-sbf-check", "rush-sim"]
+# Everyday `cargo test` / `clippy` skip the sBPF check crate (Solana + LiteSVM are heavy on the 8 GB machine);
+# scripts/p1-check.sh builds and runs it under the heavy lock.
+default-members = ["rush-core", "rush-core-wasm", "rush-core-ffi", "rush-sim"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "UNLICENSED"
+publish = false
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+overflow-checks = false
+
+[profile.dev]
+# Tests run with overflow checks on, so an i32/i64 overflow in rush-core fails a test instead of wrapping.
+overflow-checks = true
+panic = "unwind"
+
+[profile.test]
+opt-level = 1

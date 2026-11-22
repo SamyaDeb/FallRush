@@ -1,0 +1,23 @@
+[package]
+name = "rush-core-sbf-check"
+description = "Minimal Solana program running rush-core vectors on sBPF; returns the hash via return data."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+path = "src/lib.rs"
+
+[features]
+no-entrypoint = []
+
+[dependencies]
+rush-core = { path = "../rush-core" }
+solana-program = "=3.0.0"
+
+[dev-dependencies]
+litesvm = "=0.9.1"
+solana-compute-budget = "=3.1.14"
+solana-sdk = "3"

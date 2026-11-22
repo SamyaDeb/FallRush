@@ -1,0 +1,7 @@
+name Lobby map_id 254 mode 5 variants 1 kill_y -10000
+colliders 13 (obb 9 prism 4 sphere 0 capsule 0) static 13 platform 0 door 0 lid 0 tile 0 block 0 global 5
+grid cell 2000 origin (-16000,-2000,-16000) dims 16x4x16 non-empty cells 77
+checkpoints 0 course points 0 bot words 1
+hazards[A] SpringPadx1 Bumperx4
+hazards[B] SpringPadx1 Bumperx4
+bytes 6988 sha256 943cbda4597a360a80b9b53b78b8cb8c9ab267a70b445a6aaf17155922213367

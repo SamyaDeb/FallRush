@@ -63,6 +63,13 @@ namespace FallRush.Client
             // G4.1: the sandbox's G4 section (ball lane + 7 × 7 lid grid, east of the spawn: walk to the edge, bridge at z −20).
             var g4 = UiKit.Button(panel, "Practice: G4 hazards sandbox (dev)", UiKit.Grey, () => NetBootstrap.StartPractice("Sandbox"));
             g4.GetComponent<LayoutElement>().minHeight = 44;
+            // P1-N: the Feel Lab (Classic vs rush-core A/B, Scripts/FeelLab). Dev builds only; an in-process flag, so Classic is unchanged.
+            var lab = UiKit.Button(panel, "Feel Lab: Classic vs rush-core (dev)", UiKit.Grey, () =>
+            {
+                System.AppDomain.CurrentDomain.SetData("fallrush.feellab", true);
+                NetBootstrap.StartPractice("Sandbox");
+            });
+            lab.GetComponent<LayoutElement>().minHeight = 44;
 #endif
             _wallet = UiKit.Label(panel, string.Empty, 14, UiKit.Ink, FontStyle.Normal, 20);
             _target = UiKit.Label(panel, string.Empty, 13, UiKit.Grey, FontStyle.Normal, 18);

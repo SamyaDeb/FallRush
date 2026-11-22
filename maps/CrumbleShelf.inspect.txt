@@ -1,0 +1,7 @@
+name CrumbleShelf map_id 3 mode 4 variants 2 kill_y -6000
+colliders 106 (obb 106 prism 0 sphere 0 capsule 0) static 0 platform 0 door 0 lid 106 tile 0 block 0 global 0
+grid cell 2000 origin (-10000,-2000,-10000) dims 10x5x10 non-empty cells 272
+checkpoints 0 course points 0 bot words 1
+hazards[A] SpinnerBarx1 LidFlipx2
+hazards[B] SpinnerBarx1 LidFlipx2
+bytes 18388 sha256 8ecf31f663c6ea3fce12a064e3e5c158c79a96ccfd1e6c13420341c48dceb96a

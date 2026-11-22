@@ -1,0 +1,92 @@
+{
+  "bump": {
+    "enabled": false,
+    "minClosingSpeed": 4000,
+    "staggerMs": 250
+  },
+  "capsule": {
+    "height": 1000,
+    "radius": 310,
+    "skin": 10
+  },
+  "dive": {
+    "cooldownMs": 1000,
+    "horizontalSpeed": 7000,
+    "jumpCancelWindowMs": 150,
+    "landStunMs": 450,
+    "slideDecel": 12000,
+    "verticalSpeed": 2500
+  },
+  "gravity": {
+    "accel": 20000,
+    "fallMultiplierPermille": 1350,
+    "maxFallSpeed": 30000
+  },
+  "ground": {
+    "ledgeTolerance": 50,
+    "maxSlopeDeg": 45,
+    "slideIterations": 3,
+    "snapDistance": 250,
+    "stepOffset": 250
+  },
+  "jump": {
+    "apexHeight": 1200,
+    "bufferMs": 120,
+    "coyoteMs": 100
+  },
+  "name": "fall-rush-movement",
+  "notes": "v4 (P1 rush-core): the v3 values in integer units; tick counts per supported rate (round half up). OC-3 feel A/B decides retunes.",
+  "push": {
+    "maxSpeed": 2500
+  },
+  "respawn": {
+    "delayMs": 1000,
+    "killY": -20000
+  },
+  "run": {
+    "airControlPermille": 300,
+    "groundAccel": 28000,
+    "groundDecel": 30000,
+    "maxSpeed": 5000
+  },
+  "stumble": {
+    "durationMs": 300,
+    "minFallHeight": 3000,
+    "speedPermille": 550
+  },
+  "tickRateHz": 20,
+  "ticks": {
+    "15": {
+      "bumpStagger": 4,
+      "coyote": 2,
+      "diveCancelWindow": 2,
+      "diveCooldown": 15,
+      "diveLandStun": 7,
+      "jumpBuffer": 2,
+      "respawn": 15,
+      "stumble": 5
+    },
+    "20": {
+      "bumpStagger": 5,
+      "coyote": 2,
+      "diveCancelWindow": 3,
+      "diveCooldown": 20,
+      "diveLandStun": 9,
+      "jumpBuffer": 2,
+      "respawn": 20,
+      "stumble": 6
+    },
+    "30": {
+      "bumpStagger": 8,
+      "coyote": 3,
+      "diveCancelWindow": 5,
+      "diveCooldown": 30,
+      "diveLandStun": 14,
+      "jumpBuffer": 4,
+      "respawn": 30,
+      "stumble": 9
+    }
+  },
+  "units": "length mm, speed mm/s, accel mm/s2, time ms, angle deg, ratio permille",
+  "version": 4
+}

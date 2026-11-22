@@ -1,0 +1,21 @@
+{
+    "name": "FallRush.FeelLab",
+    "rootNamespace": "FallRush.FeelLab",
+    "references": [
+        "FallRush.Shared",
+        "FallRush.Net",
+        "FallRush.Client",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "!UNITY_SERVER"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
