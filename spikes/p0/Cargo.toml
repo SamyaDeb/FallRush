@@ -1,0 +1,22 @@
+[workspace]
+members = ["sim", "sim-wasm", "programs/p0_tick"]
+resolver = "2"
+
+[profile.release]
+overflow-checks = true
+lto = "fat"
+codegen-units = 1
+opt-level = "z"
+strip = true
+panic = "abort"
+
+[profile.release.build-override]
+opt-level = 3
+incremental = false
+codegen-units = 1
+
+# The sim is the hot path: full speed, no overflow checks (integer maths is range-checked by design
+# in rush-core later; spike only). Everything else stays size-optimised (opt-level "z").
+[profile.release.package.p0_sim]
+opt-level = 3
+overflow-checks = false

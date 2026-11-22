@@ -1,0 +1,35 @@
+[package]
+name = "p0_tick"
+version = "0.0.1"
+description = "P0 throw-away spike: on-chain tick of the integer sim on a MagicBlock ER"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "p0_tick"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+# local MagicBlock stack vs devnet-as (validator pin only; this spike has no VRF)
+localnet = []
+remaining-cu = []
+
+[dependencies]
+anchor-lang = { version = "=1.0.2" }
+ephemeral-rollups-sdk = { version = "=0.18.0", features = ["anchor"] }
+bincode = "1.3.3"
+magicblock-magic-program-api = { version = "=0.10.1", default-features = false }
+bytemuck = { version = "1.25", features = ["derive", "min_const_generics"] }
+p0_sim = { path = "../../sim" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }

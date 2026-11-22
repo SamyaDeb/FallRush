@@ -1,0 +1,40 @@
+<!doctype html><meta charset="utf-8"><title>p0</title>
+<script type="module">
+// P0.4 / P0.6 browser page. ?mode=sub&ws=<url>&acct=<pubkey>  (raw JSON-RPC accountSubscribe, as the TS SDK does)
+//                            ?mode=relay&ws=<relay url>
+//                            ?mode=wasm
+const q = new URLSearchParams(location.search);
+const mode = q.get("mode");
+if (mode === "sub" || mode === "relay") {
+  const ws = new WebSocket(q.get("ws"));
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => {
+    if (mode === "sub") ws.send(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "accountSubscribe", params: [q.get("acct"), { encoding: "base64", commitment: "processed" }] }));
+    console.log("open");
+  };
+  ws.onmessage = (ev) => {
+    const t = Date.now();
+    let bytes;
+    if (mode === "relay") bytes = new Uint8Array(ev.data);
+    else {
+      const m = JSON.parse(ev.data);
+      if (!m.params) return;
+      bytes = Uint8Array.from(atob(m.params.result.value.data[0]), (c) => c.charCodeAt(0));
+    }
+    const tick = new DataView(bytes.buffer, bytes.byteOffset).getUint32(8 + 64, true);
+    console.log(`recv ${tick} ${t}`);
+  };
+} else if (mode === "wasm") {
+  const wasm = await (await fetch("/wasm")).arrayBuffer();
+  const { instance } = await WebAssembly.instantiate(wasm, {});
+  const ex = instance.exports;
+  for (const name of ["lid", "run"]) {
+    const blob = new Uint8Array(await (await fetch("/map_" + name)).arrayBuffer());
+    const ptr = ex.p0_alloc(Math.ceil(blob.length / 4));
+    new Uint8Array(ex.memory.buffer, ptr, blob.length).set(blob);
+    const S = Number(q.get("seeds") || 100), STEPS = Number(q.get("steps") || 200);
+    for (let seed = 1; seed <= S; seed++) console.log(`hash ${name} ${seed} ${BigInt.asUintN(64, ex.p0_hash(ptr, blob.length, BigInt(seed), STEPS)).toString(16).padStart(16, "0")}`);
+  }
+  console.log("wasm done");
+}
+</script>

@@ -1,0 +1,20 @@
+[package]
+name = "p0_sim"
+version = "0.0.1"
+edition = "2021"
+description = "P0 throw-away spike: no_std integer sim with the compute shape of the Fall Rush motor"
+publish = false
+
+[lib]
+name = "p0_sim"
+
+[features]
+default = []
+# Offline map generator (needs alloc). Not used by the on-chain hot path.
+gen = []
+std = []
+
+[dependencies]
+bytemuck = { version = "1.25", default-features = false, features = ["derive"] }
+
+[dev-dependencies]
