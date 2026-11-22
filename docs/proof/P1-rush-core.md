@@ -262,6 +262,7 @@ A/B handed to the user on 2026-11-21 (Feel Lab Mac build).
   - Input transactions: 12 × 30 = 360/s at one input per tick, above P0's best clean 253 tx/s. P2 needs input batching
     (e.g. 2 ticks per input tx) or a measured higher rate.
   - The 15 Hz trace misses (§9) no longer matter: 15 Hz is not used.
+  - This differs from P0-1 (approved after this run started: 20 Hz). See "For main".
   - QA at 30 Hz (§10): Capsule Run Normal median 68.7 s (open, fast bots), Goo Tower escape 4.79 (just under 4.80), Lid Flip
     and Star Fountain pass.
   - `movement_v4.json` keeps `tickRateHz: 20` as the authored default. The rate is a parameter everywhere (`MotorConfig::new`,
@@ -271,7 +272,11 @@ A/B handed to the user on 2026-11-21 (Feel Lab Mac build).
 
 - `PROJECT_STATUS.md`: "P1 rush-core: done on branch `p1` (proof `docs/proof/P1-rush-core.md`). Native = WASM = sBPF = FFI on
   every golden vector, 30 / 30 traces at 30 and 20 Hz, real-map QA at 15/20/30 Hz, soak 20/20, Feel Lab Mac build. Open:
-  Capsule Run bots fast (73.6 s), Goo Tower escape 4.55, two 15 Hz traces, unported QA metrics, CU ≈ 493k per 12-player tick (P1b CU pass). OC-3 signed off at 30 Hz (user, 2026-11-21)."
-- Doc 15 note: "OC-3 closed: rush-core feel accepted at **30 Hz** (15 Hz laggy). P0-1 (tick budget, 400k per timed task) is
-  still open, and at 30 Hz the per-second load is 1.5× the 20 Hz plan."
+  Capsule Run bots fast (73.6 s), Goo Tower escape 4.55, two 15 Hz traces, unported QA metrics, CU ≈ 493k per 12-player tick vs the P0-1 300k condition (P1b CU pass). OC-3 signed off at 30 Hz (user, 2026-11-21) vs P0-1's 20 Hz: decision pending."
+- Doc 15 note: "OC-3 closed: rush-core feel accepted at **30 Hz** (15 Hz laggy)."
+- **Conflict with P0-1 (approved on main as REDUCED / conditional GO, at 20 Hz, tick ≤ 300k CU worst case):**
+  - the user's 30 Hz pick changes P0-1's 20 Hz. P0 measured 30 Hz scheduling as precise, but the load is 1.5× per second;
+  - rush-core's measured ≈ 493k CU per 12-player tick misses the 300k condition at any rate. P1b's work budget has to cut
+    about 40 % or more (bisections, touch-test-first narrowphase, moving-hazard AABB reject, split players).
+  - Needs a user decision when P0-1 / doc 19 are updated.
 - Doc 19: tick rate 20 Hz → **30 Hz** (§ tick table, `tick()` row, P2.4 tick conversions); input tx rate 360/s needs batching or a measurement.
