@@ -6,7 +6,7 @@
   "description": "Fall Rush browser chain bundle (fallrush-chain.js): burner + session keys, emulator / rollup transports, World intake for Unity",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node --test 'test/*.test.ts'"
+    "test": "node --test --test-force-exit --test-concurrency=1 'test/*.test.ts'"
   },
   "dependencies": {
     "@solana/web3.js": "1.99.0",

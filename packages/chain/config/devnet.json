@@ -1,25 +1,31 @@
 {
   "version": 1,
-  "name": "devnet (PLACEHOLDER: fill from P2 at G-layout)",
-  "_todo": "Every TODO_ value and every offset below is a placeholder until P2's real program + WorldAcc layout (P2 proof §10). The submitInput discriminator is sha256('global:submit_input')[0..8], correct only if P2 keeps that Anchor ix name.",
+  "name": "devnet (P2, Final arena 2)",
+  "_source": "P2 program 4yehffTS\u2026 (docs/proof/P2-onchain-sim.md \u00a72, \u00a710; IDL fall_rush.json; programs/fall_rush/src/sim.rs zero-copy layouts incl. the 8-byte discriminator). arena/world PDAs are derived from rollup.p2.arenaId unless addresses.arena/world are set.",
   "transport": "rollup",
   "addresses": {
-    "program": "TODO_P2_PROGRAM_ID",
-    "arena": "TODO_P2_ARENA_PUBKEY",
-    "world": "TODO_P2_WORLD_PUBKEY"
+    "program": "4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4",
+    "arena": "HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt"
   },
   "world": {
-    "magicHex": null,
-    "offset": 72,
-    "lenOffset": 68,
-    "tickOffset": 12,
-    "appliedTickOffset": 16,
+    "magicHex": "0e2efbf44a7086c5",
+    "offset": 208,
+    "lenOffset": 132,
+    "lenBytes": 4,
+    "tickOffset": 128,
+    "appliedTickOffset": 80,
     "appliedTickCount": 12,
-    "coreVersionOffset": 8,
-    "flagsOffset": 70,
-    "arenaSeqOffset": 64
+    "coreVersionOffset": null,
+    "flagsOffset": null,
+    "arenaSeqOffset": null,
+    "completeOffset": 136,
+    "phaseOffset": 138,
+    "donePhase": 11
   },
-  "queue": { "maxWorlds": 64, "maxEvents": 512 },
+  "queue": {
+    "maxWorlds": 64,
+    "maxEvents": 512
+  },
   "rollup": {
     "erHttp": "https://devnet-as.magicblock.app",
     "erWs": "wss://devnet-as.magicblock.app",
@@ -43,26 +49,154 @@
       "programId": "$program",
       "discriminator": "38b89a5bad3f158a",
       "accounts": [
-        { "name": "session_signer", "address": "$session", "signer": true, "writable": true },
-        { "name": "input_buf", "pda": { "seeds": [{ "utf8": "in" }, { "pubkey": "$arena" }, { "u8": "$slot" }] }, "writable": true },
-        { "name": "session_token", "address": "$sessionToken" }
+        {
+          "name": "owner",
+          "address": "$player",
+          "signer": true
+        },
+        {
+          "name": "input",
+          "pda": {
+            "seeds": [
+              {
+                "utf8": "in"
+              },
+              {
+                "pubkey": "$arena"
+              },
+              {
+                "u8": "$slot"
+              }
+            ]
+          },
+          "writable": true
+        },
+        {
+          "name": "world",
+          "address": "$world"
+        },
+        {
+          "name": "session_token",
+          "address": "$sessionToken",
+          "optional": true
+        }
       ],
-      "args": [{ "type": "vec", "from": "$batch" }]
+      "args": [
+        {
+          "type": "u8",
+          "from": "$slot"
+        },
+        {
+          "type": "u32",
+          "from": "$start"
+        },
+        {
+          "type": "raw",
+          "from": "$batch12"
+        }
+      ]
+    },
+    "p2": {
+      "arenaId": 2,
+      "arenaLayout": {
+        "matchOffset": 40,
+        "ownersOffset": 232,
+        "walletsOffset": 616,
+        "statusOffset": 1409,
+        "humanMaskOffset": 1412,
+        "minLen": 1432
+      },
+      "arenaStatus": {
+        "lobby": 1,
+        "running": 2
+      },
+      "matchLayout": {
+        "matchIdOffset": 10,
+        "statusOffset": 26,
+        "playerCountOffset": 128,
+        "currentRoundOffset": 129,
+        "roundTargetsOffset": 130,
+        "slotsOffset": 214,
+        "slotStride": 4,
+        "minLen": 295
+      },
+      "slotState": {
+        "alive": 1
+      },
+      "joinLobby": {
+        "programId": "$program",
+        "discriminator": "7f6677bed7dfd49f",
+        "accounts": [
+          {
+            "name": "player",
+            "address": "$player",
+            "signer": true
+          },
+          {
+            "name": "arena",
+            "address": "$arena",
+            "writable": true
+          },
+          {
+            "name": "input",
+            "pda": {
+              "seeds": [
+                {
+                  "utf8": "in"
+                },
+                {
+                  "pubkey": "$arena"
+                },
+                {
+                  "u8": "$slot"
+                }
+              ]
+            },
+            "writable": true
+          },
+          {
+            "name": "session_token",
+            "address": "$sessionToken",
+            "optional": true
+          }
+        ],
+        "args": [
+          {
+            "type": "u8",
+            "from": "$slot"
+          },
+          {
+            "type": "u8",
+            "from": "$cosmetic"
+          },
+          {
+            "type": "pubkey",
+            "from": "$wallet"
+          }
+        ]
+      },
+      "cosmetic": 0,
+      "useSession": true,
+      "watchMs": 250,
+      "joinRetryMs": 10000,
+      "lobbyTimeoutMs": 900000,
+      "startTimeoutMs": 900000,
+      "errors": {
+        "inputOutOfWindow": 6020,
+        "slotTaken": 6023,
+        "alreadyJoined": 6024
+      }
     },
     "join": {
-      "ix": null,
-      "layer": "er",
-      "slotTable": null,
-      "map": "",
-      "rate": 30,
-      "confirmTimeoutMs": 15000
+      "map": "CrumbleShelf",
+      "rate": 30
     }
   },
   "session": {
     "programId": "KeyspM2ssCJbqUhQ4k7sveSiY4WjnYsrXkC8oDbwde5",
     "targetProgram": "$program",
-    "validitySec": 3600,
+    "validitySec": 21600,
     "topUp": true,
-    "topUpLamports": 10000000
+    "topUpLamports": 2000000
   }
 }

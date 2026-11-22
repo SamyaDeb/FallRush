@@ -57,7 +57,7 @@ export function validateInputBatch(b: Uint8Array): string | null {
 export const VIEW_HEADER = 64;
 export const VIEW_SLOTS = 12;
 
-export interface ParsedWorld { tick: number; view: Uint8Array }
+export interface ParsedWorld { tick: number; view: Uint8Array; complete: boolean }
 
 export function parseWorldAccount(acc: Uint8Array, L: WorldLayout): ParsedWorld | null {
   const dv = new DataView(acc.buffer, acc.byteOffset, acc.byteLength);
@@ -69,7 +69,8 @@ export function parseWorldAccount(acc: Uint8Array, L: WorldLayout): ParsedWorld 
   const u32 = (off: number | null | undefined) => (off == null || off + 4 > acc.length ? 0 : dv.getUint32(off, true));
   const u16 = (off: number | null | undefined) => (off == null || off + 2 > acc.length ? 0 : dv.getUint16(off, true));
   if (L.tickOffset + 4 > acc.length || L.offset > acc.length) return null;
-  const worldLen = L.lenOffset == null ? acc.length - L.offset : u16(L.lenOffset);
+  const worldLen = L.lenOffset == null ? acc.length - L.offset : L.lenBytes === 4 ? u32(L.lenOffset) : u16(L.lenOffset);
+  if (worldLen > 0xffff) return null;
   if (L.offset + worldLen > acc.length) return null;
   const view = new Uint8Array(VIEW_HEADER + worldLen);
   const vd = new DataView(view.buffer);
@@ -77,12 +78,17 @@ export function parseWorldAccount(acc: Uint8Array, L: WorldLayout): ParsedWorld 
   vd.setUint32(0, tick, true);
   vd.setUint32(4, u32(L.coreVersionOffset), true);
   vd.setUint32(8, u32(L.arenaSeqOffset), true);
-  vd.setUint16(12, u16(L.flagsOffset), true);
+  let flags = u16(L.flagsOffset);
+  if (L.flagsOffset == null && L.phaseOffset != null && L.phaseOffset < acc.length) {
+    flags = 1 | (L.donePhase != null && acc[L.phaseOffset] >= L.donePhase ? 2 : 0);
+  }
+  vd.setUint16(12, flags, true);
   vd.setUint16(14, worldLen, true);
   const n = Math.min(L.appliedTickCount ?? VIEW_SLOTS, VIEW_SLOTS);
   if (L.appliedTickOffset != null) for (let i = 0; i < n; i++) vd.setUint32(16 + 4 * i, u32(L.appliedTickOffset + 4 * i), true);
   view.set(acc.subarray(L.offset, L.offset + worldLen), VIEW_HEADER);
-  return { tick, view };
+  const complete = L.completeOffset == null || (L.completeOffset < acc.length && acc[L.completeOffset] === 0);
+  return { tick, view, complete };
 }
 
 // ---- drainWorlds framing ---------------------------------------------------------------------------------------

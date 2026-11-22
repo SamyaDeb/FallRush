@@ -179,7 +179,10 @@ export class EmulatorTransport implements Transport {
   }
 
   private sendJoin(a: JoinArgs): boolean {
-    return this.sendText({ t: 'join', name: a.name ?? 'player', session: this.ctx.wallet.session.publicKey.toBase58(), authority: this.ctx.wallet.burner.publicKey.toBase58(), spectate: !!a.spectate });
+    const m: Record<string, unknown> = { t: 'join', name: a.name ?? 'player', session: this.ctx.wallet.session.publicKey.toBase58(), authority: this.ctx.wallet.burner.publicKey.toBase58(), spectate: !!a.spectate };
+    if (a.slot !== undefined) m.slot = a.slot;
+    if (a.match !== undefined) m.match = a.match;
+    return this.sendText(m);
   }
 
   async join(args: JoinArgs): Promise<JoinResult> {

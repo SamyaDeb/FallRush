@@ -1,7 +1,7 @@
 // Bundle src/index.ts → client-unity/Assets/StreamingAssets/fallrush-chain.js (one minified IIFE).
 import { build } from 'esbuild';
 import { gzipSync } from 'node:zlib';
-import { readFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, mkdirSync, readdirSync, copyFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,6 +24,11 @@ const r = await build({
   metafile: true,
   logLevel: 'warning',
 });
+
+// configs next to the bundle: StreamingAssets/chain/<name>.json
+const cfgOut = resolve(dirname(out), 'chain');
+mkdirSync(cfgOut, { recursive: true });
+for (const f of readdirSync(resolve(pkg, 'config'))) if (f.endsWith('.json')) copyFileSync(resolve(pkg, 'config', f), resolve(cfgOut, f));
 
 const js = readFileSync(out);
 const gz = gzipSync(js, { level: 9 });

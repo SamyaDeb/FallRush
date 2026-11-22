@@ -117,6 +117,14 @@ export function createChain(deps: Deps = {}) {
       return JSON.stringify({ ...ctx.stats.snapshot(clock.now()), queued: ctx.intake.length, eventsDropped: ctx.events.dropped, ...transport.status() });
     },
 
+    /** Node relay helpers (rollup only): base balances; fund the burner from a local keypair (secret base58). */
+    async devBalances(): Promise<string> {
+      try { const t = need().transport as unknown as { balances?: () => Promise<Record<string, unknown>> }; if (!t.balances) throw new Error('rollup transport only'); return ok(await t.balances()); } catch (e) { return fail(e); }
+    },
+    async devFund(fromSecretB58: string, lamports: number): Promise<string> {
+      try { const t = need().transport as unknown as { fundBurner?: (s: string, l: number) => Promise<Record<string, unknown>> }; if (!t.fundBurner) throw new Error('rollup transport only'); return JSON.stringify(await t.fundBurner(fromSecretB58, lamports)); } catch (e) { return fail(e); }
+    },
+
     stop(): void { if (transport) transport.stop(); transport = null; },
   };
   return api;

@@ -11,7 +11,9 @@ import type { Refs } from './ix.ts';
 import { createSessionV2Ix, decodeSessionTokenV2, isExpired, MAX_VALIDITY_SEC, revokeSessionV2Ix, sessionTokenV2Pda } from './session.ts';
 import { parseWorldAccount, validateInputBatch } from './wire.ts';
 import { getPhantom, phantomPublicKey } from './wallet.ts';
-import { b58encode } from './b58.ts';
+import { customCode, decodeArena, decodeMatch, pickSlot, syntheticFinalists, toP2Batch } from './p2.ts';
+import type { P2Config } from './config.ts';
+import { b58decode, b58encode, hexToBytes } from './b58.ts';
 
 /** The subset of web3.js Connection we use (so tests can pass a mock). */
 export interface ConnLike {
@@ -112,6 +114,11 @@ export class RollupTransport implements Transport {
   private backoff: Backoff;
   private erGen = 0;
   private joined: JoinResult | null = null;
+  /** who signs join_lobby / submit_input: the session signer (with its token) or the burner */
+  private player: Keypair | null = null;
+  private joinedWithToken = false;
+  private joinPromise: Promise<JoinResult> | null = null;
+  receipt: Record<string, unknown> = {};
   private clock: Clock;
 
   constructor(ctx: Ctx, factory: ConnFactory) {
@@ -124,6 +131,14 @@ export class RollupTransport implements Transport {
     this.erPoller = new ConfirmPoller(() => this.er, ctx, r.confirmPollMs ?? 50, r.confirmBatch ?? 256, 'er');
     this.basePoller = new ConfirmPoller(() => this.base, ctx, 500, 64, 'base');
     this.backoff = new Backoff(r.stallMs ?? 2000, 30000);
+    if (r.p2) {
+      const a = ctx.cfg.addresses;
+      const prog = resolvePubkey(ctx.cfg.addresses.program ? '$program' : ctx.cfg.session.targetProgram, a);
+      const arena = a.arena ? new PublicKey(a.arena) : PublicKey.findProgramAddressSync([new TextEncoder().encode('arena'), Uint8Array.of(r.p2.arenaId)], prog)[0];
+      a.arena = arena.toBase58();
+      if (!a.world) a.world = PublicKey.findProgramAddressSync([new TextEncoder().encode('world'), arena.toBytes()], prog)[0].toBase58();
+      this.receipt = { arena: a.arena, world: a.world };
+    }
   }
 
   private get rc() { return this.ctx.cfg.rollup!; }
@@ -162,6 +177,8 @@ export class RollupTransport implements Transport {
     r.targetProgram = target;
     r.sessionToken = sessionTokenV2Pda(r.sessionProgram as PublicKey, target, w.session.publicKey, authority);
     if (this.joined && this.joined.slot !== undefined) r.slot = this.joined.slot;
+    r.player = (this.player ?? w.session).publicKey;
+    if (this.player && !this.joinedWithToken) r.sessionToken = undefined; // joined by the burner: no token account
     return { ...r, ...extra };
   }
 
@@ -181,11 +198,12 @@ export class RollupTransport implements Transport {
   private buildErTx(ixs: TransactionInstruction[]): { raw: Uint8Array; sig: string } {
     if (!this.blockhash) throw new Error('no ER blockhash yet');
     const w = this.ctx.wallet;
-    const tx = new Transaction({ feePayer: w.session.publicKey, recentBlockhash: this.blockhash });
+    const payer = this.player ?? w.session;
+    const tx = new Transaction({ feePayer: payer.publicKey, recentBlockhash: this.blockhash });
     if (this.rc.computeUnitLimit) tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: this.rc.computeUnitLimit }));
     tx.add(...ixs);
     const signers = this.signersFor(ixs);
-    if (!signers.includes(w.session)) signers.unshift(w.session);
+    if (!signers.includes(payer)) signers.unshift(payer);
     tx.sign(...signers);
     return { raw: tx.serialize(), sig: b58encode(tx.signature!) };
   }
@@ -210,7 +228,12 @@ export class RollupTransport implements Transport {
     const fail = (why: string) => { this.ctx.stats.sendErrors++; this.ctx.events.push({ type: 'error', where: 'sendInputs', txid: id, why }); };
     if (bad) { fail(bad); return id; }
     let built: { raw: Uint8Array; sig: string };
-    try { built = this.buildErTx([buildInstruction(this.rc.submitInput, this.refs({ batch, slot: batch[0] }))]); } catch (e) { fail(errMsg(e)); return id; }
+    if (this.rc.p2 && !this.joined) { fail('not joined'); return id; }
+    try {
+      const p = toP2Batch(batch);
+      built = this.buildErTx([buildInstruction(this.rc.submitInput, this.refs({ batch, slot: p.slot, start: p.start, batch12: p.batch12 }))]);
+    } catch (e) { fail(errMsg(e)); return id; }
+    this.receipt.lastInputSig = built.sig;
     const now = this.clock.now();
     this.ctx.stats.inputs.hit(now);
     this.erPoller.track(built.sig, { txid: id, sentMs: now, kind: 'input', timeoutMs: this.rc.confirmTimeoutMs ?? 5000 });
@@ -294,6 +317,11 @@ export class RollupTransport implements Transport {
 
   // ---- join ----------------------------------------------------------------------------------------------------
   async join(args: JoinArgs): Promise<JoinResult> {
+    if (this.rc.p2) {
+      if (this.joined) return this.joined; // idempotent (relay re-joins, Unity reconnects)
+      if (!this.joinPromise) this.joinPromise = this.p2Join(args, this.rc.p2).finally(() => { this.joinPromise = null; });
+      return this.joinPromise;
+    }
     const j = this.rc.join || {};
     const cfg = this.ctx.cfg;
     try {
@@ -446,8 +474,180 @@ export class RollupTransport implements Transport {
     return { sessionPubkey: this.ctx.wallet.session.publicKey.toBase58(), token: m.token, authority: m.authority, validUntil: m.validUntil, expired: m.validUntil > 0 && nowSec >= m.validUntil, state: !m.token ? 'none' : nowSec >= m.validUntil ? 'expired' : 'active' };
   }
 
+  // ---- Node relay helpers (tools/p3/chain-relay.mjs) ------------------------------------------------------------
+  /** Base-layer balances of the burner and the session signer (lamports). */
+  async balances(): Promise<Record<string, unknown>> {
+    const w = this.ctx.wallet;
+    const [burner, session] = await Promise.all([this.base.getBalance(w.burner.publicKey, 'confirmed'), this.base.getBalance(w.session.publicKey, 'confirmed').catch(() => 0)]);
+    return { burner, session, burnerPubkey: w.burner.publicKey.toBase58(), sessionPubkey: w.session.publicKey.toBase58(), needed: this.neededLamports() };
+  }
+
+  /** What the burner spends to create a session: token rent (144 B) + top-up + fees margin. */
+  neededLamports(): number {
+    const s = this.ctx.cfg.session;
+    const rent = (144 + 128) * 3480 * 2; // rent-exempt minimum for a 144-byte account
+    return rent + (s.topUp === false ? 0 : s.topUpLamports ?? 10_000_000) + 20_000;
+  }
+
+  /** Transfer `lamports` from a local funder keypair (secret base58) to the burner, throttled + confirmed. */
+  async fundBurner(fromSecretB58: string, lamports: number): Promise<Record<string, unknown>> {
+    const from = Keypair.fromSecretKey(b58decode(fromSecretB58));
+    return this.bucket.schedule(async () => {
+      const tx = new Transaction({ feePayer: from.publicKey, recentBlockhash: await this.baseBlockhashCached() });
+      tx.add(SystemProgram.transfer({ fromPubkey: from.publicKey, toPubkey: this.ctx.wallet.burner.publicKey, lamports }));
+      tx.sign(from);
+      const sig = await this.base.sendRawTransaction(tx.serialize(), { skipPreflight: false, maxRetries: 3 });
+      const r = await this.basePoller.wait(sig, 0, 'fund', 60000);
+      return { ok: r.ok, sig, from: from.publicKey.toBase58(), to: this.ctx.wallet.burner.publicKey.toBase58(), lamports, error: r.ok ? undefined : safeJson(r.err) };
+    });
+  }
+
+  // ---- P2 join flow ---------------------------------------------------------------------------------------------
+  private jev(stage: string, o: Record<string, unknown> = {}) { this.ctx.events.push({ type: 'join', stage, ...o }); }
+
+  private async readEr(pk: PublicKey): Promise<Uint8Array | null> {
+    try { const i = await this.er.getAccountInfo(pk, this.cm); return i ? toU8(i.data) : null; } catch { return null; }
+  }
+
+  /** A SessionTokenV2 for (burner, session signer, this program) that exists on the base layer and is valid ≥ 60 s. */
+  private async ensureSession(): Promise<boolean> {
+    const w = this.ctx.wallet;
+    const nowSec = Math.floor(this.clock.wallMs() / 1000);
+    const m = w.sessionMeta;
+    if (m.token && m.authority === w.burner.publicKey.toBase58() && m.validUntil > nowSec + 60) {
+      try {
+        const acc = await this.base.getAccountInfo(new PublicKey(m.token), 'confirmed');
+        const t = acc ? decodeSessionTokenV2(toU8(acc.data)) : null;
+        if (t && t.sessionSigner.equals(w.session.publicKey) && !isExpired(t, nowSec + 60)) { this.jev('session', { state: 'reused', token: m.token }); return true; }
+      } catch { /* fall through: create */ }
+    }
+    this.jev('session', { state: 'creating' });
+    const r = await this.session('create', { force: true });
+    if (r.ok) { this.receipt.sessionSig = r.sig; this.receipt.sessionToken = r.token; return true; }
+    this.jev('session', { state: 'failed', why: r.error });
+    return false;
+  }
+
+  /** ER send + confirm, retried while the rollup clones accounts (P0 quirk 7, keeper sendEr's list). */
+  private async sendErConfirmed(ix: TransactionInstruction, kind: string, retryMs: number): Promise<{ ok: boolean; sig: string; err?: unknown }> {
+    const t0 = this.clock.now();
+    for (let n = 0; ; n++) {
+      let sig = '', err: unknown;
+      try {
+        if (n > 0) await this.refreshBlockhash();
+        const b = this.buildErTx([ix]);
+        sig = b.sig;
+        await this.sendWithClonerRetry(this.er, b.raw, Math.max(0, retryMs - (this.clock.now() - t0)), false);
+        const r = await this.erPoller.wait(sig, 0, kind, 15000);
+        if (r.ok) return { ok: true, sig };
+        err = r.err;
+      } catch (e) { err = errMsg(e); }
+      const s = typeof err === 'string' ? err : safeJson(err);
+      if (!/pending|AccountNotFound|cloner|timeout|Blockhash/i.test(s) || this.clock.now() - t0 > retryMs) return { ok: false, sig, err };
+      await sleep(this.clock, 600);
+    }
+  }
+
+  private async p2Join(args: JoinArgs, c: P2Config): Promise<JoinResult> {
+    const cfg = this.ctx.cfg;
+    const w = this.ctx.wallet;
+    const arena = new PublicKey(cfg.addresses.arena);
+    const watch = c.watchMs ?? 250;
+    const t0 = this.clock.now();
+    try {
+      // 1. session key (base layer), else the burner signs
+      const tok = c.useSession === false ? false : await this.ensureSession();
+      this.player = tok ? w.session : w.burner;
+      this.joinedWithToken = tok;
+      const me = w.burner.publicKey;
+      // hybrid: only this match's lobby (Arena.match_account = the Match PDA ["match", id])
+      let wantMatch: PublicKey | null = null;
+      if (args.match) {
+        const id = hexToBytes(args.match);
+        if (id.length !== 16) return { ok: false, error: 'match must be 16 bytes (32 hex)' };
+        const prog = resolvePubkey('$program', this.refs());
+        wantMatch = PublicKey.findProgramAddressSync([new TextEncoder().encode('match'), id], prog)[0];
+        this.receipt.match = wantMatch.toBase58();
+        this.jev('waitingMatch', { match: wantMatch.toBase58() });
+      }
+      const ours = (x: NonNullable<ReturnType<typeof decodeArena>>) => !x.matchAccount.equals(PublicKey.default) && (!wantMatch || x.matchAccount.equals(wantMatch));
+      // 2. wait for open_lobby (or find our wallet already in the roster)
+      let a = null as ReturnType<typeof decodeArena>;
+      let slot: number | null = null;
+      let announced = false;
+      for (;;) {
+        const d = await this.readEr(arena);
+        a = d ? decodeArena(d, c) : null;
+        if (a) {
+          const mine = a.wallets.findIndex((k) => k.equals(me));
+          if (mine >= 0 && ours(a) && (a.status === c.arenaStatus.lobby || a.status === c.arenaStatus.running)) { slot = mine; this.jev('alreadyJoined', { slot }); break; }
+          if (a.status === c.arenaStatus.lobby && ours(a)) break;
+          if (wantMatch && a.status === c.arenaStatus.running && ours(a)) { slot = 255; this.jev('missedLobby', { match: wantMatch.toBase58() }); break; } // started without us: spectate
+          if (!announced) { announced = true; this.jev('waitingLobby', { arenaStatus: a.status }); }
+        }
+        if (this.clock.now() - t0 > (c.lobbyTimeoutMs ?? 900000)) return { ok: false, error: 'lobby did not open' };
+        await sleep(this.clock, watch);
+      }
+      const matchPk = a!.matchAccount;
+      this.receipt.match = matchPk.toBase58();
+      this.jev('lobbyOpen', { arena: arena.toBase58(), match: matchPk.toBase58(), humanMask: a!.humanMask });
+      // 3. slot: the given one (hybrid: the Classic finalist) or the lowest free synthetic finalist
+      let finalists: number[] | null = null;
+      if (args.spectate) slot = 255;
+      const readMatch = async () => { const d = await this.readEr(matchPk); return d ? decodeMatch(d, c) : null; };
+      for (let attempt = 0; slot === null; attempt++) {
+        let want = args.slot ?? null;
+        if (want === null) {
+          if (!finalists) {
+            let m = await readMatch();
+            while (!m || m.roundTargets[0] === 0) { if (this.clock.now() - t0 > (c.lobbyTimeoutMs ?? 900000)) return { ok: false, error: 'match not readable' }; await sleep(this.clock, watch); m = await readMatch(); }
+            finalists = await syntheticFinalists(m.matchId, m.playerCount, m.roundTargets);
+            this.jev('finalists', { finalists });
+          }
+          want = pickSlot(finalists, a!.humanMask);
+          if (want === null) return { ok: false, error: 'full' };
+        }
+        const ix = buildInstruction(c.joinLobby, this.refs({ slot: want, cosmetic: c.cosmetic ?? 0, wallet: me, player: this.player.publicKey, sessionToken: tok ? (this.refs().sessionToken as PublicKey) : undefined }));
+        const r = await this.sendErConfirmed(ix, 'join', c.joinRetryMs ?? 10000);
+        if (r.ok) { slot = want; this.receipt.joinSig = r.sig; break; }
+        const code = customCode(r.err);
+        const d = await this.readEr(arena);
+        a = d ? decodeArena(d, c) : a;
+        const mine = a ? a.wallets.findIndex((k) => k.equals(me)) : -1;
+        if (mine >= 0) { slot = mine; break; }
+        if (code === (c.errors?.slotTaken ?? 6023) && args.slot === undefined && attempt < 12) { this.jev('slotTaken', { slot: want }); continue; }
+        return { ok: false, error: 'join_lobby failed: ' + safeJson(r.err) };
+      }
+      this.receipt.slot = slot;
+      if (slot !== 255) this.jev('lobbyJoined', { slot, sig: this.receipt.joinSig ?? null, player: this.player.publicKey.toBase58(), withSessionToken: tok });
+      // 4. wait for start_final
+      for (;;) {
+        if (a && a.status === c.arenaStatus.running) break;
+        if (a && a.status !== c.arenaStatus.lobby) return { ok: false, error: 'arena left the lobby without starting (status ' + a.status + ')' };
+        if (this.clock.now() - t0 > (c.startTimeoutMs ?? 900000)) return { ok: false, error: 'start_final timeout' };
+        await sleep(this.clock, watch);
+        const d = await this.readEr(arena);
+        a = d ? decodeArena(d, c) : a;
+      }
+      // 5. roster = the finalists (Match slots alive after round 3), human when the arena's human_mask says so
+      const m = await readMatch();
+      let fin = m ? m.slotStates.map((st, i) => (st === c.slotState.alive ? i : -1)).filter((i) => i >= 0) : [];
+      if (fin.length === 0 && finalists) fin = finalists;
+      if (slot !== 255 && fin.length && !fin.includes(slot!)) { this.jev('notFinalist', { slot }); slot = 255; } // spectate
+      const roster = fin.map((s) => ({ slot: s, kind: ((a!.humanMask >> s) & 1) ? 'human' : 'bot', name: s === slot ? args.name : undefined, wallet: ((a!.humanMask >> s) & 1) ? a!.wallets[s].toBase58() : undefined }));
+      this.receipt.finalists = fin;
+      const res: JoinResult = { ok: true, slot: slot!, arena: arena.toBase58(), map: args.map ?? this.rc.join?.map ?? 'CrumbleShelf', rate: this.rc.join?.rate ?? 30, coreVersion: 0, roster, world: cfg.addresses.world };
+      (res as Record<string, unknown>).match = matchPk.toBase58();
+      this.joined = res;
+      this.jev('started', { slot, match: matchPk.toBase58(), finalists: fin, ms: Math.round(this.clock.now() - t0) });
+      return res;
+    } catch (e) {
+      return { ok: false, error: errMsg(e) };
+    }
+  }
+
   status() {
-    return { transport: 'rollup', blockhash: !!this.blockhash, subs: [...this.subs.keys()], pendingConfirms: this.erPoller.size, baseQueued: this.bucket.queued, joined: this.joined };
+    return { transport: 'rollup', receipt: this.receipt, blockhash: !!this.blockhash, subs: [...this.subs.keys()], pendingConfirms: this.erPoller.size, baseQueued: this.bucket.queued, joined: this.joined };
   }
 
   stop(): void {

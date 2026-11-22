@@ -51,6 +51,7 @@ export class Stats {
   reconnects = 0;
   lastTick = -1;
   queueDrops = 0;
+  slicesDropped = 0;
   confirmOk = 0;
   confirmBad = 0;
   confirmTimeouts = 0;
@@ -65,7 +66,7 @@ export class Stats {
       confirmP50: r(percentile(s, 50)), confirmP95: r(percentile(s, 95)), confirmN: s.length,
       confirmOk: this.confirmOk, confirmBad: this.confirmBad, confirmTimeouts: this.confirmTimeouts, sendErrors: this.sendErrors,
       rttMs: r(this.rttEwma), gaps: this.gaps, missingTicks: this.missingTicks, polls: this.polls, pollFills: this.pollFills,
-      reconnects: this.reconnects, lastTick: this.lastTick, queueDrops: this.queueDrops,
+      reconnects: this.reconnects, lastTick: this.lastTick, queueDrops: this.queueDrops, slicesDropped: this.slicesDropped,
     };
   }
 }
@@ -75,6 +76,7 @@ export class WorldIntake {
   private seq = 0;
   latest: WorldEntry | null = null;
   private arenaSeq: number | null = null;
+  private epoch = 1;
   private layout: WorldLayout;
   private max: number;
   private clock: Clock;
@@ -92,7 +94,14 @@ export class WorldIntake {
     const now = this.clock.now();
     const p = parseWorldAccount(acc, this.layout);
     if (!p) { this.events.push({ type: 'error', where: 'world', why: 'unparseable World account', len: acc.length }); return false; }
-    const arenaSeq = new DataView(p.view.buffer).getUint32(8, true);
+    if (!p.complete) { this.stats.slicesDropped++; return false; } // P2 tick slice: only complete ticks go out
+    const vdv = new DataView(p.view.buffer);
+    if (this.layout.arenaSeqOffset == null) {
+      // no restart counter in the account: a tick far behind the last one = a new match on the same arena
+      if (this.stats.lastTick >= 0 && p.tick + 30 < this.stats.lastTick) this.epoch++;
+      vdv.setUint32(8, this.epoch, true);
+    }
+    const arenaSeq = vdv.getUint32(8, true);
     if (this.arenaSeq !== null && arenaSeq !== this.arenaSeq) {
       // the arena restarted (e.g. the Lid Flip Final): ticks start over
       this.events.push({ type: 'arenaChanged', from: this.arenaSeq, to: arenaSeq, tick: p.tick });

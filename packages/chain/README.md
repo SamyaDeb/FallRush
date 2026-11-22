@@ -3,14 +3,16 @@
 The browser chain bundle for the Unity WebGL client (P3.2, `docs/19-ONCHAIN-PLAN.md` §5 P3). It holds the burner and
 session keys, talks to the **emulator** (`tools/chain-emulator`, wire `docs/proof/p3/wire-v0.md`) or the **MagicBlock
 ER** (web3.js), and queues World updates for Unity to poll. Everything layout-specific comes from a JSON config
-(`config/emulator.json`, `config/devnet.json`), so Part 2 (P2's real program) only edits JSON.
+(`config/emulator.json`, `config/local.json`, `config/devnet.json`; `pnpm build` also copies them to
+`client-unity/Assets/StreamingAssets/chain/`).
 
 ```sh
 cd packages/chain
 bash /Users/samya/Downloads/FallRush/scripts/heavy-lock.sh p3-pnpm -- pnpm install --ignore-workspace   # own lockfile
 pnpm build            # → client-unity/Assets/StreamingAssets/fallrush-chain.js (IIFE, minified), prints raw/gzip size
 pnpm build -- --meta  # + bytes per package
-pnpm test             # node --test 'test/*.test.ts'   (from the repo root: node --test 'packages/chain/test/*.test.ts')
+pnpm test             # node --test --test-force-exit --test-concurrency=1 'test/*.test.ts'
+                      # (repo root: node --test --test-force-exit 'packages/chain/test/*.test.ts'; relay: node --test --test-force-exit tools/p3/chain-relay.test.mjs)
 ```
 Node 24 does not accept a bare directory for `--test`, so use the quoted glob. The test `integration.emulator.test.ts`
 starts `tools/chain-emulator/src/main.mjs` on a random port (localhost only) and is skipped if that file is missing.
@@ -132,9 +134,44 @@ On the emulator, all four are simulated locally (`emulated: true`).
   Each arg takes a `value` or a `from: "$ref"`.
 - **Built-in refs:** every `addresses` entry, plus `burner`, `authority` (the session's authority, defaulting to the burner), `session`, `sessionToken` (the SessionTokenV2 PDA), `sessionProgram`, `targetProgram` and `systemProgram`, and also `batch`, `slot` and `name` where they apply. To include the session token account in `submit_input`, list `{"address":"$sessionToken"}`.
 
-`config/devnet.json` is a **placeholder**: `TODO_P2_*` addresses, and the emulator's World offsets. Its `submit_input` is
-shaped after doc 19 (`InputBuf` PDA `["in", arena, slot]`, a `Vec<u8>` arg, discriminator `sha256("global:submit_input")[0..8]`
-= `38b89a5bad3f158a`). The real values come from P2.
+### P2 program (`config/local.json`, `config/devnet.json`)
+
+These are the real values for program `4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4`. Sources: the IDL (`fall_rush.json`, discriminators, account order), `sim.rs` (zero-copy layouts, offsets including the 8-byte discriminator) and `docs/proof/P2-onchain-sim.md` §2/§10.
+
+| key | value |
+|---|---|
+| `world` | WorldAcc `["world", arena]`, 2,256 B: `magicHex` = WorldAcc disc `0e2efbf44a7086c5`, `applied_tick` 80, `tick` 128, `len` u32 132 (`lenBytes: 4`), `completeOffset` 136 (`part_pending`; only 0 = complete ticks are queued; slices count as `slicesDropped`), `phaseOffset` 138 / `donePhase` 11 (flags bit0 live, bit1 over), World at 208. No core version (0), no restart counter: a tick more than 30 behind the last one is a new match (the WorldView `arena_seq` becomes a local epoch). |
+| `submitInput` | `38b89a5bad3f158a`, accounts `owner` = `$player` (signer), `input` PDA `["in", arena, slot]` (w), `world`, `session_token` (optional: `$sessionToken` when joined with one, else Anchor None = program id). Args `u8 slot`, `u32 start`, `[u8;12]` = 3 × {mx, my, buttons, cam_yaw >> 8}, converted from the wire-v0 InputBatch (`src/p2.ts toP2Batch`; a batch with fewer than 3 commands repeats its last). |
+| `rollup.p2.arenaId` | devnet 2 (`addresses.arena` = `HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt`, the test checks the PDA), local 0. Without `addresses.arena`/`world` the PDAs are derived. |
+| `rollup.p2.arenaLayout` | Arena, 1,432 B: `match_account` 40, `owners` 232, `wallets` 616, `status` 1409 (`arenaStatus` lobby 1 / running 2), `human_mask` u16 1412, `minLen` 1432 |
+| `rollup.p2.matchLayout` | Match (borsh): `match_id` 10, `status` 26, `player_count` 128, `current_round` 129, `round_targets` 130, `slots[20]` 214 (stride 4, `.state`: `slotState.alive` 1) |
+| `rollup.p2.joinLobby` | `7f6677bed7dfd49f`, accounts `player` (signer), `arena` (w), `input` PDA (w), `session_token` (optional). Args `u8 slot`, `u8 cosmetic`, `pubkey wallet` (= the burner) |
+| `rollup.p2.useSession` / `watchMs` / `joinRetryMs` / `lobbyTimeoutMs` / `startTimeoutMs` / `errors` | true / 250 / 10000 / 900000 / 900000 / {6020 InputOutOfWindow, 6023 SlotTaken, 6024 AlreadyJoined} |
+| `session` | `validitySec` 21600, `topUp` true, `topUpLamports` 2,000,000 (a session costs the burner about 0.0039 SOL: token rent ≈ 1,893,120 plus the top-up) |
+
+**Join flow** (`join({name, slot?, match?, spectate?})`, rollup + `p2`). It runs as an async task, so the game keeps polling while it waits.
+1. **Session.** Reuse the stored SessionTokenV2 if it exists on the base layer and is valid for at least 60 s more. Otherwise send `create_session_v2` (throttled). If that fails, the burner joins and signs inputs itself.
+2. **Lobby.** Poll the Arena on the ER every `watchMs` until it reaches status LOBBY with a `match_account`. With `match` (32 hex, hybrid), wait until `match_account` equals `["match", id]`; this can take minutes. If our wallet is already in `wallets`, that slot is taken over without sending a transaction.
+3. **Slot.** If `args.slot` is given (the Classic slot), use it. Otherwise compute the keeper's synthetic finalists (`recordRounds13`: sha256(matchId ‖ [r, s]) LE u32 ascending, rounds 1–3, from `round_targets` / `player_count`) and take the lowest finalist free in `human_mask`. On SlotTaken, re-read the Arena and pick again.
+4. **join_lobby** on the ER, signed by the session signer with its token, or by the burner. It is retried while the rollup clones accounts (`pending|AccountNotFound|cloner|timeout|Blockhash`), and `lobbyJoined` is emitted once it confirms.
+5. **Wait for RUNNING** (start_final), then resolve:
+   - **Result.** `{slot, arena, match, map: CrumbleShelf, rate 30, coreVersion 0, roster}`.
+   - **Roster.** The Match slots still alive; each entry is `human` when its `human_mask` bit is set, otherwise `bot`.
+   - **Spectating.** If our slot is not a finalist, or the arena started without us, `slot` is 255 (spectate).
+
+Join progress events are `{type:'join', stage}`, with these stages:
+- `session`
+- `waitingMatch`, `waitingLobby`
+- `lobbyOpen`, `finalists`
+- `lobbyJoined`, `alreadyJoined`, `slotTaken`
+- `missedLobby`, `notFinalist`
+- `started`
+
+The receipt is in `stats().receipt`: `{arena, world, match, sessionToken, sessionSig, joinSig, lastInputSig, slot, finalists}`.
+
+Node relay helpers (rollup only): `devBalances()` and `devFund(fromSecretB58, lamports)`, used by `tools/p3/chain-relay.mjs`.
+
+`test/fixtures/generic-rollup.json` keeps the pre-P2 generic shape for the transport tests.
 
 ## SessionTokenV2 encoding (our own TS, `src/session.ts`)
 

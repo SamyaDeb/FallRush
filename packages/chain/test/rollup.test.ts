@@ -7,7 +7,7 @@ import { bytesToHex } from '../src/b58.ts';
 import { sessionTokenV2Pda, SESSION_KEYS_PROGRAM_ID, encodeSessionTokenV2 } from '../src/session.ts';
 import { isClonerError } from '../src/rollup.ts';
 import { FakeClock, MockConn, memKV, worldAcc, flush } from './helpers/fake.ts';
-import devnet from '../config/devnet.json' with { type: 'json' };
+import devnet from './fixtures/generic-rollup.json' with { type: 'json' };
 
 const PROGRAM = Keypair.fromSeed(new Uint8Array(32).fill(11)).publicKey;
 const ARENA = Keypair.fromSeed(new Uint8Array(32).fill(12)).publicKey;

@@ -106,7 +106,15 @@ export function buildInstruction(spec: InstructionSpec, refs: Refs): Transaction
   const programId = resolvePubkey(spec.programId, refs);
   const disc = hexToBytes(spec.discriminator);
   if (disc.length !== 8) throw new Error('discriminator must be 8 bytes');
-  const keys = spec.accounts.map((a) => ({ pubkey: resolveAccount(a, programId, refs), isSigner: !!a.signer, isWritable: !!a.writable }));
+  const keys = spec.accounts.map((a) => {
+    if (a.optional) {
+      let pk: PublicKey | null = null;
+      try { pk = resolveAccount(a, programId, refs); } catch { pk = null; }
+      if (!pk) return { pubkey: programId, isSigner: false, isWritable: false }; // Anchor: None = program id
+      return { pubkey: pk, isSigner: !!a.signer, isWritable: !!a.writable };
+    }
+    return { pubkey: resolveAccount(a, programId, refs), isSigner: !!a.signer, isWritable: !!a.writable };
+  });
   const data = concat([disc, encodeArgs(spec.args || [], refs)]);
   return new TransactionInstruction({ programId, keys, data: Buffer.from(data) });
 }

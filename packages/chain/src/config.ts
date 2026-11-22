@@ -18,6 +18,8 @@ export interface AccountSpec {
   pda?: { seeds: SeedSpec[]; programId?: string };
   signer?: boolean;
   writable?: boolean;
+  /** Anchor optional account: when the ref is unset, the program id is passed instead (Anchor's `None`). */
+  optional?: boolean;
 }
 
 export type ArgSpec =
@@ -39,8 +41,15 @@ export interface InstructionSpec {
 export interface WorldLayout {
   /** byte offset of the World (rush_core::World::to_bytes) inside the account */
   offset: number;
-  /** offset of a u16 holding the World length, or null = (account length - offset) */
+  /** offset of the World length field, or null = (account length - offset) */
   lenOffset: number | null;
+  /** width of the length field: 2 (u16, emulator) or 4 (u32, P2 WorldAcc). Default 2. */
+  lenBytes?: 2 | 4;
+  /** u8 that must be 0 for a complete tick (P2 `part_pending`); other snapshots (tick slices) are dropped. */
+  completeOffset?: number | null;
+  /** u8 director phase; with donePhase it fills WorldView flags when flagsOffset is null (bit0 live, bit1 over). */
+  phaseOffset?: number | null;
+  donePhase?: number;
   tickOffset: number;
   appliedTickOffset: number | null;
   appliedTickCount?: number; // default 12
@@ -87,6 +96,8 @@ export interface ChainConfig {
     inputClonerRetryMs?: number; // for input batches (stale fast): 300
     computeUnitLimit?: number | null; // add SetComputeUnitLimit to submit_input when set
     submitInput: InstructionSpec;
+    /** P2 program join flow (docs/proof/P2-onchain-sim.md §2, §10). When set, join() uses it. */
+    p2?: P2Config | null;
     join?: {
       ix?: InstructionSpec | null;
       layer?: 'er' | 'base';
@@ -104,6 +115,26 @@ export interface ChainConfig {
     topUpLamports?: number; // create_session_v2 `lamports` (default program value 0.01 SOL)
     topUp?: boolean;
   };
+}
+
+export interface P2Config {
+  /** Arena id (PDA ["arena", id]); addresses.arena overrides the derived PDA */
+  arenaId: number;
+  arenaLayout: { matchOffset: number; ownersOffset: number; walletsOffset: number; statusOffset: number; humanMaskOffset: number; minLen: number };
+  arenaStatus: { lobby: number; running: number };
+  matchLayout: { matchIdOffset: number; statusOffset: number; playerCountOffset: number; currentRoundOffset: number; roundTargetsOffset: number; slotsOffset: number; slotStride: number; minLen: number };
+  /** Match.slots[s].state values */
+  slotState: { alive: number };
+  joinLobby: InstructionSpec;
+  cosmetic?: number;
+  /** create / reuse a SessionTokenV2 and join with the session signer (else the burner joins and signs inputs) */
+  useSession?: boolean;
+  watchMs?: number; // Arena / Match poll while joining (250)
+  joinRetryMs?: number; // retry join_lobby while the rollup clones accounts (10000)
+  startTimeoutMs?: number; // give up waiting for start_final (900000)
+  lobbyTimeoutMs?: number; // give up waiting for open_lobby (900000)
+  /** program error codes (IDL) for mapping confirm errors */
+  errors?: { inputOutOfWindow?: number; slotTaken?: number; alreadyJoined?: number };
 }
 
 export const DEFAULTS = {
