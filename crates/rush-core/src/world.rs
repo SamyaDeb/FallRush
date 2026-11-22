@@ -798,6 +798,7 @@ pub fn player_step(cfg: &MotorConfig, s: &mut MotorState, cmd: &InputCmd, w: &Wo
 
 /// Advances `w` by one tick. `inputs[slot]` is the command that arrived for this tick (`None` = missing: the last one
 /// is repeated with edges cleared for 3 ticks, then neutral). Bots ignore `inputs` and run [`crate::bots::bot_input`].
+#[inline(never)] // sBPF: keep step's frame separate from its callers (4 KB frames)
 pub fn step<H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], map: &MapView, params: &MovementParams, h: &mut H, ev: &mut StepEvents) {
     w.tick = w.tick.wrapping_add(1);
     let tick = w.tick;
@@ -968,6 +969,27 @@ fn stagger(s: &mut MotorState, cfg: &MotorConfig) -> bool {
 
 /// World vector case `i` (`world_v1.bin`): 12 players (half bots) for 40 ticks of random inputs on `map` at a
 /// random rate; writes the World hash.
+/// The 40 random ticks of a world vector case (own frame: sBPF stack frames are 4 KB).
+#[inline(never)]
+fn vector_ticks(w: &mut World, map: &MapView, r: &mut crate::vectors::Rng) {
+    let params = MovementParams::default();
+    let mut ev = StepEvents::default();
+    let mut k = 0;
+    while k < 40 {
+        let mut inputs = [None; MAX_PLAYERS];
+        let mut s = 0;
+        while s < MAX_PLAYERS {
+            if r.range(0, 9) != 0 {
+                inputs[s] = Some(InputCmd { move_x: r.range(-127, 127) as i8, move_y: r.range(-127, 127) as i8, buttons: (r.next() as u8) & 0x0F, cam_yaw: r.next() as u16 });
+            }
+            s += 1;
+        }
+        ev.n = 0;
+        step(w, &inputs, map, &params, &mut NoHasher, &mut ev);
+        k += 1;
+    }
+}
+
 pub fn vector_case(w: &mut World, map_bytes: &[u8], seed: u64, i: u32, out: &mut [u8]) -> usize {
     let map = match MapView::new(map_bytes) {
         Ok(m) => m,
@@ -983,22 +1005,7 @@ pub fn vector_case(w: &mut World, map_bytes: &[u8], seed: u64, i: u32, out: &mut
         w.add_player(&map, s, s % 2 == 1);
         s += 1;
     }
-    let params = MovementParams::default();
-    let mut ev = StepEvents::default();
-    let mut k = 0;
-    while k < 40 {
-        let mut inputs = [None; MAX_PLAYERS];
-        let mut s = 0;
-        while s < MAX_PLAYERS {
-            if r.range(0, 9) != 0 {
-                inputs[s] = Some(InputCmd { move_x: r.range(-127, 127) as i8, move_y: r.range(-127, 127) as i8, buttons: (r.next() as u8) & 0x0F, cam_yaw: r.next() as u16 });
-            }
-            s += 1;
-        }
-        ev.n = 0;
-        step(w, &inputs, &map, &params, &mut NoHasher, &mut ev);
-        k += 1;
-    }
+    vector_ticks(w, &map, &mut r);
     let mut wr = crate::vectors::W { b: out, n: 0 };
     wr.u8(rate as u8);
     wr.i64(w.hash() as i64);

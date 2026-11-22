@@ -24,7 +24,15 @@ pub fn process(_program: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Prog
     let state = u64::from_le_bytes(data[17..25].try_into().unwrap());
     // The scratch World (≈ 2 KB) lives on the heap: sBPF stack frames are 4 KB. Every field is an integer / bool /
     // array of them, so the zeroed bytes are a valid value; `reset` then sets it up in place.
-    let mut world: Box<rush_core::world::World> = unsafe { Box::new_zeroed().assume_init() };
+    // (`Box::new_zeroed` is unstable on the SBF toolchain's rustc; `alloc_zeroed` + `Box::from_raw` is the stable form.)
+    let layout = std::alloc::Layout::new::<rush_core::world::World>();
+    let mut world: Box<rush_core::world::World> = unsafe {
+        let p = std::alloc::alloc_zeroed(layout) as *mut rush_core::world::World;
+        if p.is_null() {
+            return Err(ProgramError::AccountDataTooSmall);
+        }
+        Box::from_raw(p)
+    };
     let digest = match accounts.first() {
         Some(acc) => {
             let map = acc.try_borrow_data()?;

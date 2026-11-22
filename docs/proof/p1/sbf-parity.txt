@@ -1,0 +1,5 @@
+fx_v1       10000 cases sbf a037603d70eeae9e file a037603d70eeae9e OK — CU 60922886 total, 6092 per case, max chunk 6095757
+collide_v1   4000 cases sbf 004a8af38434b80b file 004a8af38434b80b OK — CU 173717396 total, 43429 per case, max chunk 9833062
+motor_v1     2000 cases sbf f77356f62b4630c6 file f77356f62b4630c6 OK — CU 426913311 total, 213457 per case, max chunk 12488666
+hazard_v2    6000 cases sbf 2faf4f08b08867f2 file 2faf4f08b08867f2 OK — CU 29838629 total, 4973 per case, max chunk 5064323
+world_v1       64 cases sbf 5d604989c7b6cf8a file 5d604989c7b6cf8a OK — CU 1262683011 total, 19729422 per case, max chunk 83225728
