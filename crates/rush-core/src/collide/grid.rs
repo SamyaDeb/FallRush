@@ -35,6 +35,7 @@ impl<'m> Scene<'m> {
                 let (imn, imx) = (mn.sub(d), mx.add(d));
                 let mut r0: Bits = [0; crate::mapblob::MAX_COLLIDERS / 64];
                 self.raw_candidates(imn, imx, &mut r0);
+
                 // keep only colliders enabled and overlapping the inflated box this tick (the scene is per tick):
                 // every query inside the box only ever keeps a subset of these
                 let mut r: Bits = [0; crate::mapblob::MAX_COLLIDERS / 64];
@@ -47,7 +48,16 @@ impl<'m> Scene<'m> {
                 r
             }
         };
+        if self.over() {
+            return; // work budget spent: nothing gathered
+        }
         self.fine_filter(&raw, mn, mx, out);
+        // charged by the result (the same set with or without the memo, so the meter never depends on cache state)
+        let mut k = 0u32;
+        for wd in out.iter() {
+            k += wd.count_ones();
+        }
+        self.spend(4 + 2 * k);
     }
 
     /// Of `raw`, the colliders enabled this tick whose posed AABB overlaps `[mn, mx]`, into `out` (cleared by caller).

@@ -187,6 +187,12 @@ pub struct Scene<'m> {
     /// Rolling-ball kinematics of this round (`balls_n` = count, 255 = more than [`MAX_BALLK`]: computed per use).
     pub balls: [crate::hazards::BallK; MAX_BALLK],
     pub balls_n: u8,
+    /// Deterministic work meter (P2 0.2 step 5): units of ≈ 100 sBPF CU spent by queries / bot probes, and the
+    /// limit for the current player (`u32::MAX` = none). Counted, never `sol_remaining_compute_units`.
+    pub work: core::cell::Cell<u32>,
+    pub work_cap: core::cell::Cell<u32>,
+    /// Inscribed circles of the last prisms queried: (collider + 1, centroid x, z, r_in²), sub-mm (P2 0.2).
+    pub prism_in: core::cell::Cell<[(u32, i64, i64, i64); 2]>,
 }
 
 /// Balls whose kinematics a `Scene` keeps.
@@ -262,7 +268,64 @@ impl<'m> Scene<'m> {
             routes: core::cell::RefCell::new(RouteTable::default()),
             balls: [crate::hazards::BallK::default(); MAX_BALLK],
             balls_n: 255,
+            work: core::cell::Cell::new(0),
+            work_cap: core::cell::Cell::new(u32::MAX),
+            prism_in: core::cell::Cell::new([(0, 0, 0, 0); 2]),
         }
+    }
+
+    /// True when (x, z) (sub-mm) lies strictly inside prism collider `ci`'s inscribed circle (so inside the polygon).
+    fn prism_surely_inside(&self, ci: u32, c: &Collider, x: i64, z: i64) -> bool {
+        let mut t = self.prism_in.get();
+        let e = if t[0].0 == ci + 1 {
+            t[0]
+        } else if t[1].0 == ci + 1 {
+            t[1]
+        } else {
+            let n = c.prism_n.min(crate::mapblob::MAX_PRISM_VERTS as u32);
+            if n == 0 {
+                return false;
+            }
+            let (mut sx, mut sz) = (0i64, 0i64);
+            let mut k = 0;
+            while k < n {
+                let v = self.map.prism_vertex(c, k);
+                sx += v.0 as i64;
+                sz += v.1 as i64;
+                k += 1;
+            }
+            let (cx, cz) = (crate::fx::idiv(sx * S, n as i64), crate::fx::idiv(sz * S, n as i64));
+            // r_in = min over edges of the centroid's depth below the edge plane (sub-mm), floored, minus 1
+            let mut rin = i64::MAX;
+            let mut k = 0;
+            while k < n {
+                let (_, _, nx, nz, off) = self.map.prism_vertex(c, k);
+                let depth_q = off * S - (nx as i64 * cx + nz as i64 * cz); // sub-mm · Q15, > 0 inside
+                rin = rin.min(depth_q.div_euclid(crate::fx::ONE_Q15 as i64) - 1);
+                k += 1;
+            }
+            let e = (ci + 1, cx, cz, if rin > 0 { rin * rin } else { -1 });
+            t[1] = t[0];
+            t[0] = e;
+            self.prism_in.set(t);
+            e
+        };
+        let (dx, dz) = (x - e.1, z - e.2);
+        e.3 > 0 && dx * dx + dz * dz < e.3
+    }
+
+    /// Spends `units` of the work meter; false once the current limit is passed (then queries report nothing).
+    #[inline]
+    pub fn spend(&self, units: u32) -> bool {
+        let w = self.work.get().saturating_add(units);
+        self.work.set(w);
+        w <= self.work_cap.get()
+    }
+
+    /// The current limit is passed.
+    #[inline]
+    pub fn over(&self) -> bool {
+        self.work.get() > self.work_cap.get()
     }
 
     /// The round's hazards with this tick's phase table (= `World::hazards`, same values, cheaper decodes).
@@ -291,6 +354,9 @@ impl<'m> Scene<'m> {
         self.phases.ok = false;
         self.routes.borrow_mut().built = false;
         self.balls_n = 255;
+        self.work.set(0);
+        self.work_cap.set(u32::MAX);
+        self.prism_in.set([(0, 0, 0, 0); 2]);
     }
 
     /// `lid::states(d, t)` for lid grid `g` of this tick's hazards, memoised (same values, computed once per key).
@@ -374,9 +440,34 @@ impl<'m> Scene<'m> {
     #[inline]
     pub fn near(&self, c: &Collider, off: IVec3, s: &Seg) -> Near {
         self.counters.add(ctr::NARROW, 1);
+        // work units ≈ sBPF CU / 100 (measured per shape, P2 0.2)
+        let mut prism_inside = false;
+        let units = match c.kind {
+            shape::OBB => {
+                if c.flags & 1 != 0 {
+                    3
+                } else {
+                    15
+                }
+            }
+            shape::PRISM => {
+                let ls = s.shifted(off);
+                if self.prism_surely_inside(c.prism_off, c, ls.x, ls.z) {
+                    prism_inside = true;
+                    2
+                } else {
+                    4 + c.prism_n
+                }
+            }
+            _ => 3,
+        };
+        if !self.spend(units) {
+            return Near { gap2: i64::MAX, core: [0; 3], seg: [0; 3], core_r: 0 };
+        }
         let ls = s.shifted(off);
         let mut n = match c.kind {
             shape::OBB => obb::near(c, &ls),
+            shape::PRISM if prism_inside => prism::near_from(c, &ls, (ls.x, ls.z, 0)),
             shape::PRISM => prism::near(&self.map, c, &ls),
             shape::SPHERE => sphere::near(c, &ls),
             _ => capsule::near(c, &ls),

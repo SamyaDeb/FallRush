@@ -110,6 +110,14 @@ fn cu_per_tick_real_maps() {
                 let tx = Transaction::new(&[&payer], msg, svm.latest_blockhash());
                 let m = svm.send_transaction(tx).unwrap_or_else(|e| panic!("{stem} tick {}: {:?} {:?}", w.tick, e.err, e.meta.logs));
                 svm.expire_blockhash();
+                if let Ok(path) = std::env::var("BENCH_CAL") {
+                    if let Some(l) = m.logs.iter().find(|l| l.starts_with("Program log: 0xbeef, ")) {
+                        let v: Vec<u64> = l["Program log: 0xbeef, ".len()..].split(", ").map(|x| u64::from_str_radix(x.trim_start_matches("0x"), 16).unwrap_or(0)).collect();
+                        use std::io::Write;
+                        let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&path).unwrap();
+                        writeln!(f, "{stem} {} {} {} {}", m.compute_units_consumed, v[0], v[1], v[2]).unwrap();
+                    }
+                }
                 if m.compute_units_consumed >= meta_cu {
                     meta_cu = m.compute_units_consumed;
                     meta = Some(m);
@@ -121,7 +129,14 @@ fn cu_per_tick_real_maps() {
                 continue;
             }
             ev.n = 0;
-            world::step(&mut w, &[None; MAX_PLAYERS], &m, &params, &mut NoHasher, &mut ev);
+            if what == 4 {
+                let mut sc = rush_core::collide::Scene::new(m);
+                for part in 0..parts {
+                    world::step_part(&mut w, &[None; MAX_PLAYERS], &m, &params, &mut NoHasher, &mut ev, &mut sc, part, parts);
+                }
+            } else {
+                world::step(&mut w, &[None; MAX_PLAYERS], &m, &params, &mut NoHasher, &mut ev);
+            }
             let acc = svm.get_account(&world_key).unwrap();
             let mut sw = World::new(&m, rate);
             if !sw.load_from(&acc.data) || sw.hash() != w.hash() {

@@ -489,11 +489,17 @@ pub struct StepEvents {
     pub n: usize,
     pub ev: [Event; MAX_EVENTS],
     pub dropped: u32,
+    /// Players whose work budget ran out this step (they kept their last safe state; P2 0.2 step 5). Not reset by
+    /// the step: the caller clears it.
+    pub capped: u32,
+    /// Largest bot-brain and motor work (units) of one player this step (diagnostics; the caller clears them).
+    pub bot_work_max: u32,
+    pub motor_work_max: u32,
 }
 
 impl Default for StepEvents {
     fn default() -> Self {
-        StepEvents { n: 0, ev: [Event::default(); MAX_EVENTS], dropped: 0 }
+        StepEvents { n: 0, ev: [Event::default(); MAX_EVENTS], dropped: 0, capped: 0, bot_work_max: 0, motor_work_max: 0 }
     }
 }
 
@@ -855,6 +861,17 @@ pub fn step<H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], 
     step_with(w, inputs, map, params, h, ev, &mut sc);
 }
 
+/// Work units (≈ 100 sBPF CU each) a bot brain may spend per tick; past it the bot plans with what it has sampled
+/// (P2 0.2 deterministic work budget).
+pub const BOT_WORK: u32 = 1200;
+
+/// Work units a part may spend per slot it steps (the part's hard total: slots × this). Once a part's total is
+/// spent, its remaining players keep their state this tick (stopped). Bounds every part's compute units.
+pub const PART_WORK_PER_SLOT: u32 = 600;
+
+/// Work units one player's motor step may spend per tick; past it the player keeps its last safe state (stopped).
+pub const MOTOR_WORK: u32 = 1500;
+
 /// [`step`] with caller-provided `Scene` storage (reset and posed here). The program passes a heap `Scene`, so no
 /// frame holds it next to the step's own locals.
 #[inline(never)]
@@ -887,11 +904,23 @@ pub fn step_part<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_P
 
     let mut slot = part * MAX_PLAYERS / parts;
     let end = (part + 1) * MAX_PLAYERS / parts;
+    let part_limit = sc.work.get().saturating_add(PART_WORK_PER_SLOT * (end - slot) as u32);
     while slot < end {
         if !w.players[slot].active() {
             slot += 1;
             continue;
         }
+        if sc.work.get() >= part_limit && crate::rules::simulates(w, slot) && !w.players[slot].m.has(flag::RESPAWNING) {
+            // the part's work total is spent: this player holds still this tick (inputs are not consumed)
+            w.players[slot].m.vel = IVec3::ZERO;
+            w.players[slot].last_step = 0;
+            ev.capped = ev.capped.saturating_add(1);
+            slot += 1;
+            continue;
+        }
+        // the bot brain's work budget (BOT_WORK): past it the bot plans with what it has looked at (no revert)
+        let w0 = sc.work.get();
+        sc.work_cap.set(w0.saturating_add(BOT_WORK).min(part_limit));
         let mut cmd = if w.players[slot].is_bot() {
             crate::bots::bot_input(slot, w, map, sc)
         } else {
@@ -919,8 +948,21 @@ pub fn step_part<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_P
             continue;
         }
         let mut m = w.players[slot].m;
-        let r = player_step(&cfg, &mut m, &cmd, w, map, sc, tick);
+        // the motor's work budget (MOTOR_WORK): past it the step is reverted below
+        let w1 = sc.work.get();
+        ev.bot_work_max = ev.bot_work_max.max(w1 - w0);
+        sc.work_cap.set(w1.saturating_add(MOTOR_WORK).min(part_limit.max(w1 + MOTOR_WORK / 4)));
+        let mut r = player_step(&cfg, &mut m, &cmd, w, map, sc, tick);
+        ev.motor_work_max = ev.motor_work_max.max(sc.work.get() - w1);
         h.mark(32 + slot as u8);
+        if sc.over() {
+            // Work budget spent: queries reported nothing past the limit, so the step is not trusted. The player keeps
+            // its last safe state, stopped (deterministic on every target).
+            m = w.players[slot].m;
+            m.vel = IVec3::ZERO;
+            r = 0;
+            ev.capped = ev.capped.saturating_add(1);
+        }
         let p = &mut w.players[slot];
         p.m = m;
         p.last_step = r;
@@ -934,6 +976,7 @@ pub fn step_part<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_P
         slot += 1;
     }
 
+    sc.work_cap.set(u32::MAX);
     if part + 1 == parts {
         separate(w, &cfg, sc);
         h.mark(3);

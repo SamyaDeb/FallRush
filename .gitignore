@@ -48,3 +48,6 @@ client-unity/Assets/Resources/PerformanceTestRun*
 # ---- Unity performance-test run files (appear after test runs; G1 §3.5.9) ----
 client-unity/Assets/Resources/PerformanceTestRunInfo.json*
 client-unity/Assets/Resources/PerformanceTestRunSettings.json*
+.p2-logs/
+# P2 run recordings (World snapshots, ~100 MB per match): kept locally, summaries + replay results are committed
+docs/proof/p2/runs/*/world.bin

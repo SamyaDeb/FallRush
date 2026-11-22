@@ -48,6 +48,19 @@ pub struct RunResult {
     pub extra: [i64; 3],
 }
 
+/// One tick as the chain runs it: `PARTS` env (default 1 = `world::step`) parts in order on one heap-free Scene.
+pub fn qa_step<H: Hasher>(w: &mut World, m: &MapView, params: &MovementParams, h: &mut H, ev: &mut StepEvents) {
+    let parts: u8 = std::env::var("PARTS").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
+    if parts <= 1 {
+        world::step(w, &[None; MAX_PLAYERS], m, params, h, ev);
+        return;
+    }
+    let mut sc = rush_core::collide::Scene::new(*m);
+    for p in 0..parts {
+        world::step_part(w, &[None; MAX_PLAYERS], m, params, h, ev, &mut sc, p, parts);
+    }
+}
+
 pub fn players_for(m: u8) -> (u32, u8) {
     match m {
         mode::SURVIVAL => (8, 5),
@@ -90,7 +103,7 @@ pub fn run_round(blob: &[u8], seed: u64, rate: u32, tier: u8) -> RunResult {
     let mut t = 0u64;
     while !rules::is_over(&w) && t < cap {
         ev.n = 0;
-        world::step(&mut w, &[None; MAX_PLAYERS], &m, &params, &mut world::NoHasher, &mut ev);
+        qa_step(&mut w, &m, &params, &mut world::NoHasher, &mut ev);
         t += 1;
         if w.round.phase != rules::phase::RUSH {
             for i in 0..np as usize {
@@ -279,7 +292,7 @@ pub fn run_match(maps: &[(u8, Vec<u8>)], lobby: &[u8], seed: u64, rate: u32) -> 
         }
         let v = MapView::new(&cur).unwrap();
         ev.n = 0;
-        world::step(&mut w, &[None; MAX_PLAYERS], &v, &params, &mut h, &mut ev);
+        qa_step(&mut w, &v, &params, &mut h, &mut ev);
         if w.dir.phase >= rules::director::phase::DONE {
             break;
         }
@@ -371,6 +384,7 @@ pub fn split_check(args: &[String]) -> i32 {
             let (mut ea, mut eb) = (StepEvents::default(), StepEvents::default());
             let mut ticks = 0u64;
             let mut ok = true;
+            let mut capped_at: Option<u32> = None;
             for _ in 0..rate as u64 * 1500 {
                 if let Some(id) = rules::director::needs_map(&a) {
                     cur = maps.iter().find(|(x, _)| *x == id).unwrap().1.clone();
@@ -383,10 +397,18 @@ pub fn split_check(args: &[String]) -> i32 {
                 eb.n = 0;
                 world::step(&mut a, &[None; MAX_PLAYERS], &v, &params, &mut h, &mut ea);
                 let mut sc = Scene::new(v);
+                eb.capped = 0;
+                ea.capped = 0;
                 for p in 0..k {
                     world::step_part(&mut b, &[None; MAX_PLAYERS], &v, &params, &mut h, &mut eb, &mut sc, p, k);
                 }
                 ticks += 1;
+                if eb.capped > 0 || ea.capped > 0 {
+                    // a work budget fired: per-part budgets make the K-part step differ from the whole step from here
+                    // on (by design: the chain and every client run the K-part step). Equal up to here.
+                    capped_at = Some(a.tick);
+                    break;
+                }
                 if a.hash() != b.hash() || ea.n != eb.n {
                     eprintln!("split {k} seed {seed}: differs at tick {}", a.tick);
                     ok = false;
@@ -396,7 +418,7 @@ pub fn split_check(args: &[String]) -> i32 {
                     break;
                 }
             }
-            println!("split {k} parts, match seed {seed}: {} ticks, {}", ticks, if ok { "identical every tick" } else { "MISMATCH" });
+            println!("split {k} parts, match seed {seed}: {} ticks, {}", ticks, if !ok { "MISMATCH".to_string() } else if let Some(t) = capped_at { format!("identical every tick until the first work-budget cap (tick {t})") } else { "identical every tick".to_string() });
             if !ok {
                 bad += 1;
             }

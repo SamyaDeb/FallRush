@@ -7,6 +7,19 @@ overflow-checks = true
 lto = "fat"
 codegen-units = 1
 
+# P2 0.2 step 4: size-optimised dependencies, speed-optimised simulation (P0 §4.1). rush-core runs integer maths with
+# explicit rounding helpers and saturating casts; its own test profile keeps overflow checks on. fall_rush itself stays
+# at opt-level 3 (its borsh `Match` code overflows a 4 KB sBPF frame at "z").
+[profile.release.package."*"]
+opt-level = "z"
+
+[profile.release.package.fall_rush]
+opt-level = "s"
+
+[profile.release.package.rush-core]
+opt-level = 3
+overflow-checks = false
+
 [profile.release.build-override]
 opt-level = 3
 incremental = false

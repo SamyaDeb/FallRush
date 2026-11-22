@@ -907,7 +907,11 @@ name = "fall_rush"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
+ "bincode",
+ "bytemuck",
  "ephemeral-rollups-sdk",
+ "magicblock-magic-program-api",
+ "rush-core",
  "serde_json",
  "solana-sha256-hasher 3.1.0",
 ]
@@ -1773,6 +1777,10 @@ dependencies = [
  "quote",
  "syn 1.0.109",
 ]
+
+[[package]]
+name = "rush-core"
+version = "0.1.0"
 
 [[package]]
 name = "rustc_version"

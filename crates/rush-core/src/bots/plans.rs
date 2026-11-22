@@ -38,6 +38,9 @@ fn island_of(f: &StarFieldDef, a: i32) -> i32 {
 
 /// Star position for scoring: (x, z, value), or `None` when not a live, reachable target.
 fn star_target(c: &Ctx, hz: &Hazards, f: &StarFieldDef, id: i32, t30: i64) -> Option<(i32, i32, i64)> {
+    if !c.sc.spend(4) {
+        return None; // work budget spent
+    }
     let ss = hazards::star_slot(f, hz.seed, id)?;
     if t30 < ss.spawn_t as i64 || t30 >= ss.expire_t as i64 || star_taken(c, id) {
         return None;
@@ -62,6 +65,7 @@ pub(crate) fn skill(c: &Ctx, b: &mut BotState) -> Plan {
         return Plan::default();
     }
     let f = hz.star_field(0);
+    c.sc.spend(40); // the 1.1 KB star field decode
     let s = c.s;
     let t30 = hazards::t30(c.t60(0));
     let range = c.sk.star_pick_range_mm;
@@ -465,6 +469,9 @@ fn pick_lid(c: &Ctx, b: &mut BotState, d: &crate::hazards::defs::LidGridDef, see
         if !lid_safe(seen[i]) {
             i += 1;
             continue;
+        }
+        if !c.sc.spend(2) {
+            break; // work budget spent: score what was seen so far
         }
         let (x, _, z) = d.lid_center(i as i32);
         let (dx, dz) = ((x - s.pos.x) as i64, (z - s.pos.z) as i64);

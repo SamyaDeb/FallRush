@@ -221,6 +221,9 @@ impl<'m> Scene<'m> {
         while k < n {
             if let Some(cd) = &cand(self, &cands, k) {
                 self.counters.add(ctr::NARROW, 1);
+                if !self.spend(if cd.c.kind == shape::PRISM { 3 + cd.c.prism_n / 2 } else { 3 }) {
+                    break;
+                }
                 let o = [(origin.x - cd.off.x) as i64, (origin.y - cd.off.y) as i64, (origin.z - cd.off.z) as i64];
                 let hit = match cd.c.kind {
                     shape::OBB => obb::ray(&cd.c, o, d, max),

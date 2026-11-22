@@ -1,0 +1,138 @@
+{
+ "net": "local",
+ "at": "2026-11-22T08:14:04.967Z",
+ "passed": 21,
+ "failed": 5,
+ "results": [
+  {
+   "check": "join_lobby slot 0 (player 1)",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "double join (same signer, another slot)",
+   "pass": true,
+   "detail": "AlreadyJoined"
+  },
+  {
+   "check": "join a taken slot",
+   "pass": true,
+   "detail": "SlotTaken"
+  },
+  {
+   "check": "join with another slot's InputBuf",
+   "pass": true,
+   "detail": "InvalidSlot"
+  },
+  {
+   "check": "commit_round before any round",
+   "pass": true,
+   "detail": "NothingToCommit"
+  },
+  {
+   "check": "tick while the arena is not running: no-op success",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "start_sim before the deal (Match not Dealt)",
+   "pass": true,
+   "detail": "InvalidStatus"
+  },
+  {
+   "check": "deal_callback from a non-VRF signer rejected",
+   "pass": true,
+   "detail": "tx:{\"InstructionError\":[0,{\"Custom\":2012}]}"
+  },
+  {
+   "check": "start_sim after the VRF deal",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "join after the roster is locked (claiming a bot slot)",
+   "pass": true,
+   "detail": "BadArenaState"
+  },
+  {
+   "check": "submit_input by the slot owner",
+   "pass": true,
+   "detail": ""
+  },
+  {
+   "check": "submit_input signed by another key",
+   "pass": true,
+   "detail": "Unauthorized"
+  },
+  {
+   "check": "input tick out of window (+50)",
+   "pass": true,
+   "detail": "InputOutOfWindow"
+  },
+  {
+   "check": "input tick out of window (−50)",
+   "pass": false,
+   "detail": "succeeded"
+  },
+  {
+   "check": "sanitiser clamps hostile values (stick −128,−128, buttons 0xFF)",
+   "pass": true,
+   "detail": "stored [167,167,15,127]"
+  },
+  {
+   "check": "tick with no accounts: no-op success",
+   "pass": true,
+   "detail": "code 2"
+  },
+  {
+   "check": "tick with 5 accounts: no-op success",
+   "pass": true,
+   "detail": "code 3"
+  },
+  {
+   "check": "tick with reordered maps: no-op success",
+   "pass": true,
+   "detail": "code 3"
+  },
+  {
+   "check": "tick with a wrong match account: no-op success",
+   "pass": false,
+   "detail": "tx:\"InvalidWritableAccount\""
+  },
+  {
+   "check": "tick with 40 extra accounts: hostile length",
+   "pass": false,
+   "detail": "tick: Transaction too large: 1306 > 1232"
+  },
+  {
+   "check": "one tick = parts executions, then NotDue until due",
+   "pass": false,
+   "detail": "tick 0→2 last code 0"
+  },
+  {
+   "check": "task ids are unique per schedule (arena nonce)",
+   "pass": true,
+   "detail": "4635266801629670095 vs 7161692617581677676"
+  },
+  {
+   "check": "start_sim while running",
+   "pass": true,
+   "detail": "BadArenaState"
+  },
+  {
+   "check": "re-enter an old (already dealt and started) match",
+   "pass": false,
+   "detail": "succeeded"
+  },
+  {
+   "check": "finalize_match before Completed",
+   "pass": true,
+   "detail": "InvalidStatus"
+  },
+  {
+   "check": "open_lobby by a non-authority",
+   "pass": true,
+   "detail": "Unauthorized"
+  }
+ ]
+}

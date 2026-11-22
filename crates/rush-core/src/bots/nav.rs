@@ -521,7 +521,7 @@ fn course_fallback(c: &Ctx, b: &mut BotState) -> Plan {
 fn hazard_at(c: &Ctx, x: i32, y: i32, z: i32, ahead: i64, r: i32, ball_margin: i32) -> bool {
     let hz = c.sc.hz(c.w);
     let left = c.probes.get();
-    if left == 0 {
+    if left == 0 || !c.sc.spend(12) {
         return false; // work budget spent: not sampled = clear (see BOT_PROBES)
     }
     c.probes.set(left - 1);
@@ -791,6 +791,10 @@ fn dodge_balls(c: &Ctx, cmd: &mut InputCmd, moving: bool) {
             let mut q = 0;
             while q < nn && open > 0 {
                 let d = &near[q];
+                // ≈ 100 CU per ball position (up to 16) checked against up to 9 headings
+                if !c.sc.spend(2 + d.alive.min(16) as u32 * 2) {
+                    break; // work budget spent: the rest of this tick's ball look-ahead is skipped
+                }
                 // Exact reject (P2 0.2): balls stay on their lane, and each tick a heading moves us by
                 // v + (h·top − v)·a/5, at most 2|v|/30 + run per axis; so a lane farther than k times that (×2 ≥ √2,
                 // + reach + the lane-point rounding) is never within reach at tick k.

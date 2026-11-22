@@ -232,7 +232,7 @@ pub const BOT_PROBES: u16 = 96;
 pub const WAIT_GLANCE_TICKS: u32 = 3;
 
 /// Race rounds: bots' (non-precise) stick scale ‰ on top of the tier's (P2 0.3 pacing; 1000 = P1).
-pub const RACE_PACE_PERMILLE: i32 = 875;
+pub const RACE_PACE_PERMILLE: i32 = 925;
 
 impl Ctx<'_, '_> {
     /// A 30 Hz tick count at the configured rate (≥ 1 for positive counts).

@@ -127,6 +127,7 @@ fn bench_step(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
             // split tick: [0x20, 4, part, parts]
             let (part, parts) = (data.get(2).copied().unwrap_or(0), data.get(3).copied().unwrap_or(1));
             rush_core::world::step_part(&mut world, &[None; rush_core::world::MAX_PLAYERS], &v, &params, &mut rush_core::world::NoHasher, &mut ev, &mut sc, part, parts);
+            solana_program::log::sol_log_64(0xBEEF, sc.work.get() as u64, ev.capped as u64, part as u64, 0);
         } else if what == 3 {
             rush_core::world::step_with(&mut world, &[None; rush_core::world::MAX_PLAYERS], &v, &params, &mut ProfHasher, &mut ev, &mut sc);
         } else {

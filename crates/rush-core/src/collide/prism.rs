@@ -58,7 +58,13 @@ pub fn near2d(m: &MapView, c: &Collider, x: i64, z: i64) -> (i64, i64, i64) {
 }
 
 pub fn near(m: &MapView, c: &Collider, s: &Seg) -> Near {
-    let (qx, qz, dh2) = near2d(m, c, s.x, s.z);
+    near_from(c, s, near2d(m, c, s.x, s.z))
+}
+
+/// [`near`] given the horizontal closest point (`near2d`'s result).
+#[inline]
+pub fn near_from(c: &Collider, s: &Seg, h: (i64, i64, i64)) -> Near {
+    let (qx, qz, dh2) = h;
     let yb = c.y0 as i64 * S;
     let yt = c.y1 as i64 * S;
     let (sy0, sy1) = (s.y0, s.y1);

@@ -28,6 +28,13 @@ ephemeral-rollups-sdk = { version = "=0.18.0", features = ["anchor", "vrf"] }
 # sha256 for caller seed / transcript / deal (anchor-lang 1.0.2 no longer re-exports `hash`);
 # same version the SDK already pulls in (magicblock-delegation-program-api 3.1.0).
 solana-sha256-hasher = { version = "=3.1.0" }
+# P2: the game simulation (integer, no_std, zero deps); the program is its authority.
+rush-core = { path = "../../crates/rush-core" }
+# P2: hand-built ScheduleTask / CancelTask CPI to the Magic program, exactly as P0 §4.3 measured it.
+magicblock-magic-program-api = { version = "=0.10.1", default-features = false }
+bincode = { version = "=1.3.3" }
+# zero-copy account views in the never-failing tick (same version Anchor already pulls in).
+bytemuck = { version = "=1.25.2", features = ["derive", "min_const_generics"] }
 
 [dev-dependencies]
 serde_json = "1"

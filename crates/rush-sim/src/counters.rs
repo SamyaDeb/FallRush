@@ -84,6 +84,9 @@ pub fn player_cmd(args: &[String]) -> i32 {
     let m = MapView::new(&blob).expect("blob");
     let params = MovementParams::default();
     let mut narrow = Vec::new();
+    let mut capped = 0u64;
+    let mut work = Vec::new();
+    let (mut bw, mut mw) = (Vec::new(), Vec::new());
     for seed in 1..=seeds {
         let mut w = World::new(&m, 30);
         w.hazard_seed = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15);
@@ -100,12 +103,24 @@ pub fn player_cmd(args: &[String]) -> i32 {
         while t < 30 * (secs + 10) {
             t += 1;
             ev.n = 0;
-            for p in 0..12u8 {
+            let np: u8 = std::env::var("PARTS").ok().and_then(|v| v.parse().ok()).unwrap_or(12);
+            for p in 0..np {
                 rush_core::collide::take_tick_counters();
-                world::step_part(&mut w, &[None; MAX_PLAYERS], &m, &params, &mut NoHasher, &mut ev, &mut sc, p, 12);
+                ev.capped = 0;
+                ev.bot_work_max = 0;
+                ev.motor_work_max = 0;
+                world::step_part(&mut w, &[None; MAX_PLAYERS], &m, &params, &mut NoHasher, &mut ev, &mut sc, p, np);
                 let c = rush_core::collide::take_tick_counters();
                 if !ranked || w.round.phase == rush_core::rules::phase::RUSH {
                     narrow.push(c[ctr::NARROW]);
+                    work.push(sc.work.get());
+                    bw.push(ev.bot_work_max);
+                    mw.push(ev.motor_work_max);
+                    capped += ev.capped as u64;
+                    if ev.capped > 0 && std::env::var("CAP_DEBUG").is_ok() && capped < 40 {
+                        let q = &w.players[p as usize];
+                        eprintln!("cap t={} slot={} pos=({},{},{}) vel=({},{},{}) bot={} motor={} flags={:#x}", w.tick, p, q.m.pos.x, q.m.pos.y, q.m.pos.z, q.m.vel.x, q.m.vel.y, q.m.vel.z, ev.bot_work_max, ev.motor_work_max, q.m.flags);
+                    }
                 }
             }
             if ranked && rush_core::rules::is_over(&w) {
@@ -114,7 +129,29 @@ pub fn player_cmd(args: &[String]) -> i32 {
         }
     }
     let n = narrow.len();
+    println!("  bot work p50 {} p99 {} p99.9 {} max {} | motor work p50 {} p99 {} p99.9 {} max {}", pct(&mut bw.clone(), 0.5), pct(&mut bw.clone(), 0.99), pct(&mut bw.clone(), 0.999), pct(&mut bw.clone(), 1.0), pct(&mut mw.clone(), 0.5), pct(&mut mw.clone(), 0.99), pct(&mut mw.clone(), 0.999), pct(&mut mw.clone(), 1.0));
+    println!("  work units per player-tick p50 {} p99 {} p99.9 {} max {}; capped {} of {} ({:.3} %)", pct(&mut work.clone(), 0.5), pct(&mut work.clone(), 0.99), pct(&mut work.clone(), 0.999), pct(&mut work.clone(), 1.0), capped, n, capped as f64 * 100.0 / n.max(1) as f64);
     println!("{map}: {n} player-ticks; narrowphase tests per player-tick p50 {} p99 {} p99.9 {} p99.99 {} max {}",
         pct(&mut narrow.clone(), 0.5), pct(&mut narrow.clone(), 0.99), pct(&mut narrow.clone(), 0.999), pct(&mut narrow.clone(), 0.9999), pct(&mut narrow, 1.0));
+    0
+}
+
+/// `rush-sim probe --map <blob> --pos x,y,z`: colliders gathered by a 2 m box at a spot (kind, tilted, prism n).
+pub fn probe_cmd(args: &[String]) -> i32 {
+    use rush_core::collide::Scene;
+    use rush_core::vec::IVec3;
+    let blob = std::fs::read(crate::arg(args, "--map").unwrap()).unwrap();
+    let p: Vec<i32> = crate::arg(args, "--pos").unwrap().split(',').map(|v| v.parse().unwrap()).collect();
+    let m = MapView::new(&blob).unwrap();
+    let sc = Scene::new(m);
+    let mut bits = [0u64; rush_core::mapblob::MAX_COLLIDERS / 64];
+    let c = IVec3::new(p[0], p[1], p[2]);
+    sc.gather(c.sub(IVec3::new(1000, 1000, 1000)), c.add(IVec3::new(1000, 2000, 1000)), &mut bits);
+    for i in 0..m.collider_count {
+        if bits[i as usize / 64] >> (i % 64) & 1 == 1 {
+            let k = m.collider(i);
+            println!("#{i} kind {} tilted {} dyn {} prism_n {} centre ({},{},{}) half ({},{},{})", k.kind, k.kind == 1 && k.flags & 1 == 0, k.dyn_kind, k.prism_n, k.center.x, k.center.y, k.center.z, k.half.x, k.half.y, k.half.z);
+        }
+    }
     0
 }
