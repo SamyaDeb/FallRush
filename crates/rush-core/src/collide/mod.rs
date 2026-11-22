@@ -184,7 +184,13 @@ pub struct Scene<'m> {
     /// Bot route directory (offset / section / length per route, section start heights), built on first use
     /// (P2 0.2: `nav::route` walked every earlier route on each call).
     pub routes: core::cell::RefCell<RouteTable>,
+    /// Rolling-ball kinematics of this round (`balls_n` = count, 255 = more than [`MAX_BALLK`]: computed per use).
+    pub balls: [crate::hazards::BallK; MAX_BALLK],
+    pub balls_n: u8,
 }
+
+/// Balls whose kinematics a `Scene` keeps.
+pub const MAX_BALLK: usize = 8;
 
 /// See [`Scene::routes`]. `n = 255` = not built.
 #[derive(Clone, Copy)]
@@ -247,6 +253,8 @@ impl<'m> Scene<'m> {
             bp_cache: core::cell::RefCell::new(BroadCache::default()),
             phases: crate::hazards::PhaseTable::default(),
             routes: core::cell::RefCell::new(RouteTable::default()),
+            balls: [crate::hazards::BallK::default(); MAX_BALLK],
+            balls_n: 255,
         }
     }
 
@@ -275,6 +283,7 @@ impl<'m> Scene<'m> {
         self.bp_cache.borrow_mut().valid = false;
         self.phases.ok = false;
         self.routes.borrow_mut().built = false;
+        self.balls_n = 255;
     }
 
     /// `lid::states(d, t)` for lid grid `g` of this tick's hazards, memoised (same values, computed once per key).

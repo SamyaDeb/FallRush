@@ -220,7 +220,16 @@ pub(crate) struct Ctx<'a, 'm> {
     pub s: MotorState,
     pub sk: Skill,
     pub reference: bool,
+    /// Hazard samples left for this tick's path checks (P2 0.2 deterministic work budget, [`BOT_PROBES`]).
+    pub probes: core::cell::Cell<u16>,
 }
+
+/// Most hazard samples (`nav::hazard_at`) one bot's path checks may take in a tick. When a check runs out, the part
+/// not sampled is taken as clear (a player does not look further ahead either). Counted, so identical on every target.
+pub const BOT_PROBES: u16 = 96;
+
+/// A bot waiting for a clear path re-checks every this many ticks (30 Hz), on its own slot-staggered tick.
+pub const WAIT_GLANCE_TICKS: u32 = 3;
 
 impl Ctx<'_, '_> {
     /// A 30 Hz tick count at the configured rate (≥ 1 for positive counts).
@@ -328,6 +337,7 @@ pub fn bot_input(slot: usize, w: &mut World, map: &MapView, sc: &Scene) -> Input
             s: w.players[slot].m,
             sk: skill(b.tier),
             reference: b.tier == tier::REFERENCE,
+            probes: core::cell::Cell::new(BOT_PROBES),
         };
         let m = if free { mode::RACE } else { w.round.mode };
         let mut plan = match m {

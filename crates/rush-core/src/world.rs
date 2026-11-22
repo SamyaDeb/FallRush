@@ -554,6 +554,15 @@ pub fn pose_scene_into<'m>(sc: &mut Scene<'m>, w: &World, map: &MapView<'m>, cfg
     let tab = sc.phases;
     let mut hz = w.hazards(map);
     hz.ph = Some(&tab);
+    let nb = hz.count(HazardType::RollingBall);
+    if nb <= crate::collide::MAX_BALLK {
+        let mut i = 0;
+        while i < nb {
+            sc.balls[i] = hazards::BallK::of(&hz.ball(i));
+            i += 1;
+        }
+        sc.balls_n = nb as u8;
+    }
     let t60 = w.t60(tick);
     let step60 = cfg.t60_per_tick as i64;
     let t30 = hazards::t30(t60);

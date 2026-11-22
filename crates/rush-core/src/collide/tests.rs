@@ -264,3 +264,11 @@ mod props {
         }
     }
 }
+
+#[test]
+fn p2_sizes() {
+    std::println!("Scene {} B, MapView {} B, Collider {} B, World {} B, BallK {} B, SweeperDef {} B, MalletDef {} B",
+        core::mem::size_of::<crate::collide::Scene>(), core::mem::size_of::<crate::mapblob::MapView>(), core::mem::size_of::<crate::mapblob::Collider>(),
+        core::mem::size_of::<crate::world::World>(), core::mem::size_of::<crate::hazards::BallK>(),
+        core::mem::size_of::<crate::hazards::defs::SweeperDef>(), core::mem::size_of::<crate::hazards::defs::MalletDef>());
+}

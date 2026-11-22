@@ -59,6 +59,12 @@ pub fn process(_program: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Prog
 /// 3 = like 0 with a compute-unit log at every `Hasher::mark` (profile).
 pub const BENCH_STEP: u8 = 0x20;
 
+/// A heap `Scene` (≈ 3.5 KB): built in its own frame so the temporary never shares a 4 KB frame with other locals.
+#[inline(never)]
+fn new_scene(v: rush_core::mapblob::MapView) -> Box<rush_core::collide::Scene> {
+    Box::new(rush_core::collide::Scene::new(v))
+}
+
 struct ProfHasher;
 
 impl rush_core::world::Hasher for ProfHasher {
@@ -95,7 +101,7 @@ fn bench_step(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
     if what != 1 {
         let mut ev: Box<rush_core::world::StepEvents> = Box::default();
         let params = rush_core::config::MovementParams::default();
-        let mut sc: Box<rush_core::collide::Scene> = Box::new(rush_core::collide::Scene::new(v));
+        let mut sc = new_scene(v);
         if what == 3 {
             rush_core::world::step_with(&mut world, &[None; rush_core::world::MAX_PLAYERS], &v, &params, &mut ProfHasher, &mut ev, &mut sc);
         } else {

@@ -386,7 +386,9 @@ fn waypoint_next(c: &Ctx, b: &mut BotState, section: i32, start_at_first: bool) 
                 if b.aux_tick == 0 {
                     b.aux_tick = lo(c.tick).max(1);
                 }
-                let clear = if p.arg > 0 { path_clear_ahead(c, &r, k, p.arg as usize) } else { path_clear(c, &r, k) };
+                // glance on this bot's staggered tick only (WAIT_GLANCE_TICKS); otherwise keep waiting
+                let glance = (c.tick + c.slot as u32) % super::WAIT_GLANCE_TICKS == 0;
+                let clear = glance && if p.arg > 0 { path_clear_ahead(c, &r, k, p.arg as usize) } else { path_clear(c, &r, k) };
                 if clear {
                     b.aux_tick = 0;
                     advance(c, b);
@@ -518,6 +520,11 @@ fn course_fallback(c: &Ctx, b: &mut BotState) -> Plan {
 /// `ahead` ticks from now, for a capsule of radius `r`.
 fn hazard_at(c: &Ctx, x: i32, y: i32, z: i32, ahead: i64, r: i32, ball_margin: i32) -> bool {
     let hz = c.sc.hz(c.w);
+    let left = c.probes.get();
+    if left == 0 {
+        return false; // work budget spent: not sampled = clear (see BOT_PROBES)
+    }
+    c.probes.set(left - 1);
     let t60 = c.t60(ahead);
     let f = crate::vec::IVec3::new(x, y, z);
     let h = c.cfg.height;
@@ -549,9 +556,9 @@ fn ball_near(c: &Ctx, x: i32, y: i32, z: i32, t60: i64, margin: i32) -> bool {
     let n = hz.count(HazardType::RollingBall);
     let mut i = 0;
     while i < n {
-        let d = hz.ball(i);
-        let reach = (d.radius + c.cfg.radius + margin) as i64;
-        let bk = hazards::BallK::of(&d);
+        let bk = if (c.sc.balls_n as usize) == n { c.sc.balls[i] } else { hazards::BallK::of(&hz.ball(i)) };
+        let reach = (bk.radius + c.cfg.radius + margin) as i64;
+        let d = &bk;
         let alive = bk.alive.min(16);
         let mut j = 0;
         while j < alive {
@@ -742,7 +749,7 @@ fn dodge_balls(c: &Ctx, cmd: &mut InputCmd, moving: bool) {
         let (cx, cz) = (d.start_x as i64 + ux * f / 4096 - s.pos.x as i64, d.start_z as i64 + uz * f / 4096 - s.pos.z as i64);
         let vertical_ok = (d.start_y - s.pos.y).abs() <= 9000 || (d.end_y - s.pos.y).abs() <= 9000;
         if cx * cx + cz * cz <= 16_000i64 * 16_000 && vertical_ok {
-            near[nn] = hazards::BallK::of(&d);
+            near[nn] = if (c.sc.balls_n as usize) == n { c.sc.balls[i] } else { hazards::BallK::of(&d) };
             nn += 1;
         }
         i += 1;
