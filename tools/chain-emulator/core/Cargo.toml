@@ -1,0 +1,25 @@
+# P3-C: the chain emulator's core = P2's rush-core C ABI (included verbatim from .p2-core) + a few emulator-only
+# calls the program does itself (begin a round, read the last step's events, the World layout). Its own workspace.
+# Built by scripts/p3-build-core.sh after `.p2-core/` is extracted from P2's branch (git archive, read-only).
+[package]
+name = "rush-emu-core"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+rush-core = { path = "../../../.p2-core/crates/rush-core" }
+sha2 = { version = "=0.10.9", default-features = false }
+
+[workspace]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+overflow-checks = false

@@ -1,0 +1,7 @@
+p2_commit e9f56a7f6a11df5b7762daea8a8ec528c0f79354
+p2_subject chore(p2-0.4): program hygiene
+built_utc 2026-11-22T05:49:59Z
+rc_version 0x10001
+wasm_sha256 315c8ab423728807e0ce238233c18a250cbe6d4556637a48c5d7b28ca2da1abe
+wasm_bytes 304597
+bundle_sha256 aaa669280ff32fae5ee1268070b970f9a510c29d9bf4a85ffa5532a9b48d49b9
