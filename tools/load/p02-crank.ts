@@ -40,9 +40,9 @@ async function main() {
   const end = tSched + seconds * 1000 + 3000;
   while (Date.now() < end) {
     await sleep(5000);
-    const li = await er.getAccountInfo(pda.log(0), "processed");
-    if (li) for (const e of decodeLog(li.data as Buffer).e) if (e.tick) logE.set(e.tick, { slot: e.slot, unix: e.unix, cu: e.cuStep });
-    const w = await getWorld();
+    const li = await er.getAccountInfo(pda.log(0), "processed").catch(() => null);
+    if (li) for (const e of decodeLog(li.data as Buffer).e) if (e.tick && e.slot >= BigInt(s0)) logE.set(e.tick, { slot: e.slot, unix: e.unix, cu: e.cuStep });
+    const w = await getWorld().catch(() => ({ tick: -1 }) as any);
     process.stdout.write(`  t+${((Date.now() - tSched) / 1000).toFixed(0)}s tick=${w.tick} recv=${recv.length}\n`);
   }
   const s1 = await er.getSlot("processed"); const ts1 = Date.now();

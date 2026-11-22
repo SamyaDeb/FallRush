@@ -5,7 +5,7 @@ import { PublicKey } from "@solana/web3.js";
 import { er, IX, LOGS, NET, wallet, pda, send, sendRetry, decodeWorld, sleep, cuLimit, MAGIC_CONTEXT, logsOf } from "./lib.ts";
 const st = JSON.parse(readFileSync(join(LOGS, `state-${NET}.json`), "utf8"));
 const map = new PublicKey(st.maps.lid);
-const tick = async () => decodeWorld((await er.getAccountInfo(pda.world(0), "processed"))!.data as Buffer);
+const tick = async (): Promise<any> => { for (let i = 0; ; i++) { try { return decodeWorld((await er.getAccountInfo(pda.world(0), "processed"))!.data as Buffer); } catch (e) { if (i > 10) throw e; await sleep(500); } } };
 const sched = (iters: number, nonce: bigint, k: number) => send(er, [cuLimit(400_000 - k), IX.scheduleTicks(wallet.publicKey, 0, map, 50, iters, nonce, true)], [wallet]);
 const out: any = { net: NET };
 await sendRetry(er, [IX.resetWorld(wallet.publicKey, 0, map, 5, 1, 0)], [wallet]);

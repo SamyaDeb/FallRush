@@ -86,7 +86,7 @@ export const IX = {
     ix([w(payer, true), r(MAGIC_PROGRAM), w(MAGIC_CONTEXT), ...accs.map((a) => w(a))], disc("undelegate")),
   closeAny: (auth: PublicKey, target: PublicKey) => ix([w(auth, true), w(target)], disc("close_any")),
   resetWorld: (auth: PublicKey, wid: number, map: PublicKey, seed: bigint | number, flags: number, gap: number) =>
-    ix([r(auth, true), w(pda.world(wid)), r(map)], Buffer.concat([disc("reset_world"), u64(seed), u32(flags), u32(gap)])),
+    ix([r(auth, true), w(pda.world(wid)), r(map), ...(wid === 0 ? Array.from({ length: N }, (_, s) => w(pda.input(0, s))) : [])], Buffer.concat([disc("reset_world"), u64(seed), u32(flags), u32(gap)])),
   submitInput: (owner: PublicKey, wid: number, slot: number, startTick: number, inputs: Buffer) =>
     ix([r(owner, true), w(pda.input(wid, slot))], Buffer.concat([disc("submit_input"), u32(startTick), inputs])),
   placeBet: (owner: PublicKey, payload: Buffer) => ix([r(owner, true), w(pda.bet(owner))], Buffer.concat([disc("place_bet"), payload])),
@@ -158,7 +158,7 @@ export async function send(conn: Connection, ixs: TransactionInstruction[], sign
   const tx = new Transaction();
   tx.add(...ixs);
   tx.feePayer = signers[0].publicKey;
-  tx.recentBlockhash = await blockhash(conn);
+  try { tx.recentBlockhash = await blockhash(conn); } catch (e: any) { return { sig: "", sentAt: Date.now(), err: `blockhash:${classify(e)}` }; }
   tx.sign(...signers);
   const sentAt = Date.now();
   let sig: string;
@@ -200,8 +200,16 @@ export function classify(e: any): string {
 
 /** Base-layer send with confirmation via the web3 helper (confirmed commitment). */
 export async function sendBase(ixs: TransactionInstruction[], signers: Keypair[]): Promise<string> {
-  const tx = new Transaction().add(...ixs);
-  return sendAndConfirmTransaction(base, tx, signers, { commitment: "confirmed", skipPreflight: false });
+  for (let i = 0; ; i++) {
+    try {
+      await sleep(NET === "devnet" ? 600 : 0); // public devnet RPC rate limit (base layer)
+      const tx = new Transaction().add(...ixs);
+      return await sendAndConfirmTransaction(base, tx, signers, { commitment: "confirmed", skipPreflight: false });
+    } catch (e: any) {
+      if (i < 8 && /429|Too Many|fetch failed|blockhash|timed out|not confirmed/i.test(String(e?.message ?? e))) { await sleep(3000 * (i + 1)); continue; }
+      throw e;
+    }
+  }
 }
 
 export async function logsOf(conn: Connection, sig: string): Promise<{ logs: string[]; cu?: number; err: any }> {
@@ -268,16 +276,21 @@ export class SigPoller {
   async tick() {
     if (this.busy || !this.pending.size) return;
     this.busy = true;
-    const sigs = [...this.pending.keys()].slice(0, 256);
-    try {
-      const st = (await this.conn.getSignatureStatuses(sigs)).value;
-      const now = Date.now();
-      sigs.forEach((s, i) => {
-        const p = this.pending.get(s)!;
-        if (st[i]) { this.pending.delete(s); p.cb(st[i]!.err ? { confirmedAt: now, err: `tx:${JSON.stringify(st[i]!.err)}` } : { confirmedAt: now }); }
-        else if (now - p.sentAt > this.timeoutMs) { this.pending.delete(s); p.cb({ err: "timeout" }); }
-      });
-    } catch (e: any) { const c = "poll:" + classify(e); this.errors[c] = (this.errors[c] ?? 0) + 1; }
+    const all = [...this.pending.keys()];
+    const chunks: string[][] = [];
+    for (let i = 0; i < all.length; i += 200) chunks.push(all.slice(i, i + 200));
+    await Promise.all(chunks.map(async (sigs) => {
+      try {
+        const st = (await this.conn.getSignatureStatuses(sigs)).value;
+        const now = Date.now();
+        sigs.forEach((s, i) => {
+          const p = this.pending.get(s);
+          if (!p) return;
+          if (st[i]) { this.pending.delete(s); p.cb(st[i]!.err ? { confirmedAt: now, err: `tx:${JSON.stringify(st[i]!.err)}` } : { confirmedAt: now }); }
+          else if (now - p.sentAt > this.timeoutMs) { this.pending.delete(s); p.cb({ err: "timeout" }); }
+        });
+      } catch (e: any) { const c = "poll:" + classify(e); this.errors[c] = (this.errors[c] ?? 0) + 1; }
+    }));
     this.busy = false;
   }
   stop() { clearInterval(this.timer); }
@@ -287,7 +300,7 @@ export class SigPoller {
 export async function sendVia(poller: SigPoller, ixs: TransactionInstruction[], signers: Keypair[]): Promise<SendResult> {
   const tx = new Transaction().add(...ixs);
   tx.feePayer = signers[0].publicKey;
-  tx.recentBlockhash = await blockhash(poller.conn, 1000);
+  try { tx.recentBlockhash = await blockhash(poller.conn, 1000); } catch (e: any) { return { sig: "", sentAt: Date.now(), err: `blockhash:${classify(e)}` }; }
   tx.sign(...signers);
   const sentAt = Date.now();
   let sig: string;
@@ -301,4 +314,38 @@ export async function rttBaseline(conn: Connection, n = 30): Promise<ReturnType<
   const xs: number[] = [];
   for (let i = 0; i < n; i++) { const t = Date.now(); await conn.getSlot("processed").catch(() => 0); xs.push(Date.now() - t); await sleep(50); }
   return summary(xs);
+}
+
+/** task_id exactly as the program derives it: FNV-1a64(program id | world | nonce LE) & i64::MAX */
+export function taskId(world: PublicKey, nonce: bigint): bigint {
+  let h = 0xcbf29ce484222325n;
+  const eat = (b: Uint8Array) => { for (const x of b) { h ^= BigInt(x); h = (h * 0x100000001b3n) & 0xffffffffffffffffn; } };
+  eat(PROGRAM_ID.toBytes()); eat(world.toBytes());
+  const nb = Buffer.alloc(8); nb.writeBigUInt64LE(nonce); eat(nb);
+  return h & 0x7fffffffffffffffn;
+}
+
+export async function cancelTask(id: bigint): Promise<string | null> {
+  const r = await send(er, [IX.cancelTicks(wallet.publicKey, id, MAGIC_CONTEXT)], [wallet]);
+  return r.err ?? null;
+}
+
+/** Schedules a task and keeps exactly one alive: if no new tick is seen for `stallMs`, cancels the old
+ *  task and schedules a new one. `stop()` cancels the live task. `onTick` must be fed from a subscription. */
+export function keeper(map: PublicKey, intervalMs: number, iterations: number, split: boolean, stallMs = 3000) {
+  const st = { restarts: 0, running: true, live: 0n, lastTick: -1, lastChange: Date.now(), cancelErrors: 0,
+    onTick(t: number) { if (t > st.lastTick) { st.lastTick = t; st.lastChange = Date.now(); } },
+    async start() { const n = BigInt(Date.now()); st.live = taskId(pda.world(0), n); await send(er, [cuLimit(400_000 - st.restarts), IX.scheduleTicks(wallet.publicKey, 0, map, intervalMs, iterations, n, split)], [wallet]); st.lastChange = Date.now(); },
+    async stop() { st.running = false; if (st.live) { if (await cancelTask(st.live)) st.cancelErrors++; } } };
+  (async () => {
+    while (st.running) {
+      await sleep(250);
+      if (st.running && Date.now() - st.lastChange > stallMs) {
+        st.restarts++;
+        if (st.live && (await cancelTask(st.live))) st.cancelErrors++;
+        await st.start();
+      }
+    }
+  })();
+  return st;
 }

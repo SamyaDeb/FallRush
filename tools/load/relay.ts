@@ -1,6 +1,7 @@
 // P0.4 fanout relay (untrusted helper): subscribes to World on the rollup and re-broadcasts the raw
 // account bytes to every connected client over WebSocket. tsx relay.ts <port>
-import { WebSocketServer } from "ws";
+import wsPkg from "ws";
+const WebSocketServer = (wsPkg as any).Server ?? (wsPkg as any).WebSocketServer;
 import { er, pda } from "./lib.ts";
 const port = Number(process.argv[2] ?? 8787);
 const wss = new WebSocketServer({ port });

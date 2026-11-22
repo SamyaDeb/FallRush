@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PublicKey } from "@solana/web3.js";
-import { er, IX, LOGS, NET, wallet, pda, send, sendRetry, summary, loadavg, sleep, cuLimit, key, inputBytes, rttBaseline } from "./lib.ts";
+import { er, IX, LOGS, NET, wallet, pda, send, sendRetry, summary, loadavg, sleep, cuLimit, key, inputBytes, rttBaseline, keeper } from "./lib.ts";
 const samples = Number(process.argv[2] ?? 1000);
 const st = JSON.parse(readFileSync(join(LOGS, `state-${NET}.json`), "utf8"));
 const map = new PublicKey(st.maps.lid);
@@ -14,38 +14,56 @@ async function main() {
   out.rtt_getSlot_ms = await rttBaseline(er);
   await sendRetry(er, [IX.resetWorld(wallet.publicKey, 0, map, 31, 1, 0)], [wallet]);
   let curTick = 0;
+  let kpRef: any = null;
   let waiting: { T: number; resolve: (t: number) => void } | null = null;
   const sub = er.onAccountChange(pda.world(0), (acc) => {
     const t = Date.now();
     const d = acc.data as Buffer;
     curTick = Math.max(curTick, d.readUInt32LE(8 + 64));
+    kpRef?.onTick(d.readUInt32LE(8 + 64));
     const applied0 = d.readUInt32LE(8 + 848);
     if (waiting && applied0 >= waiting.T) { const w = waiting; waiting = null; w.resolve(t); }
   }, { commitment: "processed" });
+  // parallel poll path (detects WS notifications that never arrive)
+  let pollSeen: { T: number; t: number } | null = null;
+  let polling = true;
+  let pollWant = -1;
+  (async () => { while (polling) { if (pollWant >= 0) { try { const a = await er.getAccountInfo(pda.world(0), "processed"); if (a) { const d = a.data as Buffer; curTick = Math.max(curTick, d.readUInt32LE(8 + 64)); if (pollWant >= 0 && d.readUInt32LE(8 + 848) >= pollWant) { pollSeen = { T: pollWant, t: Date.now() }; pollWant = -1; } } } catch {} } await sleep(20); } })();
   await sleep(1500);
   const iters = Math.ceil(samples * 0.5 * 1000 / 50) + 400;
-  const rs = await send(er, [cuLimit(400_000), IX.scheduleTicks(wallet.publicKey, 0, map, 50, iters, BigInt(Date.now()), true)], [wallet]);
-  out.schedule_err = rs.err ?? null;
+  const kp = keeper(map, 50, iters, true);
+  kpRef = kp;
+  await kp.start();
   await sleep(1500);
-  const e2e: number[] = [], conf: number[] = [], lateBy: number[] = [];
+  const e2e: number[] = [], conf: number[] = [], lateBy: number[] = [], e2ePoll: number[] = [];
+  let wsMissed = 0;
   let timeouts = 0, errs = 0;
   for (let i = 0; i < samples; i++) {
     const T = curTick + 1;
     const b = inputBytes(0, T); b[3] = i & 255; b[7] = (i >> 8) & 255;
     const tSend = Date.now();
     const seen = new Promise<number>((resolve) => { waiting = { T, resolve }; });
+    pollSeen = null; pollWant = T;
     const timeout = sleep(3000).then(() => -1);
     const r = await send(er, [IX.submitInput(owner.publicKey, 0, 0, T, b)], [owner], { pollMs: 10 });
     if (r.err) { errs++; waiting = null; continue; }
     conf.push(r.confirmedAt! - tSend);
     const tSeen = await Promise.race([seen, timeout]);
-    if (tSeen < 0) { timeouts++; waiting = null; continue; }
+    const ps = pollSeen as { T: number; t: number } | null;
+    if (ps && ps.T === T) e2ePoll.push(ps.t - tSend);
+    pollWant = -1;
+    if (tSeen < 0) { timeouts++; waiting = null; if (ps && ps.T === T) wsMissed++; continue; }
     e2e.push(tSeen - tSend);
     lateBy.push(curTick - T);
     await sleep(20 + (i % 3) * 17); // de-phase vs the 50 ms tick
   }
   await er.removeAccountChangeListener(sub);
+  polling = false;
+  await kp.stop();
+  out.keeper_restarts = kp.restarts;
   out.e2e_ms = summary(e2e);
+  out.e2e_poll_ms = summary(e2ePoll);
+  out.ws_missed_but_poll_saw = wsMissed;
   out.confirm_ms = summary(conf);
   out.ticks_after_T_when_seen = summary(lateBy);
   out.timeouts = timeouts;

@@ -8,7 +8,7 @@ import { base, er, EP, IX, N, NET, LOGS, PROGRAM_ID, wallet, key, pda, sendBase,
 const nBets = Number(process.argv[2] ?? 10);
 const FUND = 1_000_000; // lamports per client fee-payer (rent-exempt minimum is 890,880)
 
-async function exists(k: PublicKey) { return (await base.getAccountInfo(k)) !== null; }
+async function exists(k: PublicKey) { for (let i = 0; ; i++) { try { await sleep(NET === "devnet" ? 250 : 0); return (await base.getAccountInfo(k)) !== null; } catch (e) { if (i > 8) throw e; await sleep(3000); } } }
 
 async function main() {
   const t0 = Date.now();
@@ -33,11 +33,18 @@ async function main() {
       const space = 48 + blob.length;
       const lamports = await base.getMinimumBalanceForRentExemption(space);
       await sendBase([SystemProgram.createAccount({ fromPubkey: wallet.publicKey, newAccountPubkey: mk.publicKey, lamports, space, programId: PROGRAM_ID })], [wallet, mk]);
+    }
+    {
       const CH = 900;
-      for (let o = 0; o < blob.length; o += CH * 1) {
-        await sendBase([IX.uploadMap(wallet.publicKey, mk.publicKey, o, blob.length, blob.subarray(o, o + CH))], [wallet]);
+      const cur = Buffer.from((await base.getAccountInfo(mk.publicKey))!.data);
+      let up = 0;
+      for (let o = 0; o < blob.length; o += CH) {
+        const want = blob.subarray(o, o + CH);
+        if (cur[0] === 0x50 && Buffer.from(cur.subarray(48 + o, 48 + o + want.length)).equals(want) && cur.readUInt32LE(40) === blob.length) continue;
+        await sendBase([IX.uploadMap(wallet.publicKey, mk.publicKey, o, blob.length, want)], [wallet]);
+        up++;
       }
-      console.log(`map ${name}: ${blob.length} B uploaded in ${Math.ceil(blob.length / CH)} chunks -> ${mk.publicKey.toBase58()}`);
+      console.log(`map ${name}: ${blob.length} B, ${up} chunks uploaded -> ${mk.publicKey.toBase58()}`);
     }
     const onchain = (await base.getAccountInfo(mk.publicKey))!.data.subarray(48, 48 + blob.length);
     if (!Buffer.from(onchain).equals(blob)) throw new Error(`map ${name} mismatch on chain`);
@@ -58,6 +65,7 @@ async function main() {
   for (const b of bettors) del.push([pda.bet(b.publicKey), 3, 0, 0, b.publicKey]);
   let nd = 0;
   for (const [k, kind, wid, slot, owner] of del) {
+    await sleep(NET === "devnet" ? 250 : 0);
     const info = await base.getAccountInfo(k);
     if (info && info.owner.equals(PROGRAM_ID)) {
       await sendBase([IX.delegate(wallet.publicKey, k, kind, wid, slot, owner, EP.validator)], [wallet]);

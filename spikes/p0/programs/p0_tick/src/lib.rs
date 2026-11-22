@@ -158,7 +158,7 @@ pub mod p0_tick {
     }
 
     /// ER. Point the world at a map blob and reset the sim from `seed`.
-    pub fn reset_world(ctx: Context<ResetWorld>, seed: u64, flags: u32, min_slot_gap: u32) -> Result<()> {
+    pub fn reset_world<'info>(ctx: Context<'info, ResetWorld<'info>>, seed: u64, flags: u32, min_slot_gap: u32) -> Result<()> {
         let map_info = ctx.accounts.map.to_account_info();
         let md = map_info.try_borrow_data()?;
         let m = parse_map(&md)?;
@@ -171,6 +171,16 @@ pub mod p0_tick {
         w.applied_tick = [0; N];
         w.hash = world_hash(&w.sim);
         w.ticks_run = 0;
+        w.part_pending = 0;
+        // remaining_accounts: InputBufs of this world to clear (count = 0 -> slot runs the bot again)
+        for a in ctx.remaining_accounts.iter() {
+            require!(w.inputs.contains(&a.key()), P0Error::BadSlot);
+            let mut d = a.try_borrow_mut_data()?;
+            let ib: &mut InputBuf = bytemuck::from_bytes_mut(&mut d[8..8 + core::mem::size_of::<InputBuf>()]);
+            ib.count = 0;
+            ib.latest = 0;
+            ib.ring = [InEntry { tick: 0, input: Input::default() }; RING];
+        }
         Ok(())
     }
 
