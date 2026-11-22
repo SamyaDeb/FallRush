@@ -101,7 +101,7 @@ Unity side: `Scripts/Chain/` holds the bridge file `FallRushChain.jslib`, `OnCha
 | Determinism | No hash maps with random order, no allocation-order dependence, fixed iteration order (slot ascending). Every step returns the transcript events it produced. |
 | Hashes | The map blob hash replaces the map content hash on-chain. `rush_core_version` and the `movement_v4` hash go into the ruleset. |
 | Accounts | Hot accounts are **zero-copy** (`#[account(zero_copy)]`, `bytemuck`). Every delegated account is ≤ 10,240 B (the commit limit). |
-| Compute budget | `tick()` ≤ **300k CU worst case** at 12 players (P0-1 condition: a timed-task execution has 400k CU in total, and one failed execution ends the task). P1 measured `rush-core` at ≈ 493k CU per 12-player tick (LiteSVM, `docs/proof/P1-rush-core.md` §12), so P1b must cut it by about 40 % or more before P2. The per-tick budget is the same at 30 Hz; the per-second load is 1.5× that of 20 Hz. Re-checked in CI on every map. |
+| Compute budget | **P2 (OC-11): the Final (3 players) runs on-chain first: worst tick 262k CU on devnet-as, real time 5/5.** Original target: `tick()` ≤ **300k CU worst case** at 12 players (P0-1 condition: a timed-task execution has 400k CU in total, and one failed execution ends the task). P1 measured `rush-core` at ≈ 493k CU per 12-player tick (LiteSVM, `docs/proof/P1-rush-core.md` §12), so P1b must cut it by about 40 % or more before P2. The per-tick budget is the same at 30 Hz; the per-second load is 1.5× that of 20 Hz. Re-checked in CI on every map. |
 
 ---
 
@@ -244,6 +244,11 @@ Six throw-away prototypes. They live in `spikes/p0-*`, are never shipped, and ar
 ---
 
 ### P2 — On-chain simulation (the program is the server)
+
+> **Done 2026-11-22, Final-first (OC-11).** The Final (Lid Flip, 3 players, bots in `step()`) runs on the rollup in real
+> time at 30 Hz; the other three rounds stay Classic and a chain worker bridges them into the `Match`
+> (`start_final` handoff). The full 4-round on-chain mode exists as an experimental option (it runs, in slow motion on
+> Capsule Run). Measured: devnet-as runs at most one task execution per 10 ms slot. See `docs/proof/P2-onchain-sim.md`.
 
 **Accounts (new):**
 
