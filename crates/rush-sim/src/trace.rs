@@ -164,18 +164,32 @@ fn outcome(f: &[Vec<Sample>], who: usize) -> Outcome {
         stunned: f.iter().any(|x| x[who].stun > 0),
         launched: f.iter().any(|x| x[who].res & world::step_result::LAUNCHED != 0),
         ends_grounded: last.flags & flag::GROUNDED != 0,
-        end_level: ((last.p.y as f64) / 250.0).round() as i32,
+        // only meaningful when standing (a body still falling into the void is at an arbitrary height)
+        end_level: if last.flags & flag::GROUNDED != 0 { ((last.p.y as f64) / 250.0).round() as i32 } else { i32::MIN },
     }
 }
 
+/// Jump apex: the highest airborne point above the last grounded height before it (0 when never airborne after a
+/// grounded tick).
 fn apex(f: &[Vec<Sample>]) -> i32 {
-    f.iter().map(|x| x[0].p.y).max().unwrap_or(0) - f.first().map(|x| x[0].p.y).unwrap_or(0)
+    let mut ground = None;
+    let mut best = 0;
+    for x in f {
+        let s = x[0];
+        if s.flags & flag::GROUNDED != 0 {
+            ground = Some(s.p.y);
+        } else if let Some(g) = ground {
+            best = best.max(s.p.y - g);
+        }
+    }
+    best
 }
 
-/// Time (ms) of the first landing after being airborne, or −1.
+/// Time (ms) of the first landing after being airborne, ignoring the spawn settle (the first 200 ms), or −1.
 fn landing_ms(f: &[Vec<Sample>], rate: u32) -> i64 {
     let mut air = false;
-    for (k, x) in f.iter().enumerate() {
+    let skip = (rate as usize * 200) / 1000;
+    for (k, x) in f.iter().enumerate().skip(skip) {
         let g = x[0].flags & flag::GROUNDED != 0;
         if !g && x[0].flags & flag::RESPAWNING == 0 {
             air = true;
@@ -215,6 +229,9 @@ pub fn compare_one(t: &Trace, map: &[u8], rate: u32, params: &MovementParams) ->
     let rc = replay(t, map, rate, params);
     let cs = &t.frames;
     let (mut max_d, mut fin) = (0f64, 0f64);
+    // Frames where either body is falling out of the map (more than 2 m below its start) are not drift: both fell
+    // (the outcome check covers that), and free-fall bodies diverge by construction.
+    let floor = t.start[0][1] as i32 - 2000;
     // matching times: C# tick k (k/30 s) ↔ rush-core tick j (j/rate s) when k·rate = j·30
     for (j, x) in rc.iter().enumerate() {
         let jj = j as u64 + 1;
@@ -229,10 +246,10 @@ pub fn compare_one(t: &Trace, map: &[u8], rate: u32, params: &MovementParams) ->
         let b = x[0].p;
         let d = (((a.x - b.x) as f64).powi(2) + ((a.y - b.y) as f64).powi(2) + ((a.z - b.z) as f64).powi(2)).sqrt();
         // a respawn teleport difference of a tick is not drift
-        if cs[k - 1][0].flags & flag::RESPAWNING == 0 && x[0].flags & flag::RESPAWNING == 0 {
+        if cs[k - 1][0].flags & flag::RESPAWNING == 0 && x[0].flags & flag::RESPAWNING == 0 && a.y > floor && b.y > floor {
             max_d = max_d.max(d);
+            fin = d;
         }
-        fin = d;
     }
     Row {
         name: format!("{}-{}", t.scene.trim_start_matches("Map_"), t.script),
