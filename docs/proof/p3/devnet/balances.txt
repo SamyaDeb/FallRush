@@ -18,3 +18,5 @@
 18:31:56 balances: admin 5.667857687 SOL authority 3.63901728 SOL
 18:34:38 balances: admin 5.667857687 SOL authority 3.63901728 SOL
 18:45:05 balances: admin 5.667857687 SOL authority 3.58484968 SOL
+19:04:24 balances: admin 5.667857687 SOL authority 3.56620828 SOL
+19:11:44 balances: admin 5.667857687 SOL authority 3.53370772 SOL
