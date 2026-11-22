@@ -6,7 +6,11 @@
 //! Durations authored in 30 Hz ticks (intro, countdown, timers) are converted at the configured rate.
 
 pub mod director;
+pub mod race;
 pub mod targets;
+pub mod timed;
+#[cfg(test)]
+mod tests;
 
 use crate::codec::{Codec, Dec, Enc};
 use crate::mapblob::MapView;
@@ -79,6 +83,8 @@ pub struct SlotRules {
     /// Final: deepest shelf reached; distinct tiles; lid shelf / falls / last drop tick.
     pub deepest: u8,
     pub tiles: u16,
+    /// Final (crumble): tiles stood on (bit per tile, ≤ `world::MAX_RX_TILES`).
+    pub touched: u32,
     pub lid_shelf: u8,
     pub lid_falls: u8,
     pub lid_drop_tick: u32,
@@ -115,6 +121,7 @@ impl Codec for SlotRules {
         e.i32(self.height);
         e.u8(self.deepest);
         e.u16(self.tiles);
+        e.u32(self.touched);
         e.u8(self.lid_shelf);
         e.u8(self.lid_falls);
         e.u32(self.lid_drop_tick);
@@ -134,6 +141,7 @@ impl Codec for SlotRules {
             height: d.i32(),
             deepest: d.u8(),
             tiles: d.u16(),
+            touched: d.u32(),
             lid_shelf: d.u8(),
             lid_falls: d.u8(),
             lid_drop_tick: d.u32(),
@@ -287,6 +295,97 @@ impl Codec for RoundState {
     }
 }
 
+// ------------------------------------------------------------------ helpers
+
+/// Emits a round event.
+#[inline]
+pub fn emit(w: &mut World, ev: &mut StepEvents, tag: u8, tick: u32, slot: u8, arg: i32) {
+    crate::world::emit_round(w, ev, tag, tick, slot, arg);
+}
+
+/// `SetPhase`.
+pub fn set_phase(w: &mut World, p: u8, tick: u32, ev: &mut StepEvents) {
+    w.round.phase = p;
+    w.round.phase_start = tick;
+    emit(w, ev, evt::PHASE, tick, 255, p as i32);
+}
+
+/// Stable insertion sort of slots by `before(a, b)` (a ranks first). ≤ 12 entries.
+pub fn sort_slots(v: &mut [u8], before: impl Fn(u8, u8) -> bool) {
+    let mut i = 1;
+    while i < v.len() {
+        let x = v[i];
+        let mut j = i;
+        while j > 0 && before(x, v[j - 1]) {
+            v[j] = v[j - 1];
+            j -= 1;
+        }
+        v[j] = x;
+        i += 1;
+    }
+}
+
+/// 30 Hz ticks (C# authored durations) → ticks at `rate`, round half up (= `MotorConfig::ticks30`).
+pub fn t30_to_ticks(t30: i64, rate: u8) -> i64 {
+    if t30 <= 0 {
+        t30
+    } else {
+        (t30 * rate as i64 * 2 + 30) / 60
+    }
+}
+
+/// C# defaults (30 Hz ticks): `MatchDirector.RoundIntroTicks` / `RoundCountdownTicks`.
+pub const ROUND_INTRO_30: i64 = 60;
+pub const ROUND_COUNTDOWN_30: i64 = 90;
+
+/// `IRoundRules.Begin` (+ the director's `BeginRound` set-up): starts the round on `map` now (the intro starts at
+/// `tick + 1`, `tick` = the last simulated tick). `target` = qualify count (0 = the mode default), `participants` =
+/// slot mask (bit set = races; players eliminated earlier are left out). Intro / countdown in 30 Hz ticks
+/// (`ROUND_INTRO_30`, `ROUND_COUNTDOWN_30` are the director's), converted at `w.rate`. Clears the reactive state.
+/// Returns the RUSH tick (= hazard time 0, also written to `w.round_start`).
+#[allow(clippy::too_many_arguments)]
+pub fn begin_round(w: &mut World, map: &MapView, tick: u32, target: u8, participants: u16, intro30: i64, countdown30: i64, ev: &mut StepEvents) -> u32 {
+    let mode = map.mode() as u8;
+    let ev_seq = w.round.event_seq;
+    w.round = RoundState { mode, event_seq: ev_seq, ..Default::default() };
+    w.rx = crate::world::Reactive::default();
+    if mode == crate::mapblob::mode::SANDBOX || mode == crate::mapblob::mode::LOBBY {
+        w.round.phase = phase::SANDBOX;
+        return tick;
+    }
+    let mut players = 0i32;
+    for i in 0..MAX_PLAYERS {
+        w.players[i].r = SlotRules::default();
+        if w.players[i].active() && (participants >> i) & 1 == 1 {
+            w.players[i].r.set(sf::IN, true);
+            players += 1;
+        }
+    }
+    w.round.qualify_count = if mode == crate::mapblob::mode::RACE {
+        players.min(if target > 0 { target as i32 } else { targets::race_qualify_count(players) })
+    } else {
+        players.min(if target > 0 { target as i32 } else { players }).max(1)
+    } as u8;
+    w.round.target = target;
+    let intro = t30_to_ticks(intro30, w.rate) as u32;
+    let countdown = t30_to_ticks(countdown30, w.rate) as u32;
+    w.round.intro_ticks = intro as u16;
+    w.round.countdown_ticks = countdown as u16;
+    let rush = tick + 1 + intro + countdown;
+    w.round.rush_tick = rush;
+    let timer = map.meta(crate::mapblob::meta::TIMER_CAP_S).max(0) as u32 * w.rate as u32;
+    w.round.rush_end = if timer > 0 { rush + timer } else { 0 };
+    w.round_start = rush;
+    for i in 0..MAX_PLAYERS {
+        if w.players[i].r.has(sf::IN) {
+            w.players[i].m = w.spawn_state(map, i);
+            w.players[i].respawn_ticks = 0;
+        }
+    }
+    set_phase(w, if intro > 0 { phase::INTRO } else { phase::COUNTDOWN }, tick + 1, ev);
+    rush
+}
+
 // ------------------------------------------------------------------ hooks called by world::step (ISimRules)
 
 /// Free play (sandbox / lobby) when no round runs.
@@ -295,20 +394,44 @@ fn free(w: &World) -> bool {
     w.round.mode == crate::mapblob::mode::SANDBOX || w.round.mode == crate::mapblob::mode::LOBBY || w.round.phase == phase::WAITING || w.round.phase == phase::SANDBOX
 }
 
+#[inline]
+fn race(w: &World) -> bool {
+    w.round.mode == crate::mapblob::mode::RACE
+}
+
 /// Before any player of `tick` is stepped (phase changes).
 pub fn begin_tick(w: &mut World, _map: &MapView, tick: u32, ev: &mut StepEvents) {
     if free(w) {
         return;
     }
-    let _ = (tick, ev);
+    match w.round.phase {
+        phase::INTRO if tick >= w.round.phase_start + w.round.intro_ticks as u32 => set_phase(w, phase::COUNTDOWN, tick, ev),
+        phase::COUNTDOWN if tick >= w.round.rush_tick => set_phase(w, phase::RUSH, tick, ev),
+        _ => {}
+    }
+    if race(w) && w.round.phase != phase::ENDED {
+        // A player who left after the intro is out of the round.
+        for i in 0..MAX_PLAYERS {
+            if !w.players[i].active() && w.players[i].r.has(sf::IN) {
+                w.players[i].r.set(sf::IN, false);
+            }
+        }
+    }
 }
 
-/// False during the countdown and for players out of the round: the command is replaced by a neutral one.
-pub fn accepts_input(w: &World, _slot: usize) -> bool {
+/// False during the intro / countdown, after the end, and for players out of the round.
+pub fn accepts_input(w: &World, slot: usize) -> bool {
     if free(w) {
         return true;
     }
-    w.round.phase == phase::RUSH
+    if race(w) {
+        let p = w.round.phase;
+        if p == phase::INTRO || p == phase::COUNTDOWN || p == phase::ENDED {
+            return false;
+        }
+        return !w.players[slot].r.has(sf::DONE);
+    }
+    w.round.phase == phase::RUSH && timed::in_play(w, slot)
 }
 
 /// False for players out of the simulation (finished, knocked out, not in the round).
@@ -325,15 +448,27 @@ pub fn collides(w: &World, slot: usize) -> bool {
     simulates(w, slot)
 }
 
-/// Respawn after a fall: true = placed by the rules; false = back to the spawn point.
-pub fn respawn(_w: &mut World, _map: &MapView, _slot: usize, _ev: &mut StepEvents) -> bool {
-    false
+/// Respawn after a fall: true = placed by the rules (race: last checkpoint); false = back to the spawn point.
+pub fn respawn(w: &mut World, map: &MapView, slot: usize, ev: &mut StepEvents) -> bool {
+    if free(w) || !race(w) {
+        return false;
+    }
+    race::respawn(w, map, slot, ev)
 }
 
 /// After the players and the separation of `tick` (checkpoints, scores, round end).
-pub fn end_tick(w: &mut World, _map: &MapView, _sc: &crate::collide::Scene, tick: u32, ev: &mut StepEvents) {
-    if free(w) {
+pub fn end_tick(w: &mut World, map: &MapView, _sc: &crate::collide::Scene, tick: u32, ev: &mut StepEvents) {
+    if free(w) || w.round.phase != phase::RUSH {
         return;
     }
-    let _ = (tick, ev);
+    if race(w) {
+        race::end_tick(w, map, tick, ev);
+    } else {
+        timed::end_tick(w, map, tick, ev);
+    }
+}
+
+/// The round is over (`IsOver`).
+pub fn is_over(w: &World) -> bool {
+    w.round.phase == phase::ENDED
 }
