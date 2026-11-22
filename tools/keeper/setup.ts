@@ -49,7 +49,7 @@ for (const stem of MAP_STEMS) {
     const space = MAP_HDR + blob.length;
     const lamports = await base.getMinimumBalanceForRentExemption(space);
     out.sigs[`map_${stem}_create`] = await sendBase([SystemProgram.createAccount({ fromPubkey: wallet.publicKey, newAccountPubkey: kp.publicKey, lamports, space, programId: PROGRAM_ID })], [wallet, kp], `create ${stem}`);
-    info = await base.getAccountInfo(kp.publicKey);
+    for (let i = 0; i < 30 && !(info = await base.getAccountInfo(kp.publicKey)); i++) await sleep(1000);
   }
   const mapId = stem === "Lobby" ? 254 : MAP_STEMS.indexOf(stem);
   for (let o = 0; o < blob.length; o += CHUNK) {

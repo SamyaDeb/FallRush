@@ -1,6 +1,7 @@
 //! P2: the on-chain simulation (doc 19 §5 P2). The program runs `rush-core` as the game server inside the
-//! Ephemeral Rollup: a timed task calls `tick()`; each call runs the next pending part of the tick
-//! (`world::step_part`, `parts` per tick), so one task execution stays inside its 400k CU budget.
+//! Ephemeral Rollup: a timed task calls `tick()`; each call runs the next slice of the tick (`world::step_slice`:
+//! players in slot order while the deterministic work meter stays under `SLICE_WORK`), so one task execution stays
+//! inside its 400k CU budget and a heavy tick simply takes more executions.
 //!
 //! Accounts (zero-copy, all ≤ 10,240 B, delegated and reused across matches): `Arena` (roster, map keys, task),
 //! `WorldAcc` (rush-core `World` bytes + tick bookkeeping), one `InputBuf` per slot, `EventLog`. Map blobs are plain
@@ -279,7 +280,8 @@ fn tick_inner(accs: &[AccountInfo]) -> u8 {
         Ok(c) => c,
         Err(_) => return tick_code::BAD_STATE,
     };
-    let parts = wa.parts.clamp(1, N as u8);
+    // where the tick stands (rush-core `step_slice`): 0 = start a new tick, 1..=11 = continue at that slot,
+    // 12 = the end-of-tick stage
     let part = wa.part_pending;
     if part == 0 && wa.ticks_run > 0 && clock.slot < wa.last_slot + MIN_SLOTS_PER_TICK {
         return tick_code::NOT_DUE;
@@ -367,7 +369,7 @@ fn tick_inner(accs: &[AccountInfo]) -> u8 {
     let mut ev: Box<StepEvents> = Box::default();
     let params = MovementParams::default();
     let phase_before = w.dir.phase;
-    rush_core::world::step_part(&mut w, &inputs, &v, &params, &mut h, &mut ev, &mut sc, part, parts);
+    let next = rush_core::world::step_slice(&mut w, &inputs, &v, &params, &mut h, &mut ev, &mut sc, part, rush_core::world::SLICE_WORK);
     drop(sc);
     let n = w.to_bytes(&mut wa.world);
     wa.len = n as u32;
@@ -376,11 +378,9 @@ fn tick_inner(accs: &[AccountInfo]) -> u8 {
     if part == 0 {
         wa.last_slot = clock.slot;
     }
-    if part + 1 >= parts {
-        wa.part_pending = 0;
+    wa.part_pending = next;
+    if next == 0 {
         wa.ticks_run = wa.ticks_run.wrapping_add(1);
-    } else {
-        wa.part_pending = part + 1;
     }
     wa.phase = w.dir.phase;
     wa.round = w.dir.round;

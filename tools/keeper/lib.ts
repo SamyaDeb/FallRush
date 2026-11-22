@@ -15,7 +15,13 @@ export const EP = NET === "local"
   : { base: "https://api.devnet.solana.com", er: "https://devnet-as.magicblock.app", erWs: "wss://devnet-as.magicblock.app", validator: new PublicKey("MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57"), vrfQueue: new PublicKey("5hBR571xnXppuCPveTrctfTU7tJLSN94nq7kv7FRK5Tc") };
 export const base = new Connection(EP.base, { commitment: "confirmed" });
 export const er = new Connection(EP.er, { commitment: "processed", wsEndpoint: EP.erWs });
-export const wallet = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(join(homedir(), ".config/solana/id.json"), "utf8"))));
+const loadKp = (p: string) => Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(p, "utf8"))));
+/** The game authority that signs (and pays for) the sim instructions: on devnet the config's game authority
+ * (~/.config/fall-rush/devnet-game-authority.json, as scripts/devnet-lifecycle.ts; override GAME_AUTHORITY_KEYPAIR),
+ * on the local stack the CLI wallet (the local config is initialised with it). */
+export const wallet = NET === "devnet"
+  ? loadKp(process.env.GAME_AUTHORITY_KEYPAIR || join(homedir(), ".config/fall-rush/devnet-game-authority.json"))
+  : loadKp(join(homedir(), ".config/solana/id.json"));
 export const PROGRAM_ID = new PublicKey("4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4");
 export const MAGIC_PROGRAM = new PublicKey("Magic11111111111111111111111111111111111111");
 export const MAGIC_CONTEXT = new PublicKey("MagicContext1111111111111111111111111111111");

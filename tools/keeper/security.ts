@@ -62,9 +62,10 @@ await expectCode("input tick out of window (+50)", sub(p1, 0, w0.tick + 50, Arra
 for (let i = 0; i < 4 * 14; i++) await sendEr([cu(1_400_000), await pe.methods.tick().remainingAccounts(tickAccounts(arena, matchPda, maps)).instruction()], [wallet], "tick", 2);
 const wt = decodeWorld((await er.getAccountInfo(world))!.data as Buffer).tick;
 await expectCode(`input tick out of window (−10 at tick ${wt})`, sub(p1, 0, wt - 10, Array(12).fill(0)), "InputOutOfWindow");
-await sub(p1, 0, w0.tick + 4, [0x80, 0x80, 0xff, 0x7f, 0x80, 0x80, 0xff, 0x7f, 0x80, 0x80, 0xff, 0x7f]);
+const hs = await sub(p1, 0, wt + 2, [0x80, 0x80, 0xff, 0x7f, 0x80, 0x80, 0xff, 0x7f, 0x80, 0x80, 0xff, 0x7f]);
 const ib: any = await pe.account.inputBuf.fetch(inputs[0]);
-const e = ib.ring[(w0.tick + 4) % 16];
+const e = ib.ring[(wt + 2) % 16];
+if (hs.err) console.log("hostile submit failed:", hs.err);
 const mx = (e.input[0] << 24) >> 24, my = (e.input[1] << 24) >> 24;
 check("sanitiser clamps hostile values (stick −128,−128, buttons 0xFF)", mx * mx + my * my <= 127 * 127 + 254 && e.input[2] !== 0xff, `stored ${JSON.stringify(e.input)}`);
 // --- hot tick robustness
@@ -75,14 +76,14 @@ await noop("tick with 5 accounts: no-op success", tickMetas.slice(0, 5));
 await noop("tick with reordered maps: no-op success", [...tickMetas.slice(0, 4), tickMetas[5], tickMetas[4], ...tickMetas.slice(6)]);
 await noop("tick with a wrong (read-only) match account: no-op success", [...tickMetas.slice(0, 3), { pubkey: Keypair.generate().publicKey, isSigner: false, isWritable: false }, ...tickMetas.slice(4)]);
 await noop("tick with 8 foreign accounts inserted: hostile length / order", [...tickMetas.slice(0, 9), ...Array.from({ length: 8 }, () => ({ pubkey: Keypair.generate().publicKey, isSigner: false, isWritable: false })), ...tickMetas.slice(9)]);
-// NotDue: once a tick completes, a new tick (part 0) starts at most once per 3 slots — two calls back-to-back
+// NotDue: once a tick completes, a new tick (part 0) starts at most once per 3 slots. One transaction (one slot)
+// with parts + 1 tick() instructions: the parts run, the extra part 0 is a NotDue no-op.
 for (let i = 0; i < 8; i++) { const w = decodeWorld((await er.getAccountInfo(world))!.data as Buffer); if (w.partPending === 0) break; await tickTx(tickMetas); }
 const wd0 = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
-const fire = async () => { const tx = new Transaction().add(cu(1_400_000), await pe.methods.tick().remainingAccounts(tickMetas).instruction()); tx.feePayer = wallet.publicKey; tx.recentBlockhash = (await er.getLatestBlockhash()).blockhash; tx.sign(wallet); return er.sendRawTransaction(tx.serialize(), { skipPreflight: true }); };
-await Promise.all([fire(), fire().catch(() => ""), fire().catch(() => "")]);
-await sleep(1500);
+const tickIx = await pe.methods.tick().remainingAccounts(tickMetas).instruction();
+const rnd = await sendEr([cu(1_400_000), tickIx, tickIx, tickIx, tickIx, tickIx], [wallet], "5 ticks", 3);
 const wd1 = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
-check("early tick() is a NotDue no-op (3 part-0 calls in one slot start one tick)", wd1.tick === wd0.tick + 1 && wd1.notDue > wd0.notDue, `tick ${wd0.tick}→${wd1.tick}, not_due ${wd0.notDue}→${wd1.notDue}`);
+check("early tick() is a NotDue no-op (5 tick() in one slot: one tick, then NotDue)", !rnd.err && wd1.tick === wd0.tick + 1 && wd1.notDue === wd0.notDue + 1n && wd1.partPending === 0, `tick ${wd0.tick}→${wd1.tick}, not_due ${wd0.notDue}→${wd1.notDue} ${rnd.err ?? ""}`);
 // --- task ids
 const sched = async () => sendEr([cu(400_000), await pe.methods.scheduleTicks(new BN(1000), new BN(2)).accountsPartial({ payer: wallet.publicKey, arena }).remainingAccounts(tickMetas).instruction()]);
 await sched(); const t1 = ((await pe.account.arena.fetch(arena)) as any).taskId.toString();

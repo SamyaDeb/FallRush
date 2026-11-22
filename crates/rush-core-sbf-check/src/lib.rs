@@ -123,6 +123,17 @@ fn bench_step(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
         let mut ev: Box<rush_core::world::StepEvents> = Box::default();
         let params = rush_core::config::MovementParams::default();
         let mut sc = new_scene(v);
+        if what == 5 {
+            // slice: [0x20, 5, from, budget u16 LE] → return data [next]
+            let from = data.get(2).copied().unwrap_or(0);
+            let budget = u16::from_le_bytes([data.get(3).copied().unwrap_or(0), data.get(4).copied().unwrap_or(0)]) as u32;
+            let next = rush_core::world::step_slice(&mut world, &[None; rush_core::world::MAX_PLAYERS], &v, &params, &mut rush_core::world::NoHasher, &mut ev, &mut sc, from, budget);
+            solana_program::log::sol_log_64(0xBEEF, sc.work.get() as u64, ev.capped as u64, from as u64, next as u64);
+            let n = world.to_bytes(&mut wd);
+            let _ = n;
+            set_return_data(&[next]);
+            return Ok(());
+        }
         if what == 4 {
             // split tick: [0x20, 4, part, parts]
             let (part, parts) = (data.get(2).copied().unwrap_or(0), data.get(3).copied().unwrap_or(1));

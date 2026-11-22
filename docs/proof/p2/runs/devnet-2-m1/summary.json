@@ -1,0 +1,50 @@
+{
+ "match": 1,
+ "matchPda": "BXZFJP3Af6JZXBXEtZwRjUiLRQLg4BdvaEr5JkWX6a7Y",
+ "complete": true,
+ "wallS": 1091.162,
+ "gameS": 462.7,
+ "ticks": 13881,
+ "executions": 60444,
+ "notDue": 73,
+ "budgetHit": 891,
+ "restarts": 70,
+ "fallback": 5317,
+ "gapMs": {
+  "p50": 40.285714285714285,
+  "p95": 188.42857142857142,
+  "max": 2978
+ },
+ "onSolana": {
+  "status": "completed",
+  "champion": 11,
+  "round": 4,
+  "transcript": "370071b53f8bb8c1fb6a835b4e692b11c66a14da193d8c441f3882444ce31f09",
+  "vrfSeed": "d4af2dde118e24985c3552dd87003722a1f09c3b1fa5216fa0f95d645ef21a75"
+ },
+ "sigs": {
+  "create": "5qM299e4UUhTheS5VAitZFfpCGKvuVL8NcxkoMxeao3ubZhoERaWQAzHhnJDrxLwFA6J49iU8TLLCnCoHyhrwE8b",
+  "delegate": "3LkeFKpivYgzFyQSgLc439cJtVaP9FpYL4mZAPiPj5gfurVuhVCMUCJ622jvcNuXUkhix44PcPjTFwbxiRyV2VHQ",
+  "openLobby": "4NEUjsnLxbZYYWh8a9GtbRW2Y7HaiCWpphu2VsJhWcDPnbpH8ogwdduJQBrRQ8zCszYvYan3W8tePZ3NgVFgmCDx",
+  "requestDeal": "2YQyLX5PRszL6xPtE18rcAUqM1M9SCY5rPfCwS5VvdVFait2X8AiUSxd13S5i61WE6F4uoqrGA8xTciJhLUYHai4",
+  "startSim": "2sb6GokEXFKnHN6BXTAut5eoReVjX1GTyfw9ded7bJuyTjRUhn9pRRexLtdGzwFrFJWt6BCDtZs3UmfPzwRQz4rn",
+  "schedule": "2FWrUxYKXKLmuhmW3eLpeqvbWFE5EiRJVsaacB1xeGuh486JCufnfk2VNdJHdGH4jpAjrYB9TPxjCLDEndkTmmE6",
+  "commit1": "jZG9mW4sf53prAchV6bghi8AAH9PYTRdiNN8jjHqEd94bfcBQCcirpTnNUwQvrLMCzioJA3KnFceMjig6VxfayN",
+  "commit2": "3ghWXiuRZk1Pn5Gq9YzvBLzhaaDZCCLLJM1jCeXw2CEHNg8nAdMF7GURMm7XkF5xrxHJbw6jRLwmQzW39GZbhkXD",
+  "commit3": "5riZttRSciGe4KF6JLH2uEeBbFFbM9M8Db22r8vxMeVQW6PK7w5EsnEzjFhhzuUftcnSKgRNrjeN9JXYoYwUEeGu",
+  "commit4": "2cUFtNdP9D66mVBEH9X2h9hyTEMtgBmRjVrBNUTaYrsi1V5C3Z5FRiKNRSXP7MrjHVrB2BrZmmxvLNpwMYYh5hrA",
+  "endSim": "3TMjD6xS8MY1V9fRCcFHja88tcgFB58iLgVvx5jJaS2rgUZY5Qcpm9VXM2Ni8XGbGV3v8EkoZoxPN2LbcaWPCJWT",
+  "finalize": "4Eg8qHLCScnbstufqaRy223oeEzdM1HS2GU1warqJT7SsPoZDpoTiKM3tYmk2FAkvEa2CvttMB65nsf8xqhHCsfh"
+ },
+ "parts": 4,
+ "interval": 8,
+ "arena": "G9bvPC3WUu56kRMxfYcY9FzuU8WuzAbmKvh7dQcQ3iiG",
+ "maps": [
+  "86hLenUHLLULngacRGesYdVUaLhTVQtMSgx2UsF9ZKuv",
+  "Dh2MMQSM3MXATAvoHPXWPCifBHF1g6hyzAxRA2zFN8za",
+  "GYeqhxkkjzvXAS1Mv2FLM3EqALH5TjZfqJKiQqu6E8LG",
+  "2zzJi24AJTKVopXd9UMz2j1poAzway5ZMSvuw9jNBCgC",
+  "DxuXdFPfomJW6SXNiCkNgDauW3p2xkiEoPfoPjuYVsCD"
+ ],
+ "mode": "parts"
+}

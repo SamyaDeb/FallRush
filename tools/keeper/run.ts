@@ -6,10 +6,11 @@
 // Records every World update (docs/proof/p2/runs/<match>/world.bin: [u32 tick][u8 part][u16 len][bytes]) for replay
 // and logs every action with its latency (docs/proof/p2/keeper-<run>.jsonl).
 //   P2_NET=local|devnet ARENA=0 MATCHES=1 INTERVAL_MS=8 node --experimental-strip-types tools/keeper/run.ts
-import { PublicKey, Keypair } from "@solana/web3.js";
+import { PublicKey, Keypair, Transaction } from "@solana/web3.js";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, appendFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { sampleCu } from "./cusample.ts";
 import { NET, EP, base, er, wallet, pb, pe, pda, key, sendBase, sendEr, ROOT, PROGRAM_ID, MAGIC_PROGRAM, MAGIC_CONTEXT, N, sleep, decodeWorld, tickAccounts, log, cu, pct, BN } from "./lib.ts";
 
 const ARENA = Number(process.env.ARENA ?? 0);
@@ -17,6 +18,8 @@ const MATCHES = Number(process.env.MATCHES ?? 1);
 const INTERVAL_MS = Number(process.env.INTERVAL_MS ?? (NET === "local" ? 50 : 8));
 const STALL_MS = Number(process.env.STALL_MS ?? (NET === "local" ? 3000 : 500));
 const POLL_MS = Number(process.env.POLL_MS ?? 200);
+const DRIVE_MS = Number(process.env.DRIVE_MS ?? 6000);
+const DRIVE_GAP_MS = Number(process.env.DRIVE_GAP_MS ?? (NET === "local" ? 40 : 8));
 const RUN = process.env.RUN ?? `${NET}-${new Date().toISOString().replace(/[:.]/g, "-")}`;
 const LOG = join(ROOT, `docs/proof/p2/keeper-${RUN}.jsonl`);
 const DONE = 11;
@@ -66,13 +69,13 @@ for (let mi = 1; mi <= MATCHES; mi++) {
   const iterations = 2_000_000;
   const schedule = async () => act("schedule_ticks", async () => sendEr([cu(400_000), await pe.methods.scheduleTicks(new BN(INTERVAL_MS), new BN(iterations)).accountsPartial({ payer: wallet.publicKey, arena }).remainingAccounts(tickMetas).instruction()], [wallet], "schedule_ticks"));
   const cancel = async (taskId: any) => act("cancel_ticks", async () => sendEr([await pe.methods.cancelTicks(taskId).accountsPartial({ payer: wallet.publicKey }).remainingAccounts([{ pubkey: MAGIC_CONTEXT, isSigner: false, isWritable: true }]).instruction()], [wallet], "cancel_ticks", 3));
+  const tasks: string[] = [];
+  const noteTask = async () => { const a: any = await pe.account.arena.fetch(arena); tasks.push(a.taskId.toString()); };
   sigs.schedule = (await schedule()).sig;
   await noteTask();
   // ---- watch: recorder + stall restart + commits
   const t0 = Date.now();
   let lastProg = "", lastExecAt = Date.now(), restarts = 0, fallback = 0;
-  const tasks: string[] = [];
-  const noteTask = async () => { const a: any = await pe.account.arena.fetch(arena); tasks.push(a.taskId.toString()); };
   let lastTick = -1, lastTickAt = Date.now();
   const gaps: number[] = [];
   const committed = new Set<number>();
@@ -88,7 +91,10 @@ for (let mi = 1; mi <= MATCHES; mi++) {
   };
   const sub = er.onAccountChange(world, (a) => { try { record(a.data as Buffer); } catch {} }, { commitment: "processed" } as any);
   let w = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
+  const base0 = { executions: w.executions, notDue: w.notDue, budgetHit: w.budgetHit };
   let phaseRound = "";
+  const cuByRound: Record<string, number[]> = {};
+  let lastCu = 0;
   while (w.phase < DONE) {
     await sleep(POLL_MS);
     const info = await er.getAccountInfo(world, "processed").catch(() => null);
@@ -105,8 +111,23 @@ for (let mi = 1; mi <= MATCHES; mi++) {
       restarts++;
       log(LOG, { ev: "stall", ms: now - lastExecAt, tick: w.tick, lastCode: w.lastCode });
       for (const t of tasks.splice(0)) await cancel(new BN(t)).catch(() => {});
-      // fallback tick()s at the client limit (1.4M CU): a part over the task's 400k budget completes here
-      for (let k = 0; k < parts; k++) { fallback++; const r = await sendEr([cu(1_400_000), await pe.methods.tick().remainingAccounts(tickMetas).instruction()], [wallet], "fallback tick", 1); log(LOG, { act: "fallback_tick", ms: r.ms, err: r.err, sig: r.sig }); }
+      // drive mode: the keeper streams tick()s at the client limit (1.4M CU) for DRIVE_MS — a part over the task's
+      // 400k budget completes here, and the next parts follow without waiting for confirmations (each call runs the
+      // part pending when it lands; early part-0 calls are NotDue no-ops). Then the task takes over again.
+      const d0 = Date.now(), tick0 = w.tick;
+      const ixTick = await pe.methods.tick().remainingAccounts(tickMetas).instruction();
+      let bh = (await er.getLatestBlockhash("processed")).blockhash, bhAt = Date.now(), nonce = 0;
+      const sent: string[] = [];
+      while (Date.now() - d0 < DRIVE_MS) {
+        if (Date.now() - bhAt > 1500) { bh = (await er.getLatestBlockhash("processed")).blockhash; bhAt = Date.now(); }
+        const tx = new Transaction().add(cu(1_400_000 - (nonce++ % 64)), ixTick); // unique per send (CU limit varies)
+        tx.feePayer = wallet.publicKey; tx.recentBlockhash = bh; tx.sign(wallet);
+        er.sendRawTransaction(tx.serialize(), { skipPreflight: true, maxRetries: 0 }).then((sig) => sent.push(sig)).catch(() => {});
+        fallback++;
+        await sleep(DRIVE_GAP_MS);
+      }
+      const wd = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
+      log(LOG, { act: "drive", ms: Date.now() - d0, sends: sent.length, ticks: wd.tick - tick0, sample: sent.slice(-3) });
       await schedule();
       await noteTask();
       lastExecAt = Date.now();
@@ -117,7 +138,11 @@ for (let mi = 1; mi <= MATCHES; mi++) {
       const r = w.round;
       act(`commit_round_${r}`, async () => sendEr([await pe.methods.commitRound(r).accountsPartial({ payer: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "commit_round", 10)).then((x) => { sigs[`commit${r}`] = x.sig; }).catch(() => committed.delete(r));
     }
-    if (now - t0 > 30 * 60_000) { log(LOG, { ev: "timeout" }); break; }
+    if (now - lastCu > 15_000) {
+      lastCu = now;
+      sampleCu(world).then((xs) => { const k = `r${w.round}`; (cuByRound[k] ??= []).push(...xs.map((x) => x.cu)); }).catch(() => {});
+    }
+    if (now - t0 > 60 * 60_000) { log(LOG, { ev: "timeout" }); break; }
   }
   await er.removeAccountChangeListener(sub);
   const dur = (Date.now() - t0) / 1000;
@@ -130,10 +155,11 @@ for (let mi = 1; mi <= MATCHES; mi++) {
   let mb: any = null;
   for (; Date.now() - tf < 90_000;) { const i = await base.getAccountInfo(matchPda); if (i && i.owner.equals(PROGRAM_ID)) { mb = await pb.account.match.fetch(matchPda); break; } await sleep(1000); }
   const res = {
-    match: mi, matchPda: matchPda.toBase58(), complete: w.phase >= DONE, wallS: dur, gameS: w.tick / 30, ticks: w.tick, executions: Number(w.executions), notDue: Number(w.notDue),
-    budgetHit: Number(w.budgetHit), restarts, fallback, gapMs: { p50: pct(gaps, 50), p95: pct(gaps, 95), max: Math.max(...gaps) }, onSolana: mb ? { status: Object.keys(mb.status)[0], champion: mb.championSlot, round: mb.currentRound, transcript: Buffer.from(mb.transcriptHash).toString("hex"), vrfSeed: Buffer.from(mb.vrfSeed).toString("hex") } : null, sigs,
+    match: mi, matchPda: matchPda.toBase58(), complete: w.phase >= DONE, wallS: dur, gameS: w.tick / 30, ticks: w.tick, executions: Number(w.executions - base0.executions), notDue: Number(w.notDue - base0.notDue),
+    execPerTick: Number(w.executions - base0.executions) / Math.max(1, w.tick), budgetHit: Number(w.budgetHit - base0.budgetHit), restarts, fallback,
+    cuPerPart: Object.fromEntries(Object.entries(cuByRound).map(([k, v]) => [k, { n: v.length, p50: pct(v, 50), p95: pct(v, 95), max: Math.max(...v) }])), gapMs: { p50: pct(gaps, 50), p95: pct(gaps, 95), max: Math.max(...gaps) }, onSolana: mb ? { status: Object.keys(mb.status)[0], champion: mb.championSlot, round: mb.currentRound, transcript: Buffer.from(mb.transcriptHash).toString("hex"), vrfSeed: Buffer.from(mb.vrfSeed).toString("hex") } : null, sigs,
   };
-  writeFileSync(join(mdir, "summary.json"), JSON.stringify({ ...res, parts, interval: INTERVAL_MS, arena: arena.toBase58(), maps: maps.map((m) => m.toBase58()) }, null, 1));
+  writeFileSync(join(mdir, "summary.json"), JSON.stringify({ ...res, mode: process.env.MODE ?? "slice", parts, interval: INTERVAL_MS, arena: arena.toBase58(), maps: maps.map((m) => m.toBase58()) }, null, 1));
   log(LOG, { ev: "match_done", ...res });
   console.log(JSON.stringify(res));
   summary.push(res);

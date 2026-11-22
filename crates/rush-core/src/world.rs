@@ -879,6 +879,67 @@ pub fn step_with<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_P
     step_part(w, inputs, map, params, h, ev, scene, 0, 1);
 }
 
+
+/// One player's step inside a tick (bot brain or input, motor, budgets): the body shared by [`step_part`] and
+/// [`step_slice`].
+#[inline(never)]
+#[allow(clippy::too_many_arguments)]
+fn step_player<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], map: &MapView<'m>, cfg: &MotorConfig, sc: &Scene<'m>, h: &mut H, ev: &mut StepEvents, tick: u32, slot: usize, part_limit: u32) {
+        // the bot brain's work budget (BOT_WORK): past it the bot plans with what it has looked at (no revert)
+        let w0 = sc.work.get();
+        sc.work_cap.set(w0.saturating_add(BOT_WORK).min(part_limit));
+        let mut cmd = if w.players[slot].is_bot() {
+            crate::bots::bot_input(slot, w, map, sc)
+        } else {
+            let mut t = w.players[slot].input;
+            let c = t.consume(inputs[slot]);
+            w.players[slot].input = t;
+            c
+        };
+        h.mark(16 + slot as u8);
+        if !crate::rules::accepts_input(w, slot) {
+            cmd = InputCmd { cam_yaw: cmd.cam_yaw, ..InputCmd::NEUTRAL };
+        }
+        w.players[slot].last_step = 0;
+        if !crate::rules::simulates(w, slot) {
+            return;
+        }
+        if w.players[slot].m.has(flag::RESPAWNING) {
+            let rt = w.players[slot].respawn_ticks.saturating_sub(1);
+            w.players[slot].respawn_ticks = rt;
+            if rt == 0 && !crate::rules::respawn(w, map, slot, ev) {
+                w.players[slot].m = w.spawn_state(map, slot);
+            }
+            return;
+        }
+        let mut m = w.players[slot].m;
+        // the motor's work budget (MOTOR_WORK): past it the step is reverted below
+        let w1 = sc.work.get();
+        ev.bot_work_max = ev.bot_work_max.max(w1 - w0);
+        sc.work_cap.set(w1.saturating_add(MOTOR_WORK).min(part_limit.max(w1 + MOTOR_WORK / 4)));
+        let mut r = player_step(cfg, &mut m, &cmd, w, map, sc, tick);
+        ev.motor_work_max = ev.motor_work_max.max(sc.work.get() - w1);
+        h.mark(32 + slot as u8);
+        if sc.over() {
+            // Work budget spent: queries reported nothing past the limit, so the step is not trusted. The player keeps
+            // its last safe state, stopped (deterministic on every target).
+            m = w.players[slot].m;
+            m.vel = IVec3::ZERO;
+            r = 0;
+            ev.capped = ev.capped.saturating_add(1);
+        }
+        let p = &mut w.players[slot];
+        p.m = m;
+        p.last_step = r;
+        if r & step_result::HAZARD_HIT != 0 {
+            p.hits = p.hits.saturating_add(1);
+        }
+        if r & (step_result::FELL_OUT | step_result::GOOED) != 0 {
+            p.respawn_ticks = cfg.respawn_ticks.clamp(1, 255) as u8;
+            p.falls = p.falls.saturating_add(1);
+        }
+}
+
 /// Part `part` of `parts` of one tick (P2 split tick): part 0 advances the tick and runs the director / round
 /// start-of-tick rules, every part re-poses the scene for that tick and steps its slots
 /// `[part·12/parts, (part+1)·12/parts)`, the last part separates and runs the end-of-tick rules. Running parts
@@ -918,64 +979,9 @@ pub fn step_part<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_P
             slot += 1;
             continue;
         }
-        // the bot brain's work budget (BOT_WORK): past it the bot plans with what it has looked at (no revert)
-        let w0 = sc.work.get();
-        sc.work_cap.set(w0.saturating_add(BOT_WORK).min(part_limit));
-        let mut cmd = if w.players[slot].is_bot() {
-            crate::bots::bot_input(slot, w, map, sc)
-        } else {
-            let mut t = w.players[slot].input;
-            let c = t.consume(inputs[slot]);
-            w.players[slot].input = t;
-            c
-        };
-        h.mark(16 + slot as u8);
-        if !crate::rules::accepts_input(w, slot) {
-            cmd = InputCmd { cam_yaw: cmd.cam_yaw, ..InputCmd::NEUTRAL };
-        }
-        w.players[slot].last_step = 0;
-        if !crate::rules::simulates(w, slot) {
-            slot += 1;
-            continue;
-        }
-        if w.players[slot].m.has(flag::RESPAWNING) {
-            let rt = w.players[slot].respawn_ticks.saturating_sub(1);
-            w.players[slot].respawn_ticks = rt;
-            if rt == 0 && !crate::rules::respawn(w, map, slot, ev) {
-                w.players[slot].m = w.spawn_state(map, slot);
-            }
-            slot += 1;
-            continue;
-        }
-        let mut m = w.players[slot].m;
-        // the motor's work budget (MOTOR_WORK): past it the step is reverted below
-        let w1 = sc.work.get();
-        ev.bot_work_max = ev.bot_work_max.max(w1 - w0);
-        sc.work_cap.set(w1.saturating_add(MOTOR_WORK).min(part_limit.max(w1 + MOTOR_WORK / 4)));
-        let mut r = player_step(&cfg, &mut m, &cmd, w, map, sc, tick);
-        ev.motor_work_max = ev.motor_work_max.max(sc.work.get() - w1);
-        h.mark(32 + slot as u8);
-        if sc.over() {
-            // Work budget spent: queries reported nothing past the limit, so the step is not trusted. The player keeps
-            // its last safe state, stopped (deterministic on every target).
-            m = w.players[slot].m;
-            m.vel = IVec3::ZERO;
-            r = 0;
-            ev.capped = ev.capped.saturating_add(1);
-        }
-        let p = &mut w.players[slot];
-        p.m = m;
-        p.last_step = r;
-        if r & step_result::HAZARD_HIT != 0 {
-            p.hits = p.hits.saturating_add(1);
-        }
-        if r & (step_result::FELL_OUT | step_result::GOOED) != 0 {
-            p.respawn_ticks = cfg.respawn_ticks.clamp(1, 255) as u8;
-            p.falls = p.falls.saturating_add(1);
-        }
+        step_player(w, inputs, map, &cfg, sc, h, ev, tick, slot, part_limit);
         slot += 1;
     }
-
     sc.work_cap.set(u32::MAX);
     if part + 1 == parts {
         separate(w, &cfg, sc);
@@ -984,6 +990,68 @@ pub fn step_part<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_P
         crate::rules::director::after_tick(w, map, tick, h, ev);
     }
     h.mark(4);
+}
+
+
+/// Work units one [`step_slice`] call may spend on players before it stops (the chain: one timed-task execution).
+pub const SLICE_WORK: u32 = 1000;
+
+/// Fixed work units charged per player stepped in a slice (its cost outside the metered queries).
+pub const PLAYER_BASE_WORK: u32 = 150;
+
+/// The P2 tick as the chain runs it: a slice of one tick, sized by the deterministic work meter. `from` is where the
+/// tick stands: 0 = start a new tick (tick + 1, director, start-of-tick rules, then players from slot 0), 1..=11 =
+/// continue with that slot, 12 = only the end of the tick (separation, end-of-tick rules). Players are stepped in
+/// slot order while this call's work stays under `budget` (at least one player per call); the end-of-tick stage runs
+/// when the players are done and budget is left. Returns the next `from` (0 = the tick is complete).
+/// A heavy tick therefore takes more calls; every call's work is bounded. Same results on every target.
+#[allow(clippy::too_many_arguments)]
+pub fn step_slice<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_PLAYERS], map: &MapView<'m>, params: &MovementParams, h: &mut H, ev: &mut StepEvents, scene: &mut Scene<'m>, from: u8, budget: u32) -> u8 {
+    let from = (from as usize).min(MAX_PLAYERS);
+    if from == 0 {
+        w.tick = w.tick.wrapping_add(1);
+        crate::rules::director::before_tick(w, map, w.tick, h, ev);
+    }
+    let tick = w.tick;
+    h.mark(1);
+    let cfg = w.motor_config(params);
+    pose_scene_into(scene, w, map, &cfg, tick);
+    let sc: &Scene<'m> = scene;
+    if from == 0 {
+        crate::rules::begin_tick(w, map, tick, ev);
+    }
+    h.mark(2);
+    let w_start = sc.work.get();
+    let limit = w_start.saturating_add(budget);
+    let mut slot = from;
+    let mut stepped = 0;
+    while slot < MAX_PLAYERS {
+        if !w.players[slot].active() {
+            slot += 1;
+            continue;
+        }
+        if stepped > 0 && sc.work.get() >= limit {
+            sc.work_cap.set(u32::MAX);
+            h.mark(4);
+            return slot as u8;
+        }
+        // the per-player cost the meter does not see (input / bot bookkeeping, hazard contacts, motor set-up)
+        sc.spend(PLAYER_BASE_WORK);
+        step_player(w, inputs, map, &cfg, sc, h, ev, tick, slot, u32::MAX);
+        stepped += 1;
+        slot += 1;
+    }
+    sc.work_cap.set(u32::MAX);
+    if stepped > 0 && sc.work.get() >= limit {
+        h.mark(4);
+        return MAX_PLAYERS as u8; // the end of the tick runs in the next call
+    }
+    separate(w, &cfg, sc);
+    h.mark(3);
+    crate::rules::end_tick(w, map, sc, tick, ev);
+    crate::rules::director::after_tick(w, map, tick, h, ev);
+    h.mark(4);
+    0
 }
 
 /// `SimCore.Separate`: overlapping capsules pushed apart at up to `push.maxSpeed`; 66 pairs in slot order.

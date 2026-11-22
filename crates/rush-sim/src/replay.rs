@@ -14,6 +14,8 @@ pub fn cmd(args: &[String]) -> i32 {
     let run = PathBuf::from(crate::arg(args, "--run").expect("--run <dir>"));
     let maps_dir = crate::arg(args, "--maps").map(PathBuf::from).unwrap_or_else(|| crate::repo_root().join("maps"));
     let summary: serde_json::Value = std::fs::read_to_string(run.join("summary.json")).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(serde_json::Value::Null);
+    // the chain's step: slices (fall_rush >= P2.4) unless --parts K (the earlier fixed-part program)
+    let slice = crate::arg(args, "--parts").is_none() && summary["mode"].as_str() != Some("parts");
     let parts: u8 = crate::arg(args, "--parts").and_then(|v| v.parse().ok()).or_else(|| summary["parts"].as_u64().map(|v| v as u8)).unwrap_or(4);
     // recorded snapshots
     let rec = std::fs::read(run.join("world.bin")).expect("world.bin");
@@ -60,7 +62,16 @@ pub fn cmd(args: &[String]) -> i32 {
     let mut ev = StepEvents::default();
     let (mut compared, mut first_bad) = (0usize, None);
     let mut buf = vec![0u8; 4096];
+    // order within a tick: the position after each call (1.. then 0 = complete); stale out-of-order snapshots (the
+    // recorder merges polling and websocket updates) are skipped
+    let span: u64 = if slice { 13 } else { parts as u64 };
+    let seq = |t: u32, p: u8| -> u64 { t as u64 * (span + 1) + if p == 0 { span } else { p as u64 } };
+    let mut skipped = 0usize;
     for (t, p, bytes) in &snaps {
+        if seq(*t, *p) < seq(w.tick, part) {
+            skipped += 1;
+            continue;
+        }
         // advance natively to (t, p): world tick t with part p pending
         let mut guard = 0;
         while !(w.tick == *t && part == *p) && guard < 200_000 {
@@ -77,8 +88,12 @@ pub fn cmd(args: &[String]) -> i32 {
             let v = MapView::new(blob).unwrap();
             let mut sc = Scene::new(v);
             ev.n = 0;
-            world::step_part(&mut w, &[None; MAX_PLAYERS], &v, &params, &mut h, &mut ev, &mut sc, part, parts);
-            part = if part + 1 >= parts { 0 } else { part + 1 };
+            if slice {
+                part = world::step_slice(&mut w, &[None; MAX_PLAYERS], &v, &params, &mut h, &mut ev, &mut sc, part, world::SLICE_WORK);
+            } else {
+                world::step_part(&mut w, &[None; MAX_PLAYERS], &v, &params, &mut h, &mut ev, &mut sc, part, parts);
+                part = if part + 1 >= parts { 0 } else { part + 1 };
+            }
         }
         let n = w.to_bytes(&mut buf);
         compared += 1;
@@ -87,7 +102,7 @@ pub fn cmd(args: &[String]) -> i32 {
         }
     }
     let _ = cur;
-    let res = serde_json::json!({ "run": run.display().to_string(), "snapshots": snaps.len(), "compared": compared, "identical": first_bad.is_none(), "first_mismatch": first_bad.map(|(t, p)| format!("tick {t} part {p}")), "last_tick": snaps.last().map(|s| s.0), "parts": parts, "seed_from": seed_src, "transcript": w.dir.transcript.iter().map(|b| format!("{b:02x}")).collect::<String>(), "summary_transcript": summary["onSolana"]["transcript"] });
+    let res = serde_json::json!({ "run": run.display().to_string(), "snapshots": snaps.len(), "compared": compared, "skipped_stale": skipped, "identical": first_bad.is_none(), "first_mismatch": first_bad.map(|(t, p)| format!("tick {t} part {p}")), "last_tick": snaps.last().map(|s| s.0), "mode": if slice { "slice".to_string() } else { format!("{parts} parts") }, "seed_from": seed_src, "transcript": w.dir.transcript.iter().map(|b| format!("{b:02x}")).collect::<String>(), "summary_transcript": summary["onSolana"]["transcript"] });
     println!("{res}");
     if first_bad.is_none() {
         0

@@ -1,8 +1,8 @@
 {
  "net": "local",
- "at": "2026-11-22T08:14:04.967Z",
- "passed": 21,
- "failed": 5,
+ "at": "2026-11-22T09:00:46.323Z",
+ "passed": 26,
+ "failed": 0,
  "results": [
   {
    "check": "join_lobby slot 0 (player 1)",
@@ -70,9 +70,9 @@
    "detail": "InputOutOfWindow"
   },
   {
-   "check": "input tick out of window (−50)",
-   "pass": false,
-   "detail": "succeeded"
+   "check": "input tick out of window (−10 at tick 14)",
+   "pass": true,
+   "detail": "InputOutOfWindow"
   },
   {
    "check": "sanitiser clamps hostile values (stick −128,−128, buttons 0xFF)",
@@ -82,7 +82,7 @@
   {
    "check": "tick with no accounts: no-op success",
    "pass": true,
-   "detail": "code 2"
+   "detail": "code 0"
   },
   {
    "check": "tick with 5 accounts: no-op success",
@@ -95,24 +95,24 @@
    "detail": "code 3"
   },
   {
-   "check": "tick with a wrong match account: no-op success",
-   "pass": false,
-   "detail": "tx:\"InvalidWritableAccount\""
+   "check": "tick with a wrong (read-only) match account: no-op success",
+   "pass": true,
+   "detail": "code 3"
   },
   {
-   "check": "tick with 40 extra accounts: hostile length",
-   "pass": false,
-   "detail": "tick: Transaction too large: 1306 > 1232"
+   "check": "tick with 8 foreign accounts inserted: hostile length / order",
+   "pass": true,
+   "detail": "code 3"
   },
   {
-   "check": "one tick = parts executions, then NotDue until due",
-   "pass": false,
-   "detail": "tick 0→2 last code 0"
+   "check": "early tick() is a NotDue no-op (5 tick() in one slot: one tick, then NotDue)",
+   "pass": true,
+   "detail": "tick 14→15, not_due 0→1 "
   },
   {
    "check": "task ids are unique per schedule (arena nonce)",
    "pass": true,
-   "detail": "4635266801629670095 vs 7161692617581677676"
+   "detail": "170635987694491277 vs 2697061803646498858"
   },
   {
    "check": "start_sim while running",
@@ -121,8 +121,8 @@
   },
   {
    "check": "re-enter an old (already dealt and started) match",
-   "pass": false,
-   "detail": "succeeded"
+   "pass": true,
+   "detail": "InvalidStatus"
   },
   {
    "check": "finalize_match before Completed",

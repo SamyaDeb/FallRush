@@ -96,16 +96,22 @@ fn cu_per_tick_real_maps() {
         let mut guard = 0u32;
         let mut codec_cu = 0u64;
         let mut max_prof = String::new();
+        let mut slices_total = 0u64;
         while cus.len() < (rate * secs) as usize && guard < rate * (secs + 40) {
             guard += 1;
             let profile = std::env::var("BENCH_PROFILE").is_ok();
             let parts: u8 = std::env::var("BENCH_PARTS").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
-            let what = if guard == 1 { 1u8 } else if parts > 1 { 4u8 } else if profile { 3u8 } else { 0u8 };
+            let slice: u16 = std::env::var("BENCH_SLICE").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+            let what = if guard == 1 { 1u8 } else if slice > 0 { 5u8 } else if parts > 1 { 4u8 } else if profile { 3u8 } else { 0u8 };
             // split tick: one transaction per part; the tick's CU is the most expensive part
             let mut meta_cu = 0u64;
             let mut meta = None;
-            for part in 0..(if what == 4 { parts } else { 1 }) {
-                let ix = Instruction { program_id: pid, accounts: vec![AccountMeta::new_readonly(map_key, false), AccountMeta::new(world_key, false)], data: vec![0x20, what, part, parts] };
+            let mut from = 0u8;
+            let mut calls = 0;
+            for part in 0..(if what == 4 { parts } else if what == 5 { 64 } else { 1 }) {
+                let b = slice.to_le_bytes();
+                let data = if what == 5 { vec![0x20, 5, from, b[0], b[1]] } else { vec![0x20, what, part, parts] };
+                let ix = Instruction { program_id: pid, accounts: vec![AccountMeta::new_readonly(map_key, false), AccountMeta::new(world_key, false)], data };
                 let msg = Message::new(&[ix], Some(&payer.pubkey()));
                 let tx = Transaction::new(&[&payer], msg, svm.latest_blockhash());
                 let m = svm.send_transaction(tx).unwrap_or_else(|e| panic!("{stem} tick {}: {:?} {:?}", w.tick, e.err, e.meta.logs));
@@ -118,10 +124,21 @@ fn cu_per_tick_real_maps() {
                         writeln!(f, "{stem} {} {} {} {}", m.compute_units_consumed, v[0], v[1], v[2]).unwrap();
                     }
                 }
+                calls += 1;
+                let next = m.return_data.data.first().copied();
                 if m.compute_units_consumed >= meta_cu {
                     meta_cu = m.compute_units_consumed;
                     meta = Some(m);
                 }
+                if what == 5 {
+                    from = next.unwrap_or(0);
+                    if from == 0 {
+                        break;
+                    }
+                }
+            }
+            if what == 5 {
+                slices_total += calls;
             }
             let meta = meta.unwrap();
             if what == 1 {
@@ -129,7 +146,16 @@ fn cu_per_tick_real_maps() {
                 continue;
             }
             ev.n = 0;
-            if what == 4 {
+            if what == 5 {
+                let mut sc = rush_core::collide::Scene::new(m);
+                let mut f = 0u8;
+                loop {
+                    f = world::step_slice(&mut w, &[None; MAX_PLAYERS], &m, &params, &mut NoHasher, &mut ev, &mut sc, f, slice as u32);
+                    if f == 0 {
+                        break;
+                    }
+                }
+            } else if what == 4 {
                 let mut sc = rush_core::collide::Scene::new(m);
                 for part in 0..parts {
                     world::step_part(&mut w, &[None; MAX_PLAYERS], &m, &params, &mut NoHasher, &mut ev, &mut sc, part, parts);
@@ -161,7 +187,7 @@ fn cu_per_tick_real_maps() {
             }
         }
         let n = cus.len();
-        let line = format!("| {stem} | {n} | {} | {} | {} | {max_tick} | {codec_cu} | {} |\n", pct(&mut cus.clone(), 0.5), pct(&mut cus.clone(), 0.95), max_cu, if parity { "OK" } else { "MISMATCH" });
+        let line = format!("| {stem} | {n} | {} | {} | {} | {max_tick} | {codec_cu} | {} | {:.2} |\n", pct(&mut cus.clone(), 0.5), pct(&mut cus.clone(), 0.95), max_cu, if parity { "OK" } else { "MISMATCH" }, slices_total as f64 / guard.max(1) as f64);
         print!("{line}");
         report += &line;
         all_max = all_max.max(max_cu);

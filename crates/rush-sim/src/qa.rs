@@ -48,8 +48,26 @@ pub struct RunResult {
     pub extra: [i64; 3],
 }
 
+thread_local! {
+    /// step_slice calls so far (SLICE mode): executions per tick for the report.
+    pub static SLICES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
 /// One tick as the chain runs it: `PARTS` env (default 1 = `world::step`) parts in order on one heap-free Scene.
 pub fn qa_step<H: Hasher>(w: &mut World, m: &MapView, params: &MovementParams, h: &mut H, ev: &mut StepEvents) {
+    // SLICE=<work units>: the chain's step (world::step_slice calls until the tick completes)
+    if let Some(budget) = std::env::var("SLICE").ok().and_then(|v| v.parse::<u32>().ok()) {
+        let mut sc = rush_core::collide::Scene::new(*m);
+        let mut from = 0u8;
+        loop {
+            from = world::step_slice(w, &[None; MAX_PLAYERS], m, params, h, ev, &mut sc, from, budget);
+            SLICES.with(|c| c.set(c.get() + 1));
+            if from == 0 {
+                break;
+            }
+        }
+        return;
+    }
     let parts: u8 = std::env::var("PARTS").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
     if parts <= 1 {
         world::step(w, &[None; MAX_PLAYERS], m, params, h, ev);
