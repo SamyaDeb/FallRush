@@ -68,10 +68,16 @@ namespace FallRush.Client
         /// <summary>Every solid (calm) lid colour: top rings 4 / 3 / 2 / 1–0, lower shelf, lower edge (candy, tests).</summary>
         public static Color[] SolidColours => new[] { TopRing4, TopRing3, TopRing2, TopRing10, LowCalm, LowEdge };
 
-        /// <summary>G4.8: the calm lid colours of a look (same ring hues; soft = the pastel tops, the lower edge its mid-tone side).</summary>
-        public static Color TopRingColour(int ring, LookId look) => PaletteTokens.DefaultTop(PaletteTokens.HueOf("CrumbleShelf", ring >= 4 ? "ring4" : ring == 3 ? "ring3" : ring == 2 ? "ring2" : ring == 1 ? "ring1" : "ring0"), look);
+        /// <summary>The ring's surface hue (doc 17 §3.1 section table).</summary>
+        public static SurfaceHue RingHue(int ring) => PaletteTokens.HueOf("CrumbleShelf", ring >= 4 ? "ring4" : ring == 3 ? "ring3" : ring == 2 ? "ring2" : ring == 1 ? "ring1" : "ring0");
 
-        public static Color LowCalmFor(LookId look) => PaletteTokens.DefaultTop(SurfaceHue.GrapeFizz, look);
+        /// <summary>The calm lid colours of a look (same ring hues). Candy: the G4.6 tops; soft: G4.13's saturated Lid Flip set
+        /// (<see cref="PaletteTokens.SoftLidHex"/>, not the other maps' pastels); the lower edge is the mid-tone side.</summary>
+        public static Color TopRingColour(int ring, LookId look) => look == LookId.Candy ? PaletteTokens.DefaultTop(RingHue(ring), look) : PaletteTokens.SoftLidTop(RingHue(ring));
+
+        public static Color LowCalmFor(LookId look) => look == LookId.Candy
+            ? PaletteTokens.DefaultTop(SurfaceHue.GrapeFizz, look)
+            : PaletteTokens.SoftLidTop(PaletteTokens.HueOf("CrumbleShelf", "lower"));
 
         /// <summary>The lower shelf's outer ring: candy the Grape fizz side; soft its mid tone deepened 30 % toward ink (luma gap to the lit amber).</summary>
         public static Color LowEdgeFor(LookId look) => look == LookId.Candy

@@ -308,7 +308,66 @@ namespace FallRush.Tests
                     }
                 }
 
-                Assert.That(LidGridView.TopRingColour(2, look), Is.EqualTo(PaletteTokens.DefaultTop(PaletteTokens.HueOf("CrumbleShelf", "ring2"), look)));
+                var ring2 = PaletteTokens.HueOf("CrumbleShelf", "ring2");
+                Assert.That(LidGridView.TopRingColour(2, look), Is.EqualTo(look == LookId.Candy ? PaletteTokens.DefaultTop(ring2, look) : PaletteTokens.SoftLidTop(ring2)));
+            }
+
+            TestContext.WriteLine(report.ToString());
+        }
+
+        /// <summary>A soft-look colour seen on a calm lid in full cast shadow: the sun term keeps <see cref="LidGridView.CalmShadowKeep"/>
+        /// (sun 0.58 + ambient 0.34 of the Toon light, a lit top), applied in linear light.</summary>
+        private static Color InCalmShadow(Color c)
+        {
+            var k = (LidGridView.CalmShadowKeep * 0.58f + 0.34f) / (0.58f + 0.34f);
+            var l = c.linear;
+            return new Color(l.r * k, l.g * k, l.b * k).gamma;
+        }
+
+        /// <summary>
+        /// G4.13 (decision G4.13-2): Lid Flip's soft lids are their own token set: same hue per ring as the map table, clearly more
+        /// saturated than the other maps' soft pastel tops, never near-white, and every lit-vs-calm luma rule still holds, also for a
+        /// calm lid in a cast shadow (≥ 0.15 normal, ≥ 0.12 deutan / protan); the warn magenta stays ≥ 0.15 off every calm lid too.
+        /// </summary>
+        [Test]
+        public void LidFlip_SoftLids_SaturatedSet_SameHues_LumaGapsHoldInShadow()
+        {
+            float Luma(Color c) => c.r * 0.2126f + c.g * 0.7152f + c.b * 0.0722f;
+            var lit = LidGridView.LitFor(LookId.Soft);
+            var report = new StringBuilder();
+            for (var ring = 0; ring <= 4; ring++)
+            {
+                var hue = LidGridView.RingHue(ring);
+                var c = LidGridView.TopRingColour(ring, LookId.Soft);
+                Assert.That(c, Is.EqualTo(PaletteTokens.SoftLidTop(hue)), $"ring {ring} uses the Lid Flip soft set");
+                Color.RGBToHSV(c, out var h, out var s, out var v);
+                Color.RGBToHSV(PaletteTokens.DefaultTop(hue), out var h0, out _, out _);
+                Color.RGBToHSV(PaletteTokens.DefaultTop(hue, LookId.Soft), out _, out var sPastel, out _);
+                Assert.That(Mathf.Abs(Mathf.DeltaAngle(h * 360f, h0 * 360f)), Is.LessThan(8f), $"ring {ring}: same hue as its section");
+                Assert.That(s, Is.GreaterThan(sPastel), $"ring {ring}: more saturated than the map pastel");
+                Assert.That(s, Is.InRange(0.17f, 0.6f), $"ring {ring}: S in the Lid Flip band");
+                Assert.That(v, Is.GreaterThanOrEqualTo(0.9f), $"ring {ring}: V");
+            }
+
+            Color.RGBToHSV(LidGridView.TopRingColour(3, LookId.Soft), out _, out var sTangerine, out _);
+            Assert.That(sTangerine, Is.GreaterThanOrEqualTo(0.4f), "Tangerine ring: clearly saturated");
+            Assert.That(LidGridView.LowCalmFor(LookId.Soft), Is.EqualTo(PaletteTokens.SoftLidTop(SurfaceHue.GrapeFizz)));
+
+            foreach (var c0 in LidGridView.SolidColoursFor(LookId.Soft))
+            {
+                foreach (var (tag, c) in new[] { ("lit", c0), ("shadow", InCalmShadow(c0)) })
+                {
+                    var n = Mathf.Abs(Luma(c) - Luma(lit));
+                    var d = Mathf.Abs(Luma(Simulate(c, Deutan)) - Luma(Simulate(lit, Deutan)));
+                    var pr = Mathf.Abs(Luma(Simulate(c, Protan)) - Luma(Simulate(lit, Protan)));
+                    report.Append($"soft lit vs {ColorUtility.ToHtmlStringRGB(c0)} ({tag}): normal {n:F3} deutan {d:F3} protan {pr:F3}\n");
+                    Assert.That(n, Is.GreaterThanOrEqualTo(0.15f), $"{ColorUtility.ToHtmlStringRGB(c0)} {tag} (normal)");
+                    Assert.That(d, Is.GreaterThanOrEqualTo(0.12f), $"{ColorUtility.ToHtmlStringRGB(c0)} {tag} (deuteranopia)");
+                    Assert.That(pr, Is.GreaterThanOrEqualTo(0.12f), $"{ColorUtility.ToHtmlStringRGB(c0)} {tag} (protanopia)");
+                }
+
+                if (c0 != LidGridView.LowEdgeFor(LookId.Soft)) // the lower edge ring (unchanged since G4.8z) is a deep mid tone; its warn pulses to WarnLight
+                    Assert.That(Mathf.Abs(Luma(c0) - Luma(LidGridView.WarnMagenta)), Is.GreaterThanOrEqualTo(0.15f), $"warn vs {ColorUtility.ToHtmlStringRGB(c0)}");
             }
 
             TestContext.WriteLine(report.ToString());

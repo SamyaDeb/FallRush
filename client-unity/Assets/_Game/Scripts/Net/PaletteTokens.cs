@@ -127,6 +127,19 @@ namespace FallRush.Net
         public static Color DefaultTop(SurfaceHue h, LookId look) => Hex(look == LookId.Soft ? SoftTopHex[(int)h] : TopHex[(int)h]);
 
         public static Color DefaultSide(SurfaceHue h, LookId look) => Hex(look == LookId.Soft ? SoftSideHex[(int)h] : SideHex[(int)h]);
+
+        /// <summary>
+        /// G4.13 (user: "in the last round also make the color saturated"): Lid Flip's calm lid tops in the soft look, a separate
+        /// set so the other maps keep <see cref="SoftTopHex"/>. Same hue per ring, as saturated as the Lid Flip rules allow
+        /// (V 1.0): ≥ 0.15 luma off the soft lit amber for normal, deutan and protan eyes (≥ 0.12 in a cast shadow) and ΔE ≥ 15
+        /// off every meaning colour. Bubblegum S 0.24, Tangerine S 0.42, Soda blue S 0.18 (bluer reads as the soft sky
+        /// horizon), Grape fizz S 0.19 (any more falls inside the amber's luma band). Lemon drop and Sour apple are not used on
+        /// Lid Flip (their soft tops are kept). Decision G4.13-2.
+        /// </summary>
+        public static readonly int[] SoftLidHex = { 0xFFC2DC, SoftTopHex[1], 0xD1EFFF, SoftTopHex[3], 0xDECFFF, 0xFFC894 };
+
+        /// <summary>A Lid Flip calm lid top of hue <paramref name="h"/> in the soft look (G4.13).</summary>
+        public static Color SoftLidTop(SurfaceHue h) => Hex(SoftLidHex[(int)h]);
         public Color HueSide(SurfaceHue h) => hueSides[(int)h];
 
         /// <summary>One map section and its surface hue (the builders tag their objects with these names).</summary>
