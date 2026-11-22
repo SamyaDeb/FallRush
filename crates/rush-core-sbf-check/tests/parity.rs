@@ -43,7 +43,10 @@ fn sbf_matches_native() {
             data.extend_from_slice(&start.to_le_bytes());
             data.extend_from_slice(&n.to_le_bytes());
             data.extend_from_slice(&state.to_le_bytes());
-            let cb = solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_400_000);
+            // ComputeBudgetInstruction::SetComputeUnitLimit(1.4M): tag 2 + u32 LE
+            let mut cbd = vec![2u8];
+            cbd.extend_from_slice(&1_400_000u32.to_le_bytes());
+            let cb = Instruction { program_id: "ComputeBudget111111111111111111111111111111".parse().unwrap(), accounts: vec![], data: cbd };
             let ix = Instruction { program_id: pid, accounts: vec![AccountMeta::new_readonly(map_key, false)], data };
             let msg = Message::new(&[cb, ix], Some(&payer.pubkey()));
             let tx = Transaction::new(&[&payer], msg, svm.latest_blockhash());

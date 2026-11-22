@@ -35,7 +35,10 @@ fn cases(kind: u8, n: u32, map: &[u8]) -> Vec<Vec<u8>> {
             KIND_COLLIDE => collide_case(&sc, SEED, i, &mut buf),
             KIND_MOTOR => motor_case(&sc, SEED, i, &mut buf),
             KIND_HAZARD => hazard_case(SEED, i, &mut buf),
-            _ => rush_core::world::vector_case(map, SEED, i, &mut buf),
+            _ => {
+                let mut w = rush_core::world::World::new(&view, 20);
+                rush_core::world::vector_case(&mut w, map, SEED, i, &mut buf)
+            }
         };
         out.push(buf[..len].to_vec());
     }

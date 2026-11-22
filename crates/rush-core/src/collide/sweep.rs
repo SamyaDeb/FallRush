@@ -7,8 +7,10 @@ use crate::mapblob::{shape, Collider};
 use crate::vec::IVec3;
 
 /// Most candidates one query keeps (ascending collider order; bounded).
-pub const MAX_CANDIDATES: usize = 96;
+pub const MAX_CANDIDATES: usize = 64;
 
+/// A candidate: the collider decoded and posed on demand (only its index is kept, so the candidate list stays
+/// small on the 4 KB sBPF stack).
 #[derive(Clone, Copy)]
 struct Cand {
     i: u32,
@@ -16,19 +18,22 @@ struct Cand {
     off: IVec3,
 }
 
-/// Collects the candidates of a query box into a bounded array.
-fn collect(sc: &Scene, mn: IVec3, mx: IVec3, out: &mut [Option<Cand>; MAX_CANDIDATES]) -> usize {
+/// Collects the candidate indices of a query box into a bounded array.
+fn collect(sc: &Scene, mn: IVec3, mx: IVec3, out: &mut [u16; MAX_CANDIDATES]) -> usize {
     let mut bits: Bits = [0; crate::mapblob::MAX_COLLIDERS / 64];
     sc.gather(mn, mx, &mut bits);
     let mut n = 0;
     for_each(&bits, |i| {
-        if let Some((c, off)) = sc.posed(i) {
-            out[n] = Some(Cand { i, c, off });
-            n += 1;
-        }
+        out[n] = i as u16;
+        n += 1;
         n < MAX_CANDIDATES
     });
     n
+}
+
+#[inline]
+fn cand(sc: &Scene, list: &[u16; MAX_CANDIDATES], k: usize) -> Option<Cand> {
+    sc.posed(list[k] as u32).map(|(c, off)| Cand { i: list[k] as u32, c, off })
 }
 
 #[inline]
@@ -60,7 +65,7 @@ impl<'m> Scene<'m> {
         let pad = r + 2;
         let mn = IVec3::new(feet.x.min(end.x) - pad, feet.y.min(end.y) - 2, feet.z.min(end.z) - pad);
         let mx = IVec3::new(feet.x.max(end.x) + pad, feet.y.max(end.y) + h + 2, feet.z.max(end.z) + pad);
-        let mut cands = [None; MAX_CANDIDATES];
+        let mut cands = [0u16; MAX_CANDIDATES];
         let n = collect(self, mn, mx, &mut cands);
         if n == 0 {
             return None;
@@ -72,7 +77,7 @@ impl<'m> Scene<'m> {
         let mut any = false;
         let mut k = 0;
         while k < n {
-            if let Some(cd) = &cands[k] {
+            if let Some(cd) = &cand(self, &cands, k) {
                 let nr = self.near(&cd.c, cd.off, &s0);
                 live[k] = nr.gap2 >= reach2(r, &nr);
                 any |= live[k];
@@ -87,7 +92,7 @@ impl<'m> Scene<'m> {
             let mut k = 0;
             while k < n {
                 if live[k] {
-                    if let Some(cd) = &cands[k] {
+                    if let Some(cd) = &cand(self, &cands, k) {
                         let nr = self.near(&cd.c, cd.off, &seg);
                         if nr.gap2 < reach2(r, &nr) {
                             return true;
@@ -135,7 +140,7 @@ impl<'m> Scene<'m> {
         let mut k = 0;
         while k < n {
             if live[k] {
-                if let Some(cd) = &cands[k] {
+                if let Some(cd) = &cand(self, &cands, k) {
                     let nh = self.near(&cd.c, cd.off, &seg_hi);
                     if nh.gap2 < reach2(r, &nh) {
                         let nl = self.near(&cd.c, cd.off, &seg_lo);
@@ -149,7 +154,7 @@ impl<'m> Scene<'m> {
             k += 1;
         }
         let (_, k, nl) = best?;
-        let cd = cands[k]?;
+        let cd = cand(self, &cands, k)?;
         let (normal, point) = contact(&nl, dir);
         Some(Hit { distance: div_round(lo, S), point, normal, surface: cd.c.surface, collider: cd.i })
     }
@@ -162,13 +167,13 @@ impl<'m> Scene<'m> {
         let end = origin.add(dir.scale_q15(max));
         let mn = IVec3::new(origin.x.min(end.x) - 1, origin.y.min(end.y) - 1, origin.z.min(end.z) - 1);
         let mx = IVec3::new(origin.x.max(end.x) + 1, origin.y.max(end.y) + 1, origin.z.max(end.z) + 1);
-        let mut cands = [None; MAX_CANDIDATES];
+        let mut cands = [0u16; MAX_CANDIDATES];
         let n = collect(self, mn, mx, &mut cands);
         let d = dir.to_i64();
         let mut best: Option<(i64, IVec3, u32, i32)> = None;
         let mut k = 0;
         while k < n {
-            if let Some(cd) = &cands[k] {
+            if let Some(cd) = &cand(self, &cands, k) {
                 self.counters.add(ctr::NARROW, 1);
                 let o = [(origin.x - cd.off.x) as i64, (origin.y - cd.off.y) as i64, (origin.z - cd.off.z) as i64];
                 let hit = match cd.c.kind {
@@ -194,7 +199,7 @@ impl<'m> Scene<'m> {
     pub fn penetration(&self, feet: IVec3, r: i32, h: i32) -> Option<IVec3> {
         let mn = IVec3::new(feet.x - r - 2, feet.y - 2, feet.z - r - 2);
         let mx = IVec3::new(feet.x + r + 2, feet.y + h + 2, feet.z + r + 2);
-        let mut cands = [None; MAX_CANDIDATES];
+        let mut cands = [0u16; MAX_CANDIDATES];
         let n = collect(self, mn, mx, &mut cands);
         let f0 = [feet.x as i64 * S, feet.y as i64 * S, feet.z as i64 * S];
         let seg = Seg::of(f0, r, h);
@@ -202,7 +207,7 @@ impl<'m> Scene<'m> {
         let mut any = false;
         let mut k = 0;
         while k < n {
-            if let Some(cd) = &cands[k] {
+            if let Some(cd) = &cand(self, &cands, k) {
                 let nr = self.near(&cd.c, cd.off, &seg);
                 let reach = r as i64 * S + nr.core_r;
                 if nr.gap2 < reach * reach {

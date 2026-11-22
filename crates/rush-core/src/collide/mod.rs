@@ -101,6 +101,26 @@ pub mod ctr {
     pub const SWEEPS: usize = 5;
 }
 
+/// Process-wide totals since the last [`take_tick_counters`] (feature `counters`; off-chain runners only).
+#[cfg(feature = "counters")]
+pub static TOTALS: [core::sync::atomic::AtomicU32; 6] = [const { core::sync::atomic::AtomicU32::new(0) }; 6];
+
+/// Takes (and zeroes) the totals counted since the last call: one `step()` = one tick when called after each step.
+pub fn take_tick_counters() -> [u32; 6] {
+    #[cfg(feature = "counters")]
+    {
+        let mut o = [0u32; 6];
+        for (k, v) in o.iter_mut().enumerate() {
+            *v = TOTALS[k].swap(0, core::sync::atomic::Ordering::Relaxed);
+        }
+        o
+    }
+    #[cfg(not(feature = "counters"))]
+    {
+        [0; 6]
+    }
+}
+
 impl Counters {
     #[inline]
     pub fn add(&self, _k: usize, _n: u32) {
@@ -109,6 +129,7 @@ impl Counters {
             let mut a = self.c.get();
             a[_k] = a[_k].saturating_add(_n);
             self.c.set(a);
+            TOTALS[_k].fetch_add(_n, core::sync::atomic::Ordering::Relaxed);
         }
     }
 
@@ -142,7 +163,7 @@ pub struct SurfaceMotion {
 }
 
 /// Most moving surfaces.
-pub const MAX_SURFACES: usize = 32;
+pub const MAX_SURFACES: usize = 16;
 
 /// The posed collision world for one tick (rush-core's `IMotorWorld`).
 pub struct Scene<'m> {

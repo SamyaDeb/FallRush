@@ -54,24 +54,15 @@ fn run(blob: &[u8], n: usize, rate: u32, secs: u32, t: u8, seed: u64) -> (World,
         w.add_player(&m, s, true);
         set_tier(&mut w, s, t);
     }
-    // a minimal Rush round: the rules fork drives phases; here race mode + Rush, free checkpoint bookkeeping below
-    w.round.mode = mode::RACE;
-    w.round.phase = crate::rules::phase::RUSH;
-    for s in 0..n {
-        w.players[s].r.flags |= crate::rules::sf::IN;
-    }
+    // a real race round (RaceRules): every bot must finish (target = n), no intro / countdown
     let mut ev = StepEvents::default();
+    crate::rules::begin_round(&mut w, &m, 0, n as u8, (1u16 << n) - 1, 0, 0, &mut ev);
     let mut hashes = Vec::new();
     for _ in 0..rate * secs {
         ev.n = 0;
         step(&mut w, &[None; 12], &m, &MovementParams::default(), &mut NoHasher, &mut ev);
-        // checkpoint bookkeeping (stand-in for RaceRules while p1-g ports it)
-        for s in 0..n {
-            let p = w.players[s].m.pos;
-            let cp = w.players[s].r.checkpoint as usize;
-            if cp < m.checkpoint_count() && m.checkpoint(cp).contains(p.x, p.y, p.z) {
-                w.players[s].r.checkpoint += 1;
-            }
+        if crate::rules::is_over(&w) {
+            break;
         }
         hashes.push(w.hash());
     }

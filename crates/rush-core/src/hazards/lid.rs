@@ -114,7 +114,7 @@ fn splitmix64(s: &mut u64) -> u64 {
 }
 
 /// `LidWaveSet`: the lids wave `w` lights, into `scratch[0..count)`.
-pub fn wave_set(d: &LidGridDef, w: i64, scratch: &mut [i32; MAX_LIDS_PER_GRID]) -> usize {
+pub fn wave_set(d: &LidGridDef, w: i64, scratch: &mut [u8; MAX_LIDS_PER_GRID]) -> usize {
     if w < 0 {
         return 0;
     }
@@ -125,7 +125,7 @@ pub fn wave_set(d: &LidGridDef, w: i64, scratch: &mut [i32; MAX_LIDS_PER_GRID]) 
     let mut lid = 0;
     while lid < count {
         if d.retire_tick(lid as i32) as i64 - d.retire_warn_ticks as i64 >= end {
-            scratch[a] = lid as i32;
+            scratch[a] = lid as u8;
             a += 1;
         }
         lid += 1;
@@ -142,7 +142,7 @@ pub fn wave_set(d: &LidGridDef, w: i64, scratch: &mut [i32; MAX_LIDS_PER_GRID]) 
     while j < k {
         let r = j + (splitmix64(&mut rng) % (a - j) as u64) as usize;
         scratch.swap(r, j);
-        let c = scratch[j];
+        let c = scratch[j] as i32;
         if d.inner(c) {
             if inner >= cap {
                 j += 1;
@@ -150,7 +150,7 @@ pub fn wave_set(d: &LidGridDef, w: i64, scratch: &mut [i32; MAX_LIDS_PER_GRID]) 
             }
             inner += 1;
         }
-        scratch[kept] = c;
+        scratch[kept] = c as u8;
         kept += 1;
         j += 1;
     }
@@ -169,7 +169,7 @@ fn ring_state(d: &LidGridDef, lid: i32, t: i64) -> LidState {
 }
 
 /// `LidStates`: every lid's state at `t` (30 Hz ticks) into `states[0..N²)`.
-pub fn states(d: &LidGridDef, t: i64, states: &mut [LidState; MAX_LIDS_PER_GRID], scratch: &mut [i32; MAX_LIDS_PER_GRID]) {
+pub fn states(d: &LidGridDef, t: i64, states: &mut [LidState; MAX_LIDS_PER_GRID], scratch: &mut [u8; MAX_LIDS_PER_GRID]) {
     let t = local_t(d, t);
     let count = (d.count() as usize).min(MAX_LIDS_PER_GRID);
     let mut lid = 0;
@@ -202,7 +202,7 @@ pub fn states(d: &LidGridDef, t: i64, states: &mut [LidState; MAX_LIDS_PER_GRID]
 }
 
 /// `LidFlippedFor`: ticks into the current Flipped window, or −1 (visual helper / bots).
-pub fn flipped_for(d: &LidGridDef, lid: i32, t: i64, scratch: &mut [i32; MAX_LIDS_PER_GRID]) -> i64 {
+pub fn flipped_for(d: &LidGridDef, lid: i32, t: i64, scratch: &mut [u8; MAX_LIDS_PER_GRID]) -> i64 {
     let t = local_t(d, t);
     let window = d.lit_ticks as i64 + d.flipped_ticks as i64;
     let mut w = last_wave(d, t);
@@ -216,7 +216,7 @@ pub fn flipped_for(d: &LidGridDef, lid: i32, t: i64, scratch: &mut [i32; MAX_LID
             let n = wave_set(d, w, scratch);
             let mut i = 0;
             while i < n {
-                if scratch[i] == lid {
+                if scratch[i] as i32 == lid {
                     return t - start - d.lit_ticks as i64;
                 }
                 i += 1;
@@ -263,7 +263,7 @@ mod tests {
     fn inner_never_below_min() {
         let d = default_def(9);
         let mut st = [LidState::Idle; MAX_LIDS_PER_GRID];
-        let mut sc = [0; MAX_LIDS_PER_GRID];
+        let mut sc = [0u8; MAX_LIDS_PER_GRID];
         for t in 0..4000 {
             states(&d, t, &mut st, &mut sc);
             let solid_inner = (0..81).filter(|&l| d.inner(l) && lid_solid(st[l as usize])).count();

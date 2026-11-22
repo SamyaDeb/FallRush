@@ -327,7 +327,7 @@ pub fn case(seed: u64, i: u32, out: &mut [u8]) -> usize {
         _ => {
             let d = rnd_lid(&mut r);
             let mut st = [lid::LidState::Idle; lid::MAX_LIDS_PER_GRID];
-            let mut sc = [0i32; lid::MAX_LIDS_PER_GRID];
+            let mut sc = [0u8; lid::MAX_LIDS_PER_GRID];
             lid::states(&d, t30(t60), &mut st, &mut sc);
             // pack 81..121 states as a 3-bit stream digest (fold into 8 bytes)
             let mut acc = 0u64;

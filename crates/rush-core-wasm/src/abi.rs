@@ -12,6 +12,7 @@
 //   rc_world_bytes(h, out_ptr, cap) -> u32 / rc_set_world(h, ptr, len) -> i32
 //   rc_player(h, slot, out_ptr) -> i32           33 B MotorState + flags + respawn (36 B)
 //   rc_vectors(kind, seed, n, map_ptr, map_len) -> u64
+//   rc_set_player(h, slot, ptr) / rc_set_rate(h, rate) / rc_respawn(h, slot) / rc_clock(h)
 //   rc_free(h)
 use rush_core::codec::{Codec, Enc};
 use rush_core::config::MovementParams;
@@ -221,6 +222,37 @@ pub unsafe extern "C" fn rc_player(h: i32, slot: u32, out_ptr: *mut u8) -> i32 {
     }
     let out = std::slice::from_raw_parts_mut(out_ptr, 36);
     with(h, |c| motor_bytes(&c.w, slot as usize, out) as i32).unwrap_or(-1)
+}
+
+/// Overwrites `slot`'s motor state from 33 bytes (the `rc_player` layout without the trailing 3 bytes). Feel Lab:
+/// carries the player across an engine switch.
+///
+/// # Safety
+/// `ptr` → 33 readable bytes.
+#[no_mangle]
+pub unsafe extern "C" fn rc_set_player(h: i32, slot: u32, ptr: *const u8) -> i32 {
+    use rush_core::codec::Dec;
+    if slot as usize >= MAX_PLAYERS {
+        return -1;
+    }
+    let b = slice(ptr, 33);
+    if b.len() < 33 {
+        return -1;
+    }
+    with(h, |c| {
+        let mut d = Dec::new(b);
+        let m = rush_core::motor::MotorState::dec(&mut d);
+        c.w.players[slot as usize].m = m;
+        c.w.players[slot as usize].respawn_ticks = 0;
+        0
+    })
+    .unwrap_or(-1)
+}
+
+/// The current tick and rate (Feel Lab overlay / interpolation): `tick | rate << 32`.
+#[no_mangle]
+pub extern "C" fn rc_clock(h: i32) -> u64 {
+    with(h, |c| c.w.tick as u64 | (c.w.rate as u64) << 32).unwrap_or(0)
 }
 
 /// Sets the tick rate of a running world (Feel Lab F8). Returns 0 or −1.

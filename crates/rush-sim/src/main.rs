@@ -9,9 +9,11 @@
 //! rush-sim qa <blob> --runs N --rate R [--json]
 //! ```
 
+mod counters;
 mod hazcmp;
 mod mapjson;
 mod movement;
+mod trace;
 mod vectors_cmd;
 
 use std::path::PathBuf;
@@ -38,6 +40,9 @@ fn main() {
         ["movement", "gen", ..] => movement::gen(&args),
         ["movement", "table", ..] => movement::table(&args),
         ["hazard", "compare", ..] => hazcmp::compare(&args),
+        ["trace", ..] => trace::cmd(&args),
+        ["ffi-expect", ..] => ffi_expect(),
+        ["counters", ..] => counters::cmd(&args),
         ["vectors", "gen", ..] => vectors_cmd::gen(&args),
         ["vectors", "check", ..] => vectors_cmd::check(&args),
         _ => {
@@ -132,4 +137,36 @@ pub fn inspect(m: &rush_core::mapblob::MapView, b: &[u8]) {
         println!("{line}");
     }
     println!("bytes {} sha256 {}", b.len(), sha256_hex(b));
+}
+
+/// Expected world hashes for the Unity FFI parity test (P1FeelLabTests): each map blob, seeds 1..3, 12 players (odd
+/// slots bots), 20 Hz, 200 steps with no inputs. Written to docs/proof/p1/ffi_expected.txt as `key seed hash`.
+fn ffi_expect() -> i32 {
+    use rush_core::config::MovementParams;
+    use rush_core::mapblob::MapView;
+    use rush_core::world::{self, NoHasher, StepEvents, World, MAX_PLAYERS};
+    let root = repo_root();
+    let mut out = String::new();
+    let mut files: Vec<_> = std::fs::read_dir(root.join("maps")).unwrap().flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "mapblob")).collect();
+    files.sort();
+    for p in files {
+        let b = std::fs::read(&p).unwrap();
+        let m = MapView::new(&b).unwrap();
+        for seed in 1u64..=3 {
+            let mut w = World::new(&m, 20);
+            w.hazard_seed = seed;
+            for s in 0..MAX_PLAYERS {
+                w.add_player(&m, s, s % 2 == 1);
+            }
+            let mut ev = StepEvents::default();
+            for _ in 0..200 {
+                ev.n = 0;
+                world::step(&mut w, &[None; MAX_PLAYERS], &m, &MovementParams::default(), &mut NoHasher, &mut ev);
+            }
+            out += &format!("{} {} {:016x}\n", p.file_stem().unwrap().to_string_lossy(), seed, w.hash());
+        }
+    }
+    std::fs::write(root.join("docs/proof/p1/ffi_expected.txt"), &out).unwrap();
+    print!("{out}");
+    0
 }

@@ -24,9 +24,9 @@ pub const WORLD_VERSION: u8 = 1;
 /// The size budget (doc 19 P2: `World` ≤ 2 KB).
 pub const WORLD_MAX_BYTES: usize = 2048;
 /// Crumble tiles with reactive state in `World` (bigger grids need their own account in P2).
-pub const MAX_RX_TILES: usize = 32;
+pub const MAX_RX_TILES: usize = 16;
 /// Falling blocks with reactive state.
-pub const MAX_RX_BLOCKS: usize = 16;
+pub const MAX_RX_BLOCKS: usize = 8;
 /// Dropped stars kept (ring).
 pub const MAX_DROPS: usize = 8;
 /// Timeline star ids with a collected bit: 0..512 normal, 512..576 golden.
@@ -282,6 +282,34 @@ impl World {
         w
     }
 
+    /// Resets an existing world in place (no 2 KB temporary: the sBPF stack frame is 4 KB).
+    pub fn reset(&mut self, map: &MapView, rate: u32) {
+        self.version = WORLD_VERSION;
+        self.tick = 0;
+        self.rate = rate as u8;
+        self.round_index = 0;
+        self.map_key = map.map_id();
+        self.variant = 0;
+        self.modifier = 0;
+        self.hazard_seed = 0;
+        self.round_start = 0;
+        for p in self.players.iter_mut() {
+            *p = Player::default();
+        }
+        self.rx.tile_contact = [0; MAX_RX_TILES];
+        self.rx.block_trigger = [0; MAX_RX_BLOCKS];
+        self.rx.star_taken = [0; STAR_BITS / 64];
+        self.rx.drops = [DroppedStar::default(); MAX_DROPS];
+        self.rx.drop_count = 0;
+        self.rx.seq = 0;
+        self.drop_queue = [QueuedDrop::default(); DROP_QUEUE];
+        self.round = crate::rules::RoundState::default();
+        self.dir = crate::rules::director::DirectorState::default();
+        self.event_seq = 0;
+        self.round.mode = crate::mapblob::mode::SANDBOX;
+        self.round.phase = crate::rules::phase::SANDBOX;
+    }
+
     /// Activates `slot` (human or bot) at its spawn.
     pub fn add_player(&mut self, map: &MapView, slot: usize, bot: bool) {
         let (p, yaw) = map.spawn(slot);
@@ -504,7 +532,7 @@ pub fn pose_scene<'m>(w: &World, map: &MapView<'m>, cfg: &MotorConfig, tick: u32
     let mut base = 0usize;
     let mut g = 0;
     let mut states = [hazards::lid::LidState::Idle; hazards::lid::MAX_LIDS_PER_GRID];
-    let mut scratch = [0i32; hazards::lid::MAX_LIDS_PER_GRID];
+    let mut scratch = [0u8; hazards::lid::MAX_LIDS_PER_GRID];
     while g < ng {
         let d = hz.lid_grid(g);
         hazards::lid::states(&d, t30, &mut states, &mut scratch);
@@ -940,7 +968,7 @@ fn stagger(s: &mut MotorState, cfg: &MotorConfig) -> bool {
 
 /// World vector case `i` (`world_v1.bin`): 12 players (half bots) for 40 ticks of random inputs on `map` at a
 /// random rate; writes the World hash.
-pub fn vector_case(map_bytes: &[u8], seed: u64, i: u32, out: &mut [u8]) -> usize {
+pub fn vector_case(w: &mut World, map_bytes: &[u8], seed: u64, i: u32, out: &mut [u8]) -> usize {
     let map = match MapView::new(map_bytes) {
         Ok(m) => m,
         Err(_) => return 0,
@@ -948,7 +976,7 @@ pub fn vector_case(map_bytes: &[u8], seed: u64, i: u32, out: &mut [u8]) -> usize
     let mut r = crate::vectors::Rng(seed ^ 0x5017_0000 ^ (i as u64).wrapping_mul(0xD6E8_FEB8_6659_FD93));
     r.next();
     let rate = [15u32, 20, 30][r.range(0, 2) as usize];
-    let mut w = World::new(&map, rate);
+    w.reset(&map, rate);
     w.hazard_seed = r.next();
     let mut s = 0;
     while s < MAX_PLAYERS {
@@ -968,7 +996,7 @@ pub fn vector_case(map_bytes: &[u8], seed: u64, i: u32, out: &mut [u8]) -> usize
             s += 1;
         }
         ev.n = 0;
-        step(&mut w, &inputs, &map, &params, &mut NoHasher, &mut ev);
+        step(w, &inputs, &map, &params, &mut NoHasher, &mut ev);
         k += 1;
     }
     let mut wr = crate::vectors::W { b: out, n: 0 };

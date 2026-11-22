@@ -201,11 +201,20 @@ pub fn hazard_case(seed: u64, i: u32, out: &mut [u8]) -> usize {
 
 /// Runs `n` cases of `kind` (from `seed`), folding every case's bytes. `map` is required for collide / motor / world.
 pub fn run(kind: u8, seed: u64, n: u32, map: Option<&[u8]>) -> u64 {
-    run_from(kind, seed, 0, n, map, Fnv::default().0)
+    if kind == KIND_WORLD {
+        // native / WASM: the scratch World lives on this (large) stack
+        let mut w = match map.and_then(|m| MapView::new(m).ok()) {
+            Some(v) => crate::world::World::new(&v, 20),
+            None => return Fnv::default().0,
+        };
+        return run_from(kind, seed, 0, n, map, Fnv::default().0, Some(&mut w));
+    }
+    run_from(kind, seed, 0, n, map, Fnv::default().0, None)
 }
 
 /// Cases `start .. start + n`, continuing the digest `state` (chunked runs on sBPF).
-pub fn run_from(kind: u8, seed: u64, start: u32, n: u32, map: Option<&[u8]>, state: u64) -> u64 {
+/// `world` is the scratch World for `KIND_WORLD` (the sBPF program passes a heap one).
+pub fn run_from(kind: u8, seed: u64, start: u32, n: u32, map: Option<&[u8]>, state: u64, mut world: Option<&mut crate::world::World>) -> u64 {
     let mut h = Fnv(state);
     let mut buf = [0u8; MAX_CASE];
     let view = map.and_then(|m| MapView::new(m).ok());
@@ -223,9 +232,9 @@ pub fn run_from(kind: u8, seed: u64, start: u32, n: u32, map: Option<&[u8]>, sta
                 None => 0,
             },
             KIND_HAZARD => hazard_case(seed, i, &mut buf),
-            KIND_WORLD => match map {
-                Some(m) => crate::world::vector_case(m, seed, i, &mut buf),
-                None => 0,
+            KIND_WORLD => match (map, world.as_deref_mut()) {
+                (Some(m), Some(w)) => crate::world::vector_case(w, m, seed, i, &mut buf),
+                _ => 0,
             },
             _ => 0,
         };

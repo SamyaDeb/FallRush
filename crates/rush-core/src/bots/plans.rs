@@ -379,7 +379,7 @@ fn lid_plan(c: &Ctx, b: &mut BotState, hz: &Hazards) -> InputCmd {
     let s = c.s;
     let t30 = hazards::t30(c.t60(0));
     let mut seen = [LidState::Idle; MAX_LIDS_PER_GRID];
-    let mut scr = [0i32; MAX_LIDS_PER_GRID];
+    let mut scr = [0u8; MAX_LIDS_PER_GRID];
     lid::states(&d, (t30 - c.sk.lid_lag as i64).max(0), &mut seen, &mut scr);
     let grounded = s.has(flag::GROUNDED);
     let under = if grounded { d.lid_under(s.pos.x, s.pos.y, s.pos.z) } else { -1 };

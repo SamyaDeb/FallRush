@@ -22,12 +22,18 @@ pub fn process(_program: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Prog
     let start = u32::from_le_bytes(data[9..13].try_into().unwrap());
     let n = u32::from_le_bytes(data[13..17].try_into().unwrap());
     let state = u64::from_le_bytes(data[17..25].try_into().unwrap());
+    // The scratch World (≈ 2 KB) lives on the heap: sBPF stack frames are 4 KB. Every field is an integer / bool /
+    // array of them, so the zeroed bytes are a valid value; `reset` then sets it up in place.
+    let mut world: Box<rush_core::world::World> = unsafe { Box::new_zeroed().assume_init() };
     let digest = match accounts.first() {
         Some(acc) => {
             let map = acc.try_borrow_data()?;
-            rush_core::vectors::run_from(kind, seed, start, n, if map.is_empty() { None } else { Some(&map[..]) }, state)
+            if let Ok(v) = rush_core::mapblob::MapView::new(&map) {
+                world.reset(&v, 20);
+            }
+            rush_core::vectors::run_from(kind, seed, start, n, if map.is_empty() { None } else { Some(&map[..]) }, state, Some(&mut world))
         }
-        None => rush_core::vectors::run_from(kind, seed, start, n, None, state),
+        None => rush_core::vectors::run_from(kind, seed, start, n, None, state, None),
     };
     set_return_data(&digest.to_le_bytes());
     Ok(())
