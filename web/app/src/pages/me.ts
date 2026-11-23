@@ -4,18 +4,28 @@
 import { rpc, api, BASE_HTTP, CORE, ASSETS_AUTH, explorer, short, rush, b64 } from '../lib/net';
 import { coreAttrs, badges, seasonName } from '../lib/decode';
 import { chainFor, ensureGuest, J } from '../lib/chain';
+import { icon, capsuleArt, RARITY_COLOUR } from '../lib/icons';
+import { countUp } from '../lib/motion';
 
 export function me(root: HTMLElement) {
-  root.innerHTML = `<div class="card"><h2>Me</h2><div id="w" class="muted">opening your guest wallet…</div></div>
-    <div class="card" id="backup-card"><h3>Back up your key</h3><p class="muted">This guest wallet lives only in this browser's storage. Clearing site data or switching device loses it, along with any Crown, capsules or RUSH it holds. Save the key, or claim your assets to Phantom.</p>
+  root.innerHTML = `<div class="card hue-grape enter"><div class="ribbon">${icon('capsule')} ME <span class="sub">your guest wallet, chips, capsules and Crown</span></div><div id="w" class="muted">opening your guest wallet…</div>
+      <div class="stats" style="margin-top:12px">
+        <div class="stat hue-lemon enter" style="--i:1"><div class="v" id="s-chips">…</div><div class="k">RUSH chips on the rollup</div></div>
+        <div class="stat hue-apple enter" style="--i:2"><div class="v" id="s-rush">…</div><div class="k">real RUSH (SPL) on Solana</div></div>
+        <div class="stat hue-bubble enter" style="--i:3"><div class="v" id="s-crowns">…</div><div class="k">crowns this season</div></div>
+        <div class="stat hue-soda enter" style="--i:4"><div class="v" id="s-matches">…</div><div class="k">matches this season</div></div>
+      </div></div>
+    <div class="card hue-lemon"><div class="ribbon">${icon('crown')} CAPSULES &amp; CROWN</div><div id="caps" class="grid"><span class="muted">reading your assets…</span></div><p class="muted" style="margin-bottom:0">Shells are cosmetic only (never stats). The game server checks you own the capsule before you wear it.</p></div>
+    <div class="card hue-soda"><div class="ribbon">${icon('trophy')} THIS SEASON</div><div id="season" class="muted">…</div></div>
+    <div class="two">
+      <div class="card hue-apple"><div class="ribbon">${icon('chip')} CASH OUT</div><p class="muted" style="margin-top:0">Turn rollup chips into real RUSH (SPL) on Solana: the rollup burns the chips, commits, and the program mints the tokens to your wallet.</p><div id="chips" class="muted">…</div>
+        <div class="row" style="margin-top:8px"><input type="number" id="amt" min="1" value="100"> <button class="btn small mint" id="cash">Cash out to RUSH</button></div><div id="cashst" class="muted" style="margin-top:6px"></div></div>
+      <div class="card hue-grape"><div class="ribbon">${icon('link')} PHANTOM</div><div class="row"><button class="btn small grape" id="ph">Connect Phantom</button><span id="phst" class="muted"></span></div>
+        <div class="row" style="margin-top:8px"><input type="number" id="ramt" min="1" value="50"> <button class="btn small" id="mv" disabled>Move RUSH to Phantom</button></div><div id="mvst" class="muted"></div></div>
+    </div>
+    <div class="card warn hue-bubble" id="backup-card"><div class="ribbon">${icon('lock')} BACK UP YOUR KEY</div><p>This guest wallet lives only in this browser's storage. Clearing site data or switching device loses it, along with any Crown, capsules or RUSH it holds. Save the key, or claim your assets to Phantom.</p>
       <button class="btn small pink" id="reveal">Show my secret key</button><div id="keybox"></div>
-      <details style="margin-top:8px"><summary>Restore a backed-up key</summary><textarea id="imp" rows="2" placeholder="base58 secret key"></textarea><button class="btn small" id="doimp">Restore</button> <span id="impst" class="muted"></span></details></div>
-    <div class="card"><h3>This season</h3><div id="season" class="muted">…</div></div>
-    <div class="card"><h3>Chips → real RUSH</h3><div id="chips" class="muted">…</div>
-      <div class="row" style="margin-top:6px"><input type="number" id="amt" min="1" value="100"> <button class="btn small mint" id="cash">Cash out to RUSH (SPL)</button></div><div id="cashst" class="muted"></div></div>
-    <div class="card"><h3>Capsules &amp; Crown</h3><div id="caps" class="muted">reading your assets…</div></div>
-    <div class="card"><h3>Phantom</h3><div class="row"><button class="btn small grape" id="ph">Connect Phantom</button><span id="phst" class="muted"></span></div>
-      <div class="row" style="margin-top:6px"><input type="number" id="ramt" min="1" value="50"> <button class="btn small" id="mv" disabled>Move RUSH to Phantom</button><span id="mvst" class="muted"></span></div></div>`;
+      <details class="drawer"><summary>Restore a backed-up key</summary><div><textarea id="imp" rows="2" placeholder="base58 secret key"></textarea><div class="row" style="margin-top:6px"><button class="btn small" id="doimp">Restore</button> <span id="impst" class="muted"></span></div></div></details></div>`;
   const $ = (q: string) => root.querySelector(q) as HTMLElement;
   let phantom: string | null = null;
   (async () => {
@@ -25,14 +35,17 @@ export function me(root: HTMLElement) {
     const refresh = async () => {
       const [st, rs, bal] = await Promise.all([J(c.econ('state', '{}')), J(c.econ('rush', '{}')), J(c.devBalances()).catch(() => ({}))]);
       $('#w').innerHTML = `Guest wallet <a target="_blank" class="mono" href="${explorer('address', w.burner)}">${w.burner}</a><br><span class="muted">${bal.ok ? (bal.burner / 1e9).toFixed(4) + ' SOL (devnet) · ' : ''}session key ${w.session?.token ? 'active until ' + new Date(w.session.validUntil * 1000).toLocaleString() : 'none'}${g.error ? ' · ' + g.error : ''}</span>`;
-      $('#chips').innerHTML = st.chips ? `<b>${rush(st.chips.balance)}</b> RUSH chips on the rollup · won ${rush(st.chips.won ?? st.chips.wonTotal ?? 0)} · cashed out ${rush(st.chips.cashedOut)}<br><b>${rush(rs.amount ?? 0)}</b> real RUSH (SPL, Solana) in <a target="_blank" href="${explorer('address', rs.ata)}">your token account</a>` : 'no chips yet';
+      $('#chips').innerHTML = st.chips ? `${rush(st.chips.balance)} RUSH chips available · won ${rush(st.chips.won ?? st.chips.wonTotal ?? 0)} · cashed out ${rush(st.chips.cashedOut)} · <a target="_blank" href="${explorer('address', rs.ata)}">your RUSH token account</a>` : 'no chips yet';
+      countUp($('#s-chips'), st.chips ? Number(BigInt(st.chips.balance) / 1000000n) : 0);
+      countUp($('#s-rush'), Number(BigInt(rs.amount ?? 0) / 1000000n));
       return { st, rs };
     };
     await refresh();
     api(`/season?wallet=${w.burner}`).then((r) => {
       const p = r?.player;
-      $('#season').innerHTML = `${seasonName(r.id)}: ${p ? `${p.matches} match(es) · ${p.crowns} 👑 · ${p.finals} Final(s) · markets ${Number(p.net) >= 0 ? '+' : ''}${rush(p.net)} RUSH (${p.betsWon}/${p.betsWon + p.betsLost} won) · ${p.drops} drop(s)<br>${badges(p.achievements) || 'no achievements yet'}` : 'nothing recorded yet'} · <a href="/season" data-link>board</a>${p ? ` · <a target="_blank" href="${explorer('address', r.playerAccount)}">on-chain</a>` : ''}`;
-    }).catch(() => { $('#season').textContent = 'season unavailable'; });
+      countUp($('#s-crowns'), p?.crowns ?? 0); countUp($('#s-matches'), p?.matches ?? 0);
+      $('#season').innerHTML = `<b>${seasonName(r.id)}</b>: ${p ? `${p.finals} Final(s) · markets ${Number(p.net) >= 0 ? '+' : ''}${rush(p.net)} RUSH (${p.betsWon}/${p.betsWon + p.betsLost} won) · ${p.drops} drop(s)<div style="margin-top:8px">${badges(p.achievements) || '<span class="muted">no achievements yet</span>'}</div>` : 'nothing recorded yet'}<div style="margin-top:8px"><a class="btn small" href="/season" data-link>${icon('trophy')} Season board</a>${p ? ` <a class="btn small ghost" target="_blank" href="${explorer('address', r.playerAccount)}">${icon('link')} on-chain record</a>` : ''}</div>`;
+    }).catch(() => { $('#season').textContent = 'season unavailable'; countUp($('#s-crowns'), 0); countUp($('#s-matches'), 0); });
     $('#cash').onclick = async () => {
       const amount = Number(($('#amt') as HTMLInputElement).value);
       ($('#cash') as HTMLButtonElement).disabled = true;
@@ -47,9 +60,12 @@ export function me(root: HTMLElement) {
       const owner = w.burner;
       const res: any[] = await rpc(BASE_HTTP, 'getProgramAccounts', [CORE, { encoding: 'base64', filters: [{ memcmp: { offset: 1, bytes: owner } }, { memcmp: { offset: 34, bytes: ASSETS_AUTH } }] }]).catch(() => []);
       const eq = JSON.parse(localStorage.getItem('fallrush.equip') ?? 'null');
-      $('#caps').innerHTML = res.length ? res.map((a) => { const at = coreAttrs(b64(a.account.data[0])); const isCrown = !at.shell; return `<div class="row" style="margin:6px 0">${isCrown ? '👑' : '🥚'} <a target="_blank" href="${explorer('address', a.pubkey)}">${at.name ?? 'asset'}</a> ${at.rarity ? `<span class="pill">${at.rarity}</span>` : ''} ${at.shell ? `<span class="pill">shell ${at.shell}</span>` : ''}
-        ${at.shell ? `<button class="btn small mint" data-equip="${a.pubkey}" data-shell="${at.shell}">${eq?.asset === a.pubkey ? '✓ equipped' : 'Equip for the next match'}</button>` : ''}
-        <button class="btn small grape" data-claim="${a.pubkey}" ${phantom ? '' : 'disabled'}>Claim to Phantom</button></div>`; }).join('') + `<p class="muted">Shells are cosmetic only (never stats). The game server checks you own the capsule before you wear it.</p>` : 'no capsules yet: finish a match as a human to get one (and win the Final for the Crown).';
+      $('#caps').innerHTML = res.length ? res.map((a, i) => {
+        const at = coreAttrs(b64(a.account.data[0])); const isCrown = !at.shell;
+        const col = isCrown ? '#ffd21f' : RARITY_COLOUR[Math.max(0, ['Common', 'Rare', 'Epic', 'Legendary'].indexOf(at.rarity ?? 'Common'))];
+        return `<div class="tile asset enter ${isCrown ? 'crown' : ''}" style="--i:${i};${isCrown ? '' : `--rim:${col};--pastel:#fff`}">${capsuleArt(col, isCrown)}<div style="min-width:0"><a class="nm" style="color:inherit;text-decoration:none" target="_blank" href="${explorer('address', a.pubkey)}">${at.name ?? 'asset'}</a>
+          <div class="muted">${isCrown ? 'Crown Capsule' : at.rarity ?? ''}${at.shell ? ' · shell ' + at.shell : ''}</div>
+          <div class="row" style="margin-top:6px">${at.shell ? `<button class="btn small mint" data-equip="${a.pubkey}" data-shell="${at.shell}">${eq?.asset === a.pubkey ? '✓ equipped' : 'Equip'}</button>` : ''}<button class="btn small grape" data-claim="${a.pubkey}" ${phantom ? '' : 'disabled'} title="${phantom ? '' : 'connect Phantom first'}">Claim to Phantom</button></div></div></div>`; }).join('') : '<div class="muted">no capsules yet: finish a match as a human to get one (and win the Final for the Crown).</div>';
     };
     await loadCaps();
     $('#caps').onclick = async (e) => {

@@ -3,18 +3,34 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Fall Rush — the knockout party game on MagicBlock</title>
-  <meta name="description" content="12 Rushlings, 4 rounds, 1 crown. The Final runs on a MagicBlock Ephemeral Rollup. No wallet, no popups." />
+  <title>Fall Rush · the knockout party game on MagicBlock</title>
+  <meta name="description" content="12 Rushlings, 4 rounds, 1 crown. The Final runs on a MagicBlock Ephemeral Rollup, sealed bets on a Private ER, and every match leaves a receipt on Solana. No wallet, no popups." />
+  <meta name="theme-color" content="#4fa6ec" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Fall Rush" />
+  <meta property="og:title" content="Fall Rush · every match has a receipt on Solana" />
+  <meta property="og:description" content="A 3D knockout party game whose Final runs on a MagicBlock Ephemeral Rollup. Bet with spectators, drop chaos, keep the Crown. Replay any match yourself." />
+  <meta property="og:image" content="https://fallrush.fun/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Fall Rush · every match has a receipt on Solana" />
+  <meta name="twitter:description" content="The Final runs on a MagicBlock Ephemeral Rollup: the program steps the physics, settles the bets and mints the Crown." />
+  <meta name="twitter:image" content="https://fallrush.fun/og.png" />
   <link rel="icon" href="/logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Varela+Round&display=swap" rel="stylesheet" />
 </head>
 <body>
   <header id="top">
-    <a href="/" class="brand"><span class="w1">FALL</span><span class="w2">RUSH</span></a>
-    <nav><a href="/play" data-link class="btn small">Play</a><a href="/arenas" data-link>Arenas</a><a href="/live" data-link>Live</a><a href="/me" data-link>Me</a></nav>
+    <a href="https://fallrush.fun/" class="brand word">FALL <span class="yellow">RUSH</span></a>
+    <nav class="links" id="nav">
+      <a href="/play" data-link class="play">Play</a><a href="/live" data-link>Live</a><a href="/season" data-link>Season</a><a href="/me" data-link>Me</a>
+    </nav>
   </header>
   <main id="app"></main>
+  <footer id="foot"><span class="made">Built on <b>Solana</b> · <b>MagicBlock</b> Ephemeral Rollups</span><a href="/arenas" data-link>Arenas</a><a href="/season" data-link>Season</a><span class="muted">devnet test chips only, no real-money value</span></footer>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

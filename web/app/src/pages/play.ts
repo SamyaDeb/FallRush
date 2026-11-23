@@ -6,9 +6,12 @@ declare const createUnityInstance: any;
 export function play(root: HTMLElement) {
   const t0 = performance.now();
   document.getElementById('top')!.style.display = 'none';
+  document.getElementById('foot')!.style.display = 'none';
+  // P7: the capsule loader (the bottom half fills with the real download progress; the size is the build's)
   root.innerHTML = `<div id="unity-wrap"><canvas id="unity-canvas" tabindex="-1"></canvas>
-    <div id="unity-load"><div style="font:44px 'Lilita One';-webkit-text-stroke:6px #7B2FF7;paint-order:stroke fill">FALL <span style="color:#FFD21F">RUSH</span></div>
-    <div class="bar"><i id="bar"></i></div><div id="msg" class="muted" style="color:#ddd">loading the game…</div><div id="guest" class="muted" style="color:#bbb"></div></div></div>`;
+    <div id="unity-load"><div class="word">FALL <span class="yellow">RUSH</span></div>
+    <div class="capsule" id="cap"><div class="top"><span class="shine"></span></div><div class="bot"><i></i></div></div>
+    <div class="loadcard"><div class="pct" id="pct">0%</div><div id="msg">loading the game…</div><div id="guest" class="muted"></div></div></div></div>`;
   const msg = (s: string) => { (root.querySelector('#guest') as HTMLElement).textContent = s; };
   (window as any).__fr = { t0, marks: {} as Record<string, number> };
   const mark = (k: string) => { (window as any).__fr.marks[k] = Math.round(performance.now() - t0); };
@@ -36,9 +39,11 @@ export function play(root: HTMLElement) {
     // (one TCP stream measured 0.1–0.5 MB/s from the VPS, 4 streams ~2.2 MB/s) as plain bytes; Unity's loader
     // decodes the Brotli itself (Decompression Fallback, doc 15 OC-14)
     const bj = await fetch('/unity/Build/build.json').then((r) => r.json()).catch(() => ({ loader: 'WebGL.loader.js', data: 'WebGL.data.br', framework: 'WebGL.framework.js.br', code: 'WebGL.wasm.br', parallel: false }));
-    const bar = root.querySelector('#bar') as HTMLElement;
     const got: Record<string, number> = {}, tot: Record<string, number> = {};
-    const prog = () => { const a = Object.values(got).reduce((x, y) => x + y, 0), b = Object.values(tot).reduce((x, y) => x + y, 0); if (b) bar.style.width = Math.round((90 * a) / b) + '%'; };
+    const cap = root.querySelector('#cap') as HTMLElement, pct = root.querySelector('#pct') as HTMLElement, msgEl = root.querySelector('#msg') as HTMLElement;
+    const MB = (n: number) => (n / 1048576).toFixed(1);
+    const show = (p: number) => { const v = Math.max(0, Math.min(1, p)); cap.style.setProperty('--p', v.toFixed(3)); pct.textContent = Math.round(v * 100) + '%'; };
+    const prog = () => { const a = Object.values(got).reduce((x, y) => x + y, 0), b = Object.values(tot).reduce((x, y) => x + y, 0); if (b) { show((0.9 * a) / b); msgEl.textContent = `downloading ${MB(a)} / ${MB(b)} MB`; } };
     const pfetch = async (name: string, parts = 5): Promise<string> => {
       const url = '/unity/Build/' + name;
       const n = Number((await fetch(url, { method: 'HEAD' })).headers.get('content-length') ?? 0);
@@ -69,15 +74,16 @@ export function play(root: HTMLElement) {
     };
     const [dataUrl, codeUrl] = await Promise.all([pfetch(bj.data).catch(() => '/unity/Build/' + bj.data), pfetch(bj.code).catch(() => '/unity/Build/' + bj.code)]);
     mark('download');
+    msgEl.textContent = 'unpacking…';
     const s = document.createElement('script');
     s.src = '/unity/Build/' + bj.loader;
     s.onload = () => createUnityInstance(root.querySelector('#unity-canvas'), {
       dataUrl, frameworkUrl: '/unity/Build/' + bj.framework, codeUrl,
       streamingAssetsUrl: '/unity/StreamingAssets', companyName: 'Fall Rush', productName: 'Fall Rush', productVersion: '0.5',
-    }, (p: number) => { bar.style.width = Math.max(90, Math.round(90 + p * 10)) + '%'; })
-      .then((inst: any) => { mark('unity'); (window as any).__fr.unity = inst; (root.querySelector('#unity-load') as HTMLElement).style.display = 'none'; })
-      .catch((e: any) => { (root.querySelector('#msg') as HTMLElement).textContent = 'could not start the game: ' + e; });
+    }, (p: number) => { show(0.9 + p * 0.1); if (p > 0.05) msgEl.textContent = 'starting the game…'; })
+      .then((inst: any) => { mark('unity'); (window as any).__fr.unity = inst; cap.classList.add('open'); show(1); setTimeout(() => { (root.querySelector('#unity-load') as HTMLElement).style.display = 'none'; }, 450); })
+      .catch((e: any) => { msgEl.textContent = 'could not start the game: ' + e; });
     document.body.appendChild(s);
   })();
-  return () => { document.getElementById('top')!.style.display = ''; location.reload(); };
+  return () => { document.getElementById('top')!.style.display = ''; document.getElementById('foot')!.style.display = ''; location.reload(); };
 }

@@ -20,11 +20,14 @@ function render() {
   const root = document.getElementById('app')!;
   root.innerHTML = '';
   const p = location.pathname;
+  // P7: the active header link
+  document.querySelectorAll<HTMLAnchorElement>('#nav a').forEach((a) => a.classList.toggle('on', a.pathname !== '/play' && p.startsWith(a.pathname)));
+  window.scrollTo(0, 0);
   for (const [re, page] of routes) {
     const m = p.match(re);
     if (m) { cleanup = page(root, m.slice(1)); return; }
   }
-  root.innerHTML = '<div class="card"><h2>Not found</h2><a href="/">Home</a></div>';
+  root.innerHTML = '<div class="card enter"><h2>Not found</h2><p>That page does not exist. <a href="/arenas" data-link>Arenas</a> · <a href="https://fallrush.fun/">fallrush.fun</a></p></div>';
 }
 document.addEventListener('click', (e) => {
   const a = (e.target as HTMLElement).closest('a[data-link]') as HTMLAnchorElement | null;

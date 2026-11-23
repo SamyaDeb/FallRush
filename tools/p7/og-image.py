@@ -1,0 +1,40 @@
+# P7 A2: the static OG / Twitter card image for the web app (1200 × 630): sky gradient, the logo, the pitch line.
+# python3 tools/p7/og-image.py  → web/app/public/og.png  (fonts: our OFL Lilita One / Varela Round)
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+import os
+root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+W, H = 1200, 630
+img = Image.new("RGB", (W, H))
+top, bot = (0x4F, 0xA6, 0xEC), (0xDD, 0xEF, 0xFB)
+for y in range(H):
+    t = y / (H - 1)
+    img.paste(tuple(int(a + (b - a) * t) for a, b in zip(top, bot)), (0, y, W, y + 1))
+d = ImageDraw.Draw(img)
+disp = ImageFont.truetype(os.path.join(root, "client-unity/Assets/_Game/Fonts/LilitaOne-Regular.ttf"), 112)
+body = ImageFont.truetype(os.path.join(root, "client-unity/Assets/_Game/Fonts/VarelaRound-Regular.ttf"), 34)
+small = ImageFont.truetype(os.path.join(root, "client-unity/Assets/_Game/Fonts/VarelaRound-Regular.ttf"), 26)
+INK, GRAPE, SUN, PINK = (0x2A, 0x12, 0x50), (0x7B, 0x2F, 0xF7), (0xFF, 0xD2, 0x1F), (0xFF, 0x3E, 0xA5)
+logo = Image.open(os.path.join(root, "Fall Rush  Logo.png")).convert("RGBA")
+logo.thumbnail((440, 440))
+mask = Image.new("L", logo.size, 0)
+ImageDraw.Draw(mask).rounded_rectangle((0, 0, logo.size[0] - 1, logo.size[1] - 1), 40, fill=255)
+lx, ly = 700, 70
+d.rounded_rectangle((lx - 6, ly + 4, lx + logo.size[0] + 6, ly + logo.size[1] + 14), 46, fill=INK)
+img.paste(logo, (lx, ly), mask)
+d.rounded_rectangle((lx - 3, ly - 3, lx + logo.size[0] + 3, ly + logo.size[1] + 3), 42, outline=INK, width=6)
+def word(x, y, text, fill):
+    d.text((x, y), text, font=disp, fill=fill, stroke_width=10, stroke_fill=GRAPE)
+word(70, 90, "FALL", (255, 255, 255))
+word(70, 200, "RUSH", SUN)
+card = (64, 360, 640, 560)
+d.rounded_rectangle((card[0], card[1] + 8, card[2], card[3] + 8), 26, fill=INK)
+d.rounded_rectangle(card, 26, fill=(0xFF, 0xF6, 0xE6), outline=INK, width=5)
+d.text((92, 382), "A 3D knockout party game", font=body, fill=INK)
+d.text((92, 426), "whose Final runs on MagicBlock.", font=body, fill=INK)
+d.text((92, 486), "12 players · 4 rounds · 1 crown", font=small, fill=(0x6B, 0x62, 0x8A))
+d.text((92, 518), "every match has a receipt on Solana", font=small, fill=(0x6B, 0x62, 0x8A))
+d.rounded_rectangle((740, 548, 1100, 600), 26, fill=PINK, outline=INK, width=4)
+d.text((815, 556), "fallrush.fun", font=ImageFont.truetype(os.path.join(root, "client-unity/Assets/_Game/Fonts/LilitaOne-Regular.ttf"), 34), fill=(255, 255, 255))
+out = os.path.join(root, "web/app/public/og.png")
+img.save(out, optimize=True)
+print(out, os.path.getsize(out))

@@ -492,6 +492,7 @@ namespace FallRush.OnChain
             var e = ChainEconomy.Instance;
             var session = OnChainSession.Instance;
             var on = e != null && session != null && session.isActiveAndEnabled && e.Available && session.Cfg.target != "emu";
+            MatchHud.RecordedMatch = on;
             _chipsPill.gameObject.SetActive(on);
             if (!on)
             {

@@ -871,7 +871,13 @@ namespace FallRush.Client
             _subPill.sizeDelta = new Vector2(Mathf.Clamp(_sub.preferredWidth + 40f, 300f, 1150f), sub.Contains("\n") ? 74f : 44f);
         }
 
-        private static bool IsPracticeMatch(MatchStateMessage m) => (m.Flags & MatchStateMessage.FlagPractice) != 0;
+        /// <summary>P7: true while the on-chain layer runs for this client (the public hybrid match: the arena keeper records
+        /// it on-chain and the Final runs on the rollup). Set every frame by FallRush.OnChain's economy HUD.</summary>
+        public static bool RecordedMatch;
+
+        /// <summary>A practice match: the server's practice flag and no on-chain recording (the public Classic server runs
+        /// its matches with the practice flag; the arena keeper records them, so those are not practice).</summary>
+        private static bool IsPracticeMatch(MatchStateMessage m) => (m.Flags & MatchStateMessage.FlagPractice) != 0 && !RecordedMatch;
 
         private static int AliveCount(MatchStateMessage m)
         {
