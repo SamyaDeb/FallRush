@@ -333,6 +333,7 @@ namespace FallRush.Client
             h.childForceExpandHeight = true;
             go.GetComponent<LayoutElement>().minHeight = height;
             go.GetComponent<LayoutElement>().preferredHeight = height;
+            go.GetComponent<LayoutElement>().flexibleHeight = 0f; // P7: a row never takes the card body's spare height
             return (RectTransform)go.transform;
         }
 
@@ -534,6 +535,7 @@ namespace FallRush.Client
             h.childForceExpandWidth = h.childForceExpandHeight = false;
             var le = go.GetComponent<LayoutElement>();
             le.minHeight = le.preferredHeight = height;
+            le.flexibleHeight = 0f;
             if (icon != UiIcon.None)
                 IconImage(rt, icon, textColor, height - 8f);
             var t = Label(rt, text, fontSize, textColor, FontStyle.Bold, (int)height - 4);

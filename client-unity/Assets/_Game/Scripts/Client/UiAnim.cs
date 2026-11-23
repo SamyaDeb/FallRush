@@ -54,6 +54,8 @@ namespace FallRush.Client
         {
             if (_rt == null)
                 Awake();
+            if (!Wanted && _exitT >= 0f)
+                return; // already exiting: a repeated Hide must not restart the exit (it would never finish)
             Wanted = false;
             _enterT = -1f;
             _exitT = Now;

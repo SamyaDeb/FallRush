@@ -732,7 +732,7 @@ namespace FallRush.OnChain
                 _receiptMatch = mpda;
                 _closed = false;
                 _assetsShown = false;
-                _steps.Reset();
+                _steps.NewMatch();
             }
 
             if (mpda != null && _receiptFor != mpda && Time.frameCount % 90 == 0)

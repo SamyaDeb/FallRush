@@ -252,6 +252,7 @@ namespace FallRush.Client
 
             // VRF / deal provenance: a chip with the real explorer link on a recorded match, "Classic deal" in practice
             var vrow = UiKit.Row(_dealCard.Body, 40f, 10f);
+            vrow.GetComponent<HorizontalLayoutGroup>().childForceExpandHeight = false; // the chip keeps its own height
             _vrfChip = UiKit.Chip(vrow, "Classic deal", UiKit.CardPastel(UiKit.CardHue.Apple), UiKit.Ink, UiIcon.Capsule, 15, 34f);
             _vrfText = _vrfChip.GetComponentInChildren<TMP_Text>();
             _vrfButton = UiKit.Button(vrow, "View the VRF request", UiKit.Mint, () =>

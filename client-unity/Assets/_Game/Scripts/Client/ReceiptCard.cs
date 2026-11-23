@@ -45,6 +45,7 @@ namespace FallRush.Client
             _root = rt;
             // steps: [Rollup ✓] ——— [Solana ✓]
             _steps = UiKit.Row(rt, 40f, 0f, TextAnchor.MiddleCenter);
+            _steps.GetComponent<HorizontalLayoutGroup>().childForceExpandHeight = false;
             _rollup = Step(_steps, "Rollup", out _rollupDot, out _rollupText);
             var lineSlot = new GameObject("Line", typeof(RectTransform), typeof(LayoutElement)).GetComponent<RectTransform>();
             lineSlot.SetParent(_steps, false);
@@ -70,7 +71,7 @@ namespace FallRush.Client
             _practice = pc.Root;
             _practiceTitle = UiKit.Label(pc.Body, string.Empty, 17, UiKit.Ink, FontStyle.Bold, 22);
             _practiceLine = UiKit.Label(pc.Body, string.Empty, 13, UiKit.Grape, FontStyle.Normal, 18);
-            Reset();
+            NewMatch();
         }
 
         private static void Bar(RectTransform r)
@@ -103,7 +104,7 @@ namespace FallRush.Client
         }
 
         /// <summary>Back to the initial state (a new match).</summary>
-        public void Reset()
+        public void NewMatch()
         {
             _rollupOn = _solanaOn = false;
             _lineT = -1f;

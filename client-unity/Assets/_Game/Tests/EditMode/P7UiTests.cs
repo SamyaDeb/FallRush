@@ -148,6 +148,29 @@ namespace FallRush.Tests
             finally { Object.DestroyImmediate(root); }
         }
 
+        [Test]
+        public void ReceiptSteps_AndChips_KeepTheirHeight_AfterLayout()
+        {
+            var root = new GameObject("CanvasRoot", typeof(RectTransform), typeof(Canvas));
+            try
+            {
+                var card = UiKit.MakeCard(root.transform, UiKit.CardSize.M, UiKit.CardHue.Tangerine, "RECEIPT", new Vector2(480f, 540f));
+                var rc = ReceiptCard.Create(card.Body, 440f, 150f);
+                var chip = UiKit.Chip(card.Body, "Classic deal", Color.white, Color.black, UiIcon.Capsule, 15, 34f);
+                LayoutRebuilder.ForceRebuildLayoutImmediate(card.Root);
+                LayoutRebuilder.ForceRebuildLayoutImmediate(card.Body);
+                foreach (var t in rc.GetComponentsInChildren<TMP_Text>(true))
+                    if (t.text.StartsWith("Rollup") || t.text.StartsWith("Solana"))
+                    {
+                        var c = (RectTransform)t.transform.parent;
+                        Assert.LessOrEqual(c.rect.height, 40f, $"step chip '{t.text}' height");
+                    }
+
+                Assert.LessOrEqual(chip.rect.height, 36f, "a chip keeps its height in a card body");
+            }
+            finally { Object.DestroyImmediate(root); }
+        }
+
         // ------------------------------------------------------------------ icons
 
         [Test]
