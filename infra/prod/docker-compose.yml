@@ -1,0 +1,93 @@
+# Fall Rush P5 production stack on the shared VPS (doc 13 as built). Project name `fallrush` (network fallrush_default);
+# every container / image / volume is fallrush-*; every port bound to 127.0.0.1 (finity uses :8787 and :3100).
+# /opt/fallrush: docker-compose.yml, .env (600), secrets/ (600), web/ (static build), archive/, logs/gs1, logs/gs2.
+name: fallrush
+x-logs: &logs
+  logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+x-node: &node
+  image: fallrush-node:p5
+  restart: unless-stopped
+  env_file: .env
+  <<: *logs
+services:
+  fallrush-web:
+    image: nginx:1.27-alpine
+    container_name: fallrush-web
+    restart: unless-stopped
+    ports: ["127.0.0.1:3110:80"]
+    volumes: ["./web:/srv/web:ro", "./nginx-web.conf:/etc/nginx/conf.d/default.conf:ro"]
+    depends_on: [fallrush-indexer]
+    cpus: 0.25
+    mem_limit: 256m
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"], interval: 30s, timeout: 3s, retries: 3 }
+    <<: *logs
+  fallrush-gs1:
+    image: fallrush-gameserver:p5
+    container_name: fallrush-gs1
+    restart: unless-stopped
+    ports: ["127.0.0.1:7777:7777"]
+    environment:
+      GAMESERVER_ID: gs1
+      GAMESERVER_PORT: "7777"
+      GAMESERVER_BOTS: "12"
+      GAMESERVER_MATCH_SIZE: "12"
+      GAMESERVER_MATCH_LOG_DIR: /logs
+      GAMESERVER_ONCHAIN_FINAL: "1"
+      GAMESERVER_ONCHAIN_FINAL_NET: devnet
+      GAMESERVER_ONCHAIN_ARENA: HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt
+      GAMESERVER_ONCHAIN_WORLD: HYJRSXpSGZ3HdjmZr4oMy3x6VgTWLcarkgHav7L4hSTQ
+    volumes: ["./logs/gs1:/logs"]
+    cpus: 0.75
+    mem_limit: 1g
+    <<: *logs
+  fallrush-gs2:
+    image: fallrush-gameserver:p5
+    container_name: fallrush-gs2
+    restart: unless-stopped
+    profiles: ["gs2"]
+    ports: ["127.0.0.1:7778:7777"]
+    environment:
+      GAMESERVER_ID: gs2
+      GAMESERVER_PORT: "7777"
+      GAMESERVER_BOTS: "12"
+      GAMESERVER_MATCH_SIZE: "12"
+      GAMESERVER_MATCH_LOG_DIR: /logs
+      GAMESERVER_ONCHAIN_FINAL: "1"
+      GAMESERVER_ONCHAIN_FINAL_NET: devnet
+      GAMESERVER_ONCHAIN_ARENA: E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG
+      GAMESERVER_ONCHAIN_WORLD: 9Q5KBadvfx3Yoen1uqLUgbU1x6tXn4GmkEkjGqfPuRWn
+    volumes: ["./logs/gs2:/logs"]
+    cpus: 0.75
+    mem_limit: 1g
+    <<: *logs
+  fallrush-keeper-1:
+    <<: *node
+    container_name: fallrush-keeper-1
+    command: ["node", "--experimental-strip-types", "--no-warnings", "tools/keeper/daemon.ts"]
+    environment: { ARENA: "2", LOG_DIR: /logs, ARCHIVE: /archive, STATUS_PORT: "3111" }
+    ports: ["127.0.0.1:3111:3111"]
+    volumes: ["./logs/gs1:/logs:ro", "./archive:/archive", "./secrets/game-authority.json:/secrets/game-authority.json:ro", "./keys:/app/tools/keeper/.keys"]
+    cpus: 0.25
+    mem_limit: 512m
+    healthcheck: { test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3111/health').then(r=>r.json()).then(j=>process.exit(j.ok?0:1)).catch(()=>process.exit(1))"], interval: 30s, timeout: 5s, retries: 3 }
+  fallrush-keeper-2:
+    <<: *node
+    container_name: fallrush-keeper-2
+    profiles: ["gs2"]
+    command: ["node", "--experimental-strip-types", "--no-warnings", "tools/keeper/daemon.ts"]
+    environment: { ARENA: "3", LOG_DIR: /logs, ARCHIVE: /archive, STATUS_PORT: "3111" }
+    ports: ["127.0.0.1:3113:3111"]
+    volumes: ["./logs/gs2:/logs:ro", "./archive:/archive", "./secrets/game-authority.json:/secrets/game-authority.json:ro", "./keys:/app/tools/keeper/.keys"]
+    cpus: 0.25
+    mem_limit: 512m
+    healthcheck: { test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3111/health').then(r=>r.json()).then(j=>process.exit(j.ok?0:1)).catch(()=>process.exit(1))"], interval: 30s, timeout: 5s, retries: 3 }
+  fallrush-indexer:
+    <<: *node
+    container_name: fallrush-indexer
+    command: ["node", "--experimental-strip-types", "--no-warnings", "tools/indexer/server.ts"]
+    environment: { PORT: "3112", ARCHIVE: /archive }
+    ports: ["127.0.0.1:3112:3112"]
+    volumes: ["./archive:/archive", "./secrets/funder.json:/secrets/funder.json:ro"]
+    cpus: 0.25
+    mem_limit: 512m
+    healthcheck: { test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3112/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], interval: 30s, timeout: 5s, retries: 3 }

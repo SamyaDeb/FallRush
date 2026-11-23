@@ -1,0 +1,5 @@
+live loaded 1.0 {}
+live bet_clicked 16.2 {"bet":"#1 —"}
+live bet_result 17.7 {"betOk":"18:02:57 you bet 10 RUSH on slot 1 · Champion (session key) · tx"}
+live drop_clicked 342.4 {"drop":"Lid Frenzy · 50"}
+live drop_result 372.6 {"dropOk":null}

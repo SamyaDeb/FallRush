@@ -74,12 +74,14 @@ try {
   if (FLOW === 'player') {
     const before = await (await fetch(`${BASE}/api/matches?n=1`)).json().catch(() => ({ matches: [] }));
     const last = before.matches?.[0]?.match;
-    await send('Page.navigate', { url: `${BASE}/play?bot=match&onchainauto=900&hud=1` });
+    const sv = opt('server', '');
+    await send('Page.navigate', { url: `${BASE}/play?bot=match&onchainauto=900&hud=1${sv ? '&server=' + encodeURIComponent(sv) : ''}` });
     let n = 0;
     const got = await until(async () => {
       if (++n % 60 === 0) await shot(`t${Math.round(T())}`);
       const m = await (await fetch(`${BASE}/api/matches?n=1`)).json().catch(() => null);
-      return m?.matches?.[0] && m.matches[0].match !== last ? m.matches[0] : null;
+      const nw = (m?.matches ?? []).find((x) => x.match !== last && x.doneAt > Date.now() - MAX * 1000 && (!opt('arena-only', '') || String(x.arena) === opt('arena-only', '')));
+      return nw ?? null;
     }, MAX, 1000);
     result.match = got; result.switched = lines.some((l) => /\[onchain\] (switch|pre-join)/.test(l));
     mark(got ? 'archived' : 'timeout', { match: got?.match, switched: result.switched });

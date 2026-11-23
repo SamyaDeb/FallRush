@@ -1,0 +1,213 @@
+{
+ "started": "2026-11-23T11:19:08.872Z",
+ "sdk": "0.16.2 (installed)",
+ "rounds": [
+  {
+   "round": 1,
+   "steps": [
+    {
+     "what": "fund + mint + ATA + 100 tokens",
+     "sig": "63XdZ5Z2fBrkbvzRG5a31py5rMky2rtdU6mrEuFQLVx6daDc7fsFJpxYCnZW6EQQN38tvQUGc42WR1GXyjsyFdjB",
+     "ms": 1168
+    },
+    {
+     "what": "delegateSpl (6 ix)",
+     "sig": "2NGYDCKmqvy5kMr3NUY8jpaDDNrLx5uWHef7TDqDLrJbhKW9GB19vaGwA4GQ2PTfoDLgwjFMMXSMwSVo1MYqFAFB",
+     "ms": 6844
+    },
+    {
+     "what": "rollup sees the balance",
+     "ms": 7204,
+     "amount": "100000000"
+    },
+    {
+     "what": "undelegateIx (ER)",
+     "sig": "2W92uJKP7LX3zJJa9M5x1J4QjG8JQ4acZga6raReuofiVXQTyuypJc1dzfv7XXCDE4DjZXnhTnpb2ymp6nwAEjP7",
+     "ms": 1075
+    },
+    {
+     "what": "eATA back on Solana (owner = e-token program)",
+     "ms": 2330
+    },
+    {
+     "what": "withdrawSplIx (Solana)",
+     "sig": "3AAKDSPDQBCh7XGzNhfCeKut7RR8HGsmY6gyHrE3GWe4RueRDx4BG81Ttacu3hrqYuw1o9rxZy7LbvmKBrSNuMXN",
+     "ms": 1539
+    },
+    {
+     "what": "base ATA after withdraw",
+     "amount": "100000000"
+    }
+   ],
+   "owner": "6abZoWrtfLxJo4NyhzpsQSxpt1XyGMaHz4ZuppT4oC4P",
+   "mint": "2U1B5tXmMwf3nqeWA8gLoE65WXRMzX3NEKFcu6yGeJnF",
+   "roundTrip": true
+  },
+  {
+   "round": 2,
+   "steps": [
+    {
+     "what": "fund + mint + ATA + 100 tokens",
+     "sig": "Momy8ScgGneneVKoigi75iBAtx7yhXykfSmVyBcxcpB2RD3p2FgMqMk5H5d5e6PLBeR1ksnsRWnpR2CR74v1q3g",
+     "ms": 1475
+    },
+    {
+     "what": "delegateSpl (6 ix)",
+     "sig": "26fDbQxe8hw16LuFvCBHAD3xcAT3uMWCqUqKMmMiZwbqwS5HhhVgd7ZyEHmDwuaFXQoovAKCfnokXVd9RUEuz3tr",
+     "ms": 1636
+    },
+    {
+     "what": "rollup sees the balance",
+     "ms": 12885,
+     "amount": "100000000"
+    },
+    {
+     "what": "undelegateIx (ER)",
+     "sig": "BtN1Zucqh24eS7RFi5pvH41dZQr3drEWH5PiP6sQEGekJN88ngnBepMEewqZK7frz6PpLYxmvNkMx83SfHx5XSL",
+     "ms": 7162
+    },
+    {
+     "what": "eATA back on Solana (owner = e-token program)",
+     "ms": 25229
+    },
+    {
+     "what": "withdrawSplIx (Solana)",
+     "sig": "5pETueMdwQmswkywqED8rqY2ghNQGDeCnhrengPHPTSSMtLfqUS5h4ZGT5K8yMxgj1FjW4FAQnpTm99HBfAy1mn5",
+     "ms": 1201
+    },
+    {
+     "what": "base ATA after withdraw",
+     "amount": "100000000"
+    }
+   ],
+   "owner": "C9kUModdtP2Zyt8zTybCnAGRKsDCMFgWsq4KkG4pVby8",
+   "mint": "AeLRVLBxQr5qbmZrsLGCofVAH8NMJ8ARMVzUeGTxFxr6",
+   "roundTrip": true
+  },
+  {
+   "round": 3,
+   "steps": [
+    {
+     "what": "fund + mint + ATA + 100 tokens",
+     "sig": "4gXYUnbk7UDvZzvGSG6k3wK1qy1dEGVtduophhPVbXhmj4nZ4Vj2hKe81q7rBEq6kSbmxRStZ9LDUFnySzBGKaf6",
+     "ms": 2275
+    },
+    {
+     "what": "delegateSpl (6 ix)",
+     "sig": "5i1R6M4o9kFnUW27dyj3RMQbcpC9JX22MjCabKJFt9wmDnYG8RKY8AwNfQAAvwsbW9JbJHAUrNYz9N8s8ibBirK4",
+     "ms": 3100
+    },
+    {
+     "what": "rollup sees the balance",
+     "ms": 4034,
+     "amount": "100000000"
+    },
+    {
+     "what": "undelegateIx (ER)",
+     "sig": "uy5VRMpsJV14MiCkHQpo7wE3w1tZ6QZNk8eT1TdvRbydMWePQxcL1bacXdQ3psda5m7QHH1EmX8ULwiSmfVUpn6",
+     "ms": 2898
+    },
+    {
+     "what": "eATA back on Solana (owner = e-token program)",
+     "ms": 6235
+    },
+    {
+     "what": "withdrawSplIx (Solana)",
+     "sig": "4oiKvrWsYLsPnVxe5LMb6TddqXd3dwE4DoRo7sFkie88Zp2hhe4anzfgiwFB2nPNUJYgQWuo9krCji2ifUVXqjsf",
+     "ms": 11462
+    },
+    {
+     "what": "base ATA after withdraw",
+     "amount": "100000000"
+    }
+   ],
+   "owner": "2rMP736jhsecqhpqRvkz3iqtWAMwawkreA3TQfAychWq",
+   "mint": "D9AsGqao4937XmDShRy3A8JAfKwRgEL78zq4grGUX3DG",
+   "roundTrip": true
+  },
+  {
+   "round": 4,
+   "steps": [
+    {
+     "what": "fund + mint + ATA + 100 tokens",
+     "sig": "2weTayHzGZcj2nVpg64AFHCQQaMVQWY5UD6KPbi4qdXXxasQhm5uDT2rG5A21ABRtHxWTnZn4avqj4ZcNADdy42f",
+     "ms": 1340
+    },
+    {
+     "what": "delegateSpl (6 ix)",
+     "sig": "Ln7vUsQYhH1depk6TAJXT9QVvDxrAUhBEwmUatX7tsjTCXjBJLs4sUkW7G4Jh9uS2HGj7xVUPvw5siAU3shwzNS",
+     "ms": 3509
+    },
+    {
+     "what": "rollup sees the balance",
+     "ms": 9723,
+     "amount": "100000000"
+    },
+    {
+     "what": "undelegateIx (ER)",
+     "sig": "21Yt8iP7WndQbtZPqYo9zYopoW6VUu6xY8ngNe8dkJ8CUgJFpNaSRWPkTutCtwwi2T2sE9xy5KuSuiZxoCV4oiWD",
+     "ms": 1727
+    },
+    {
+     "what": "eATA back on Solana (owner = e-token program)",
+     "ms": 3234
+    },
+    {
+     "what": "withdrawSplIx (Solana)",
+     "sig": "XjY9cAy2FxvXeKaVdKW3B2MBjw9pj9XrXdrHE1gH9Sgvw16oWDFdM3Mo8b3CfLF6V5ZCzzR3x3yBFQ2DniPUHs1",
+     "ms": 1796
+    },
+    {
+     "what": "base ATA after withdraw",
+     "amount": "100000000"
+    }
+   ],
+   "owner": "5byCSofDJv7N66YLefJLAmhiXf4GoZ16CazZnvZkkPeY",
+   "mint": "5wjYB7UBq1muQyfqPnS7ii5oUUwpP1cfT6j2tjDSxq1g",
+   "roundTrip": true
+  },
+  {
+   "round": 5,
+   "steps": [
+    {
+     "what": "fund + mint + ATA + 100 tokens",
+     "sig": "3RFDKUJpDdPi6Stw26MLTgsTW4K7RyBrYWEzrb2w6jypS7AqMV5c8TBbzVvHHCSpX2Fh8PhMPajiLhJyZ1vmFq6K",
+     "ms": 1337
+    },
+    {
+     "what": "delegateSpl (6 ix)",
+     "sig": "4j5s34zZ7x2e8VkEZPoPVXxSU5bWXPfJrrjEQoa7XRwYJN46D8ABwXPBbyUhqTqKLsmpUG5tVQZuqSQnMH9nnJya",
+     "ms": 1282
+    },
+    {
+     "what": "rollup sees the balance",
+     "ms": 1565,
+     "amount": "100000000"
+    },
+    {
+     "what": "undelegateIx (ER)",
+     "sig": "3pXeKrhGcDBoo3KZ7iDwRxjFzvFcWkEpMCn2vQLnDk1a5C1qt5jZjprnTsXB4Je3xrJ8NScPjF5VfCzf9GYFCZu7",
+     "ms": 642
+    },
+    {
+     "what": "eATA back on Solana (owner = e-token program)",
+     "ms": 2219
+    },
+    {
+     "what": "withdrawSplIx (Solana)",
+     "sig": "3sHLRCwDsKva3p14ckwQtLLfkqmdrB9tov9WRepWFe62TbwmZJtSktCKTdHJ5dXSt1xnzUB4sFENCFCaCaWo5bNZ",
+     "ms": 2198
+    },
+    {
+     "what": "base ATA after withdraw",
+     "amount": "100000000"
+    }
+   ],
+   "owner": "55LKHAkf4RaE5KBVB76W9DuMEAmGpKYCRZFWjrsBVNu4",
+   "mint": "51127WCVSQnBfcjz35Jdxd8gsCdNB2jrrQjng9iCaDqU",
+   "roundTrip": true
+  }
+ ],
+ "roundTrips": 5,
+ "finished": "2026-11-23T11:21:00.088Z"
+}

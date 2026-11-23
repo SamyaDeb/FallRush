@@ -334,7 +334,16 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
         out.sigs.abort = (await act("abort_match", async () => sendEr([await pe.methods.abortMatch(5).accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "abort_match"), mlog)).sig;
       } else {
         stage("rounds_1_3");
-        const br = await bridgeRounds13(jsonl, matchPda, mlog);
+        let br: any;
+        try { br = await bridgeRounds13(jsonl, matchPda, mlog); }
+        catch (e: any) {
+          // the Classic server aborted the match (e.g. every human left): abort it on-chain too (markets refund)
+          if (!/unexpected event ABORT/.test(String(e?.message ?? e))) throw e;
+          stage("classic_abort");
+          out.sigs.abort = (await act("abort_match", async () => sendEr([await pe.methods.abortMatch(4).accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "abort_match"), mlog)).sig;
+          br = null;
+        }
+        if (br) {
         finalists = br.finalists;
         out.chainWorker = br;
         const want = finalists.filter((s) => h?.roster?.find((r: any) => r.slot === s && r.bot === false)).length;
@@ -349,6 +358,7 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
         }
         stage("start_final", { finalists });
         out.sigs.startFinal = (await act("start_final", async () => sendEr([cu(400_000), await pe.methods.startFinal(finalists).accountsPartial({ authority: wallet.publicKey, arena, world, matchAccount: matchPda, lobbyMap: maps[4] }).instruction()], [wallet], "start_final"), mlog)).sig;
+        }
       }
     }
     // 4. the Final on the rollup (also resumes a Final left running by a crashed keeper)

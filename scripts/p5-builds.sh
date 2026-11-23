@@ -15,7 +15,7 @@ for s in $STEPS; do
     tests) bash scripts/m1-unity.sh p5-editmode --tests -runTests -testPlatform EditMode -testResults "$ROOT/.m1-logs/p5-editmode.xml"; R=$?
        S=$(python3 -c "import re;t=open('.m1-logs/p5-editmode.xml').read();m=re.search(r'<test-run[^>]*total=\"(\d+)\"[^>]*passed=\"(\d+)\"[^>]*failed=\"(\d+)\"',t);print(m.groups() if m else 'no result')" 2>/dev/null)
        echo "$(date -u +%FT%TZ) editmode exit $R (total, passed, failed) $S $(( $(date +%s) - T0 )) s" | tee -a "$OUT" ;;
-    server) bash scripts/m1-unity.sh p5-server -buildTarget Linux64 -standaloneBuildSubtarget Server -executeMethod Build.Server; R=$?
+    server) bash scripts/m1-unity.sh p5-server -buildTarget Linux64 -executeMethod Build.LinuxDevServer; R=$?
        echo "$(date -u +%FT%TZ) linux server exit $R $(( $(date +%s) - T0 )) s $(du -sk client-unity/Builds/Server | cut -f1) KB" | tee -a "$OUT" ;;
     mac) bash scripts/m1-unity.sh p5-macserver -buildTarget OSXUniversal -executeMethod Build.MacDevServer; R=$?
        echo "$(date -u +%FT%TZ) mac dev server exit $R $(( $(date +%s) - T0 )) s" | tee -a "$OUT" ;;

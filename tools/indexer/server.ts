@@ -25,9 +25,9 @@ const ER = new Connection(process.env.ER_RPC_URL ?? "https://devnet-as.magicbloc
 const BASE = new Connection(process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com", "confirmed");
 const PROGRAM = new PublicKey(process.env.FALL_RUSH_PROGRAM_ID ?? "4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4");
 const GAS_LAMPORTS = Number(process.env.GAS_LAMPORTS ?? 12_000_000);
-const GAS_PER_IP_DAY = Number(process.env.GAS_PER_IP_DAY ?? 4);
+const GAS_PER_IP_DAY = Number(process.env.GAS_PER_IP_DAY ?? 20);
 const GAS_PER_HOUR = Number(process.env.GAS_PER_HOUR ?? 60);
-const FAUCET_PER_IP_DAY = Number(process.env.FAUCET_PER_IP_DAY ?? 6);
+const FAUCET_PER_IP_DAY = Number(process.env.FAUCET_PER_IP_DAY ?? 20);
 const funder: Keypair | null = (() => {
   const p = process.env.FUNDER_KEYPAIR;
   if (!p) return null;

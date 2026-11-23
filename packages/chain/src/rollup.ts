@@ -737,7 +737,7 @@ export class RollupTransport implements Transport {
     let arenaId = this.rc.p2?.arenaId ?? 0;
     const te = new TextEncoder();
     for (let id = 0; id < 32; id++) {
-      if (PublicKey.findProgramAddressSync([te.encode('arena'), Uint8Array.of(id)], program).equals(arena)) { arenaId = id; break; }
+      if (PublicKey.findProgramAddressSync([te.encode('arena'), Uint8Array.of(id)], program)[0].equals(arena)) { arenaId = id; break; }
     }
     return { program, arena, arenaId, P: Econ.econPdas(program, arena, arenaId), world: new PublicKey(cfg.addresses.world) };
   }
@@ -763,7 +763,10 @@ export class RollupTransport implements Transport {
         const r = await this.erPoller.wait(sig, 0, kind, 15000);
         if (r.ok) return { ok: true, sig, ms: Math.round(this.clock.now() - t0) };
         const e = safeJson(r.err);
-        if (!/pending|AccountNotFound|cloner|timeout|Blockhash/i.test(e)) return { ok: false, sig, err: r.err, ms: Math.round(this.clock.now() - t0) };
+        // P5: a confirmation TIMEOUT means the transaction may have landed: never resend (a bet / Chaos Drop would
+        // be bought twice, seen on devnet); the caller re-reads the state. Resend only on errors before execution.
+        if (/timeout/i.test(e)) return { ok: false, sig, err: 'unconfirmed (check the state before retrying)', ms: Math.round(this.clock.now() - t0) };
+        if (!/pending|AccountNotFound|cloner|Blockhash/i.test(e)) return { ok: false, sig, err: r.err, ms: Math.round(this.clock.now() - t0) };
       } catch (e) { if (n === 5) return { ok: false, sig: '', err: errMsg(e), ms: Math.round(this.clock.now() - t0) }; }
       await sleep(this.clock, 500);
     }

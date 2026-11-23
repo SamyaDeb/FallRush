@@ -35,6 +35,8 @@ export class CoreWorld {
     const d = new DataView(this.e.memory.buffer, this.buf, 36);
     return { x: d.getInt32(0, true), y: d.getInt32(4, true), z: d.getInt32(8, true), yaw: d.getUint8(24), stun: d.getUint8(26), flags: d.getUint8(33) };
   }
+  queuedDrops(): number { return this.e.rc_drops_queued(this.h); }
+  ingestDrop(kind: number): number { return this.e.rc_ingest_drop(this.h, kind); }
   lids() {
     const n = this.e.rc_lids(this.h, this.buf, 9 * 700);
     const d = new DataView(this.e.memory.buffer, this.buf, 9 * n);

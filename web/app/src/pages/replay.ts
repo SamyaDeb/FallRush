@@ -44,11 +44,17 @@ export function replay(root: HTMLElement, params: string[]) {
     if (frames.length < 2) { $('#st').textContent = 'the recording has no Final'; return; }
     // verify: snapshot T + the inputs latched for T+1 → must equal snapshot T+1 (byte for byte)
     const cw = await CoreWorld.create('CrumbleShelf');
-    let pairs = 0, ok = 0, gaps = 0, first = -1;
+    let pairs = 0, ok = 0, gaps = 0, first = -1, dropsIngested = 0;
+    const buys: { kind: number }[] = m.summary?.drops?.buys ?? [];
     for (let i = 1; i < frames.length; i++) {
       if (frames[i].tick !== frames[i - 1].tick + 1) { gaps++; continue; }
       pairs++;
-      cw.set(frames[i - 1].world);
+      // Chaos Drops: the program copies new DropQueue purchases into the World before stepping (sim.rs
+      // ingest_drops); the archived purchase kinds (the keeper's drops log) are applied at the tick the
+      // recording shows them entering the World
+      cw.set(frames[i].world); const q1 = cw.queuedDrops();
+      cw.set(frames[i - 1].world); const q0 = cw.queuedDrops();
+      for (let j = q0; j < q1; j++) { const k = buys[j]?.kind; if (k) { cw.ingestDrop(k); dropsIngested++; } }
       cw.step(inputsOf(frames[i].hdr));
       if (eq(cw.bytes(), frames[i].world)) ok++; else if (first < 0) first = frames[i].tick;
       if (i % 400 === 0) { $('#st').textContent = `checking ${i}/${frames.length}…`; await new Promise((x) => setTimeout(x, 0)); }
@@ -57,7 +63,7 @@ export function replay(root: HTMLElement, params: string[]) {
     const last = frames[frames.length - 1];
     const tOk = ft && /^[0-9a-f]{64}$/.test(ft) && ft !== '0'.repeat(64) ? has(last.world, ft) : null;
     const pass = pairs > 0 && ok === pairs && tOk !== false;
-    $('#st').innerHTML = `${pass ? '<span class="ok">replay = on-chain ✓</span>' : '<span class="bad">replay ≠ on-chain ✗</span>'} · ${ok}/${pairs} consecutive ticks re-simulated byte-exact with rush_core.wasm${gaps ? ` (${gaps} gaps in the recording skipped)` : ''}${first >= 0 ? ` · first mismatch at tick ${first}` : ''} · receipt Final transcript ${tOk == null ? 'n/a' : tOk ? 'found in the final World ✓' : 'NOT found ✗'} · ${frames.length} snapshots, ticks ${frames[0].tick}–${last.tick}`;
+    $('#st').innerHTML = `${pass ? '<span class="ok">replay = on-chain ✓</span>' : '<span class="bad">replay ≠ on-chain ✗</span>'} · ${ok}/${pairs} consecutive ticks re-simulated byte-exact with rush_core.wasm${gaps ? ` (${gaps} gaps in the recording skipped)` : ''}${dropsIngested ? ` · ${dropsIngested} Chaos Drop(s) ingested from the archived DropQueue` : ''}${first >= 0 ? ` · first mismatch at tick ${first}` : ''} · receipt Final transcript ${tOk == null ? 'n/a' : tOk ? 'found in the final World ✓' : 'NOT found ✗'} · ${frames.length} snapshots, ticks ${frames[0].tick}–${last.tick}`;
     (window as any).__replay = { pass, pairs, ok, gaps, transcript: tOk };
     const sl = $('#sl') as HTMLInputElement; sl.max = String(frames.length - 1); sl.value = '0';
     let i = 0, playing = true;

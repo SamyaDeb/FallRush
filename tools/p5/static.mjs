@@ -16,8 +16,12 @@ createServer((req, res) => {
   }
   let f = normalize(join(ROOT, decodeURIComponent(u.pathname)));
   if (!f.startsWith(ROOT) || !existsSync(f) || statSync(f).isDirectory()) f = join(ROOT, 'index.html');
-  const h = {};
-  if (f.endsWith('.br')) { h['content-encoding'] = 'br'; h['content-type'] = TYPES[extname(f.slice(0, -3))] ?? 'application/octet-stream'; }
+  const h = { 'accept-ranges': 'bytes' };
+  const size = statSync(f).size, rg = /bytes=(\d+)-(\d+)?/.exec(req.headers.range ?? '');
+  if (f.endsWith('.unityweb')) h['content-type'] = 'application/octet-stream';
+  else if (f.endsWith('.br')) { h['content-encoding'] = 'br'; h['content-type'] = TYPES[extname(f.slice(0, -3))] ?? 'application/octet-stream'; }
   else h['content-type'] = TYPES[extname(f)] ?? 'application/octet-stream';
-  res.writeHead(200, h); createReadStream(f).pipe(res);
+  if (rg) { const a = Number(rg[1]), b = rg[2] ? Number(rg[2]) : size - 1; res.writeHead(206, { ...h, 'content-range': `bytes ${a}-${b}/${size}`, 'content-length': b - a + 1 }); return void createReadStream(f, { start: a, end: b }).pipe(res); }
+  if (req.method === 'HEAD') { res.writeHead(200, { ...h, 'content-length': size }); return void res.end(); }
+  res.writeHead(200, { ...h, 'content-length': size }); createReadStream(f).pipe(res);
 }).listen(PORT, () => console.log(`static :${PORT} → ${ROOT}, /api → ${API.href}`));

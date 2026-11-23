@@ -11,7 +11,7 @@ ARENA_KEY=E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG; WORLD=9Q5KBadvfx3Yoen1uq
 P=()
 cleanup() { for p in "${P[@]}"; do kill $p 2>/dev/null; done; bash scripts/m1-macserver.sh stop >/dev/null 2>&1; }
 trap cleanup EXIT
-(cd web/app && node scripts/assets.mjs >/dev/null && ./node_modules/.bin/vite build --logLevel warn) && rm -rf web/app/dist/unity && mkdir -p web/app/dist/unity && cp -R client-unity/Builds/WebGL/Build client-unity/Builds/WebGL/StreamingAssets web/app/dist/unity/
+(cd web/app && node scripts/assets.mjs >/dev/null && ./node_modules/.bin/vite build --logLevel warn) && rm -rf web/app/dist/unity && mkdir -p web/app/dist/unity && cp -R client-unity/Builds/WebGL/Build client-unity/Builds/WebGL/StreamingAssets web/app/dist/unity/ && python3 tools/p5/build-json.py web/app/dist
 P2_NET=devnet ARENA=3 LOG_DIR="$LOGDIR" ARCHIVE="$ARCH" STATUS_PORT=3911 ACTION=1 node --experimental-strip-types --no-warnings tools/keeper/daemon.ts > "$OUT/keeper.log" 2>&1 & P+=($!)
 ARCHIVE="$ARCH" PORT=3912 KEEPERS="gs1=http://127.0.0.1:3911" GS_PUBLIC="gs1=ws://127.0.0.1:7777" FUNDER_KEYPAIR="$ROOT/tools/keeper/.keys/devnet-funder.json" node --experimental-strip-types --no-warnings tools/indexer/server.ts > "$OUT/indexer.log" 2>&1 & P+=($!)
 node tools/p5/static.mjs 4173 http://127.0.0.1:3912 > "$OUT/static.log" 2>&1 & P+=($!)

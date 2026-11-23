@@ -93,7 +93,7 @@ public static class ProjectSetup
 
         // WebGL: Brotli, served with Content-Encoding: br by nginx → no decompression fallback.
         PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
-        PlayerSettings.WebGL.decompressionFallback = false;
+        PlayerSettings.WebGL.decompressionFallback = true; // P5: /play fetches the build in parallel Range requests (plain bytes) and the loader decodes Brotli itself (doc 15 OC-14)
         PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.None; // release default; dev builds override in Build.cs
         PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.WebGL, ManagedStrippingLevel.Medium);
 

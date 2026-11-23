@@ -383,3 +383,22 @@ pub unsafe extern "C" fn rc_sweepers(h: i32, out_ptr: *mut u8, cap: u32) -> u32 
     })
     .unwrap_or(0)
 }
+
+/// P5 replay: the number of Chaos Drops queued in the World.
+#[no_mangle]
+pub extern "C" fn rc_drops_queued(h: i32) -> u32 {
+    with(h, |c| rush_core::drops::queued(&c.w.drop_queue) as u32).unwrap_or(0)
+}
+
+/// P5 replay: what the program's `tick()` does when a DropQueue purchase enters the World (sim.rs `ingest_drops`):
+/// queue drop `kind` with the seeded arg, triggering at tick + 1 + TELEGRAPH. Returns 1 if queued.
+#[no_mangle]
+pub extern "C" fn rc_ingest_drop(h: i32, kind: u32) -> u32 {
+    with(h, |c| {
+        let i = rush_core::drops::queued(&c.w.drop_queue) as u8;
+        let trigger = c.w.tick.wrapping_add(1).wrapping_add(rush_core::drops::TELEGRAPH);
+        let arg = rush_core::drops::arg_for(c.w.hazard_seed, i, kind as u8);
+        rush_core::drops::enqueue(&mut c.w.drop_queue, kind as u8, arg, trigger) as u32
+    })
+    .unwrap_or(0)
+}
