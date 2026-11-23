@@ -29,10 +29,11 @@ export async function header(path: string, timeoutMs = 600_000): Promise<Classic
 const argByte = (a: any) => (typeof a === "string" && a.length >= 2 ? parseInt(a.slice(0, 2), 16) : 0);
 
 /** Rounds 1–3 from the jsonl into `matchPda` (Dealt or later). Returns the 3 finalists. */
-export async function bridgeRounds13(path: string, matchPda: PublicKey, logFile: string, timeoutMs = 1_800_000): Promise<{ finalists: number[]; sent: number; skipped: number }> {
+export async function bridgeRounds13(path: string, matchPda: PublicKey, logFile: string, timeoutMs = 1_800_000, classicGone?: () => boolean): Promise<{ finalists: number[]; sent: number; skipped: number }> {
   const gp = { authority: wallet.publicKey, matchAccount: matchPda };
   let sent = 0, skipped = 0;
   const t0 = Date.now();
+  let goneSince = 0;
   for (;;) {
     const m: any = await pe.account.match.fetch(matchPda);
     const seq: number = m.eventSeq;
@@ -45,6 +46,13 @@ export async function bridgeRounds13(path: string, matchPda: PublicKey, logFile:
     }
     const e = evs.find((x) => x.seq === seq);
     if (!e) {
+      // P7 chaos fix: the Classic server restarted / moved on mid-match (its log just stops: no END, no ABORT). When it
+      // reports another match or no match for 15 s, take the Classic-abort path (abort on-chain, refund every market)
+      // instead of waiting for events that will never come (arena blocked up to timeoutMs before)
+      if (classicGone?.()) {
+        goneSince ||= Date.now();
+        if (Date.now() - goneSince > 15_000) { log(logFile, { act: "classic_gone", seq }); throw new Error("unexpected event ABORT (the Classic server left this match)"); }
+      } else goneSince = 0;
       if (Date.now() - t0 > timeoutMs) throw new Error(`chain worker: event seq ${seq} never appeared`);
       await sleep(300);
       continue;

@@ -463,7 +463,9 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
       } else {
         stage("rounds_1_3");
         let br: any;
-        try { br = await bridgeRounds13(jsonl, matchPda, mlog); }
+        // P7: the Classic server's status says whether it still plays this match (a mid-match restart loses it)
+        const classicGone = () => { const sv = serverStatus(); return !!sv && Date.now() - (sv.t ?? 0) < 10_000 && (!sv.inMatch || (sv.match && sv.match !== matchHex)); };
+        try { br = await bridgeRounds13(jsonl, matchPda, mlog, undefined, classicGone); }
         catch (e: any) {
           // the Classic server aborted the match (e.g. every human left): abort it on-chain too (markets refund)
           if (!/unexpected event ABORT/.test(String(e?.message ?? e))) throw e;
