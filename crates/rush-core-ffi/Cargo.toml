@@ -12,6 +12,10 @@ doctest = false
 crate-type = ["cdylib", "staticlib", "rlib"]
 path = "src/lib.rs"
 
+[features]
+# P6: shares abi.rs with rush-core-wasm; the D-CROWN harness export is never built here
+harness = []
+
 [dependencies]
 rush-core = { path = "../rush-core" }
 sha2 = { version = "=0.10.9", default-features = false }
