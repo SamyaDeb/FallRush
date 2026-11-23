@@ -428,14 +428,24 @@ namespace FallRush.OnChain
             }
 
             _map = asset.bytes;
-            if (j.coreVersion != 0 && j.coreVersion != _core.Version)
-                Debug.LogWarning($"[onchain] arena core 0x{j.coreVersion:x} != client core 0x{_core.Version:x}");
+            if (!WorldAccLayout.CoreMatches(j.coreVersion, _core.Version))
+            {
+                // P4 0.1: another rush-core = another simulation; predicting it would desync every tick
+                CoreMismatch = true;
+                _status = $"arena core v{j.coreVersion & 0xFFFF} != client core v{_core.Version & 0xFFFF}: update the client";
+                Debug.LogError($"[onchain] {_status}");
+                return;
+            }
             _status = $"joined {j.arena} slot {(j.slot < 12 ? j.slot.ToString() : "spectator")}";
             Debug.Log($"[onchain] {_status}, map {_mapKey}");
             var scene = "Map_" + _mapKey;
             if (SceneManager.GetActiveScene().name != scene)
                 SceneManager.LoadScene(scene);
         }
+
+        /// <summary>P4 0.1: the arena's match runs another rush-core version; this client refuses it.</summary>
+        public bool CoreMismatch { get; private set; }
+        private uint _serial;
 
         private void OnWorldMsg(in WorldMsg m, ClientSim cs)
         {
@@ -454,7 +464,27 @@ namespace FallRush.OnChain
             Updates++;
             _clock.OnWorld(view.Tick, m.RecvAt);
             var key = view.RushTick ^ (uint)view.HazardSeed;
-            if (_hasNewest && view.Tick + 30 < _newestTick)
+            // P4 0.1 / 0.2: the core version + match serial in the arena header
+            var core = lay.CoreVersion(m.Acc);
+            if (!WorldAccLayout.CoreMatches(core, _core.Version))
+            {
+                if (!CoreMismatch)
+                    Debug.LogError($"[onchain] arena core v{core & 0xFFFF} != client core v{_core.Version & 0xFFFF}: refusing the arena");
+                CoreMismatch = true;
+                _status = "arena runs another core: update the client";
+                return;
+            }
+            var serial = lay.ArenaSeq(m.Acc);
+            if (serial != 0 && _serial != 0 && serial < _serial)
+                return; // a stale read of the previous match
+            if (serial != 0 && _serial != 0 && serial > _serial)
+            {
+                _serial = serial;
+                NewArena(cs); // a new match on this arena (exact, no tick heuristic)
+            }
+            else if (serial != 0)
+                _serial = serial;
+            else if (_hasNewest && view.Tick + 30 < _newestTick)
             {
                 if (view.Tick >= 30 || _newestTick < 300)
                     return; // a stale read (a slow poll reply / the slower socket), not a restart: a new match restarts at tick 0
@@ -510,7 +540,9 @@ namespace FallRush.OnChain
         private double _leadAt, _lastLateAt = -1;
         public int ExtraLead => _extraLead;
         /// <summary>The program accepts stamps ≤ World.tick + 8; a batch ends 2 ticks after its first stamp (T+3+x+2 ≤ +8).</summary>
-        public const int MaxExtraLead = 3;
+        /// <summary>The extra lead's cap: the batch's first tick (T + lead + extra) must stay inside the arena's window
+        /// with 2 ticks of margin (window 8 → 3, as P3; window 12 → 7).</summary>
+        public int MaxExtraLead => Math.Max(0, Cfg.inputWindow - Cfg.inputLead - 2);
 
         private void AdaptLead(double now)
         {

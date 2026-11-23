@@ -29,7 +29,7 @@ test('config: discriminators = Anchor sha256 preimages; devnet arena 2 PDA; loca
 });
 
 // ---- account builders (sim.rs / IDL layouts, with the 8-byte discriminator) -------------------------------------
-function worldAccP2(tick: number, o: { part?: number; phase?: number; len?: number; applied?: number[] } = {}) {
+function worldAccP2(tick: number, o: { part?: number; phase?: number; len?: number; applied?: number[]; serial?: number; core?: number } = {}) {
   const b = new Uint8Array(2256);
   const dv = new DataView(b.buffer);
   b.set(Buffer.from(sha8('account:WorldAcc'), 'hex'), 0);
@@ -39,6 +39,8 @@ function worldAccP2(tick: number, o: { part?: number; phase?: number; len?: numb
   dv.setUint32(132, len, true);
   b[136] = o.part ?? 0;
   b[138] = o.phase ?? 5;
+  dv.setUint16(142, o.core ?? 0, true); // P4 WorldAcc.core_version
+  dv.setUint32(194, o.serial ?? 0, true); // P4 WorldAcc.serial
   for (let i = 0; i < len; i++) b[208 + i] = (i + tick) & 255;
   return b;
 }
@@ -246,7 +248,26 @@ test('World intake with the P2 layout: slices dropped, complete ticks queued, ne
   assert.equal(intake.ingest(worldAccP2(101), 'ws'), true);
   assert.equal(stats.slicesDropped, 1);
   assert.equal(stats.gaps, 0);
+  // no serial (an older program): a tick far behind early in a match is a stale read …
+  assert.equal(intake.ingest(worldAccP2(3), 'ws'), false, 'stale read early in a match');
+  // … and a restart near tick 0 once the match ran ≥ 300 ticks is a new match (epoch + 1)
+  assert.equal(intake.ingest(worldAccP2(400), 'ws'), true);
   assert.equal(intake.ingest(worldAccP2(3), 'ws'), true, 'next match restarts the tick');
   assert.ok(events.peek().some((e) => e.type === 'arenaChanged'));
   assert.equal(new DataView(intake.latest!.bytes.buffer).getUint32(8, true), 2);
+});
+
+test('P4 WorldAcc header: core version (u16) + match serial: exact new match, stale serials dropped', () => {
+  const clock = new FakeClock();
+  const events = new EventLog(64, clock);
+  const stats = new Stats();
+  const intake = new WorldIntake(devnet.world as never, 64, clock, events, stats);
+  assert.equal(intake.ingest(worldAccP2(100, { serial: 7, core: 2 }), 'ws'), true);
+  const v = new DataView(intake.latest!.bytes.buffer);
+  assert.equal(v.getUint32(4, true), 2, 'core version read as u16');
+  assert.equal(v.getUint32(8, true), 7, 'serial');
+  assert.equal(intake.ingest(worldAccP2(5, { serial: 8, core: 2 }), 'ws'), true, 'new serial = new match even early');
+  assert.ok(events.peek().some((e) => e.type === 'arenaChanged'));
+  assert.equal(intake.ingest(worldAccP2(101, { serial: 7, core: 2 }), 'ws'), false, 'a stale read of the old match');
+  assert.equal(intake.ingest(worldAccP2(6, { serial: 8, core: 2 }), 'ws'), true);
 });

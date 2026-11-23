@@ -26,6 +26,12 @@ const LOG = join(ROOT, `docs/proof/p2/keeper-${RUN}.jsonl`);
 const DONE = 11;
 const HYBRID = (process.env.MODE ?? "slice") === "hybrid"; // P2.10: Classic jsonl (CLASSIC_JSONL) rounds 1–3 → on-chain Final
 const FINAL = (process.env.MODE ?? "slice") === "final" || HYBRID;
+// P4 0.3 "wait for humans": before start_final, wait until HUMANS humans have joined the lobby or WAIT_HUMANS_S
+// seconds have passed. Hybrid: HUMANS defaults to the human finalists of the Classic handoff (jsonl roster).
+const WAIT_HUMANS_S = Number(process.env.WAIT_HUMANS_S ?? 8);
+const HUMANS_ENV = process.env.HUMANS != null ? Number(process.env.HUMANS) : null;
+// P4 0.4: the arena's forward input window (set_input_lead; 0 = program default 8); unset = leave as is
+const LEAD = process.env.LEAD != null ? Number(process.env.LEAD) : null;
 
 /** Rounds 1–3 recorded the way the Classic server's chain worker does (start_round / record_qualified /
  * record_eliminated / complete_round, game authority, idempotent by event_seq). Qualifiers: a deterministic pick from
@@ -66,6 +72,22 @@ if (arenaAcc.status === 2) {
   await sendEr([await pe.methods.abortArena().accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "abort_arena");
   console.log("aborted a running arena left by an earlier run");
 }
+if (LEAD != null) {
+  const r = await sendEr([await pe.methods.setInputLead(LEAD).accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "set_input_lead");
+  log(LOG, { act: "set_input_lead", lead: LEAD, sig: r.sig, err: r.err });
+  console.log(`input lead ${LEAD}: ${r.err ?? "ok"}`);
+}
+/** Waits until `want` humans have joined the arena (popcount of human_mask) or `secs` passed; returns the count. */
+async function waitHumans(want: number, secs: number): Promise<{ joined: number; ms: number }> {
+  const t0 = Date.now();
+  for (;;) {
+    const a: any = await pe.account.arena.fetch(arena).catch(() => null);
+    const mask = a ? Number(a.humanMask) : 0;
+    let n = 0; for (let s = 0; s < N; s++) if ((mask >> s) & 1) n++;
+    if (n >= want || Date.now() - t0 >= secs * 1000) return { joined: n, ms: Date.now() - t0 };
+    await sleep(250);
+  }
+}
 const summary: any[] = [];
 for (let mi = 1; mi <= MATCHES; mi++) {
   const classic = HYBRID ? await header(process.env.CLASSIC_JSONL!) : null;
@@ -101,6 +123,18 @@ for (let mi = 1; mi <= MATCHES; mi++) {
     finalists = HYBRID ? (await bridgeRounds13(process.env.CLASSIC_JSONL!, matchPda, LOG)).finalists : await recordRounds13(matchPda, matchId);
     const mp: any = await pe.account.match.fetch(matchPda);
     preFinal = { transcript: Buffer.from(mp.transcriptHash).toString("hex"), eventSeq: mp.eventSeq };
+    // wait for humans (deterministic human Finals; bets and drops from real people need them in)
+    let want = HUMANS_ENV ?? 0;
+    if (HYBRID && HUMANS_ENV == null) {
+      const h = readLines(process.env.CLASSIC_JSONL!).find((l) => l.type === "match");
+      want = finalists.filter((s) => h?.roster?.find((r: any) => r.slot === s && r.bot === false)).length;
+    }
+    if (want > 0) {
+      const wh = await waitHumans(want, WAIT_HUMANS_S);
+      log(LOG, { act: "wait_humans", want, ...wh });
+      console.log(`  humans ${wh.joined}/${want} after ${wh.ms} ms`);
+      preFinal.humans = { want, ...wh };
+    }
     sigs.startFinal = (await act("start_final", async () => sendEr([cu(400_000), await pe.methods.startFinal(finalists).accountsPartial({ authority: wallet.publicKey, arena, world, matchAccount: matchPda, lobbyMap: maps[4] }).instruction()], [wallet], "start_final"))).sig;
   } else {
     sigs.startSim = (await act("start_sim", async () => sendEr([cu(400_000), await pe.methods.startSim().accountsPartial({ authority: wallet.publicKey, arena, world, matchAccount: matchPda, lobbyMap: maps[4] }).instruction()], [wallet], "start_sim"))).sig;

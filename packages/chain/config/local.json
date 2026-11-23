@@ -14,9 +14,10 @@
     "tickOffset": 128,
     "appliedTickOffset": 80,
     "appliedTickCount": 12,
-    "coreVersionOffset": null,
+    "coreVersionOffset": 142,
+    "coreVersionBytes": 2,
     "flagsOffset": null,
-    "arenaSeqOffset": null,
+    "arenaSeqOffset": 194,
     "completeOffset": 136,
     "phaseOffset": 138,
     "donePhase": 11

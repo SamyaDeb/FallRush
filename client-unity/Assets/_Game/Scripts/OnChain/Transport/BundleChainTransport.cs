@@ -44,7 +44,7 @@ namespace FallRush.OnChain
         /// <summary>The bundle's normalised WorldView: tick 0, core 4, seq 8, flags 12, len 14, applied 16, World at 64.</summary>
         public static readonly WorldAccLayout Layout = new WorldAccLayout
         {
-            offset = 64, lenOffset = 14, tickOffset = 0, appliedTickOffset = 16, coreVersionOffset = 4, flagsOffset = 12,
+            offset = 64, lenOffset = 14, tickOffset = 0, appliedTickOffset = 16, coreVersionOffset = 4, arenaSeqOffset = 8, flagsOffset = 12,
         };
 
         private readonly byte[] _buf = new byte[64 * 2200];

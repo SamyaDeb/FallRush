@@ -124,6 +124,8 @@ namespace FallRush.OnChain
         public int tickOffset = 12;
         public int appliedTickOffset = 16;
         public int coreVersionOffset = 8;
+        /// <summary>P4 0.2: the match serial (u32; 0 or −1 = none: infer a new match from the tick restarting).</summary>
+        public int arenaSeqOffset = -1;
         public int flagsOffset = 70;
         /// <summary>When the account has no length field (fixed layout): the World length.</summary>
         public int fixedLen;
@@ -140,6 +142,11 @@ namespace FallRush.OnChain
         public uint Tick(byte[] acc) => BitConverter.ToUInt32(acc, tickOffset);
         public uint Applied(byte[] acc, int slot) => appliedTickOffset < 0 ? 0u : BitConverter.ToUInt32(acc, appliedTickOffset + slot * 4);
         public uint CoreVersion(byte[] acc) => coreVersionOffset < 0 ? 0u : BitConverter.ToUInt32(acc, coreVersionOffset);
+        public uint ArenaSeq(byte[] acc) => arenaSeqOffset < 0 ? 0u : BitConverter.ToUInt32(acc, arenaSeqOffset);
+
+        /// <summary>P4 0.1: an arena core (rush_core::VERSION, or a full rc_version) matches the client core when the
+        /// low 16 bits (rush_core::VERSION) agree; 0 = unknown (an older program), accepted.</summary>
+        public static bool CoreMatches(uint arena, uint client) => arena == 0 || (arena & 0xFFFF) == (client & 0xFFFF);
         public ushort Flags(byte[] acc) => flagsOffset < 0 ? (ushort)0 : (ushort)(acc[flagsOffset] | acc[flagsOffset + 1] << 8);
     }
 }

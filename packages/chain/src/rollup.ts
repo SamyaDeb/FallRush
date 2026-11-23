@@ -688,7 +688,14 @@ export class RollupTransport implements Transport {
       if (slot !== 255 && fin.length && !fin.includes(slot!)) { this.jev('notFinalist', { slot }); slot = 255; } // spectate
       const roster = fin.map((s) => ({ slot: s, kind: ((a!.humanMask >> s) & 1) ? 'human' : 'bot', name: s === slot ? args.name : undefined, wallet: ((a!.humanMask >> s) & 1) ? a!.wallets[s].toBase58() : undefined }));
       this.receipt.finalists = fin;
-      const res: JoinResult = { ok: true, slot: slot!, arena: arena.toBase58(), map: args.map ?? this.rc.join?.map ?? 'CrumbleShelf', rate: this.rc.join?.rate ?? 30, coreVersion: 0, roster, world: cfg.addresses.world };
+      // P4 0.1: the core version the arena's match runs (WorldAcc.core_version); the client refuses a mismatch
+      let coreVersion = 0;
+      if (cfg.addresses.world) {
+        const wd = await this.readEr(new PublicKey(cfg.addresses.world));
+        const pw = wd ? parseWorldAccount(wd, cfg.world) : null;
+        if (pw) coreVersion = new DataView(pw.view.buffer).getUint32(4, true);
+      }
+      const res: JoinResult = { ok: true, slot: slot!, arena: arena.toBase58(), map: args.map ?? this.rc.join?.map ?? 'CrumbleShelf', rate: this.rc.join?.rate ?? 30, coreVersion, roster, world: cfg.addresses.world };
       (res as Record<string, unknown>).match = matchPk.toBase58();
       this.joined = res;
       this.jev('started', { slot, match: matchPk.toBase58(), finalists: fin, ms: Math.round(this.clock.now() - t0) });

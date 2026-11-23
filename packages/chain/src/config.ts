@@ -54,6 +54,8 @@ export interface WorldLayout {
   appliedTickOffset: number | null;
   appliedTickCount?: number; // default 12
   coreVersionOffset: number | null;
+  /** width of the core version field: 4 (default) or 2 (P4 `WorldAcc.core_version`, LE u16 = rush_core::VERSION) */
+  coreVersionBytes?: 2 | 4;
   flagsOffset: number | null;
   arenaSeqOffset?: number | null;
   /** optional magic bytes at offset 0 (hex) to reject foreign accounts */
