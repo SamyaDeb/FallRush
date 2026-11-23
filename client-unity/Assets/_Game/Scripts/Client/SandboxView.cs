@@ -383,7 +383,8 @@ namespace FallRush.Client
             UpdateHazardVisuals(cs);
             FadeSigns();
 
-            var lagging = cs.Remote.Lagging;
+            // P7: during the on-chain Final the Classic server sends no snapshots on purpose; its lag is not the player's
+            var lagging = cs.Remote.Lagging && ChainAdapters.Override == null;
             if (_lagIcon.activeSelf != lagging)
                 _lagIcon.SetActive(lagging);
 
