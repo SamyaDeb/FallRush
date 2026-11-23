@@ -895,6 +895,12 @@ export class RollupTransport implements Transport {
         }
         return { ok: true, revealed: out };
       }
+      if (action === 'season') {
+        // P6: the wallet's season stats + the board, from the indexer (same origin in the browser: /api/season)
+        const base = String(this.rc.indexerUrl ?? '');
+        const r = await fetch(`${base}/api/season?wallet=${me.toBase58()}`).then((x) => x.json()).catch((e) => ({ ok: false, error: errMsg(e) }));
+        return r as Record<string, unknown>;
+      }
       if (action === 'teeAttest') {
         const teeUrl = String(this.rc.teeUrl ?? Sealed.DEFAULT_TEE);
         return await Sealed.attest(teeUrl, String(args.base ?? ''));

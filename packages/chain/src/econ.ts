@@ -107,7 +107,9 @@ export function decodeReceipt(d: Uint8Array) {
     status: d[26], flags: d[27], champion: d[294], round: d[129],
     receipt: { flags: d[r], trust: d[r + 1], coreVersion: rdU16(d, r + 2), humanMask: rdU16(d, r + 4), mintedMask: rdU16(d, r + 6), drops: d[r + 8], dropSpent: rdU64(d, r + 9),
       mapHash: hex(r + 17, r + 49), preFinal: hex(r + 49, r + 81), finalTranscript: hex(r + 81, r + 113), dropLog: hex(r + 113, r + 145), capsuleSeed: hex(r + 145, r + 177),
-      crown: new PublicKey(d.subarray(r + 177, r + 209)).toBase58(), wallets, placements: Array.from(d.subarray(r + 593, r + 605)), rarity: Array.from(d.subarray(r + 605, r + 617)), markets },
+      crown: new PublicKey(d.subarray(r + 177, r + 209)).toBase58(), wallets, placements: Array.from(d.subarray(r + 593, r + 605)), rarity: Array.from(d.subarray(r + 605, r + 617)), markets,
+      // P6: sealed Champion bets of this match + the bets hash (record_season)
+      sealedN: d[r + 717], sealedRevealed: d[r + 718], sealedForfeits: d[r + 719], sealedPool: rdU64(d, r + 721), sealedForfeit: rdU64(d, r + 729), betsHash: hex(r + 737, r + 769) },
   };
 }
 

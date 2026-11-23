@@ -326,6 +326,19 @@ namespace FallRush.OnChain
                 _sb.Append('\n');
             }
 
+            if (_betMarket == 0 && e.Sealed?.escrow != null && e.Sealed.escrow.n + (e.Sealed.open ? 1 : 0) > 0)
+            {
+                var es = e.Sealed.escrow;
+                _sb.Append("<size=13><color=#7B2FF7><b>SEALED</b> — picks are hidden in MagicBlock's private rollup (TEE) until the market closes · ")
+                    .Append(es.n).Append(" sealed bet(s), ").Append(ChainEconomy.Rush(ChainEconomy.Parse(es.pool))).Append(" RUSH");
+                if (es.state >= 2)
+                    _sb.Append(" · revealed ").Append(es.nRevealed).Append('/').Append(es.n).Append(es.nForfeit > 0 ? $", {es.nForfeit} forfeited" : string.Empty);
+                foreach (var mine in e.Sealed.mine)
+                    _sb.Append(" · yours: ").Append(ChainEconomy.Rush(ChainEconomy.Parse(mine.amount))).Append(" on ").Append(mine.saved != null && !string.IsNullOrEmpty(mine.saved.amount) ? SlotName(mine.saved.outcome) : "?")
+                        .Append(mine.state == 1 ? " ✓" : mine.state == 2 ? " (forfeited)" : string.Empty);
+                _sb.Append("</color></size>\n");
+            }
+
             if (_betMarket >= 2)
                 _sb.Append("<size=12>Pick who qualifies: every backer of a qualifier shares the pool.</size>\n");
             if (!string.IsNullOrEmpty(e.LastError) && e.LastAction != null && e.LastAction.StartsWith("bet"))
@@ -433,6 +446,27 @@ namespace FallRush.OnChain
                     continue;
                 _sb.Append("<size=14>").Append(new[] { "Champion", "Final winner", "Qualify R1", "Qualify R2", "Qualify R3" }[k]).Append(": pool ").Append(ChainEconomy.Rush(ChainEconomy.Parse(mk.pool)))
                     .Append(" · ").Append(Labels[Mathf.Clamp(mk.label, 0, 5)]).Append("</size>\n");
+            }
+
+            if (r.receipt.sealedN > 0)
+                _sb.Append("<size=14>Sealed Champion bets: ").Append(r.receipt.sealedN).Append(" · revealed ").Append(r.receipt.sealedRevealed)
+                    .Append(r.receipt.sealedForfeits > 0 ? $" · {r.receipt.sealedForfeits} forfeited" : string.Empty).Append(" ◆</size>\n");
+            // P6: the season line (UI only; the numbers come from the on-chain PlayerSeason via the indexer)
+            if (r.onSolana && me >= 0 && e.SeasonFor != r.match && Time.frameCount % 600 == 0)
+                e.FetchSeason(r.match);
+            var sp = e.Season?.player;
+            if (me >= 0 && sp != null && !string.IsNullOrEmpty(sp.wallet) && e.SeasonFor == r.match)
+            {
+                _sb.Append("<size=15><color=#7B2FF7>");
+                if (champ == me)
+                    _sb.Append("+1 crown this season (").Append(sp.crowns).Append(" total) · ");
+                _sb.Append(sp.finals).Append(" Final(s) this season");
+                var a = sp.achievements;
+                if ((a & 1) != 0) _sb.Append(" · FIRST CROWN");
+                if ((a & 2) != 0) _sb.Append(" · 3-ROUND SURVIVOR");
+                if ((a & 4) != 0) _sb.Append(" · PERFECT PREDICTOR");
+                if ((a & 8) != 0) _sb.Append(" · CHAOS AGENT");
+                _sb.Append("</color></size>\n");
             }
 
             _sb.Append("<size=14>Drops: ").Append(r.receipt.drops).Append(" · rounds 1–3 ● server-recorded · Final ◆ program-computed · core v").Append(r.receipt.coreVersion).Append("</size>\n");

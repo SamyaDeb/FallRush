@@ -1,8 +1,8 @@
 // /me — the guest wallet (burner) or Phantom: chips, "cash out to real RUSH" (rollup cashout → Solana mint_cashout),
 // owned capsules + Crown (Metaplex Core, getProgramAccounts with an owner memcmp), equip a capsule shell for the next
 // match (cosmetic only; the game server checks ownership), claim to Phantom, move RUSH to Phantom, back up the key.
-import { rpc, BASE_HTTP, CORE, ASSETS_AUTH, explorer, short, rush, b64 } from '../lib/net';
-import { coreAttrs } from '../lib/decode';
+import { rpc, api, BASE_HTTP, CORE, ASSETS_AUTH, explorer, short, rush, b64 } from '../lib/net';
+import { coreAttrs, badges, seasonName } from '../lib/decode';
 import { chainFor, ensureGuest, J } from '../lib/chain';
 
 export function me(root: HTMLElement) {
@@ -10,6 +10,7 @@ export function me(root: HTMLElement) {
     <div class="card" id="backup-card"><h3>Back up your key</h3><p class="muted">This guest wallet lives only in this browser's storage. Clearing site data or switching device loses it, along with any Crown, capsules or RUSH it holds. Save the key, or claim your assets to Phantom.</p>
       <button class="btn small pink" id="reveal">Show my secret key</button><div id="keybox"></div>
       <details style="margin-top:8px"><summary>Restore a backed-up key</summary><textarea id="imp" rows="2" placeholder="base58 secret key"></textarea><button class="btn small" id="doimp">Restore</button> <span id="impst" class="muted"></span></details></div>
+    <div class="card"><h3>This season</h3><div id="season" class="muted">…</div></div>
     <div class="card"><h3>Chips → real RUSH</h3><div id="chips" class="muted">…</div>
       <div class="row" style="margin-top:6px"><input type="number" id="amt" min="1" value="100"> <button class="btn small mint" id="cash">Cash out to RUSH (SPL)</button></div><div id="cashst" class="muted"></div></div>
     <div class="card"><h3>Capsules &amp; Crown</h3><div id="caps" class="muted">reading your assets…</div></div>
@@ -28,6 +29,10 @@ export function me(root: HTMLElement) {
       return { st, rs };
     };
     await refresh();
+    api(`/season?wallet=${w.burner}`).then((r) => {
+      const p = r?.player;
+      $('#season').innerHTML = `${seasonName(r.id)}: ${p ? `${p.matches} match(es) · ${p.crowns} 👑 · ${p.finals} Final(s) · markets ${Number(p.net) >= 0 ? '+' : ''}${rush(p.net)} RUSH (${p.betsWon}/${p.betsWon + p.betsLost} won) · ${p.drops} drop(s)<br>${badges(p.achievements) || 'no achievements yet'}` : 'nothing recorded yet'} · <a href="/season" data-link>board</a>${p ? ` · <a target="_blank" href="${explorer('address', r.playerAccount)}">on-chain</a>` : ''}`;
+    }).catch(() => { $('#season').textContent = 'season unavailable'; });
     $('#cash').onclick = async () => {
       const amount = Number(($('#amt') as HTMLInputElement).value);
       ($('#cash') as HTMLButtonElement).disabled = true;
@@ -73,13 +78,18 @@ export function me(root: HTMLElement) {
     };
     $('#reveal').onclick = () => {
       if (!confirm('Your secret key gives full control of this guest wallet. Anyone who sees it can take your Crown, capsules and RUSH. Show it?')) return;
-      const k = c.exportBurner();
+      // P6: the sealed-bet salts ride along (a pick can be revealed with them if the private book's reveal fails)
+      const salts = localStorage.getItem('fr.sealed.' + w.burner);
+      const k = c.exportBurner() + (salts && salts !== '[]' ? '\nsealed:' + btoa(salts) : '');
       $('#keybox').innerHTML = `<textarea rows="3" readonly>${k}</textarea><div class="row"><button class="btn small" id="copy">Copy</button><span class="muted">Store it somewhere private (a password manager). Never paste it into a website you don't trust.</span></div>`;
       $('#copy').onclick = () => navigator.clipboard.writeText(k).then(() => ($('#copy').textContent = 'copied ✓'));
     };
     $('#doimp').onclick = () => {
       if (!confirm('Replace the guest wallet in this browser with the restored key? Back up the current one first if it holds anything.')) return;
-      const r = JSON.parse(c.importBurner(($('#imp') as HTMLTextAreaElement).value.trim()));
+      const [key, ...rest] = ($('#imp') as HTMLTextAreaElement).value.trim().split(/\s+/);
+      const r = JSON.parse(c.importBurner(key));
+      const sl = rest.find((x) => x.startsWith('sealed:'));
+      if (r.ok && sl) { try { const nw = JSON.parse(c.wallet()).burner; localStorage.setItem('fr.sealed.' + nw, atob(sl.slice(7))); } catch { /* ignore */ } }
       $('#impst').textContent = r.ok ? 'restored: reloading…' : r.error;
       if (r.ok) setTimeout(() => location.reload(), 800);
     };

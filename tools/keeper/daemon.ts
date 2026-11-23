@@ -361,7 +361,7 @@ async function seasons(matchPda: PublicKey, mlog: string, out: any) {
   for (const id of S.seasonsFor(rc.completedAt)) {
     if (id < S.TEST_SEASON_BASE) await S.ensureSeason(id).catch(() => {});
     const sigs = await S.recordSeason(ARENA, matchPda, id, wallets, champion, mlog);
-    out.seasons[id] = { wallets: wallets.length, sigs };
+    out.seasons[id] = { wallets: wallets.length, walletList: wallets.map((x) => x.toBase58()), sigs };
   }
 }
 

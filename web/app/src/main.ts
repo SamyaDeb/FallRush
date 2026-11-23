@@ -5,11 +5,12 @@ import { live } from './pages/live';
 import { replay } from './pages/replay';
 import { receipt } from './pages/receipt';
 import { me } from './pages/me';
+import { season } from './pages/season';
 
 export type Page = (root: HTMLElement, params: string[]) => (() => void) | void;
 const routes: [RegExp, Page][] = [
   [/^\/$/, home], [/^\/play\/?$/, play], [/^\/live\/?(\d+)?\/?$/, live],
-  [/^\/replay\/([1-9A-HJ-NP-Za-km-z]{32,44})\/?$/, replay], [/^\/receipt\/([1-9A-HJ-NP-Za-km-z]{32,44})\/?$/, receipt], [/^\/me\/?$/, me],
+  [/^\/replay\/([1-9A-HJ-NP-Za-km-z]{32,44})\/?$/, replay], [/^\/receipt\/([1-9A-HJ-NP-Za-km-z]{32,44})\/?$/, receipt], [/^\/me\/?$/, me], [/^\/season\/?(\d+)?\/?$/, season],
 ];
 let cleanup: (() => void) | void;
 export function go(path: string) { history.pushState({}, '', path); render(); }

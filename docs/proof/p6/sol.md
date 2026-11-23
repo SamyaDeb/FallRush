@@ -56,3 +56,4 @@ Balance: 6.09127052 SOL
 
 Buffer Address                               | Authority                                    | Balance
 
+| 2026-11-23T15:34:26Z | guest-gas funder top-up +0.46411 SOL (was 0.28589 → 0.75 SOL; ≥ 60 guests at 0.012) | 3.501868678 SOL | 2.468224672 SOL |

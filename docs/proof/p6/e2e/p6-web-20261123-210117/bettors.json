@@ -1,0 +1,305 @@
+{
+  "at": "2026-11-23T15:31:22.253Z",
+  "arena": 3,
+  "bettors": [
+    {
+      "wallet": "76ZpY8EYsDkpPz2ikdhipBGAye3VdyudNnTeAAB8Jw9J",
+      "outcome": 0,
+      "amount": "5000000",
+      "salt": "d353267a48130c85d325515b8e7ef764",
+      "hash": "9176b412c451d552136a60e0e34a2252d614eebc674a34c6ea9b32bc9bc897e8",
+      "pick": {
+        "sig": "4rotyTuKMcfb4UoVzkE74EpvKoDU8D86bbYsreAWQjJuaD4YH1wKywRjdBsy9qyEmGwqwdTHgZW29kxRh9KUXp4e",
+        "ms": 306
+      },
+      "commit": {
+        "sig": "2XunVy2bHTaiJy3SymNHfKaSp6EfAnpqB4AkzvM1yUra5d4S2e2ATUZX8YrXvvCYqme8XmHut1QAUajexeNPrs1N",
+        "ms": 487
+      },
+      "commitMs": 487
+    },
+    {
+      "wallet": "qLJ5pc81tQpSGdwb1v4KaSeUREWD5EXbYoNYB2qgvch",
+      "outcome": 3,
+      "amount": "8000000",
+      "salt": "736c45b80311a895291d6291fca7e4e2",
+      "hash": "332ac8dda69321a740d9d12804c219d1f6eaea395d47e65bc017db280e8842af",
+      "pick": {
+        "sig": "tmXmQsry6wis7eLxYqG4CkVtMi3ZDBQSyVnjWe5fnUMUtX47P5PV7rDBwU4h6Efr5FoUyvRv7iKLKNBmyhSAfMx",
+        "ms": 239
+      },
+      "commit": {
+        "sig": "5unPWvcrjYnyHy1AL2jmPkCHB2GfTkMRSzbBuekLAu72DtdD7rBcUECrJU152Pavc6mX6jQ4QgWRQHsWNgpq7gkx",
+        "ms": 403
+      },
+      "commitMs": 403
+    }
+  ],
+  "match": "Er2xxJPeJhymQaqyTmnq9nsDQ9UVMYj91PAmo8XhHZmm",
+  "privacy": {
+    "at": 1795447936510,
+    "bookOutsider": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"context\":{\"slot\":869057467},\"value\":null}}"
+    },
+    "bookNoToken": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"context\":{\"slot\":869057474},\"value\":null}}"
+    },
+    "bookSolana": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"result\":{\"context\":{\"apiVersion\":\"4.5.0-beta.0\",\"slot\":525476579},\"value\":{\"data\":[\"8vK+EyZ0TrDDVsDd5a4DrxTfqR7n9wQ0DYvB8ELS0c3nEup6vgEoTwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    "escrowPublic": {
+      "n": 2,
+      "pool": "13000000",
+      "entries": [
+        {
+          "wallet": "76ZpY8EYsDkpPz2ikdhipBGAye3VdyudNnTeAAB8Jw9J",
+          "amount": "5000000",
+          "hash": "9176b412c451d552136a60e0e34a2252d614eebc674a34c6ea9b32bc9bc897e8",
+          "outcome": 255
+        },
+        {
+          "wallet": "qLJ5pc81tQpSGdwb1v4KaSeUREWD5EXbYoNYB2qgvch",
+          "amount": "8000000",
+          "hash": "332ac8dda69321a740d9d12804c219d1f6eaea395d47e65bc017db280e8842af",
+          "outcome": 255
+        }
+      ]
+    }
+  },
+  "closeSeenAt": 1795447947888,
+  "revealedSeenAt": 1795447948950,
+  "closeToRevealMs": 1062,
+  "escrowAfter": {
+    "arena": "E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG",
+    "match": "Er2xxJPeJhymQaqyTmnq9nsDQ9UVMYj91PAmo8XhHZmm",
+    "closedAt": 1795447947,
+    "pool": "13000000",
+    "forfeit": "0",
+    "n": 2,
+    "nRevealed": 2,
+    "state": 2,
+    "nForfeit": 0,
+    "entries": [
+      {
+        "wallet": "76ZpY8EYsDkpPz2ikdhipBGAye3VdyudNnTeAAB8Jw9J",
+        "amount": "5000000",
+        "hash": "9176b412c451d552136a60e0e34a2252d614eebc674a34c6ea9b32bc9bc897e8",
+        "outcome": 0,
+        "state": 1
+      },
+      {
+        "wallet": "qLJ5pc81tQpSGdwb1v4KaSeUREWD5EXbYoNYB2qgvch",
+        "amount": "8000000",
+        "hash": "332ac8dda69321a740d9d12804c219d1f6eaea395d47e65bc017db280e8842af",
+        "outcome": 3,
+        "state": 1
+      }
+    ]
+  },
+  "escrowDone": {
+    "arena": "E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG",
+    "match": "Er2xxJPeJhymQaqyTmnq9nsDQ9UVMYj91PAmo8XhHZmm",
+    "closedAt": 1795447947,
+    "pool": "13000000",
+    "forfeit": "0",
+    "n": 2,
+    "nRevealed": 2,
+    "state": 3,
+    "nForfeit": 0,
+    "entries": [
+      {
+        "wallet": "76ZpY8EYsDkpPz2ikdhipBGAye3VdyudNnTeAAB8Jw9J",
+        "amount": "5000000",
+        "hash": "9176b412c451d552136a60e0e34a2252d614eebc674a34c6ea9b32bc9bc897e8",
+        "outcome": 0,
+        "state": 1
+      },
+      {
+        "wallet": "qLJ5pc81tQpSGdwb1v4KaSeUREWD5EXbYoNYB2qgvch",
+        "amount": "8000000",
+        "hash": "332ac8dda69321a740d9d12804c219d1f6eaea395d47e65bc017db280e8842af",
+        "outcome": 3,
+        "state": 1
+      }
+    ]
+  },
+  "bookAfter": {
+    "arena": "E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG",
+    "match": "Er2xxJPeJhymQaqyTmnq9nsDQ9UVMYj91PAmo8XhHZmm",
+    "n": 2,
+    "closed": 1,
+    "entries": [
+      {
+        "wallet": "76ZpY8EYsDkpPz2ikdhipBGAye3VdyudNnTeAAB8Jw9J",
+        "amount": "5000000",
+        "salt": {
+          "type": "Buffer",
+          "data": [
+            211,
+            83,
+            38,
+            122,
+            72,
+            19,
+            12,
+            133,
+            211,
+            37,
+            81,
+            91,
+            142,
+            126,
+            247,
+            100
+          ]
+        },
+        "outcome": 0
+      },
+      {
+        "wallet": "qLJ5pc81tQpSGdwb1v4KaSeUREWD5EXbYoNYB2qgvch",
+        "amount": "8000000",
+        "salt": {
+          "type": "Buffer",
+          "data": [
+            115,
+            108,
+            69,
+            184,
+            3,
+            17,
+            168,
+            149,
+            41,
+            29,
+            98,
+            145,
+            252,
+            167,
+            228,
+            226
+          ]
+        },
+        "outcome": 3
+      }
+    ]
+  },
+  "market0": {
+    "match": "Er2xxJPeJhymQaqyTmnq9nsDQ9UVMYj91PAmo8XhHZmm",
+    "pool": "58000000",
+    "winningStake": "4000000",
+    "paidTotal": "58000000",
+    "vault": "0",
+    "stake": [
+      "9000000",
+      "7000000",
+      "4000000",
+      "12000000",
+      "4000000",
+      "2000000",
+      "4000000",
+      "4000000",
+      "2000000",
+      "4000000",
+      "4000000",
+      "2000000"
+    ],
+    "winners": 16,
+    "id": 3,
+    "kind": 0,
+    "round": 4,
+    "status": 3,
+    "label": 1,
+    "nBets": 14,
+    "nPaid": 14,
+    "refund": 0,
+    "bets": [
+      {
+        "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+        "amount": "4000000",
+        "outcome": 0,
+        "paid": 1
+      },
+      {
+        "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+        "amount": "7000000",
+        "outcome": 1,
+        "paid": 1
+      },
+      {
+        "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+        "amount": "4000000",
+        "outcome": 2,
+        "paid": 1
+      },
+      {
+        "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+        "amount": "4000000",
+        "outcome": 3,
+        "paid": 1
+      },
+      {
+        "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+        "amount": "4000000",
+        "outcome": 4,
+        "paid": 1
+      },
+      {
+        "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+        "amount": "2000000",
+        "outcome": 5,
+        "paid": 1
+      },
+      {
+        "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+        "amount": "4000000",
+        "outcome": 6,
+        "paid": 1
+      },
+      {
+        "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+        "amount": "4000000",
+        "outcome": 7,
+        "paid": 1
+      },
+      {
+        "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+        "amount": "2000000",
+        "outcome": 8,
+        "paid": 1
+      },
+      {
+        "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+        "amount": "4000000",
+        "outcome": 9,
+        "paid": 1
+      },
+      {
+        "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+        "amount": "4000000",
+        "outcome": 10,
+        "paid": 1
+      },
+      {
+        "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+        "amount": "2000000",
+        "outcome": 11,
+        "paid": 1
+      },
+      {
+        "wallet": "76ZpY8EYsDkpPz2ikdhipBGAye3VdyudNnTeAAB8Jw9J",
+        "amount": "5000000",
+        "outcome": 0,
+        "paid": 1
+      },
+      {
+        "wallet": "qLJ5pc81tQpSGdwb1v4KaSeUREWD5EXbYoNYB2qgvch",
+        "amount": "8000000",
+        "outcome": 3,
+        "paid": 1
+      }
+    ]
+  }
+}

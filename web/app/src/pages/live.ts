@@ -55,14 +55,35 @@ export function live(root: HTMLElement, params: string[]) {
       if (!b) return;
       b.disabled = true;
       const amt = Number((root.querySelector('#amt') as HTMLInputElement)?.value ?? 10) || 10;
+      if (Number(b.dataset.k) === 0 && sealed?.open) {
+        // P6: the Champion market is sealed — the pick goes to the private book (MagicBlock TEE), the stake + a commitment
+        // to the public rollup; nobody (not even us) can read the pick until the market closes
+        if (!attested) { attested = true; J(c.econ('teeAttest', JSON.stringify({ base: '/chain/' }))).then((a) => { teeOk = a.ok; feed(a.ok ? `🛡 TEE attested in this browser (Intel TDX quote, ${a.ms} ms)` : `<span class="muted">TEE attestation not verified: ${String(a.error).slice(0, 80)}</span>`); }); }
+        const r = await J(c.econ('sealedBet', JSON.stringify({ outcome: Number(b.dataset.o), amount: amt })));
+        feed(r.ok ? `<b>you</b> sealed ${amt} RUSH on a Champion pick 🔒 (pick ${r.pick?.ok ? 'in the private book' : '<span class="bad">not in the book: you will reveal it yourself</span>'}, ${r.ms + (r.pick?.ms ?? 0)} ms) · <a target="_blank" href="${explorer('tx', r.sig, true)}">commit tx</a>` : `<span class="bad">sealed bet refused</span> ${String(r.error).slice(0, 120)}`);
+        setTimeout(() => (b.disabled = false), 1200);
+        return;
+      }
       const r = await J(c.econ('bet', JSON.stringify({ k: Number(b.dataset.k), outcome: Number(b.dataset.o), amount: amt })));
       feed(r.ok ? `<b>you</b> bet ${amt} RUSH on slot ${Number(b.dataset.o) + 1} · ${MARKET_NAMES[Number(b.dataset.k)]} ${r.session ? '(session key)' : ''} · <a target="_blank" href="${explorer('tx', r.sig, true)}">tx</a>` : `<span class="bad">bet refused</span> ${String(r.error).slice(0, 120)}`);
       setTimeout(() => (b.disabled = false), 1200);
     };
-    let prevBets = -1, prevDrops = -1;
+    let prevBets = -1, prevDrops = -1, sealed: any = null, attested = false, teeOk = false, selfRevealAt = 0, wasSealedOpen = false;
     const poll = async () => {
       try {
         state = await J(c.econ('state', '{}'));
+        sealed = await J(c.econ('sealedState', '{}')).catch(() => null);
+        if (sealed?.escrow) {
+          if (wasSealedOpen && sealed.escrow.state >= 2) feed(`🔓 Champion market closed: ${sealed.escrow.nRevealed}/${sealed.escrow.n} sealed bets revealed from the private book`);
+          wasSealedOpen = sealed.escrow.state === 1;
+          // commit-reveal fallback: if my pick is still unrevealed a few seconds into the reveal window, reveal it myself
+          const mineOpen = (sealed.mine ?? []).filter((x: any) => x.state === 0 && x.saved);
+          if (sealed.escrow.state === 2 && mineOpen.length && Date.now() / 1000 > sealed.escrow.closedAt + 6 && Date.now() > selfRevealAt + 4000) {
+            selfRevealAt = Date.now();
+            const rv = await J(c.econ('sealedReveal', '{}'));
+            feed(`revealed your own sealed pick(s): ${JSON.stringify((rv.revealed ?? []).map((x: any) => x.ok))}`);
+          }
+        }
         const st = await api('/status').catch(() => null);
         const sv = st?.servers?.find((x: any) => x.arena === id);
         const ad = (await accounts(ER_HTTP, [A.arena]))[0];
@@ -84,7 +105,8 @@ export function live(root: HTMLElement, params: string[]) {
         $('#markets').innerHTML = `<div class="row muted">stake <input id="amt" type="number" min="1" value="${(root.querySelector('#amt') as HTMLInputElement)?.value ?? 10}"> RUSH ${ready ? '' : '(set up your guest wallet first)'}</div>` + ms.filter((m) => m.status >= 1).map((m) => {
           const mk = { pool: BigInt(m.pool), stake: m.stake.map((x: string) => BigInt(x)) } as any;
           const open = marketOpen(state, m.k);
-          return `<div style="margin:8px 0"><b>${MARKET_NAMES[m.k]}</b> <span class="pill">${m.status === 1 ? (open ? 'open' : 'closed') : m.status === 2 ? 'settled' : m.status === 3 ? 'paid' : 'idle'}</span> pool ${rush(m.pool)} · ${m.nBets} bets ${m.label ? `· ${LABELS[m.label]}` : ''}
+          const sl = m.k === 0 && sealed?.escrow ? `<div class="muted">🔒 <b>sealed</b> — picks are hidden in MagicBlock's private rollup (TEE) and revealed at close · ${sealed.escrow.n} sealed bet(s), ${rush(sealed.escrow.pool)} RUSH staked${sealed.escrow.state >= 2 ? ` · revealed ${sealed.escrow.nRevealed}/${sealed.escrow.n}${sealed.escrow.nForfeit ? `, ${sealed.escrow.nForfeit} forfeited` : ''}` : ''}${(sealed.mine ?? []).length ? ` · yours: ${(sealed.mine as any[]).map((x) => `${rush(x.amount)} on #${(x.saved?.outcome ?? 0) + 1}${x.state === 1 ? ' ✓revealed' : x.state === 2 ? ' ✗forfeited' : ''}`).join(', ')}` : ''}${sealed.escrow.state === 1 && (sealed.mine ?? []).length ? ' · keep this tab open until the reveal' : ''}${teeOk ? ' · 🛡 TEE attested' : ''}</div>` : '';
+          return `<div style="margin:8px 0">${sl}<b>${MARKET_NAMES[m.k]}${m.k === 0 ? ' 🔒' : ''}</b> <span class="pill">${m.status === 1 ? (open ? 'open' : 'closed') : m.status === 2 ? 'settled' : m.status === 3 ? 'paid' : 'idle'}</span> pool ${rush(m.pool)} · ${m.nBets} bets ${m.label ? `· ${LABELS[m.label]}` : ''}
             <div class="row" style="margin-top:4px">${slots.map((s) => { const o = odds(mk, s); return `<button class="btn small ${(m.winners >> s) & 1 && m.status >= 2 ? 'mint' : ''}" data-k="${m.k}" data-o="${s}" ${open && ready ? '' : 'disabled'}>#${s + 1}${(humans >> s) & 1 ? '★' : ''} ${o ? 'x' + o.toFixed(1) : '—'}</button>`; }).join('')}</div></div>`;
         }).join('');
         const dq = state.drops;

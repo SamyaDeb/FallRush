@@ -42,7 +42,10 @@ export function decodeMatch(d: Uint8Array) {
       flags: d[r], trust: d[r + 1], coreVersion: u16(d, r + 2), humanMask: u16(d, r + 4), mintedMask: u16(d, r + 6), drops: d[r + 8], dropSpent: u64(d, r + 9),
       mapHash: hex(d, r + 17, r + 49), preFinal: hex(d, r + 49, r + 81), finalTranscript: hex(d, r + 81, r + 113), dropLog: hex(d, r + 113, r + 145), capsuleSeed: hex(d, r + 145, r + 177),
       crown: pk(d, r + 177), wallets: Array.from({ length: 12 }, (_, s) => pk(d, r + 209 + 32 * s)), placements: Array.from(d.subarray(r + 593, r + 605)), rarity: Array.from(d.subarray(r + 605, r + 617)), markets,
+      // P6: sealed Champion bets + the bets hash (what record_season checks) + the sealed entries hash
+      sealedN: d[r + 717], sealedRevealed: d[r + 718], sealedForfeits: d[r + 719], sealedPool: u64(d, r + 721), sealedForfeit: u64(d, r + 729), betsHash: hex(d, r + 737, r + 769), sealedHash: hex(d, r + 769, r + 801),
     },
+    completedAt: d.length >= 1408 ? Number(new DataView(d.buffer, d.byteOffset).getBigInt64(1400, true)) : 0,
   };
 }
 export const MATCH_STATUS = ['Created', 'Dealing', 'Dealt', 'Round active', 'Round resolved', 'Completed', 'Aborted'];
@@ -74,3 +77,13 @@ export function coreAttrs(d: Uint8Array): Record<string, string> {
   if (nameLen > 0 && nameLen < 80) out.name = td.decode(d.subarray(70, 70 + nameLen));
   return out;
 }
+
+// ---- P6 seasons + achievements ------------------------------------------------------------------------------------
+export const ACH = [
+  { bit: 1, icon: '👑', name: 'First crown', why: 'your first Final win ever' },
+  { bit: 2, icon: '🛡', name: '3-round survivor', why: 'qualified from rounds 1, 2 and 3' },
+  { bit: 4, icon: '🎯', name: 'Perfect predictor', why: '≥ 2 bets in one match, all won' },
+  { bit: 8, icon: '🌪', name: 'Chaos agent', why: 'bought a Chaos Drop in an on-chain Final' },
+];
+export const badges = (bits: number) => ACH.filter((a) => bits & a.bit).map((a) => `<span class="pill" title="${a.why}">${a.icon} ${a.name}</span>`).join(' ');
+export function seasonName(id: number) { return id >= 1_000_000 ? `test season ${id - 1_000_000}` : `${Math.floor(id / 100)} · week ${id % 100}`; }
