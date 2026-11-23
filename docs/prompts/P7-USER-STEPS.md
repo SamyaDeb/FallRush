@@ -25,6 +25,7 @@ Meanwhile, line up testers for Wednesday:
 - ideally on **different networks** (not all on one Wi-Fi, which triggers devnet RPC rate limits).
 
 ## 2. USER GATE 1: playtest 1 (~1 h for 3–4 matches)
+**Status (2026-11-23 22:25 UTC): ready.** The new build is live at https://fallrush.fun (Play / Live / Season / Me). Kit: `docs/proof/p7/playtest-kit.md` (in the worktree `../FallRush-p7` until the merge). Capacity: the guest-gas funder holds ≈ 0.67 SOL ≈ 56 new guests; 40 guests per network per day. If testers share one Wi-Fi, more than ~40 fresh browsers that day hit the limit (an incognito window = a fresh guest).
 1. Send testers the "For testers" section and the feedback form from `docs/proof/p7/playtest-kit.md`.
 2. Start everyone together (a call or a group chat). Follow the kit's run plan. In one match, someone closes their tab during the Final on purpose.
 3. Note the match times. Collect screenshots of anything odd.
