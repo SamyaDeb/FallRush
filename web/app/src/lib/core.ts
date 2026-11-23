@@ -1,0 +1,48 @@
+// rush_core.wasm (the same core the program runs as sBPF and Unity runs for prediction): decode a World into
+// players / lids / sweepers for the 2D views, and step it for the replay check.
+type Ex = Record<string, any> & { memory: WebAssembly.Memory };
+let ex: Ex | null = null;
+const maps: Record<string, Uint8Array> = {};
+export async function core(): Promise<Ex> {
+  if (ex) return ex;
+  const { instance } = await WebAssembly.instantiate(await (await fetch('/chain/rush_core.wasm')).arrayBuffer(), {});
+  ex = instance.exports as Ex;
+  return ex;
+}
+async function map(name: string) { return (maps[name] ??= new Uint8Array(await (await fetch(`/maps/${name}.mapblob`)).arrayBuffer())); }
+const put = (e: Ex, b: Uint8Array) => { const p = e.rc_alloc(b.length); new Uint8Array(e.memory.buffer, p, b.length).set(b); return p; };
+
+export class CoreWorld {
+  h = -1; e!: Ex; private buf = 0; private cap = 0;
+  static async create(mapName = 'CrumbleShelf') {
+    const w = new CoreWorld();
+    w.e = await core();
+    const m = await map(mapName);
+    const cfg = new Uint8Array(24); new DataView(cfg.buffer).setUint32(0, 30, true);
+    const mp = put(w.e, m), cp = put(w.e, cfg);
+    w.h = w.e.rc_init(mp, m.length, cp);
+    w.e.rc_dealloc(mp, m.length); w.e.rc_dealloc(cp, 24);
+    w.cap = w.e.rc_world_size() + 4096; w.buf = w.e.rc_alloc(w.cap);
+    return w;
+  }
+  set(world: Uint8Array): boolean { new Uint8Array(this.e.memory.buffer, this.buf, world.length).set(world); return this.e.rc_set_world(this.h, this.buf, world.length) === 0; }
+  bytes(): Uint8Array { const n = this.e.rc_world_bytes(this.h, this.buf, this.cap); return new Uint8Array(this.e.memory.buffer, this.buf, n).slice(); }
+  /** 12 × 6 B inputs {present, mx, my, buttons, yaw lo, yaw hi}. */
+  step(inputs: Uint8Array) { const p = put(this.e, inputs); const n = this.e.rc_step(this.h, p); this.e.rc_dealloc(p, inputs.length); return n; }
+  player(slot: number) {
+    const n = this.e.rc_player(this.h, slot, this.buf);
+    if (n < 33) return null;
+    const d = new DataView(this.e.memory.buffer, this.buf, 36);
+    return { x: d.getInt32(0, true), y: d.getInt32(4, true), z: d.getInt32(8, true), yaw: d.getUint8(24), stun: d.getUint8(26), flags: d.getUint8(33) };
+  }
+  lids() {
+    const n = this.e.rc_lids(this.h, this.buf, 9 * 700);
+    const d = new DataView(this.e.memory.buffer, this.buf, 9 * n);
+    return Array.from({ length: n }, (_, i) => ({ x: d.getInt32(9 * i, true), z: d.getInt32(9 * i + 4, true), s: d.getUint8(9 * i + 8) }));
+  }
+  sweepers() {
+    const n = this.e.rc_sweepers(this.h, this.buf, 20 * 8);
+    const d = new DataView(this.e.memory.buffer, this.buf, 20 * n);
+    return Array.from({ length: n }, (_, i) => ({ px: d.getInt32(20 * i, true), pz: d.getInt32(20 * i + 4, true), arm: d.getInt32(20 * i + 8, true), c: d.getInt32(20 * i + 12, true) / 32768, s: d.getInt32(20 * i + 16, true) / 32768 }));
+  }
+}
