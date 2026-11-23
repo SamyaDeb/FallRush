@@ -44,6 +44,10 @@ namespace FallRush.OnChain
         public ESeason Season;
         public string SeasonFor;
         private double _selfRevealAt;
+        /// <summary>P6 test hook (dev / verification): <c>?autobet=&lt;RUSH&gt;</c> places one sealed Champion bet through
+        /// <see cref="Bet"/> (the bet panel's path) as soon as the sealed market opens, on the first alive slot.</summary>
+        private int _autobet = -1;
+        private string _autobetFor;
         public string LastError, LastSig, LastAction;
         public bool LastSession;
         public long Balance => State?.chips != null ? Parse(State.chips.balance) : -1;
@@ -168,6 +172,18 @@ namespace FallRush.OnChain
                                     break;
                                 }
                     });
+                    if (_autobet < 0)
+                        _autobet = int.TryParse(FallRush.Shared.NetTargets.GetQueryParam(Application.absoluteURL, "autobet"), out var ab) ? ab : 0;
+                    if (_autobet > 0 && Sealed != null && Sealed.open && s.match != null && _autobetFor != s.match.pda && MarketOpen(0))
+                    {
+                        _autobetFor = s.match.pda;
+                        var slot = 0;
+                        for (var i = 0; i < s.match.slots.Length && i < s.match.players; i++)
+                            if (s.match.slots[i] == 1 || s.match.slots[i] == 2) { slot = i; break; }
+                        Debug.Log($"[econ] autobet: sealed Champion bet {_autobet} RUSH on slot {slot + 1}");
+                        Bet(0, slot, _autobet, ok => Debug.Log($"[econ] autobet sealed {(ok ? "ok" : "failed: " + LastError)} sig {LastSig}"));
+                    }
+
                     var m = s.match?.pda;
                     if (!string.IsNullOrEmpty(m) && m != MatchPda)
                     {

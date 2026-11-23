@@ -75,7 +75,7 @@ try {
     const before = await (await fetch(`${BASE}/api/matches?n=1`)).json().catch(() => ({ matches: [] }));
     const last = before.matches?.[0]?.match;
     const sv = opt('server', '');
-    await send('Page.navigate', { url: `${BASE}/play?bot=match&onchainauto=900&hud=1${sv ? '&server=' + encodeURIComponent(sv) : ''}` });
+    await send('Page.navigate', { url: `${BASE}/play?bot=match&onchainauto=900&hud=1${opt('autobet', '') ? '&autobet=' + opt('autobet', '') : ''}${sv ? '&server=' + encodeURIComponent(sv) : ''}` });
     let n = 0;
     const got = await until(async () => {
       if (++n % 60 === 0) await shot(`t${Math.round(T())}`);
