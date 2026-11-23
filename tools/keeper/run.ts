@@ -13,6 +13,8 @@ import { join } from "node:path";
 import { sampleCu } from "./cusample.ts";
 import { header, bridgeRounds13, readLines } from "../chain-worker/worker.ts";
 import { NET, EP, base, er, wallet, pb, pe, pda, key, sendBase, sendEr, ROOT, PROGRAM_ID, MAGIC_PROGRAM, MAGIC_CONTEXT, N, sleep, decodeWorld, tickAccounts, log, cu, pct, BN } from "./lib.ts";
+import * as E from "./econ.ts";
+import { SystemProgram } from "@solana/web3.js";
 
 const ARENA = Number(process.env.ARENA ?? 0);
 const MATCHES = Number(process.env.MATCHES ?? 1);
@@ -32,6 +34,9 @@ const WAIT_HUMANS_S = Number(process.env.WAIT_HUMANS_S ?? 8);
 const HUMANS_ENV = process.env.HUMANS != null ? Number(process.env.HUMANS) : null;
 // P4 0.4: the arena's forward input window (set_input_lead; 0 = program default 8); unset = leave as is
 const LEAD = process.env.LEAD != null ? Number(process.env.LEAD) : null;
+// P4 economy (markets, market maker, drops in tick(), receipt, capsules, rewards); ECON=0 = the P2/P3 flow
+const ECON = process.env.ECON !== "0" && FINAL;
+const MM = ECON && process.env.MM !== "0";
 
 /** Rounds 1–3 recorded the way the Classic server's chain worker does (start_round / record_qualified /
  * record_eliminated / complete_round, game authority, idempotent by event_seq). Qualifiers: a deterministic pick from
@@ -44,6 +49,8 @@ async function recordRounds13(matchPda: PublicKey, matchId: Buffer): Promise<num
   const gp = { authority: wallet.publicKey, matchAccount: matchPda };
   const ev = async (what: string, ix: Promise<any>) => { const r = await sendEr([await ix], [wallet], what, 10); if (r.err) throw new Error(`${what}: ${r.err}`); seq++; return r; };
   for (let r = 1; r <= 3; r++) {
+    // P4: a betting window before each synthetic round (Qualify(r) opens when round r − 1 is resolved)
+    if (ECON) await sleep(Number(process.env.ROUND_GAP_MS ?? 4000));
     await ev(`start_round ${r}`, pe.methods.startRound(r, seq).accountsPartial(gp).instruction());
     const order = [...alive].sort((a, b) => sha(matchId, r, a) - sha(matchId, r, b));
     const q = order.slice(0, targets[r - 1]), out = order.slice(targets[r - 1]);
@@ -77,6 +84,50 @@ if (LEAD != null) {
   log(LOG, { act: "set_input_lead", lead: LEAD, sig: r.sig, err: r.err });
   console.log(`input lead ${LEAD}: ${r.err ?? "ok"}`);
 }
+const econOut: Record<string, any> = {};
+const mm = key("mm");
+if (ECON) {
+  await E.setupEcon(ARENA, econOut);
+  if (MM) {
+    const bal = await base.getBalance(mm.publicKey);
+    if (bal < 20_000_000) econOut.mmFund = await sendBase([SystemProgram.transfer({ fromPubkey: wallet.publicKey, toPubkey: mm.publicKey, lamports: 30_000_000 - bal })], [wallet], "fund mm");
+    econOut.mmChips = await E.ensureChips(mm);
+  }
+  log(LOG, { act: "econ_setup", ...econOut });
+  console.log(`economy ready: mm ${mm.publicKey.toBase58()} chips ${(await E.chipsOf(mm.publicKey))?.balance ?? "?"}`);
+}
+/** The market maker (labelled "mm" in the UI): seeds each market once its window opens (program rules), spread by bot
+ * tier; runs beside the match until `stop()`. */
+function mmWatcher(matchPda: PublicKey, tiers: (string | undefined)[], mlog: any[]) {
+  let stopped = false;
+  const done = new Set<string>();
+  const seed = async (tag: string, k: number, slots: number[]) => {
+    if (done.has(tag)) return;
+    done.add(tag);
+    const r = await E.mmSeed(mm, ARENA, k, matchPda, slots, tiers, k === 0 ? 1n : 2n);
+    mlog.push({ tag, k, slots, sigs: r.sigs.length, errs: r.errs, sig: r.sigs[0] });
+    log(LOG, { act: "mm_seed", tag, k, sigs: r.sigs.length, errs: r.errs, sample: r.sigs[0] });
+  };
+  const loop = (async () => {
+    while (!stopped) {
+      try {
+        const m: any = await pe.account.match.fetch(matchPda);
+        const st = Object.keys(m.status)[0];
+        const alive = m.slots.map((x: any, i: number) => (x.state === 1 ? i : -1)).filter((i: number) => i >= 0 && i < m.playerCount);
+        if (m.currentRound === 0 && ["created", "dealing", "dealt"].includes(st)) { await seed("champion", 0, alive); await seed("q1", 2, alive); }
+        if (st === "roundResolved" && m.currentRound === 1) await seed("q2", 3, alive);
+        if (st === "roundResolved" && m.currentRound === 2) await seed("q3", 4, alive);
+        if ((m.flags & 0x40) !== 0 && !done.has("final")) {
+          const wi = await er.getAccountInfo(pda.world(pda.arena(ARENA)), "processed");
+          if (wi && wi.data[139] === 4 && wi.data[199] < 3) await seed("final", 1, alive);
+        }
+      } catch {}
+      await sleep(400);
+    }
+  })();
+  return { stop: async () => { stopped = true; await loop; } };
+}
+
 /** Waits until `want` humans have joined the arena (popcount of human_mask) or `secs` passed; returns the count. */
 async function waitHumans(want: number, secs: number): Promise<{ joined: number; ms: number }> {
   const t0 = Date.now();
@@ -106,6 +157,15 @@ for (let mi = 1; mi <= MATCHES; mi++) {
   // ---- ER: lobby → VRF → start
   const inputMetas = inputs.map((pubkey) => ({ pubkey, isSigner: false, isWritable: true }));
   sigs.openLobby = (await act("open_lobby", async () => sendEr([await pe.methods.openLobby(matchPda).accountsPartial({ authority: wallet.publicKey, arena, world }).remainingAccounts(inputMetas).instruction()], [wallet], "open_lobby", 40))).sig;
+  let mmw: { stop: () => Promise<void> } | null = null;
+  const mmLog: any[] = [];
+  if (ECON) {
+    sigs.openMarkets = (await act("open_markets", async () => E.openMarkets(ARENA, matchPda))).sig;
+    if (MM) {
+      const tiers: (string | undefined)[] = classic ? (readLines(process.env.CLASSIC_JSONL!).find((l) => l.type === "match")?.roster ?? []).map((r: any) => (r.bot ? r.tier : undefined)) : [];
+      mmw = mmWatcher(matchPda, tiers, mmLog);
+    }
+  }
   sigs.requestDeal = (await act("request_deal", async () => sendEr([await pe.methods.requestDeal().accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda, oracleQueue: EP.vrfQueue }).instruction()], [wallet], "request_deal"))).sig;
   const tDeal = Date.now();
   for (;;) {
@@ -237,6 +297,25 @@ for (let mi = 1; mi <= MATCHES; mi++) {
   writeFileSync(join(mdir, "ticks.json"), JSON.stringify(tickAt));
   const dur = (Date.now() - t0) / 1000;
   for (const t of tasks.splice(0)) await cancel(new BN(t)).catch(() => {});
+  // ---- P4: settle the markets (program-settled ◆ / authority-recorded ●), the receipt, the capsule VRF draw
+  const econRes: any = {};
+  if (ECON) {
+    if (mmw) await mmw.stop();
+    econRes.mm = mmLog;
+    econRes.settle = {};
+    for (let k = 0; k < E.MARKETS; k++) {
+      try { econRes.settle[k] = await act(`settle_${k}`, async () => E.settleAndPay(ARENA, k, matchPda)); } catch (e: any) { econRes.settle[k] = { err: String(e?.message ?? e).slice(0, 200) }; }
+      const mk = await E.market(ARENA, k);
+      if (mk) econRes[`market${k}`] = { pool: mk.pool.toString(), winners: mk.winners, winningStake: mk.winningStake.toString(), label: mk.label, status: mk.status, bets: mk.bets.map((b) => ({ wallet: b.wallet.toBase58(), outcome: b.outcome, amount: b.amount.toString(), paid: b.paid })), paidTotal: mk.paidTotal.toString(), refund: mk.refund };
+    }
+    const dq = await er.getAccountInfo(E.epda.drops(arena)).catch(() => null);
+    if (dq) { const d = E.decodeDrops(dq.data as Buffer); econRes.drops = { count: d.count, pot: d.pot.toString(), buys: d.buys.map((b) => ({ by: b.by.toBase58(), tick: b.tick, kind: b.kind })) }; }
+    sigs.writeReceipt = (await act("write_receipt", async () => E.writeReceipt(ARENA, matchPda, maps))).sig;
+    sigs.requestCapsules = (await act("request_capsules", async () => E.requestCapsules(matchPda)).catch((e) => ({ sig: "", err: String(e) }))).sig;
+    const tq = Date.now();
+    for (; Date.now() - tq < 30_000;) { const rc = await E.matchReceipt(er, matchPda); if (rc && rc.flags & 2) break; await sleep(400); }
+    log(LOG, { act: "capsule_seed_seen", ms: Date.now() - tq });
+  }
   sigs.endSim = (await act("end_sim", async () => sendEr([await pe.methods.endSim().accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "end_sim"))).sig;
   await sleep(1500);
   sigs.finalize = (await act("finalize_match", async () => sendEr([await pe.methods.finalizeMatch().accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "finalize_match"))).sig;
@@ -244,8 +323,19 @@ for (let mi = 1; mi <= MATCHES; mi++) {
   const tf = Date.now();
   let mb: any = null;
   for (; Date.now() - tf < 90_000;) { const i = await base.getAccountInfo(matchPda); if (i && i.owner.equals(PROGRAM_ID)) { mb = await pb.account.match.fetch(matchPda); break; } await sleep(1000); }
+  if (ECON && mb) {
+    econRes.receipt = await E.matchReceipt(base, matchPda);
+    const t1 = Date.now();
+    econRes.rewards = await E.mintRewards(matchPda, LOG);
+    econRes.rewardsMs = Date.now() - t1;
+    econRes.receiptAfter = await E.matchReceipt(base, matchPda);
+    const fix = (o: any) => JSON.parse(JSON.stringify(o, (_k, v) => (typeof v === "bigint" ? v.toString() : v instanceof PublicKey ? v.toBase58() : v)));
+    econRes.receipt = fix(econRes.receipt);
+    econRes.receiptAfter = fix(econRes.receiptAfter);
+    writeFileSync(join(mdir, "econ.json"), JSON.stringify({ match: matchPda.toBase58(), sigs, ...econRes }, null, 1));
+  }
   const res = {
-    realTime, finalists, preFinal,
+    realTime, finalists, preFinal, econ: ECON ? { settled: Object.keys(econRes.settle ?? {}).length, rewards: econRes.rewards } : undefined,
     match: mi, matchPda: matchPda.toBase58(), complete: w.phase >= DONE, wallS: dur, gameS: w.tick / 30, ticks: w.tick, executions: Number(w.executions - base0.executions), notDue: Number(w.notDue - base0.notDue),
     execPerTick: Number(w.executions - base0.executions) / Math.max(1, w.tick), budgetHit: Number(w.budgetHit - base0.budgetHit), restarts, fallback,
     cuPerPart: Object.fromEntries(Object.entries(cuByRound).map(([k, v]) => [k, { n: v.length, p50: pct(v, 50), p95: pct(v, 95), max: Math.max(...v) }])), gapMs: { p50: pct(gaps, 50), p95: pct(gaps, 95), max: Math.max(...gaps) }, onSolana: mb ? { status: Object.keys(mb.status)[0], champion: mb.championSlot, round: mb.currentRound, transcript: Buffer.from(mb.transcriptHash).toString("hex"), vrfSeed: Buffer.from(mb.vrfSeed).toString("hex") } : null, sigs,

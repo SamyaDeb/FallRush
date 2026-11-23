@@ -27,6 +27,7 @@
     "maxEvents": 512
   },
   "rollup": {
+    "validator": "mAGicPQYBMvcYveUZA5F5UNNwyHvfYh5xkLS2Fr1mev",
     "erHttp": "http://localhost:7799",
     "erWs": "ws://localhost:7800",
     "baseHttp": "http://localhost:8899",

@@ -59,3 +59,7 @@ docs/proof/p2/runs/*/world.bin
 .espl-spike.log
 docs/proof/p2/runs/p4-*/
 docs/proof/p2/keeper-p4-*.jsonl
+.p4-logs/
+docs/proof/p2/runs/local-*/
+docs/proof/p2/keeper-local-*.jsonl
+tools/p4/.keys/

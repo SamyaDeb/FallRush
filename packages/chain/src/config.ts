@@ -105,6 +105,8 @@ export interface ChainConfig {
     submitInput: InstructionSpec;
     /** P2 program join flow (docs/proof/P2-onchain-sim.md §2, §10). When set, join() uses it. */
     p2?: P2Config | null;
+    /** P4: the rollup validator (delegation of the player's ChipBalance) */
+    validator?: string;
     join?: {
       ix?: InstructionSpec | null;
       layer?: 'er' | 'base';

@@ -163,6 +163,22 @@ namespace FallRush.OnChain
             Enqueue(Encoding.UTF8.GetBytes(_joinJson), true);
         }
 
+        private readonly Dictionary<int, string> _econ = new Dictionary<int, string>();
+
+        public void Econ(int id, string action, string argsJson)
+        {
+            var a = (action ?? "").Replace("\"", "");
+            Enqueue(Encoding.UTF8.GetBytes($"{{\"t\":\"econ\",\"id\":{id},\"a\":\"{a}\",\"args\":{(string.IsNullOrEmpty(argsJson) ? "{}" : argsJson)}}}"), true);
+        }
+
+        public string EconResult(int id)
+        {
+            if (!_econ.TryGetValue(id, out var r))
+                return null;
+            _econ.Remove(id);
+            return r;
+        }
+
         public uint SendInputs(byte[] batch, int len)
         {
             var id = ++_txid;
@@ -220,6 +236,16 @@ namespace FallRush.OnChain
                     RttMs = a[n / 2]; // median of the last 16 probes: robust to one slow frame or a GC pause
                 }
 
+                return;
+            }
+
+            if (s.StartsWith("{\"t\":\"econ_r\"", StringComparison.Ordinal))
+            {
+                // {"t":"econ_r","id":N,"r":{…}}
+                var id = (int)Num(s, "\"id\":");
+                var k = s.IndexOf("\"r\":", StringComparison.Ordinal);
+                if (k > 0)
+                    _econ[id] = s.Substring(k + 4, s.Length - k - 5);
                 return;
             }
 

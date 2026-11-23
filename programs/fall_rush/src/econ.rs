@@ -20,7 +20,6 @@ use crate::errors::FallRushError;
 use crate::sim;
 use crate::state::*;
 
-pub const RUSH_MINT_SEED: &[u8] = b"rush_mint";
 pub const RUSH_MINT_AUTH_SEED: &[u8] = b"rush_mint_auth";
 pub const CHIPS_SEED: &[u8] = b"chips";
 pub const CASHOUT_SEED: &[u8] = b"cashout";
@@ -34,6 +33,10 @@ pub const CAPSULE_SEED: &[u8] = b"capsule";
 pub const TOKEN_PROGRAM: Pubkey = Pubkey::from_str_const("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 pub const ATA_PROGRAM: Pubkey = Pubkey::from_str_const("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 pub const MPL_CORE: Pubkey = Pubkey::from_str_const("CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d");
+/// The RUSH devnet test mint (6 decimals, mint authority = PDA `["rush_mint_auth"]`, no freeze authority), created
+/// off-chain by `tools/p4/init-mint.ts` from a keypair kept outside the repo. Pinned here so `mint_cashout` can never
+/// be pointed at another mint that shares the authority PDA.
+pub const RUSH_MINT: Pubkey = Pubkey::from_str_const("3s8KstqicXn1kgFyWPVq3AZXkMprDtEtT7BNTxtQccEw");
 pub const DELEGATION_PROGRAM: Pubkey = Pubkey::from_str_const("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
 pub const RUSH_DECIMALS: u8 = 6;
@@ -802,7 +805,7 @@ fn op_mint_cashout<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'inf
     require_keys_eq!(wk, w, FallRushError::Unauthorized);
     let (sk, sb) = pda(&[CASHOUT_SEED, w.as_ref()]);
     require_keys_eq!(sk, stamp.key(), FallRushError::Unauthorized);
-    require_keys_eq!(pda(&[RUSH_MINT_SEED]).0, mint.key(), FallRushError::Unauthorized);
+    require_keys_eq!(RUSH_MINT, mint.key(), FallRushError::Unauthorized);
     let (ak, ab) = pda(&[RUSH_MINT_AUTH_SEED]);
     require_keys_eq!(ak, auth.key(), FallRushError::Unauthorized);
     require_keys_eq!(ata.key(), ata_of(&w, &mint.key()), FallRushError::Unauthorized);

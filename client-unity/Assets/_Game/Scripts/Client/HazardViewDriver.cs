@@ -166,7 +166,7 @@ namespace FallRush.Client
             {
                 var sw = _map.sweepers[i];
                 if (sw != null && sw.barVisual != null)
-                    sw.barVisual.rotation = Quaternion.Euler(0f, HazardMath.SweeperYawDegrees(in hz.Sweepers[i], t), 0f);
+                    sw.barVisual.rotation = Quaternion.Euler(0f, HazardMath.SweeperYawDegrees(in hz.Sweepers[i], t + ChaosDropFx.SweeperWarpTicks(t + hz.RoundStartTick)), 0f); // P4 Sweeper Rush
             }
 
             for (var i = 0; i < _map.platforms.Length && i < hz.Platforms.Length; i++)

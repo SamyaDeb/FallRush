@@ -139,10 +139,13 @@ export function decodeWorld(d: Buffer): WorldView {
 export const WORLD_OFFSET = 8 + 32 + 40 + 48 + 8 + 8 + 48 + 8 + 8;
 
 /** The tick() account list: arena, world, event log, match, 5 maps, 12 InputBufs. */
-export function tickAccounts(arena: PublicKey, match: PublicKey, maps: PublicKey[]): AccountMeta[] {
+export function tickAccounts(arena: PublicKey, match: PublicKey, maps: PublicKey[], drops = process.env.ECON !== "0"): AccountMeta[] {
   const w = (pubkey: PublicKey) => ({ pubkey, isSigner: false, isWritable: true });
   const r = (pubkey: PublicKey) => ({ pubkey, isSigner: false, isWritable: false });
-  return [r(arena), w(pda.world(arena)), w(pda.evlog(arena)), w(match), ...maps.map(r), ...Array.from({ length: N }, (_, s) => r(pda.input(arena, s)))];
+  const list = [r(arena), w(pda.world(arena)), w(pda.evlog(arena)), w(match), ...maps.map(r), ...Array.from({ length: N }, (_, s) => r(pda.input(arena, s)))];
+  // P4: the arena's DropQueue (read-only; tick() queues new Chaos Drops into the World)
+  if (drops) list.push(r(PublicKey.findProgramAddressSync([Buffer.from("drops"), arena.toBuffer()], PROGRAM_ID)[0]));
+  return list;
 }
 
 export function log(file: string, o: object) {

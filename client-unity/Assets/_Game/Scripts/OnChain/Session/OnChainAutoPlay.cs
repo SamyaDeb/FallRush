@@ -79,6 +79,33 @@ namespace FallRush.OnChain
             cmd.CamYaw = 0;
         }
 
+        // P4 (auto-play probe): one bet per open market through the in-game economy (the Mac player's wallet, session key)
+        private readonly bool[] _bet = new bool[5];
+        private float _betAt;
+
+        private void AutoBet(OnChainSession s)
+        {
+            var e = ChainEconomy.Instance;
+            if (e?.State?.match == null || _t < _betAt)
+                return;
+            _betAt = _t + 1.5f;
+            if (e.MatchPda != null && e.State.match.pda != e.MatchPda)
+                return;
+            for (var k = 0; k < 5; k++)
+            {
+                if (_bet[k] || !e.MarketOpen(k))
+                    continue;
+                _bet[k] = true;
+                var slots = e.State.match.slots;
+                var pick = s.OwnSlot < 12 && s.OwnSlot < slots.Length && slots[s.OwnSlot] == 1 ? s.OwnSlot : System.Array.FindIndex(slots, x => x == 1);
+                if (pick < 0)
+                    continue;
+                Debug.Log($"[onchain] auto-bet market {k} on slot {pick}");
+                e.Bet(k, pick, 10 + 2 * k, ok => Debug.Log($"[onchain] auto-bet market {k}: {(ok ? "ok" : e.LastError)} {(e.LastSession ? "session key" : "")} {e.LastSig}"));
+                return;
+            }
+        }
+
         private void Update()
         {
             var cs = ClientSim.Instance;
@@ -88,6 +115,7 @@ namespace FallRush.OnChain
             var s = OnChainSession.Instance;
             if (s == null)
                 return;
+            AutoBet(s);
             if (_t >= _logAt)
             {
                 _logAt += 5f;

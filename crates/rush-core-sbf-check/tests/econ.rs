@@ -447,7 +447,7 @@ fn cashout_mints_committed_spl_once() {
     let a = t.wallet();
     let ak = a.pubkey();
     // the RUSH mint (created off-chain by the setup script with the PDA as mint authority)
-    let mint = pda(&[b"rush_mint"], &PID);
+    let mint = Pubkey::from_str_const("3s8KstqicXn1kgFyWPVq3AZXkMprDtEtT7BNTxtQccEw");
     let auth = pda(&[b"rush_mint_auth"], &PID);
     let mut md = vec![0u8; 82];
     md[0..4].copy_from_slice(&1u32.to_le_bytes());

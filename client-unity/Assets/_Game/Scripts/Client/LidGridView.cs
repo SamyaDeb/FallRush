@@ -37,6 +37,7 @@ namespace FallRush.Client
         private readonly List<Matrix4x4>[] _batches = new List<Matrix4x4>[(int)B.Count];
         private Matrix4x4[] _scratch = new Matrix4x4[128];
         private LidState[] _states = Array.Empty<LidState>();
+        private long[] _frenzyInto = Array.Empty<long>();
         private int[] _lidScratch = Array.Empty<int>();
 
         public static readonly Color TopRing4 = PaletteTokens.DefaultTop(SurfaceHue.Bubblegum);
@@ -203,6 +204,14 @@ namespace FallRush.Client
                 }
 
                 HazardMath.LidStates(in d, t0, _states, _lidScratch);
+                // P4 Chaos Drops: Lid Frenzy forces its lids on the top grid (same rule as rush-core, so the view = the sim)
+                if (g == 0 && ChaosDropFx.Any)
+                {
+                    if (_frenzyInto.Length < d.Count)
+                        _frenzyInto = new long[d.Count];
+                    ChaosDropFx.ApplyFrenzy(in d, t0, _states, _frenzyInto);
+                }
+                var frenzy = g == 0 && ChaosDropFx.Any;
                 var lid = d.LidMm * 0.001f;
                 var th = d.ThicknessMm * 0.001f;
                 var size = new Vector3(lid, th, lid);
@@ -226,8 +235,9 @@ namespace FallRush.Client
                             break;
                         case LidState.Flipped:
                         {
-                            var into = HazardMath.LidFlippedFor(in d, i, t0, _lidScratch) + f;
-                            var left = d.FlippedTicks - into;
+                            var fz = frenzy && _frenzyInto[i] >= 0;
+                            var into = (fz ? _frenzyInto[i] : HazardMath.LidFlippedFor(in d, i, t0, _lidScratch)) + f;
+                            var left = (fz ? ChaosDropFx.FrenzyOpen : d.FlippedTicks) - into;
                             var u = Mathf.Clamp01(Mathf.Min(into, left) / FlipTicks);
                             angle = 90f * (reduced ? (u > 0.5f ? 1f : 0f) : u);
                             batch = into < 2f ? B.Lit : B.Open; // still yellow for the first 2 ticks of the swing

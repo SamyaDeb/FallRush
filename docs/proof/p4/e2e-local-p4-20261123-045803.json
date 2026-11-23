@@ -1,0 +1,843 @@
+{
+ "net": "local",
+ "run": "local-p4-20261123-045803",
+ "arena": "G9bvPC3WUu56kRMxfYcY9FzuU8WuzAbmKvh7dQcQ3iiG",
+ "sigs": {
+  "fund_8kfuxi": "3eYuY5FzxgkeUyFcSemMoWh8r1SWXCwPPWG4SUxsw9dGnhfpJrRb3kniro444R1TXmvtE5q1JYEXsxdTuYMicXst",
+  "fund_FQ2fuX": "bZZXuGqcMb3mJepwzu9UW31YxNK96ppHB4Xxc18mgJxFfPay4fE4ns7gpnSzS9FnVwgfE8W9AXVjENxbaNTVqgP",
+  "fund_7y5Xox": "3rPiw6ehriF4nybS6RNQb6DpfadskqDji1oajzTUVA5vhT9M5cxohzEn8qQxcs11U5HD39zSNG2XNXQt5E6UPxbS",
+  "chips_A": {
+   "init": "29XBbJua5FW1Z86oD12RTdB81q2tuaBUCdGYAaWQcLwtFU34hSAdAmC6MmHMg76nfrU8QZeY3a1sRNgAb3yxqc46",
+   "faucet": "3EMP6xikYR3F7N1BgUKEGcuRkZ2GMvE1VfxGdAtYRHBWW6F5shkbcQHjbCbd6Hnt4i6xn6wdQYCCyDYkBLcgDxBN"
+  },
+  "chips_B": {
+   "init": "7TszGQoNMeiURd7wNcDRNjNksrXa1Pqo4NpnakZ6CyFWrzY75wSALQMMRDjiAUdE5FUmwSCPnajYrv7V2o4vA6o",
+   "faucet": "32QfJ35Q1cavKva1K8m6VnaBzcHknJ5yp6ZuJZbpUc3WdDufmb9t9DakLWqyKdoZi1ySvQ9pucYnbXx7riZaRLNC"
+  },
+  "chips_C": {
+   "init": "4KrfHbo5TVNRVZwWsvLDG2dqpUV99PxhkkQcnZvYQigsX6v8htd3LD1hnrVauSS9Pd5sXMi3bvx5p26AkXezTxj9",
+   "faucet": "42FHgGCyKkLcqoi1ET5SUWBNzrzXXMCeWWqgaXU8qxrjKFNbeTxDmh8s48N1QvbhJQWpY4WCsUdoo9HsRmtYxCPL"
+  },
+  "sessionB": "9p7sk9uq7o4zPGExQZSRSN8GRumzhvexuePv21j8cqwGm5QijVHkWDF1i1siKBxMn1Wn6wb5XAyELEhzATFa5GF"
+ },
+ "bets": [
+  {
+   "who": "A",
+   "k": 1,
+   "outcome": 5,
+   "amount": "20000000",
+   "sig": "4AyvCs3ysth7tkgyGftrcgDV8VjR3kaPE1LeRNS19NauM1EJY2KquK6Z7ToJdj8PY7k4QwZj8MEu1FBLeysFW33c",
+   "ms": 29,
+   "session": false
+  },
+  {
+   "who": "B(session)",
+   "k": 1,
+   "outcome": 10,
+   "amount": "10000000",
+   "sig": "6FeeVWrjAo9GzEeHAihuHvAuvXkZ9cxNNbEFGshzQ7qseKWQzKNNrCVXaeYcW8kuBydYa8Y9ACgQ5seykMUGtob",
+   "ms": 6,
+   "session": true
+  }
+ ],
+ "drops": [
+  {
+   "kind": 1,
+   "tick": 163,
+   "sig": "5jdW9aLcy1JxyUKb1nemUV4jHMbQyBuccarisR7f5a3dxGJASaPC9tLwJtj7zNCV3UVpJAL2AjB6BLPoJ72yaBnY",
+   "ms": 4
+  },
+  {
+   "kind": 3,
+   "tick": 327,
+   "sig": "443gZHJCrzMbYCschNJWK6aqGPrfawhZAbfQPWQyQYkEhrP9pT149bqJYbfMddLrwNNbuW9hZ1tCJea8xUvFYUmp",
+   "ms": 7
+  }
+ ],
+ "sessionToken": "3d1489jMKhHZDxcrb6QuxNCQKNYDRW5ahKvNRBdLmiJC",
+ "start": {
+  "A": "1000000000",
+  "B": "1000000000",
+  "C": "1000000000"
+ },
+ "match": "4W3u91pn2vdwLXUzQzugSq8tLir8dtMDSjFK8Jdou4zq",
+ "markets": [
+  {
+   "match": "4W3u91pn2vdwLXUzQzugSq8tLir8dtMDSjFK8Jdou4zq",
+   "pool": "48000000",
+   "winningStake": "4000000",
+   "paidTotal": "48000000",
+   "vault": "0",
+   "stake": [
+    "4000000",
+    "4000000",
+    "4000000",
+    "4000000",
+    "4000000",
+    "4000000",
+    "4000000",
+    "4000000",
+    "4000000",
+    "4000000",
+    "4000000",
+    "4000000"
+   ],
+   "winners": 1024,
+   "id": 0,
+   "kind": 0,
+   "round": 4,
+   "status": 3,
+   "label": 1,
+   "nBets": 12,
+   "nPaid": 12,
+   "refund": 0,
+   "bets": [
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "4000000",
+     "outcome": 0,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "4000000",
+     "outcome": 1,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "4000000",
+     "outcome": 2,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "4000000",
+     "outcome": 3,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "4000000",
+     "outcome": 4,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "4000000",
+     "outcome": 5,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "4000000",
+     "outcome": 6,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "4000000",
+     "outcome": 7,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "4000000",
+     "outcome": 8,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "4000000",
+     "outcome": 9,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "4000000",
+     "outcome": 10,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "4000000",
+     "outcome": 11,
+     "paid": 1
+    }
+   ]
+  },
+  {
+   "match": "4W3u91pn2vdwLXUzQzugSq8tLir8dtMDSjFK8Jdou4zq",
+   "pool": "54000000",
+   "winningStake": "18000000",
+   "paidTotal": "54000000",
+   "vault": "0",
+   "stake": [
+    "0",
+    "0",
+    "0",
+    "0",
+    "0",
+    "28000000",
+    "0",
+    "8000000",
+    "0",
+    "0",
+    "18000000",
+    "0"
+   ],
+   "winners": 1024,
+   "id": 0,
+   "kind": 1,
+   "round": 4,
+   "status": 3,
+   "label": 1,
+   "nBets": 5,
+   "nPaid": 5,
+   "refund": 0,
+   "bets": [
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 5,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 7,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 10,
+     "paid": 1
+    },
+    {
+     "wallet": "8kfuxiuW3U4iKhmd3fkp99v3bjSbYSPEQdsqRRaWgfzh",
+     "amount": "20000000",
+     "outcome": 5,
+     "paid": 1
+    },
+    {
+     "wallet": "FQ2fuXctGrEnCCVdAYorFPQxmKaB46AkkYkC68Vf1zWv",
+     "amount": "10000000",
+     "outcome": 10,
+     "paid": 1
+    }
+   ]
+  },
+  {
+   "match": "4W3u91pn2vdwLXUzQzugSq8tLir8dtMDSjFK8Jdou4zq",
+   "pool": "96000000",
+   "winningStake": "64000000",
+   "paidTotal": "96000000",
+   "vault": "0",
+   "stake": [
+    "8000000",
+    "8000000",
+    "8000000",
+    "8000000",
+    "8000000",
+    "8000000",
+    "8000000",
+    "8000000",
+    "8000000",
+    "8000000",
+    "8000000",
+    "8000000"
+   ],
+   "winners": 1526,
+   "id": 0,
+   "kind": 2,
+   "round": 1,
+   "status": 3,
+   "label": 2,
+   "nBets": 12,
+   "nPaid": 12,
+   "refund": 0,
+   "bets": [
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 0,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 1,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 2,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 3,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 4,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 5,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 6,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 7,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 8,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 9,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 10,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 11,
+     "paid": 1
+    }
+   ]
+  },
+  {
+   "match": "4W3u91pn2vdwLXUzQzugSq8tLir8dtMDSjFK8Jdou4zq",
+   "pool": "64000000",
+   "winningStake": "40000000",
+   "paidTotal": "64000000",
+   "vault": "0",
+   "stake": [
+    "0",
+    "8000000",
+    "8000000",
+    "0",
+    "8000000",
+    "8000000",
+    "8000000",
+    "8000000",
+    "8000000",
+    "0",
+    "8000000",
+    "0"
+   ],
+   "winners": 1202,
+   "id": 0,
+   "kind": 2,
+   "round": 2,
+   "status": 3,
+   "label": 2,
+   "nBets": 8,
+   "nPaid": 8,
+   "refund": 0,
+   "bets": [
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 1,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 2,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 4,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 5,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 6,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 7,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 8,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 10,
+     "paid": 1
+    }
+   ]
+  },
+  {
+   "match": "4W3u91pn2vdwLXUzQzugSq8tLir8dtMDSjFK8Jdou4zq",
+   "pool": "40000000",
+   "winningStake": "24000000",
+   "paidTotal": "39999999",
+   "vault": "1",
+   "stake": [
+    "0",
+    "8000000",
+    "0",
+    "0",
+    "8000000",
+    "8000000",
+    "0",
+    "8000000",
+    "0",
+    "0",
+    "8000000",
+    "0"
+   ],
+   "winners": 1184,
+   "id": 0,
+   "kind": 2,
+   "round": 3,
+   "status": 3,
+   "label": 2,
+   "nBets": 5,
+   "nPaid": 5,
+   "refund": 0,
+   "bets": [
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 1,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 4,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 5,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 7,
+     "paid": 1
+    },
+    {
+     "wallet": "Bf9aJjSDkufuMqQvhKCcZobQcFLncbJGGFrj4Rq3jw3R",
+     "amount": "8000000",
+     "outcome": 10,
+     "paid": 1
+    }
+   ]
+  }
+ ],
+ "payouts": [
+  {
+   "k": 4,
+   "wallet": "Bf9aJjSD",
+   "outcome": 0,
+   "amount": "4000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 4,
+   "wallet": "Bf9aJjSD",
+   "outcome": 1,
+   "amount": "4000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 4,
+   "wallet": "Bf9aJjSD",
+   "outcome": 2,
+   "amount": "4000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 4,
+   "wallet": "Bf9aJjSD",
+   "outcome": 3,
+   "amount": "4000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 4,
+   "wallet": "Bf9aJjSD",
+   "outcome": 4,
+   "amount": "4000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 4,
+   "wallet": "Bf9aJjSD",
+   "outcome": 5,
+   "amount": "4000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 4,
+   "wallet": "Bf9aJjSD",
+   "outcome": 6,
+   "amount": "4000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 4,
+   "wallet": "Bf9aJjSD",
+   "outcome": 7,
+   "amount": "4000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 4,
+   "wallet": "Bf9aJjSD",
+   "outcome": 8,
+   "amount": "4000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 4,
+   "wallet": "Bf9aJjSD",
+   "outcome": 9,
+   "amount": "4000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 4,
+   "wallet": "Bf9aJjSD",
+   "outcome": 10,
+   "amount": "4000000",
+   "pay": "48000000",
+   "label": 1
+  },
+  {
+   "k": 4,
+   "wallet": "Bf9aJjSD",
+   "outcome": 11,
+   "amount": "4000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 14,
+   "wallet": "Bf9aJjSD",
+   "outcome": 5,
+   "amount": "8000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 14,
+   "wallet": "Bf9aJjSD",
+   "outcome": 7,
+   "amount": "8000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 14,
+   "wallet": "Bf9aJjSD",
+   "outcome": 10,
+   "amount": "8000000",
+   "pay": "24000000",
+   "label": 1
+  },
+  {
+   "k": 14,
+   "wallet": "8kfuxiuW",
+   "outcome": 5,
+   "amount": "20000000",
+   "pay": "0",
+   "label": 1
+  },
+  {
+   "k": 14,
+   "wallet": "FQ2fuXct",
+   "outcome": 10,
+   "amount": "10000000",
+   "pay": "30000000",
+   "label": 1
+  },
+  {
+   "k": 21,
+   "wallet": "Bf9aJjSD",
+   "outcome": 0,
+   "amount": "8000000",
+   "pay": "0",
+   "label": 2
+  },
+  {
+   "k": 21,
+   "wallet": "Bf9aJjSD",
+   "outcome": 1,
+   "amount": "8000000",
+   "pay": "12000000",
+   "label": 2
+  },
+  {
+   "k": 21,
+   "wallet": "Bf9aJjSD",
+   "outcome": 2,
+   "amount": "8000000",
+   "pay": "12000000",
+   "label": 2
+  },
+  {
+   "k": 21,
+   "wallet": "Bf9aJjSD",
+   "outcome": 3,
+   "amount": "8000000",
+   "pay": "0",
+   "label": 2
+  },
+  {
+   "k": 21,
+   "wallet": "Bf9aJjSD",
+   "outcome": 4,
+   "amount": "8000000",
+   "pay": "12000000",
+   "label": 2
+  },
+  {
+   "k": 21,
+   "wallet": "Bf9aJjSD",
+   "outcome": 5,
+   "amount": "8000000",
+   "pay": "12000000",
+   "label": 2
+  },
+  {
+   "k": 21,
+   "wallet": "Bf9aJjSD",
+   "outcome": 6,
+   "amount": "8000000",
+   "pay": "12000000",
+   "label": 2
+  },
+  {
+   "k": 21,
+   "wallet": "Bf9aJjSD",
+   "outcome": 7,
+   "amount": "8000000",
+   "pay": "12000000",
+   "label": 2
+  },
+  {
+   "k": 21,
+   "wallet": "Bf9aJjSD",
+   "outcome": 8,
+   "amount": "8000000",
+   "pay": "12000000",
+   "label": 2
+  },
+  {
+   "k": 21,
+   "wallet": "Bf9aJjSD",
+   "outcome": 9,
+   "amount": "8000000",
+   "pay": "0",
+   "label": 2
+  },
+  {
+   "k": 21,
+   "wallet": "Bf9aJjSD",
+   "outcome": 10,
+   "amount": "8000000",
+   "pay": "12000000",
+   "label": 2
+  },
+  {
+   "k": 21,
+   "wallet": "Bf9aJjSD",
+   "outcome": 11,
+   "amount": "8000000",
+   "pay": "0",
+   "label": 2
+  },
+  {
+   "k": 22,
+   "wallet": "Bf9aJjSD",
+   "outcome": 1,
+   "amount": "8000000",
+   "pay": "12800000",
+   "label": 2
+  },
+  {
+   "k": 22,
+   "wallet": "Bf9aJjSD",
+   "outcome": 2,
+   "amount": "8000000",
+   "pay": "0",
+   "label": 2
+  },
+  {
+   "k": 22,
+   "wallet": "Bf9aJjSD",
+   "outcome": 4,
+   "amount": "8000000",
+   "pay": "12800000",
+   "label": 2
+  },
+  {
+   "k": 22,
+   "wallet": "Bf9aJjSD",
+   "outcome": 5,
+   "amount": "8000000",
+   "pay": "12800000",
+   "label": 2
+  },
+  {
+   "k": 22,
+   "wallet": "Bf9aJjSD",
+   "outcome": 6,
+   "amount": "8000000",
+   "pay": "0",
+   "label": 2
+  },
+  {
+   "k": 22,
+   "wallet": "Bf9aJjSD",
+   "outcome": 7,
+   "amount": "8000000",
+   "pay": "12800000",
+   "label": 2
+  },
+  {
+   "k": 22,
+   "wallet": "Bf9aJjSD",
+   "outcome": 8,
+   "amount": "8000000",
+   "pay": "0",
+   "label": 2
+  },
+  {
+   "k": 22,
+   "wallet": "Bf9aJjSD",
+   "outcome": 10,
+   "amount": "8000000",
+   "pay": "12800000",
+   "label": 2
+  },
+  {
+   "k": 23,
+   "wallet": "Bf9aJjSD",
+   "outcome": 1,
+   "amount": "8000000",
+   "pay": "0",
+   "label": 2
+  },
+  {
+   "k": 23,
+   "wallet": "Bf9aJjSD",
+   "outcome": 4,
+   "amount": "8000000",
+   "pay": "0",
+   "label": 2
+  },
+  {
+   "k": 23,
+   "wallet": "Bf9aJjSD",
+   "outcome": 5,
+   "amount": "8000000",
+   "pay": "13333333",
+   "label": 2
+  },
+  {
+   "k": 23,
+   "wallet": "Bf9aJjSD",
+   "outcome": 7,
+   "amount": "8000000",
+   "pay": "13333333",
+   "label": 2
+  },
+  {
+   "k": 23,
+   "wallet": "Bf9aJjSD",
+   "outcome": 10,
+   "amount": "8000000",
+   "pay": "13333333",
+   "label": 2
+  }
+ ],
+ "verify": {
+  "A": {
+   "start": "1000000000",
+   "staked": "20000000",
+   "paidBack": "0",
+   "expected": "980000000",
+   "actual": "980000000",
+   "ok": true
+  },
+  "B": {
+   "start": "1000000000",
+   "staked": "10000000",
+   "paidBack": "30000000",
+   "expected": "1020000000",
+   "actual": "1020000000",
+   "ok": true
+  },
+  "C": {
+   "start": "1000000000",
+   "staked": "0",
+   "paidBack": "0",
+   "expected": "920000000",
+   "actual": "920000000",
+   "ok": true
+  }
+ },
+ "payoutsMatchHandCalc": true
+}

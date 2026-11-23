@@ -74,5 +74,10 @@ namespace FallRush.OnChain
         long Gaps { get; }
         long Polls { get; }
         long Reconnects { get; }
+        /// <summary>P4 economy: an async bundle call (<c>chips | state | bet | drop | receipt | claim</c>, args JSON);
+        /// its JSON reply arrives through <see cref="EconResult"/>.</summary>
+        void Econ(int id, string action, string argsJson);
+        /// <summary>The reply of economy call <paramref name="id"/> once it arrived (taken once), else null.</summary>
+        string EconResult(int id);
     }
 }

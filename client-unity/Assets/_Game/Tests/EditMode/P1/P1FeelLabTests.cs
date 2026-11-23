@@ -18,7 +18,7 @@ namespace FallRush.Tests
         [Test]
         public void BundleLoadsAndVersionMatches()
         {
-            Assert.AreEqual(0x10001u, RushCoreNative.rc_version(), "ABI 1, rush-core 1");
+            Assert.AreEqual(0x10002u, RushCoreNative.rc_version(), "ABI 1, rush-core 2 (P4 Chaos Drops)");
             Assert.AreEqual(2048u, RushCoreNative.rc_world_size());
         }
 

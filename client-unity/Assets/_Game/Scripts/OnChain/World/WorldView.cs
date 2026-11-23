@@ -15,6 +15,8 @@ namespace FallRush.OnChain
         public const int PlayersOffset = 22, PlayerStride = 115, SlotRulesInPlayer = 46;
         public const int ReactiveOffset = PlayersOffset + 12 * PlayerStride; // 1402
         public const int RoundOffset = 1768, RoundResultInRound = 52;
+        /// <summary>P4: the Chaos Drop queue (8 × {tick u32, kind u8, arg u8}) between the reactive state and the round.</summary>
+        public const int DropQueueOffset = ReactiveOffset + 318; // 1720
 
         // rush-core rules::phase / mapblob::mode / SlotRules flags
         public const byte PhaseWaiting = 0, PhaseIntro = 1, PhaseCountdown = 2, PhaseRush = 3, PhaseEnded = 4, PhaseSandbox = 5;
@@ -75,6 +77,11 @@ namespace FallRush.OnChain
 
         /// <summary>The 36-B <c>rc_player</c> record of <paramref name="slot"/> (motor 33 B + flags, respawn, last step).</summary>
         public void PlayerRecord(int slot, byte[] dst, int dstOffset) => Buffer.BlockCopy(_b, _o + P(slot), dst, dstOffset, 36);
+
+        // ---- P4 Chaos Drop queue (rush-core World::drop_queue)
+        public uint DropTick(int i) => U32(DropQueueOffset + 6 * i);
+        public byte DropKind(int i) => U8(DropQueueOffset + 6 * i + 4);
+        public byte DropArg(int i) => U8(DropQueueOffset + 6 * i + 5);
 
         // ---- round state
         public byte Mode => U8(RoundOffset);

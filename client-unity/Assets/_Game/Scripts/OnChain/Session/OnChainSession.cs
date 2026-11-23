@@ -77,6 +77,8 @@ namespace FallRush.OnChain
         public OnChainClock Clock => _clock;
         public string Status => _status;
         public int OwnSlot => _ownSlot;
+        /// <summary>P4: our slot is out of the on-chain round (eliminated): the economy HUD shows bets + the drop bar.</summary>
+        public bool OwnOut => ClientSim.Instance != null && ClientSim.Instance.OwnOutOfSim;
         public uint NewestTick => _newestTick;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -149,6 +151,13 @@ namespace FallRush.OnChain
             var auto = OnChainAutoPlay.Arg();
             if (auto > 0)
                 OnChainAutoPlay.Attach(this, auto);
+            // P4 economy (rollup targets): chips on first use, markets, drops, receipt
+            if (Cfg.target != "emu")
+            {
+                ChainEconomy.Ensure();
+                EconomyHud.Ensure();
+            }
+            ChaosDropView.Ensure(); // drop telegraphs (any target: an empty queue shows nothing)
             Debug.Log($"[onchain] session: target {Cfg.target} via {_tx.Name} {Cfg.url}, lead T+{Cfg.inputLead}, {Cfg.batchTicks} ticks per tx, core {(_core.Ready ? $"0x{_core.Version:x}" : "loading")}");
         }
 
@@ -175,10 +184,15 @@ namespace FallRush.OnChain
                 ChainAdapters.Override = null;
             _pred?.Dispose();
             _tx?.Dispose();
+            FallRush.Client.ChaosDropFx.Clear();
         }
 
         /// <summary>Ends on-chain play (back to the game server's state, or the menu).</summary>
-        public void End() => Destroy(gameObject);
+        public void End()
+        {
+            FallRush.Client.ChaosDropFx.Clear();
+            Destroy(gameObject);
+        }
 
         // ------------------------------------------------------------------ IChainFeed
 
@@ -443,6 +457,9 @@ namespace FallRush.OnChain
                 SceneManager.LoadScene(scene);
         }
 
+        /// <summary>P4: the newest World's tick and RUSH tick (the economy HUD's drop bar / bet windows).</summary>
+        public uint LastWorldTick, LastRushTick;
+
         /// <summary>P4 0.1: the arena's match runs another rush-core version; this client refuses it.</summary>
         public bool CoreMismatch { get; private set; }
         private uint _serial;
@@ -493,6 +510,11 @@ namespace FallRush.OnChain
             if (_hasNewest && view.Tick <= _newestTick)
                 return; // old / duplicate (a poll reply)
             _feed.OnWorld(in view, m.RecvAt);
+            // P4: the drop queue for the hazard views (Lid Frenzy lids, Sweeper Rush) and the economy HUD
+            var vv = view;
+            FallRush.Client.ChaosDropFx.Set(i => (vv.DropTick(i), vv.DropKind(i), vv.DropArg(i)), view.RoundStart, view.HazardSeed);
+            LastWorldTick = view.Tick;
+            LastRushTick = view.RushTick;
             if (cs != null)
             {
                 cs.FeedSnapshot(view.Tick, new ReadOnlySpan<PlayerState>(_feed.Players, 0, _feed.PlayerCount), _ownSlot, m.RecvAt);

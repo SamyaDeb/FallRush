@@ -1,5 +1,6 @@
 // Rollup transport: web3.js Connection to the MagicBlock ER (devnet-as) + a base-layer Connection.
 import { ComputeBudgetProgram, Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
+import * as Econ from './econ.ts';
 import type { TransactionInstruction } from '@solana/web3.js';
 import type { Ctx, JoinArgs, JoinResult, Transport } from './transport.ts';
 import { Backoff, errMsg } from './transport.ts';
@@ -27,6 +28,8 @@ export interface ConnLike {
   getBalance(pk: PublicKey, commitment?: string): Promise<number>;
 }
 export type ConnFactory = (http: string, ws: string | null | undefined, commitment: string) => ConnLike;
+
+const DELEGATION_ID = new PublicKey('DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh');
 
 export function isClonerError(e: unknown): boolean {
   const s = typeof e === 'string' ? e : errMsg(e) + ' ' + safeJson(e);
@@ -703,6 +706,134 @@ export class RollupTransport implements Transport {
     } catch (e) {
       return { ok: false, error: errMsg(e) };
     }
+  }
+
+  // ---- P4 economy (econ.ts): chips, markets, drops, receipt, claim, cash-out -------------------------------------
+  private econCtx() {
+    const cfg = this.ctx.cfg;
+    const program = resolvePubkey('$program', this.refs());
+    const arena = new PublicKey(cfg.addresses.arena);
+    const arenaId = this.rc.p2?.arenaId ?? 0;
+    return { program, arena, arenaId, P: Econ.econPdas(program, arena, arenaId), world: new PublicKey(cfg.addresses.world) };
+  }
+
+  /** Who signs economy instructions for the burner: its session key with a valid token (no popup), else the burner. */
+  private econSigner(): { signer: Keypair; token: PublicKey | null } {
+    const w = this.ctx.wallet;
+    const nowSec = Math.floor(this.clock.wallMs() / 1000);
+    const m = w.sessionMeta;
+    if (m.token && m.authority === w.burner.publicKey.toBase58() && m.validUntil > nowSec + 30) return { signer: w.session, token: new PublicKey(m.token) };
+    return { signer: w.burner, token: null };
+  }
+
+  private async econEr(ix: TransactionInstruction, signer: Keypair, kind: string): Promise<{ ok: boolean; sig: string; err?: unknown; ms: number }> {
+    const t0 = this.clock.now();
+    for (let n = 0; n < 6; n++) {
+      try {
+        if (n > 0 || !this.blockhash) await this.refreshBlockhash();
+        const tx = new Transaction({ feePayer: signer.publicKey, recentBlockhash: this.blockhash! });
+        tx.add(ix);
+        tx.sign(signer);
+        const sig = await this.sendWithClonerRetry(this.er, tx.serialize(), 4000, true);
+        const r = await this.erPoller.wait(sig, 0, kind, 15000);
+        if (r.ok) return { ok: true, sig, ms: Math.round(this.clock.now() - t0) };
+        const e = safeJson(r.err);
+        if (!/pending|AccountNotFound|cloner|timeout|Blockhash/i.test(e)) return { ok: false, sig, err: r.err, ms: Math.round(this.clock.now() - t0) };
+      } catch (e) { if (n === 5) return { ok: false, sig: '', err: errMsg(e), ms: Math.round(this.clock.now() - t0) }; }
+      await sleep(this.clock, 500);
+    }
+    return { ok: false, sig: '', err: 'retries exhausted', ms: Math.round(this.clock.now() - t0) };
+  }
+
+  async econ(action: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const w = this.ctx.wallet;
+    const me = w.burner.publicKey;
+    const E = this.econCtx();
+    const acc = (pubkey: PublicKey, isWritable: boolean) => ({ pubkey, isSigner: false, isWritable });
+    const big = (o: unknown) => JSON.parse(JSON.stringify(o, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)));
+    try {
+      if (action === 'chips') {
+        const chips = E.P.chips(me);
+        const info = await this.base.getAccountInfo(chips, 'confirmed');
+        const validator = new PublicKey(this.rc.validator ?? 'MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57');
+        const del = Econ.delegateChipsIx(E.program, me, chips, validator, Uint8Array.from([0xf1, 0xb8, 0xa5, 0xb0, 0x7b, 0x37, 0xe7, 0x51]));
+        let created: string | undefined;
+        if (!info) {
+          const r = await this.sendBase([Econ.econIx(E.program, me, Econ.OP.INIT_CHIPS, 0, 0, [acc(chips, true), acc(SystemProgram.programId, false)]), del], 'chips_init');
+          if (!r.ok) return { ok: false, error: 'chips init: ' + safeJson(r.err) };
+          created = r.sig;
+        } else if ((info as { owner?: PublicKey }).owner && (info as { owner: PublicKey }).owner.equals(E.program)) {
+          const r = await this.sendBase([del], 'chips_delegate');
+          if (!r.ok) return { ok: false, error: 'chips delegate: ' + safeJson(r.err) };
+        }
+        let d: Uint8Array | null = null;
+        for (let i = 0; i < 40 && !(d = await this.readEr(chips)); i++) await sleep(this.clock, 500);
+        if (!d) return { ok: false, error: 'chips not on the rollup yet' };
+        let c = Econ.decodeChips(d);
+        let faucet: string | undefined;
+        const nowSec = Math.floor(this.clock.wallMs() / 1000);
+        if (args.faucet !== false && (c.faucetTotal === 0n || nowSec - c.faucetAt >= 86_400)) {
+          const { signer, token } = this.econSigner();
+          const accs = [acc(chips, true), ...(token ? [acc(token, false)] : [])];
+          const r = await this.econEr(Econ.econIx(E.program, signer.publicKey, Econ.OP.FAUCET, 0, 0, accs), signer, 'faucet');
+          if (r.ok) { faucet = r.sig; const d2 = await this.readEr(chips); if (d2) c = Econ.decodeChips(d2); }
+          this.ctx.events.push({ type: 'econ', what: 'faucet', ok: r.ok, sig: r.sig, err: r.ok ? undefined : safeJson(r.err) });
+        }
+        return { ok: true, wallet: me.toBase58(), chips: big(c), created, faucet };
+      }
+      if (action === 'state') {
+        const ad = await this.readEr(E.arena);
+        const matchPk = ad && ad.length >= 72 ? new PublicKey(ad.subarray(40, 72)) : null;
+        const keys = [E.P.chips(me), ...[0, 1, 2, 3, 4].map((k) => E.P.market(k)), E.P.drops, E.world, ...(matchPk ? [matchPk] : [])];
+        const datas = await Promise.all(keys.map((k) => this.readEr(k)));
+        const markets = datas.slice(1, 6).map((x, k) => {
+          if (!x) return { k, name: Econ.MARKET_NAMES[k], status: -1, stake: [], mine: [], bets: [] };
+          const m = Econ.decodeMarket(x);
+          const mine = Array(12).fill(0n);
+          for (const b of m.bets) if (b.wallet === me.toBase58()) mine[b.outcome] += b.amount;
+          return { k, name: Econ.MARKET_NAMES[k], ...m, mine };
+        });
+        const wd = datas[7];
+        const world = wd ? { tick: new DataView(wd.buffer, wd.byteOffset).getUint32(128, true), phase: wd[138], round: wd[139], roundPhase: wd[199], roundStart: new DataView(wd.buffer, wd.byteOffset).getUint32(208 + 18, true) } : null;
+        const md = matchPk ? datas[8] : null;
+        const match = md && matchPk ? { pda: matchPk.toBase58(), status: md[26], flags: md[27], players: md[128], round: md[129], slots: Array.from({ length: 12 }, (_, i) => md[214 + 4 * i]), champion: md[294] } : null;
+        return big({ ok: true, wallet: me.toBase58(), chips: datas[0] ? Econ.decodeChips(datas[0]) : null, markets, drops: datas[6] ? Econ.decodeDrops(datas[6]) : null, world, match, prices: Econ.DROP_PRICE });
+      }
+      if (action === 'bet' || action === 'drop') {
+        const { signer, token } = this.econSigner();
+        const ad = await this.readEr(E.arena);
+        if (!ad) return { ok: false, error: 'arena not readable' };
+        const matchPk = new PublicKey(ad.subarray(40, 72));
+        let ix: TransactionInstruction;
+        if (action === 'bet') {
+          const k = Number(args.k), outcome = Number(args.outcome), amount = BigInt(Math.round(Number(args.amount))) * Econ.ONE;
+          ix = Econ.econIx(E.program, signer.publicKey, Econ.OP.PLACE_BET, outcome, amount, [acc(E.P.chips(me), true), acc(E.P.market(k), true), acc(matchPk, false), acc(E.arena, false), acc(E.world, false), ...(token ? [acc(token, false)] : [])]);
+        } else {
+          ix = Econ.econIx(E.program, signer.publicKey, Econ.OP.BUY_DROP, Number(args.kind), 0, [acc(E.P.chips(me), true), acc(E.P.drops, true), acc(E.arena, false), acc(E.world, false), ...(token ? [acc(token, false)] : [])]);
+        }
+        const r = await this.econEr(ix, signer, action);
+        this.ctx.events.push({ type: 'econ', what: action, ok: r.ok, sig: r.sig, args, err: r.ok ? undefined : safeJson(r.err) });
+        return { ok: r.ok, sig: r.sig, ms: r.ms, session: !!token, error: r.ok ? undefined : safeJson(r.err) };
+      }
+      if (action === 'receipt') {
+        const pk = new PublicKey(String(args.match));
+        const bd = await this.base.getAccountInfo(pk, 'confirmed');
+        const onSolana = !!bd && (bd as { owner?: PublicKey }).owner?.toBase58() === E.program.toBase58();
+        const d = onSolana ? toU8(bd!.data) : await this.readEr(pk);
+        if (!d) return { ok: false, error: 'match not found' };
+        const r = Econ.decodeReceipt(d);
+        const crown = E.P.crown(pk).toBase58();
+        const capsules = Array.from({ length: 12 }, (_, s) => ((r.receipt.humanMask >> s) & 1 ? E.P.capsule(pk, s).toBase58() : null));
+        return big({ ok: true, onSolana, match: pk.toBase58(), ...r, crownAsset: crown, capsuleAssets: capsules, me: me.toBase58() });
+      }
+      if (action === 'claim') {
+        const asset = new PublicKey(String(args.asset));
+        const to = new PublicKey(String(args.to));
+        const r = await this.sendBase([Econ.coreTransferIx(asset, me, me, to)], 'claim');
+        return { ok: r.ok, sig: r.sig, error: r.ok ? undefined : safeJson(r.err) };
+      }
+      return { ok: false, error: 'unknown economy action ' + action };
+    } catch (e) { return { ok: false, error: errMsg(e) }; }
   }
 
   status() {
