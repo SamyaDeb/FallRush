@@ -81,6 +81,9 @@ namespace FallRush.Shared
             public string Name;
             /// <summary>v4: reconnect token from a previous <c>match</c> message (16 B; null / zeros = new player).</summary>
             public byte[] Token;
+            /// <summary>P5 task 4 (optional, after the token): an owned Core capsule to wear (base58 asset + the wallet that owns it).
+            /// The server checks ownership with an RPC read before applying its shell; anything else keeps the preset.</summary>
+            public string ShellAsset, ShellWallet;
         }
 
         private static readonly UTF8Encoding StrictUtf8 = new UTF8Encoding(false, true);
@@ -96,9 +99,11 @@ namespace FallRush.Shared
             if (len > MaxBuildVersionBytes)
                 throw new ArgumentException($"buildVersion is {len} UTF-8 bytes; max is {MaxBuildVersionBytes}.", nameof(hello));
 
-            var ext = hello.Name != null || hello.Token != null;
+            var shell = !string.IsNullOrEmpty(hello.ShellAsset) && !string.IsNullOrEmpty(hello.ShellWallet) && hello.ShellAsset.Length <= 44 && hello.ShellWallet.Length <= 44;
+            var ext = hello.Name != null || hello.Token != null || shell;
             var name = ext ? MatchStateMessage.Utf8Clamp(hello.Name, MaxNameBytes) : Array.Empty<byte>();
-            var buffer = new byte[HelloMinBytes + len + (ext ? 1 + name.Length + TokenBytes : 0)];
+            var shellBytes = shell ? 2 + hello.ShellAsset.Length + hello.ShellWallet.Length : 0;
+            var buffer = new byte[HelloMinBytes + len + (ext ? 1 + name.Length + TokenBytes + shellBytes : 0)];
             buffer[0] = (byte)(hello.ProtocolVersion & 0xFF);
             buffer[1] = (byte)(hello.ProtocolVersion >> 8);
             buffer[2] = (byte)len;
@@ -112,6 +117,14 @@ namespace FallRush.Shared
                 o += name.Length;
                 if (hello.Token != null)
                     Array.Copy(hello.Token, 0, buffer, o, Math.Min(TokenBytes, hello.Token.Length));
+                o += TokenBytes;
+                if (shell)
+                {
+                    buffer[o++] = (byte)hello.ShellAsset.Length;
+                    o += Encoding.ASCII.GetBytes(hello.ShellAsset, 0, hello.ShellAsset.Length, buffer, o);
+                    buffer[o++] = (byte)hello.ShellWallet.Length;
+                    Encoding.ASCII.GetBytes(hello.ShellWallet, 0, hello.ShellWallet.Length, buffer, o);
+                }
             }
 
             return buffer;
@@ -156,10 +169,26 @@ namespace FallRush.Shared
             {
                 // v4 extension: exactly u8 nameLen | name | 16 B token; anything else is trailing garbage.
                 var nameLen = data[extAt];
-                if (nameLen > MaxNameBytes || data.Length != extAt + 1 + nameLen + TokenBytes)
+                var tokenEnd = extAt + 1 + nameLen + TokenBytes;
+                if (nameLen > MaxNameBytes || data.Length < tokenEnd)
                 {
                     error = "hello has trailing bytes";
                     return false;
+                }
+
+                if (data.Length > tokenEnd)
+                {
+                    // P5 shell extension: u8 len | asset base58 | u8 len | wallet base58 (≤ 44 each), nothing after it
+                    var al = data[tokenEnd];
+                    var wAt = tokenEnd + 1 + al;
+                    if (al > 44 || data.Length <= wAt || data[wAt] > 44 || data.Length != wAt + 1 + data[wAt])
+                    {
+                        error = "hello has trailing bytes";
+                        return false;
+                    }
+
+                    hello.ShellAsset = Encoding.ASCII.GetString(data.Slice(tokenEnd + 1, al).ToArray());
+                    hello.ShellWallet = Encoding.ASCII.GetString(data.Slice(wAt + 1, data[wAt]).ToArray());
                 }
 
                 try
