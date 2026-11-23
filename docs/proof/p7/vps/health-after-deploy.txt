@@ -1,0 +1,8 @@
+== public
+landing  200 0.134227s
+webgl    200 117894B
+gs1: up=True phase=LobbyOpen humans=0 keeper=idle alive=True
+gs2: up=True phase=LobbyOpen humans=0 keeper=idle alive=True
+{"ok":true,"funder":"2zpoqVPpth1KcnBymMBJVRaDTxsX5E3dRQDm6zQYfv8M","funderLamports":473885000,"matches":56}
+gs1 wss: 101
+gs2 wss: 101

@@ -1,0 +1,19 @@
+2026-11-23T19:51:25Z snapshot 472001 (Hostinger VM, created 2026-11-23T19:51:15Z, expires 2026-11-24T19:51:15Z) before the first P7 change
+2026-11-23T19:51:45Z build: node image fallrush-node:p7 + web.p7 staged (not live)
+2026-11-23T19:51:54Z web: switched to the P7 build (web.p6bak kept)
+2026-11-23T19:53:03Z indexer: up on fallrush-node:p7 (healthy)
+2026-11-23T19:53:50Z keeper-1: up on fallrush-node:p7 (healthy)
+2026-11-23T19:54:38Z arena3: gs2 + keeper-2 up (keeper on :p7)
+2026-11-23T19:55:14Z watchdog: fallrush-watchdog.timer active
+2026-11-23T20:49:24Z indexer: up on fallrush-node:p7 (healthy)
+2026-11-23T21:03:50Z build: node image fallrush-node:p7 + web.p7 staged (not live)
+2026-11-23T21:04:34Z arena3: gs2 + keeper-2 up (keeper on :p7)
+2026-11-23T21:05:18Z keeper-1: up on fallrush-node:p7 (healthy)
+2026-11-23T21:30:57Z watchdog: fallrush-watchdog.timer active
+2026-11-23T21:49:34Z build: node image fallrush-node:p7 + web.p7 staged (not live)
+2026-11-23T21:49:36Z web: switched to the P7 build (web.p6bak kept)
+2026-11-23T21:55:22Z build: node image fallrush-node:p7 + web.p7 staged (not live)
+2026-11-23T21:55:23Z web: switched to the P7 build (web.p6bak kept)
+2026-11-23T21:56:07Z indexer: up on fallrush-node:p7 (healthy)
+2026-11-23T22:13:40Z build: node image fallrush-node:p7 + web.p7 staged (not live)
+2026-11-23T22:13:42Z web: switched to the P7 build (web.p6bak kept)

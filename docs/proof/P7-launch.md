@@ -17,10 +17,10 @@ Branch `p7` from `main` @ `6a015e5` (P0–P6 merged). Worktree `../FallRush-p7`.
 
 | Check | Result |
 |---|---|
-| EditMode | **431 tests: 430 passed, 0 failed, 1 skipped** (P3 emulator binary not built in this worktree, as in P6); +11 P7 tests (UiMotion curves, CountUp, card sizes + hues, MakeCard layers, icon atlas, glyph coverage) |
+| EditMode | **432 tests: 431 passed, 0 failed, 1 skipped** (P3 emulator binary not built in this worktree, as in P6); +12 P7 tests (UiMotion curves, CountUp, card sizes + hues, MakeCard layers, receipt / chip layout heights, icon atlas, glyph coverage). The layout test also caught `ReceiptCard.Reset()` colliding with Unity's magic `Reset` |
 | `scripts/p1-check.sh` | see §10 (run at the merge) |
 | Map hashes + `rush_core.wasm` | unchanged (§10: byte-compared) |
-| WebGL release | **22,830,838 B** (≤ 25 MB; P6 22,833,701 B: −3 KB), Decompression Fallback on; four release builds were made in P7 (the prompt asked for one: the live-match checks found the bugs above), one is kept |
+| WebGL release | **22,838,711 B** (build #6, live; ≤ 25 MB; P6 22,833,701 B: +5 KB, D-PERF ✓), Decompression Fallback on; six release builds were made in P7 (the prompt asked for one: each public test match through the new build found bugs listed above, fixed and rebuilt), one is kept |
 | Lid Flip FPS, Chrome, this Mac | P6 build (before run): fpsMedian 59, 1 % low 53 · P7 build (after runs): **59 / 53** (vsync-bound; draw calls median 77–122 with cards up, budget unchanged) |
 | Before / after screenshots | `p7/polish/before/{game,web}/`, `p7/polish/after/{game,web}/` (player builds only) |
 
