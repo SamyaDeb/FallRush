@@ -1,6 +1,6 @@
 # 13 — Deployment
 
-**Status:** v2 (2026-11-18).
+**Status:** v3 (2026-11-23): §2a is the P5 as-built public deployment; §2 keeps the M1 plan and findings.
 
 ## 1. Environments
 
@@ -48,6 +48,43 @@ docker compose (infra/docker-compose.prod.yml), every port bound to 127.0.0.1 on
 - CPU headroom for two 30 Hz Unity servers on 2 shared vCPUs (measure tick p95 in M6; drop to one game server if needed).
 
 **Fallback:** a second VPS (Hostinger KVM 4, or any 4 vCPU / 8 GB box) with the same compose file.
+
+## 2a. As built (P5, 2026-11-23): the public URL
+
+`play.<VPS_IP-dashed>.sslip.io` (landing, `/play`, `/live`, `/replay`, `/receipt`, `/me`, `/api`), `gs1.…` and `gs2.…`
+(game-server WebSockets). Let's Encrypt via `certbot --nginx` per name. No Postgres, no relay, no Next.js (OC-8): a
+static Vite app + small Node helpers; the Final runs on the MagicBlock rollup (devnet-as).
+
+```text
+Internet ──443──▶ host nginx (existing; finity untouched)
+   sites-available/fallrush-p5.conf, enabled as sites-enabled/zz-fallrush-p5.conf (loads after finity: finity stays
+   the default server for unmatched hosts)
+   ├─ play.…  → 127.0.0.1:3110  fallrush-web      nginx:alpine: web/app dist + /unity (WebGL) + /api → indexer
+   ├─ gs1.…   → 127.0.0.1:7777  fallrush-gs1      Classic game server, arena 2 (WebSocket, 3600 s timeouts)
+   └─ gs2.…   → 127.0.0.1:7778  fallrush-gs2      Classic game server, arena 3 (compose profile gs2)
+docker compose project `fallrush` (/opt/fallrush, infra/prod/docker-compose.yml), all ports on 127.0.0.1:
+   fallrush-keeper-1 :3111 (arena 2) · fallrush-keeper-2 :3113 (arena 3) · fallrush-indexer :3112
+   volumes: ./logs/gs1|gs2 (server match logs + status.json → keeper), ./archive (keeper → indexer), ./web,
+   ./secrets/{game-authority,funder}.json (root, 600; each mounted only where needed), ./keys (market maker)
+```
+
+| Service | Image | CPU / RAM cap | Measured during 2 concurrent matches (P5 §7) |
+|---|---|---|---|
+| fallrush-gs1 / gs2 | `fallrush-gameserver:p5` (`Build.LinuxDevServer` on the M3 image) | 0.75 / 1 GB each | CPU p50 ≈ 5 %, max ≈ 9 %; ≤ 140 MiB; tick work p95 ≤ 3.5 ms, 30 Hz |
+| fallrush-keeper-1 / 2 | `fallrush-node:p5` (Node 24, `tools/keeper/daemon.ts`) | 0.25 / 512 MB each | CPU max ≈ 16 %; ≤ 72 MiB |
+| fallrush-indexer | `fallrush-node:p5` (`tools/indexer/server.ts`) | 0.25 / 512 MB | ≤ 84 MiB |
+| fallrush-web | `nginx:1.27-alpine` | 0.25 / 256 MB | ≈ 3 MiB |
+
+- **WebGL loading:** Brotli with **Decompression Fallback** (`.unityweb`, served plain): `/play` fetches the two big
+  files in 5 parallel Range requests (one TCP stream from the VPS measured 0.1–0.5 MB/s, 4 streams 2.2 MB/s) and the
+  loader decodes them. OC-14.
+- **Game server build:** `Build.LinuxDevServer` (Player subtarget + `FALLRUSH_DEV_SERVER`, `-fallrushServer`): the
+  Dedicated Server subtarget does not compile the G4 editor tools. Image `FROM fallrush-gameserver:m3` (no apt step).
+- **Ops:** `restart: unless-stopped`, health checks on every service, Docker log rotation (10 MB × 3).
+  `scripts/p5-deploy.sh [web|node|gs|all] [--gs2]` (build → copy → `docker compose up -d` → smoke),
+  `scripts/p5-deploy-quick.sh` (small web changes), `scripts/p5-health.sh` (services + public smoke + neighbours),
+  `scripts/p5-neighbours.sh` (finity + Ovelo + raw-IP check), `scripts/p5-kill-test.sh`.
+- The real IP / hostnames live only in `~/.config/fall-rush/vps.env` (local) and `/opt/fallrush/.env` (VPS).
 
 ## 3. Configuration (`.env.example`; placeholders only)
 

@@ -1,0 +1,17 @@
+{
+ "flow": "me",
+ "started": "2026-11-23T13:16:31.714Z",
+ "marks": {
+  "wallet": {
+   "t": 7.9
+  },
+  "cashout": {
+   "t": 10.58,
+   "c": "✓ 10 RUSH minted · cashout (rollup) · mint_cashout (Solana) · commit 1317 ms"
+  }
+ },
+ "cashout": "✓ 10 RUSH minted · cashout (rollup) · mint_cashout (Solana) · commit 1317 ms",
+ "phantom": "connected 58Yq…wAVk",
+ "pass": true,
+ "finished": "2026-11-23T13:17:00.613Z"
+}

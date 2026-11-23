@@ -1,0 +1,35 @@
+{
+ "flow": "live",
+ "started": "2026-11-23T13:06:01.535Z",
+ "marks": {
+  "loaded": {
+   "t": 1.23
+  },
+  "bet_clicked": {
+   "t": 14.98,
+   "bet": "#1 x11.3"
+  },
+  "bet_result": {
+   "t": 15.99,
+   "betOk": "18:36:19 you bet 10 RUSH on slot 1 · Champion (session key) · tx"
+  },
+  "drop_clicked": {
+   "t": 271.77,
+   "drop": "Lid Frenzy · 50"
+  },
+  "drop_result": {
+   "t": 293.74,
+   "dropOk": "18:40:56 drop refused \"unconfirmed (check the state before retrying)\""
+  }
+ },
+ "oddsSamples": [
+  "#5 x16.3",
+  "#8 x16.3",
+  "#10 x16.3",
+  "#5 x3.0",
+  "#8 x3.0",
+  "#10 x3.0"
+ ],
+ "pass": false,
+ "finished": "2026-11-23T13:11:03.587Z"
+}

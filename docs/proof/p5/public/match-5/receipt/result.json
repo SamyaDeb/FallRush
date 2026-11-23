@@ -1,0 +1,12 @@
+{
+ "flow": "receipt",
+ "started": "2026-11-23T13:13:27.537Z",
+ "marks": {
+  "rollup_solana_ok": {
+   "t": 1.68
+  }
+ },
+ "text": "Rollup ✓\nreceipt written on devnet-as by write_receipt\nwrite_receipt tx · finalize (commit + undelegate)\nSolana ✓\nthe Match is back on Solana (owner = the program)\nMatch account\nTrust\n● rounds 1–3 recorded by the game authority (Classic server)\n◆ the Final computed by the program (rush-core on the rollup)\ncore v2 · status Completed\nRewards\na bot won: no Crown\nminted by the Magic Action + keeper retry\nPlacements (the Final)\n#\tslot\tcapsule\n1\t#12 (bot)\t—\n2\t#5 (bot)\t—\n3\t#2 (bot)\t—\nRush Markets\nmarket\tpool\twinners\tsettled by\nChampion\t69 RUSH\t#12\t◆ program-settled\nFinal winner\t26 RUSH\t#12\t◆ program-settled\nQualify R1\t98 RUSH\t#2 #3 #5 #7 #9 #10 #11 #12\t● server-recorded\nQualify R2\t78 RUSH\t#2 #5 #7 #12\t● server-recorded\nQualify R3\t34 RUSH\t#2 #5 #12\t● server-recorded\nChaos Drops\n1 drop(s) · 50 RUSH · log hash 26708adea93d1356…\nLid Frenzy at tick 249 by 12v3…BxHc\nAssets\nRushling Capsule (Common) · Common · shell GrapeFizz\nHashes\nmap 44bc4e756140708faa2897f898c06ea63d422bf9345c563644d6106a01948811\nrounds 1–3 transcript 0000000000000000000000000000000000000000000000000000000000000000\nFinal transcript 2d7c3a0f35caea40a0d843e15c772193206bf527161f44dd6c47ba126a3ad870\ncapsule VRF seed 8b5a0f4e36799910f670412a6068b843c3a7436cd32ef278303ad378ea687916\n\nReplay it yourself",
+ "pass": true,
+ "finished": "2026-11-23T13:13:36.269Z"
+}

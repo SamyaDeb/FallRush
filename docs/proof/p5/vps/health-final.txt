@@ -1,0 +1,29 @@
+== services
+fallrush-keeper-2	Up 49 minutes (healthy)
+fallrush-keeper-1	Up 40 minutes (healthy)
+fallrush-indexer	Up 49 minutes (healthy)
+fallrush-web	Up 2 hours (healthy)
+fallrush-gs2	Up 2 hours (healthy)
+fallrush-gs1	Up About a minute (healthy)
+fallrush-keeper-2	0.08%	69.54MiB / 512MiB
+fallrush-keeper-1	0.08%	78.35MiB / 512MiB
+fallrush-indexer	0.03%	60.96MiB / 512MiB
+fallrush-web	0.00%	3.402MiB / 256MiB
+fallrush-gs2	4.47%	139.6MiB / 1GiB
+fallrush-gs1	4.10%	110.5MiB / 1GiB
+ovelo-app-1	0.00%	429.5MiB / 1GiB
+ovelo-cloudflared-1	0.30%	17.27MiB / 256MiB
+ 13:19:18 up 7 days,  7:56,  1 user,  load average: 0.10, 0.15, 0.20
+== neighbours
+ovelo-app-1	Up 7 days (healthy)
+ovelo-cloudflared-1	Up 7 days
+c6a6cca80336d306df5e43da01cbb466  /etc/nginx/sites-available/finity
+finity: 200 0.390114s
+== public
+landing  200 0.208156s
+webgl    200 117894B
+gs1: up=True phase=LobbyOpen humans=0 keeper=idle alive=True
+gs2: up=True phase=LobbyOpen humans=0 keeper=idle alive=True
+{"ok":true,"funder":"2zpoqVPpth1KcnBymMBJVRaDTxsX5E3dRQDm6zQYfv8M","funderLamports":59900000,"matches":9}
+gs1 wss: 101
+gs2 wss: 101
