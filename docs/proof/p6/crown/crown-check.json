@@ -1,0 +1,25 @@
+{
+ "match": "ELgfjhXtHXbJgbMnjcSDgcsjMgaaRTriSyYWJRNFpnVd",
+ "crown": "Eoi1XaekwQz2CB4BvHCXxK2P4Uuxx1PCn7FXxB8wAi2z",
+ "info": "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d",
+ "txs": [
+  {
+   "sig": "2oasoN6DUGxyhTECjC6XR2MbKjJNAH84x3xdbxA6Q2YUGw7kFKyjW6pWt4k25HxrXxMULMAPG4VUvSoPf512rPUQ",
+   "feePayer": "MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57",
+   "err": null,
+   "undelegation": true,
+   "mintAction": true,
+   "coreCreate": true,
+   "logs": [
+    "Program DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh invoke [1]",
+    "Program DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh invoke [1]",
+    "Program log: Instruction: ProcessUndelegation",
+    "Program DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh invoke [1]",
+    "Program log: Instruction: MintRewardsAction",
+    "Program log: Instruction: Create",
+    "Program log: Instruction: Create",
+    "Program log: Instruction: Create"
+   ]
+  }
+ ]
+}

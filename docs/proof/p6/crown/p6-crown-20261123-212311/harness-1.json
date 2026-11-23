@@ -1,0 +1,118 @@
+{
+ "match": "c66a1c1be28c6a66832f3477598a13af",
+ "slots": [
+  4,
+  7
+ ],
+ "lead": 4,
+ "at": "2026-11-23T15:53:17.009Z",
+ "humans": [
+  {
+   "slot": 4,
+   "burner": "3BfiL28q3UdzE954UZLAeFLXa1rjc5ZGr2ZVcTTMq3DL",
+   "session": "AKjgemu4dUmLBz7xQ5Wsqv34MfJJoYUTn1ATRpJcEdar"
+  },
+  {
+   "slot": 7,
+   "burner": "G7ZcJAaEmdZCa8nTgzeiDLZhxWsgRXkNPw6ZNzzYe5HN",
+   "session": "\"429 Too Many Requests:  {\\\"jsonrpc\\\":\\\"2.0\\\",\\\"error\\\":{\\\"code\\\": 429, \\\"message\\\":\\\"Connection rate limits exceeded\\\"}, \\\"id\\\": \\\"8a3eaa7e-898c-46fb-a1e6-c2b009e529c4\\\" } \\r\\n\""
+  }
+ ],
+ "joins": [
+  {
+   "slot": 4,
+   "ok": true,
+   "joinedSlot": 4,
+   "ms": 19866
+  },
+  {
+   "slot": 7,
+   "ok": true,
+   "joinedSlot": 7,
+   "ms": 20332
+  }
+ ],
+ "stats": {
+  "updatesPerSec": 26,
+  "inputBatchesPerSec": 7,
+  "confirmP50": 0,
+  "confirmP95": 0,
+  "confirmN": 0,
+  "confirmOk": 2,
+  "confirmBad": 386,
+  "confirmTimeouts": 2,
+  "sendErrors": 0,
+  "rttMs": 231.8,
+  "gaps": 194,
+  "missingTicks": 5173,
+  "polls": 179,
+  "pollFills": 167,
+  "reconnects": 107,
+  "lastTick": 6131,
+  "queueDrops": 895,
+  "slicesDropped": 0,
+  "wsMsgs": 12059,
+  "staleDrops": 11279,
+  "queued": 64,
+  "eventsDropped": 0,
+  "transport": "rollup",
+  "receipt": {
+   "arena": "E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG",
+   "world": "9Q5KBadvfx3Yoen1uqLUgbU1x6tXn4GmkEkjGqfPuRWn",
+   "match": "NkuihBuVRSddjwjtrqfwS5UZ9m1tkVgtGgm7v2RXPgJ",
+   "joinSig": "3XDU24s4yvHFJHi53uyiLMxThAPpeHJG6tnCxBaykBcUfuLVyD5Cyc91k54wcH9eYyTbCuSfHHj3Y7F1hAGcH8SR",
+   "slot": 4,
+   "finalists": [
+    4,
+    7,
+    9
+   ],
+   "lastInputSig": "QS4sv4LzfiksCs2wNYYTQkv7pfNwHkdUtMwH7ASfmwCsp6uhHAedLdFT2fQz4onDtmjn7x5jrnQsHYj7BTmM26c"
+  },
+  "blockhash": true,
+  "subs": [
+   "$world"
+  ],
+  "pendingConfirms": 2,
+  "baseQueued": 0,
+  "joined": {
+   "ok": true,
+   "slot": 4,
+   "arena": "E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG",
+   "map": "CrumbleShelf",
+   "rate": 30,
+   "coreVersion": 2,
+   "roster": [
+    {
+     "slot": 4,
+     "kind": "human",
+     "wallet": "3BfiL28q3UdzE954UZLAeFLXa1rjc5ZGr2ZVcTTMq3DL"
+    },
+    {
+     "slot": 7,
+     "kind": "human",
+     "wallet": "G7ZcJAaEmdZCa8nTgzeiDLZhxWsgRXkNPw6ZNzzYe5HN"
+    },
+    {
+     "slot": 9,
+     "kind": "bot"
+    }
+   ],
+   "world": "9Q5KBadvfx3Yoen1uqLUgbU1x6tXn4GmkEkjGqfPuRWn",
+   "match": "NkuihBuVRSddjwjtrqfwS5UZ9m1tkVgtGgm7v2RXPgJ"
+  }
+ },
+ "frames": 403,
+ "sent": [
+  {
+   "slot": 4,
+   "sent": 403,
+   "errors": 0
+  },
+  {
+   "slot": 7,
+   "sent": 403,
+   "errors": 0
+  }
+ ]
+}

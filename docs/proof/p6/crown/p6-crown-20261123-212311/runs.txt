@@ -1,0 +1,3 @@
+match 1 NkuihBuVRSddjwjtrqfwS5UZ9m1tkVgtGgm7v2RXPgJ champion/humanMask/flags/minted/mode/keeperMintAttempts: 9 144 59 144 action 0
+match 2 ELgfjhXtHXbJgbMnjcSDgcsjMgaaRTriSyYWJRNFpnVd champion/humanMask/flags/minted/mode/keeperMintAttempts: 7 144 47 144 action 0
+HUMAN CROWN in match 2 (ELgfjhXtHXbJgbMnjcSDgcsjMgaaRTriSyYWJRNFpnVd)
