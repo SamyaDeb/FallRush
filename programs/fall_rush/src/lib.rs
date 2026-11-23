@@ -689,12 +689,67 @@ pub mod fall_rush {
         );
         // P4: an on-chain Final commits with its receipt (markets settled, drop log, VRF capsule seed requested)
         let m = &ctx.accounts.match_account;
-        if m.flags & sim::MATCH_FINAL_MODE != 0 && status == MatchStatus::Completed {
+        // P5 0.5: also any match whose markets were opened (Classic fallback included), so a keeper crash between
+        // settle and finalize can never strand unpaid bets (the receipt requires every market PAID)
+        if (m.flags & sim::MATCH_FINAL_MODE != 0 || m.flags & sim::MATCH_ECON != 0) && status == MatchStatus::Completed {
             require!(m.receipt.flags & econ::rflag::WRITTEN != 0, FallRushError::ReceiptNotReady);
         }
         ctx.accounts.match_account.exit(&crate::ID)?;
         magic::commit(&ctx.accounts.authority.to_account_info(), &ctx.accounts.magic_context.to_account_info(), &ctx.accounts.magic_program.to_account_info(), &[ctx.accounts.match_account.to_account_info()], true)?;
         Ok(())
+    }
+
+    /// P5 0.3 (doc 15 D-ACTION): `finalize_match` + a **Magic Action**: the receipt commit + undelegation carries one
+    /// post-undelegate base action that runs `mint_rewards_action` on Solana right after the Match is back, minting
+    /// the Crown + capsules owed by the committed receipt (≤ `econ::ACTION_MAX_ITEMS`; the keeper's permissionless
+    /// `mint_rewards` stays the retry path). The program PDA `["escrow_auth"]` signs the CPI as the escrow authority.
+    pub fn finalize_match_action(ctx: Context<FinalizeMatchAction>) -> Result<()> {
+        let status = ctx.accounts.match_account.status;
+        require!(matches!(status, MatchStatus::Completed | MatchStatus::Aborted), FallRushError::InvalidStatus);
+        let m = &ctx.accounts.match_account;
+        if (m.flags & sim::MATCH_FINAL_MODE != 0 || m.flags & sim::MATCH_ECON != 0) && status == MatchStatus::Completed {
+            require!(m.receipt.flags & econ::rflag::WRITTEN != 0, FallRushError::ReceiptNotReady);
+        }
+        let mk = m.key();
+        let (f, h) = (m.receipt.flags, m.receipt.human_mask);
+        let mut whats: Vec<u8> = Vec::with_capacity(econ::ACTION_MAX_ITEMS);
+        if status == MatchStatus::Completed && f & econ::rflag::WRITTEN != 0 {
+            if f & (econ::rflag::CROWN | econ::rflag::NO_CROWN) == 0 && (m.champion_slot as usize) < 12 && h >> m.champion_slot & 1 == 1 {
+                whats.push(0);
+            }
+            let mut s = 0u8;
+            while s < 12 && whats.len() < econ::ACTION_MAX_ITEMS {
+                if f & econ::rflag::SEEDED != 0 && h >> s & 1 == 1 && m.receipt.minted_mask >> s & 1 == 0 {
+                    whats.push(1 + s);
+                }
+                s += 1;
+            }
+        }
+        let (tre, assets) = (econ::pda(&[econ::TREASURY_SEED]).0, econ::pda(&[econ::ASSETS_SEED]).0);
+        let mut metas: Vec<(Pubkey, bool)> = Vec::with_capacity(7 * whats.len());
+        for &w in &whats {
+            let slot = if w == 0 { m.champion_slot } else { w - 1 };
+            let asset = if w == 0 { econ::pda(&[econ::CROWN_SEED, mk.as_ref()]).0 } else { econ::pda(&[econ::CAPSULE_SEED, mk.as_ref(), &[slot]]).0 };
+            metas.extend_from_slice(&[(mk, true), (asset, true), (m.receipt.wallets[slot as usize], false), (tre, true), (assets, false), (econ::MPL_CORE, false), (anchor_lang::solana_program::system_program::ID, false)]);
+        }
+        ctx.accounts.match_account.exit(&crate::ID)?;
+        let (payer, mc, mp, ma) = (ctx.accounts.authority.to_account_info(), ctx.accounts.magic_context.to_account_info(), ctx.accounts.magic_program.to_account_info(), ctx.accounts.match_account.to_account_info());
+        if whats.is_empty() {
+            return magic::commit(&payer, &mc, &mp, &[ma], true);
+        }
+        let mut data = instruction::MintRewardsAction::DISCRIMINATOR.to_vec();
+        data.extend_from_slice(&(whats.len() as u32).to_le_bytes());
+        data.extend_from_slice(&whats);
+        let cu = 40_000 + 110_000 * whats.len() as u32;
+        let bump = [ctx.bumps.escrow_auth];
+        let seeds: [&[u8]; 2] = [econ::ESCROW_AUTH_SEED, &bump];
+        magic::commit_undelegate_with_action(&payer, &mc, &mp, &[ma], &ctx.accounts.escrow_auth.to_account_info(), &seeds, econ::ESCROW_INDEX, cu, &metas, &data)
+    }
+
+    /// P5 0.3: the Magic Action's destination on Solana (accounts: 7 per item + the injected source program, escrow
+    /// authority and escrow signer; checked in `econ::mint_rewards_action`). Never fails on an already-minted item.
+    pub fn mint_rewards_action<'info>(ctx: Context<'info, MintRewardsAction>, whats: Vec<u8>) -> Result<()> {
+        econ::mint_rewards_action(ctx.remaining_accounts, &whats)
     }
 
     // ================================================================== P4 economy (econ.rs)
@@ -878,6 +933,24 @@ pub struct FinalizeMatch<'info> {
     #[account(mut, seeds = [MATCH_SEED, &match_account.match_id], bump = match_account.bump)]
     pub match_account: Box<Account<'info, Match>>,
 }
+
+#[commit]
+#[derive(Accounts)]
+pub struct FinalizeMatchAction<'info> {
+    #[account(mut, address = config.game_authority @ FallRushError::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, GameConfig>,
+    #[account(mut, seeds = [MATCH_SEED, &match_account.match_id], bump = match_account.bump)]
+    pub match_account: Box<Account<'info, Match>>,
+    /// CHECK: the escrow authority PDA (no data); signs the Magic program CPI via invoke_signed.
+    #[account(seeds = [econ::ESCROW_AUTH_SEED], bump)]
+    pub escrow_auth: UncheckedAccount<'info>,
+}
+
+/// P5 0.3: every account is in remaining_accounts (the action's metas + the injected escrow accounts).
+#[derive(Accounts)]
+pub struct MintRewardsAction {}
 
 #[derive(Accounts)]
 pub struct AbortMatch<'info> {

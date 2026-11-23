@@ -706,7 +706,7 @@ fn acc<'a, 'info>(accs: &'a [AccountInfo<'info>], i: usize) -> Result<&'a Accoun
     accs.get(i).ok_or(error!(FallRushError::InvalidSlot))
 }
 
-fn pda(seeds: &[&[u8]]) -> (Pubkey, u8) {
+pub fn pda(seeds: &[&[u8]]) -> (Pubkey, u8) {
     Pubkey::find_program_address(seeds, &crate::ID)
 }
 
@@ -881,7 +881,12 @@ fn op_open_markets<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'inf
     d.count = 0;
     d.last_tick = 0;
     d.buys = [DropBuy { by: Pubkey::default(), tick: 0, kind: 0, _pad: [0; 3] }; 8];
-    Ok(())
+    drop(d);
+    // P5 0.5: the Match carries an economy flag from here on, so `finalize_match` refuses it until the receipt is
+    // written, and `write_receipt` refuses while any of its markets still holds an unpaid bet (keeper crash safety)
+    let mut m = load_match(acc(accs, 7)?)?;
+    m.flags |= sim::MATCH_ECON;
+    m.exit(&crate::ID)
 }
 
 #[inline(never)]
@@ -973,7 +978,9 @@ fn write_receipt<'info>(accs: &'info [AccountInfo<'info>]) -> Result<()> {
         let l = AccountLoader::<Market>::try_from(info)?;
         let x = l.load()?;
         if x.match_account == mk {
-            require!(x.status >= mstatus::SETTLED, FallRushError::ReceiptNotReady);
+            // P5 0.5: every bet paid (status PAID), not only settled: a receipt (and so `finalize_match`, which
+            // undelegates the Match that `settle` reads) never leaves unpaid winners behind
+            require!(x.status == mstatus::PAID, FallRushError::ReceiptNotReady);
             m.receipt.markets[k] = MarketResult { pool: x.pool, winning_stake: x.winning_stake, winners: x.winners, label: x.label, status: x.status };
         }
     }
@@ -1021,6 +1028,61 @@ fn write_receipt<'info>(accs: &'info [AccountInfo<'info>]) -> Result<()> {
 #[inline(never)]
 fn mint_rewards<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'info>], what: u8) -> Result<()> {
     let _ = signer;
+    mint_one(accs, what)
+}
+
+/// P5 0.3: the escrow PDA authority (`["escrow_auth"]`, this program) that signs the finalize CPI's Magic Action, and
+/// the escrow index. The escrow itself is the delegation program's `["balance", escrow_auth, [255]]` (System-owned,
+/// funded on Solana by `TopUpEphemeralBalance`); `CallHandlerV2` injects it as the action's only signer.
+pub const ESCROW_AUTH_SEED: &[u8] = b"escrow_auth";
+pub const ESCROW_INDEX: u8 = 255;
+/// Assets minted by one Magic Action at most (Crown + 3 capsules: the base transaction must fit 1,232 B); the rest is
+/// minted by the keeper's permissionless `mint_rewards` retry.
+pub const ACTION_MAX_ITEMS: usize = 4;
+
+/// What `mint_rewards(what)` would still mint for this match (pre-checks, so the action never fails: a failed action
+/// could revert the undelegation it rides with).
+fn still_owed<'info>(part: &'info [AccountInfo<'info>], what: u8) -> bool {
+    let Ok(m) = load_match(&part[0]) else { return false };
+    let (f, h, minted) = (m.receipt.flags, m.receipt.human_mask, m.receipt.minted_mask);
+    if f & rflag::WRITTEN == 0 || m.status != MatchStatus::Completed {
+        return false;
+    }
+    let slot = if what == 0 { m.champion_slot } else { what - 1 };
+    if slot as usize >= 12 || h >> slot & 1 == 0 || part[2].key() != m.receipt.wallets[slot as usize] {
+        return false;
+    }
+    let ok = if what == 0 { f & (rflag::CROWN | rflag::NO_CROWN) == 0 } else { f & rflag::SEEDED != 0 && minted >> slot & 1 == 0 };
+    ok && part[1].data_len() == 0 && part[1].lamports() == 0 && part[3].lamports() >= 10_000_000
+}
+
+/// P5 0.3 Magic Action handler (`mint_rewards_action`), run by the validator on Solana right after the Match's
+/// undelegation. Accounts: 7 per item (`mint_rewards`' list: match, asset, owner, treasury, assets, Core, System),
+/// then the injected `source_program`, `escrow_auth`, `escrow` (signer). Checks the injected escrow, then mints every
+/// item still owed (the same program decision from the committed receipt as the keeper's `mint_rewards`).
+#[inline(never)]
+pub fn mint_rewards_action<'info>(accs: &'info [AccountInfo<'info>], whats: &[u8]) -> Result<()> {
+    let n = accs.len();
+    require!(!whats.is_empty() && whats.len() <= ACTION_MAX_ITEMS + 9 && n == 3 + 7 * whats.len(), FallRushError::InvalidSlot);
+    let (src, auth, escrow) = (&accs[n - 3], &accs[n - 2], &accs[n - 1]);
+    require_keys_eq!(src.key(), crate::ID, FallRushError::Unauthorized);
+    require_keys_eq!(auth.key(), pda(&[ESCROW_AUTH_SEED]).0, FallRushError::Unauthorized);
+    let (ek, _) = Pubkey::find_program_address(&[b"balance", auth.key.as_ref(), &[ESCROW_INDEX]], &DELEGATION_PROGRAM);
+    require_keys_eq!(escrow.key(), ek, FallRushError::Unauthorized);
+    require!(escrow.is_signer, FallRushError::Unauthorized);
+    let mut i = 0;
+    while i < whats.len() {
+        let part = &accs[7 * i..7 * i + 7];
+        if still_owed(part, whats[i]) {
+            mint_one(part, whats[i])?;
+        }
+        i += 1;
+    }
+    Ok(())
+}
+
+#[inline(never)]
+fn mint_one<'info>(accs: &'info [AccountInfo<'info>], what: u8) -> Result<()> {
     let mi = acc(accs, 0)?;
     let mut m = load_match(mi)?;
     let mk = mi.key();

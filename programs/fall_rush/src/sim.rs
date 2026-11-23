@@ -53,6 +53,8 @@ pub const INPUT_LEAD_MAX: u32 = (RING as u32) - INPUT_BATCH as u32;
 pub const MATCH_SIM_STARTED: u8 = 0x20;
 /// `Match::flags` bit: the match's Final runs on-chain after Classic rounds 1–3 (`start_final`, doc 15 OC-11).
 pub const MATCH_FINAL_MODE: u8 = 0x40;
+/// `Match::flags` bit set by `open_markets` (P5 0.5): the match has an economy; `finalize_match` needs its receipt.
+pub const MATCH_ECON: u8 = 0x80;
 
 pub mod arena_status {
     pub const IDLE: u8 = 0;
