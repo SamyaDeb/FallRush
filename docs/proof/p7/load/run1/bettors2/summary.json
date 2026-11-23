@@ -1,0 +1,56 @@
+{
+ "n": 30,
+ "arenas": [
+  2,
+  3
+ ],
+ "fill": false,
+ "seconds": 1207,
+ "rpc429": 8269,
+ "fundedSol": 0,
+ "setupOk": 30,
+ "actions": {
+  "state": {
+   "ok": 4294,
+   "fail": 0,
+   "p50": 0,
+   "p95": 0,
+   "max": 0,
+   "errs": {}
+  },
+  "sealedBet": {
+   "ok": 144,
+   "fail": 5,
+   "p50": 1342,
+   "p95": 3765,
+   "max": 12692,
+   "errs": {
+    "{\"InstructionError\":[0,{\"Custom\":6029}]}": 4,
+    "{\"InstructionError\":[0,{\"Custom\":6042}]}": 1
+   }
+  },
+  "bet": {
+   "ok": 63,
+   "fail": 30,
+   "p50": 352,
+   "p95": 1208,
+   "max": 2524,
+   "errs": {
+    "{\"InstructionError\":[0,{\"Custom\":6030}]}": 27,
+    "{\"InstructionError\":[0,{\"Custom\":6029}]}": 3
+   }
+  },
+  "drop": {
+   "ok": 12,
+   "fail": 8,
+   "p50": 894,
+   "p95": 1876,
+   "max": 1876,
+   "errs": {
+    "{\"InstructionError\":[0,{\"Custom\":6037}]}": 7,
+    "{\"InstructionError\":[0,{\"Custom\":6036}]}": 1
+   }
+  }
+ },
+ "adminLamportsEnd": 2841708678
+}

@@ -60,14 +60,22 @@ for (const b of bettors) {
     await sleep(700); // ≤ 1.5 tx/s on the public RPC
   }
 }
-const setup = await Promise.all(bettors.map(async (b, k) => {
-  await sleep(k * 900); // stagger: one bettor per ~0.9 s against the public RPC
+// D-LOAD: onboarding is sequential with retries. From ONE IP the public devnet RPC rate-limits connections: 30
+// concurrent onboardings gave 370 × 429 and 3/30 ready (run1 first attempt); the bettors then play concurrently
+// (their steady state reads the rollup, not the base RPC)
+const setup: boolean[] = [];
+for (const b of bettors) {
   const t0 = Date.now();
-  const s = await J(b.chain.session("create", "{}")).catch((e) => ({ ok: false, error: String(e) }));
-  const c = await J(b.chain.econ("chips", "{}")).catch((e) => ({ ok: false, error: String(e) }));
+  let s: any = { ok: false }, c: any = { ok: false };
+  for (let tryN = 0; tryN < 3 && !(s.ok && c.ok); tryN++) {
+    if (!s.ok) s = await J(b.chain.session("create", "{}")).catch((e) => ({ ok: false, error: String(e) }));
+    if (s.ok) c = await J(b.chain.econ("chips", "{}")).catch((e) => ({ ok: false, error: String(e) }));
+    if (!(s.ok && c.ok)) await sleep(2500 * (tryN + 1));
+  }
   ev({ ev: "setup", i: b.i, arena: b.arena, session: s.ok, chips: c.ok, err: s.ok && c.ok ? undefined : String(s.error ?? c.error).slice(0, 160), ms: Date.now() - t0 });
-  return s.ok && c.ok;
-}));
+  setup.push(s.ok && c.ok);
+  if (!(s.ok && c.ok)) (b as any).dead = true;
+}
 console.log(`[load] setup ok ${setup.filter(Boolean).length}/${N}; funded ${funded / 1e9} SOL; 429s so far ${rpc429.count}`);
 
 // the loop: each bettor polls its arena's state every ~6 s (jittered) and acts on what is open
@@ -88,6 +96,7 @@ const marketOpen = (st: any, k: number) => {
   return r === 1 ? m.round === 0 && m.status <= 2 : m.round === r - 1 && m.status === 4;
 };
 async function run(b: Bettor) {
+  if ((b as any).dead) return;
   await sleep(Math.random() * 6000);
   while (Date.now() - t0 < DURATION) {
     try {

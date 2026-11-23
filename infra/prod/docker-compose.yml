@@ -85,7 +85,7 @@ services:
     <<: *node
     container_name: fallrush-indexer
     command: ["node", "--experimental-strip-types", "--no-warnings", "tools/indexer/server.ts"]
-    environment: { PORT: "3112", ARCHIVE: /archive }
+    environment: { PORT: "3112", ARCHIVE: /archive, GAS_PER_IP_DAY: "40", FAUCET_PER_IP_DAY: "40" }  # P7: a playtest venue shares one IP
     ports: ["127.0.0.1:3112:3112"]
     volumes: ["./archive:/archive", "./secrets/funder.json:/secrets/funder.json:ro"]
     cpus: 0.25

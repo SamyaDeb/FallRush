@@ -1,0 +1,445 @@
+[
+ {
+  "match": "DjWvv1vAXpRFeoSVyCr3oaBLWYLcsYz44i4N8ppg4VMG",
+  "arena": 3,
+  "doneAt": 1795465945877,
+  "startedAt": 1795465917155,
+  "champion": 255,
+  "humanMask": 0,
+  "flags": 9,
+  "mintedMask": 0,
+  "finalOnChain": false,
+  "drops": 0,
+  "pools": [
+   "48000000",
+   "0",
+   "0",
+   "0",
+   "0"
+  ],
+  "finalizeMode": "action",
+  "replay": false,
+  "status": 6,
+  "aborted": true,
+  "hidden": true,
+  "sealed": {
+   "n": 0,
+   "revealed": 0,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "J9zhHxfJ78z367kQqp46fd3TbmoZ9rf8RxeU3tQyxLk7",
+  "arena": 3,
+  "doneAt": 1795465917153,
+  "startedAt": 1795465435631,
+  "champion": 10,
+  "humanMask": 1,
+  "flags": 59,
+  "mintedMask": 1,
+  "finalOnChain": true,
+  "realTime": 1.0001289241281506,
+  "drops": 0,
+  "pools": [
+   "247000000",
+   "36000000",
+   "0",
+   "88000000",
+   "58000000"
+  ],
+  "finalizeMode": "action",
+  "replay": true,
+  "status": 5,
+  "aborted": false,
+  "hidden": false,
+  "sealed": {
+   "n": 13,
+   "revealed": 13,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "HQ3DvmoxVRTTR34UZ6SFEKcKr5qmvq8j4p6ke5s28w4Y",
+  "arena": 2,
+  "doneAt": 1795465752126,
+  "startedAt": 1795465723413,
+  "champion": 255,
+  "humanMask": 0,
+  "flags": 9,
+  "mintedMask": 0,
+  "finalOnChain": false,
+  "drops": 0,
+  "pools": [
+   "45000000",
+   "0",
+   "0",
+   "0",
+   "0"
+  ],
+  "finalizeMode": "action",
+  "replay": false,
+  "status": 6,
+  "aborted": true,
+  "hidden": true,
+  "sealed": {
+   "n": 0,
+   "revealed": 0,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "DBAsE7hEz9wnpPgZZF3ssDXoFoRMpQ91EtR8HrdreJ5R",
+  "arena": 2,
+  "doneAt": 1795465723411,
+  "startedAt": 1795465255115,
+  "champion": 8,
+  "humanMask": 1,
+  "flags": 59,
+  "mintedMask": 1,
+  "finalOnChain": true,
+  "realTime": 1.0000976657876746,
+  "drops": 0,
+  "pools": [
+   "281000000",
+   "26000000",
+   "0",
+   "139000000",
+   "40000000"
+  ],
+  "finalizeMode": "action",
+  "replay": true,
+  "status": 5,
+  "aborted": false,
+  "hidden": false,
+  "sealed": {
+   "n": 16,
+   "revealed": 16,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "9hL5ZGKPkxce2aFhJei6G7UBUwoaQTtp8CkFpUGqdzyS",
+  "arena": 3,
+  "doneAt": 1795465387589,
+  "startedAt": 1795465356115,
+  "champion": 255,
+  "humanMask": 0,
+  "flags": 9,
+  "mintedMask": 0,
+  "finalOnChain": false,
+  "drops": 0,
+  "pools": [
+   "178000000",
+   "0",
+   "0",
+   "0",
+   "0"
+  ],
+  "finalizeMode": "action",
+  "replay": false,
+  "status": 6,
+  "aborted": true,
+  "hidden": true,
+  "sealed": {
+   "n": 8,
+   "revealed": 8,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "9RqNuj4D4hexFwTzL9uDSV7tFTgBn8b5vmdKQfMTRVh4",
+  "arena": 3,
+  "doneAt": 1795465356112,
+  "startedAt": 1795464850992,
+  "champion": 9,
+  "humanMask": 1,
+  "flags": 59,
+  "mintedMask": 1,
+  "finalOnChain": true,
+  "realTime": 0.9999524963184647,
+  "drops": 3,
+  "pools": [
+   "267000000",
+   "26000000",
+   "0",
+   "120000000",
+   "207000000"
+  ],
+  "finalizeMode": "action",
+  "replay": true,
+  "status": 5,
+  "aborted": false,
+  "hidden": false,
+  "sealed": {
+   "n": 14,
+   "revealed": 14,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "HJNa1oG33iZJTvja42V9m3zPZbaw4RXXmjvFCuQcASTw",
+  "arena": 2,
+  "doneAt": 1795465226086,
+  "startedAt": 1795465195751,
+  "champion": 255,
+  "humanMask": 0,
+  "flags": 9,
+  "mintedMask": 0,
+  "finalOnChain": false,
+  "drops": 0,
+  "pools": [
+   "243000000",
+   "0",
+   "0",
+   "0",
+   "0"
+  ],
+  "finalizeMode": "action",
+  "replay": false,
+  "status": 6,
+  "aborted": true,
+  "hidden": true,
+  "sealed": {
+   "n": 11,
+   "revealed": 11,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "83mv9HTLBy2aJT5YLWumDTGQjBqg9D134ES3aE3YBZNe",
+  "arena": 2,
+  "doneAt": 1795465195748,
+  "startedAt": 1795464730867,
+  "champion": 8,
+  "humanMask": 1,
+  "flags": 59,
+  "mintedMask": 1,
+  "finalOnChain": true,
+  "realTime": 1,
+  "drops": 3,
+  "pools": [
+   "260000000",
+   "30000000",
+   "0",
+   "224000000",
+   "224000000"
+  ],
+  "finalizeMode": "action",
+  "replay": true,
+  "status": 5,
+  "aborted": false,
+  "hidden": false,
+  "sealed": {
+   "n": 15,
+   "revealed": 15,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "5QNJYW6cEUBd6pKjbgcCfgJbusMjH34sFdZhXUTgLVrk",
+  "arena": 3,
+  "doneAt": 1795464826959,
+  "startedAt": 1795464797453,
+  "champion": 255,
+  "humanMask": 0,
+  "flags": 9,
+  "mintedMask": 0,
+  "finalOnChain": false,
+  "drops": 0,
+  "pools": [
+   "192000000",
+   "0",
+   "0",
+   "0",
+   "0"
+  ],
+  "finalizeMode": "action",
+  "replay": false,
+  "status": 6,
+  "aborted": true,
+  "hidden": true,
+  "sealed": {
+   "n": 12,
+   "revealed": 12,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "CLZu5ytpRVYBAL8cPaU4udUcXphvH7L3PTbj4Y4SJeD",
+  "arena": 3,
+  "doneAt": 1795464797452,
+  "startedAt": 1795464340410,
+  "champion": 3,
+  "humanMask": 1,
+  "flags": 59,
+  "mintedMask": 1,
+  "finalOnChain": true,
+  "realTime": 0.9999881236564887,
+  "drops": 3,
+  "pools": [
+   "273000000",
+   "104000000",
+   "97000000",
+   "86000000",
+   "248000000"
+  ],
+  "finalizeMode": "action",
+  "replay": true,
+  "status": 5,
+  "aborted": false,
+  "hidden": false,
+  "sealed": {
+   "n": 14,
+   "revealed": 14,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "BRoWLFVf32NZwRMkJCGwjKsUW1w7yAiFJdTdiV47pRtT",
+  "arena": 2,
+  "doneAt": 1795464705840,
+  "startedAt": 1795464675395,
+  "champion": 255,
+  "humanMask": 0,
+  "flags": 9,
+  "mintedMask": 0,
+  "finalOnChain": false,
+  "drops": 0,
+  "pools": [
+   "218000000",
+   "0",
+   "0",
+   "0",
+   "0"
+  ],
+  "finalizeMode": "action",
+  "replay": false,
+  "status": 6,
+  "aborted": true,
+  "hidden": true,
+  "sealed": {
+   "n": 12,
+   "revealed": 12,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "6WAtRBthB8ychfnYyg2BUz9rusuriFcfBWhkASpzqRPw",
+  "arena": 2,
+  "doneAt": 1795464675394,
+  "startedAt": 1795464266722,
+  "champion": 2,
+  "humanMask": 1,
+  "flags": 59,
+  "mintedMask": 1,
+  "finalOnChain": true,
+  "realTime": 1.000219106047327,
+  "drops": 3,
+  "pools": [
+   "256000000",
+   "44000000",
+   "12000000",
+   "216000000",
+   "164000000"
+  ],
+  "finalizeMode": "action",
+  "replay": true,
+  "status": 5,
+  "aborted": false,
+  "hidden": false,
+  "sealed": {
+   "n": 15,
+   "revealed": 15,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "ApmFppk4dyzmiYnRjAnVEwUMr7fCxqQRTUvaRZScn2Pt",
+  "arena": 3,
+  "doneAt": 1795464316381,
+  "startedAt": 1795464286211,
+  "champion": 255,
+  "humanMask": 0,
+  "flags": 9,
+  "mintedMask": 0,
+  "finalOnChain": false,
+  "drops": 0,
+  "pools": [
+   "263000000",
+   "0",
+   "0",
+   "0",
+   "0"
+  ],
+  "finalizeMode": "action",
+  "replay": false,
+  "status": 6,
+  "aborted": true,
+  "hidden": true,
+  "sealed": {
+   "n": 14,
+   "revealed": 14,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "5MizWRaVtUtfFa29UyiZxMbzVy1vrEjuWAWpoxsPjsUY",
+  "arena": 3,
+  "doneAt": 1795464286209,
+  "startedAt": 1795463816022,
+  "champion": 11,
+  "humanMask": 1,
+  "flags": 59,
+  "mintedMask": 1,
+  "finalOnChain": true,
+  "realTime": 0.9996309353845556,
+  "drops": 0,
+  "pools": [
+   "52000000",
+   "36000000",
+   "0",
+   "76000000",
+   "52000000"
+  ],
+  "finalizeMode": "action",
+  "replay": true,
+  "status": 5,
+  "aborted": false,
+  "hidden": false,
+  "sealed": {
+   "n": 0,
+   "revealed": 0,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "2ZqXh27SVEBgfFT3dY283bEW4eLu1VajK7fsb2Bu3Byz",
+  "arena": 2,
+  "doneAt": 1795464210653,
+  "startedAt": 1795463773718,
+  "champion": 1,
+  "humanMask": 1,
+  "flags": 59,
+  "mintedMask": 1,
+  "finalOnChain": true,
+  "realTime": 0.9995778106807951,
+  "drops": 1,
+  "pools": [
+   "41000000",
+   "26000000",
+   "0",
+   "62000000",
+   "42000000"
+  ],
+  "finalizeMode": "action",
+  "replay": true,
+  "status": 5,
+  "aborted": false,
+  "hidden": false,
+  "sealed": {
+   "n": 0,
+   "revealed": 0,
+   "forfeits": 0
+  }
+ }
+]
