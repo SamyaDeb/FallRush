@@ -1,0 +1,36 @@
+{
+  "name": "fallrush-site",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "worker": "cd ../waitlist-worker && npx wrangler dev --local --port 8787 --var SITE_URL:http://localhost:5173 --var ALLOWED_ORIGIN:http://localhost:5173",
+    "worker:db": "cd ../waitlist-worker && npx wrangler d1 execute fallrush-waitlist --local --file=schema.sql",
+    "deploy": "npm run build && cd ../waitlist-worker && npx --prefix ../site wrangler deploy",
+    "export:emails": "node ../waitlist-worker/scripts/export-waitlist.mjs"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.6",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.187.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "wrangler": "^4.166.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20261119.1": true
+  }
+}

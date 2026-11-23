@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fall Rush — Hero</title>
+<script src="./support.js"></script>
+<script src="/_blob/681bfc8c1732ac445a76ae24797dce91"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&amp;family=Varela+Round&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#66B5F2}
+a{color:#2A1250}a:hover{color:#7B2FF7}
+#fr-stage canvas{display:block;width:100%;height:100%;outline:none;cursor:pointer}
+.fr-ol{pointer-events:none}
+.fr-ol a,.fr-ol button{pointer-events:auto}
+.fr-card{pointer-events:auto}
+.fr-word{paint-order:stroke fill;-webkit-text-stroke:0.085em #7B2FF7;text-shadow:0 0.045em 0 #6A28D9,0 0.085em 0 #5F25BD,0 0.125em 0 #4A1C99,0 0.16em 0 #2A1250,0 0.26em 0.3em rgba(42,18,80,0.35)}
+.fr-btn{transition:transform .12s ease, box-shadow .12s ease}
+.fr-btn:hover{transform:translateY(-2px)}
+.fr-btn:active{transform:translateY(4px)}
+.fr-sw{transition:transform .15s ease}
+.fr-sw:hover{transform:translateY(-3px) scale(1.06)}
+.fr-sw:focus-visible,.fr-btn:focus-visible,.fr-ol a:focus-visible{outline:3px solid #2A1250;outline-offset:3px}
+@media (max-width: 900px){
+.fr-navlinks{display:none !important}
+.fr-deal{display:none !important}
+.fr-hint{display:none !important}
+}
+@media (prefers-reduced-motion: reduce){
+.fr-btn,.fr-sw{transition:none}
+}
+</style>
+</helmet>
+<div style="position: relative; width: 100%; height: 100vh; min-height: 760px; overflow: hidden; background: linear-gradient(180deg, #4FA6EC 0%, #66B5F2 38%, #9CD2F5 72%, #DDEFFB 100%); font-family: 'Varela Round', system-ui, sans-serif; color: #2A1250">
+
+<sc-if value="{{notReady}}" hint-placeholder-val="{{ false }}">
+<img src="/_blob/81dac6635552adc93a89bcda9691bade" alt="" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.9">
+</sc-if>
+
+<div id="fr-stage" role="img" aria-label="3D scene: Bolt and other Rushlings racing down a floating toy-block course toward a checkered finish arch" style="position: absolute; inset: 0"></div>
+
+<div class="fr-ol" style="position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between">
+
+<header style="width: 100%; max-width: 1320px; margin: 0 auto; box-sizing: border-box; padding: 22px 32px 0; display: flex; align-items: center; justify-content: space-between; gap: 24px">
+<a href="#" aria-label="Fall Rush home" style="text-decoration: none; display: flex; align-items: center; gap: 10px">
+<span class="fr-word" style="font-family: 'Lilita One', sans-serif; font-size: 30px; line-height: 1; color: #FFFFFF; letter-spacing: 0.01em">FALL <span style="color: #FFD21F">RUSH</span></span>
+</a>
+<nav class="fr-navlinks" aria-label="Primary" style="display: flex; gap: 6px; padding: 6px; border-radius: 999px; background: rgba(255,255,255,0.82); box-shadow: 0 4px 0 rgba(42,18,80,0.12)">
+<a href="#rounds" style="text-decoration: none; font-size: 15px; padding: 10px 16px; border-radius: 999px">Rounds</a>
+<a href="#rushlings" style="text-decoration: none; font-size: 15px; padding: 10px 16px; border-radius: 999px">Rushlings</a>
+<a href="#fair" style="text-decoration: none; font-size: 15px; padding: 10px 16px; border-radius: 999px">Provably fair</a>
+<a href="#crown" style="text-decoration: none; font-size: 15px; padding: 10px 16px; border-radius: 999px">Crown Capsule</a>
+</nav>
+<a href="#play" class="fr-btn" style="text-decoration: none; font-family: 'Lilita One', sans-serif; font-size: 18px; letter-spacing: 0.02em; color: #FFFFFF; background: #FF3EA5; padding: 12px 22px; border-radius: 999px; border: 3px solid #2A1250; box-shadow: 0 5px 0 #2A1250">Play free</a>
+</header>
+
+<main style="width: 100%; max-width: 1320px; margin: 0 auto; box-sizing: border-box; padding: 0 32px; flex: 1 1 auto; display: flex; align-items: center">
+<div style="max-width: 600px; display: flex; flex-direction: column; gap: 22px; padding-top: 12px">
+<div style="align-self: flex-start; display: flex; align-items: center; gap: 10px; background: #FFFFFF; border: 3px solid #2A1250; border-radius: 999px; padding: 7px 16px 7px 8px; box-shadow: 0 4px 0 #2A1250; font-size: 15px">
+<span style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 999px; background: #FFD21F; border: 2px solid #2A1250">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2A1250" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18h18l-2-11-5 5-2-7-2 7-5-5z"></path></svg>
+</span>
+<span>12 players · 4 rounds · 1 crown</span>
+</div>
+
+<h1 style="margin: 0; font-family: 'Lilita One', sans-serif; font-weight: 400; font-size: clamp(76px, 10.5vw, 156px); line-height: 0.86; transform: rotate(-4deg); transform-origin: left center; display: flex; flex-direction: column">
+<span class="fr-word" style="color: #FFFFFF">FALL</span>
+<span class="fr-word" style="color: #FFD21F; margin-left: 0.12em">RUSH</span>
+</h1>
+<div aria-hidden="true" style="display: flex; align-items: center; gap: 0; margin-top: -4px; transform: rotate(-4deg); transform-origin: left center; width: min(420px, 80%)">
+<div style="flex: 1 1 auto; height: 16px; border-radius: 999px; background: #FF3EA5; border: 4px solid #7B2FF7"></div>
+<div style="width: 44px; height: 24px; margin-left: -6px; border: 3px solid #7B2FF7; border-radius: 4px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: hidden; background: #FFFFFF">
+<span style="background: #7B2FF7"></span><span></span><span style="background: #7B2FF7"></span><span></span>
+<span></span><span style="background: #7B2FF7"></span><span></span><span style="background: #7B2FF7"></span>
+</div>
+</div>
+
+<p style="margin: 6px 0 0; font-size: clamp(17px, 1.5vw, 21px); line-height: 1.5; max-width: 520px; color: #2A1250">Wind-up toys pop out of gacha capsules and brawl through obstacle races, survival and skill rounds in the Toybox Skyworks. The provably fair knockout party game: every map dealt by MagicBlock VRF, every knockout recorded on-chain.</p>
+
+<div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center">
+<a href="#play" class="fr-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 10px; font-family: 'Lilita One', sans-serif; font-size: 22px; letter-spacing: 0.02em; color: #2A1250; background: #FFD21F; padding: 16px 28px; border-radius: 18px; border: 3px solid #2A1250; box-shadow: 0 7px 0 #2A1250">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="#2A1250" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"></path></svg>
+Play free in browser</a>
+<a href="#trailer" class="fr-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 10px; font-family: 'Lilita One', sans-serif; font-size: 20px; letter-spacing: 0.02em; color: #2A1250; background: #FFFFFF; padding: 15px 24px; border-radius: 18px; border: 3px solid #2A1250; box-shadow: 0 7px 0 #2A1250">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A1250" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M10 8.5v7l5.5-3.5z" fill="#2A1250"></path></svg>
+Watch trailer</a>
+</div>
+<p style="margin: 0; font-size: 14px; color: #2A1250">No wallet needed — guests play everything. A wallet adds ownership, never permission.</p>
+</div>
+</main>
+
+<footer style="width: 100%; max-width: 1320px; margin: 0 auto; box-sizing: border-box; padding: 0 32px 26px; display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; justify-content: space-between">
+<section id="rushlings" class="fr-card" aria-label="Pick your Rushling" style="background: rgba(255,255,255,0.92); border: 3px solid #2A1250; border-radius: 22px; box-shadow: 0 6px 0 #2A1250; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; max-width: 100%; box-sizing: border-box">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px">
+<span style="font-family: 'Lilita One', sans-serif; font-size: 18px; letter-spacing: 0.02em">Pick your Rushling</span>
+<span style="font-size: 14px"><strong style="font-family: 'Lilita One', sans-serif; font-weight: 400; font-size: 16px">{{heroName}}</strong> · {{heroDesc}}</span>
+</div>
+<div style="display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 6px">
+<sc-for list="{{swatches}}" as="sw" hint-placeholder-count="12">
+<button type="button" class="fr-sw" aria-label="{{sw.label}}" aria-pressed="{{sw.pressed}}" onClick="{{sw.pick}}" style="{{sw.style}}"></button>
+</sc-for>
+</div>
+</section>
+
+<section id="rounds" class="fr-card fr-deal" aria-label="The four rounds" style="background: rgba(255,255,255,0.92); border: 3px solid #2A1250; border-radius: 22px; box-shadow: 0 6px 0 #2A1250; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+<span style="font-family: 'Lilita One', sans-serif; font-size: 18px; letter-spacing: 0.02em">Four rounds. One crown.</span>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{rounds}}" as="r" hint-placeholder-count="4">
+<div style="{{r.style}}">
+<span style="font-family: 'Lilita One', sans-serif; font-size: 13px; letter-spacing: 0.06em">{{r.no}} · {{r.mode}}</span>
+<span style="font-size: 14px; line-height: 1.2">{{r.name}}</span>
+</div>
+</sc-for>
+</div>
+<span style="font-size: 12.5px">Map and Chaos Capsule modifier dealt per round by MagicBlock VRF</span>
+</section>
+</footer>
+</div>
+
+<div class="fr-hint" aria-hidden="true" style="position: absolute; right: 32px; top: 50%; pointer-events: none; display: flex; align-items: center; gap: 8px; background: #2A1250; color: #FFFFFF; font-size: 13.5px; padding: 8px 14px; border-radius: 999px; opacity: 0.88">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFD21F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11V5a2 2 0 0 1 4 0v6"></path><path d="M13 9a2 2 0 0 1 4 0v4a6 6 0 0 1-6 6h-1a5 5 0 0 1-4.2-2.3L4 13.6a1.6 1.6 0 0 1 2.5-2L9 14"></path></svg>
+Tap a Rushling to make it jump
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"speed":{"editor":"range","default":1,"min":0,"max":2,"step":0.1,"section":"3D scene"},"confetti":{"editor":"boolean","default":true,"section":"3D scene"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  state = { hero: 0, ready: false };
+
+  static PRESETS = [
+    { name: 'Bolt', shell: 0xFF3EA5, emblem: 'bolt', emc: 0xFFD21F, topper: 'goggles', face: '#5BF0B5', key: 0x7B2FF7 },
+    { name: 'Splash', shell: 0x3FA9F5, emblem: 'star', emc: 0xFFFFFF, topper: 'propeller', face: '#58E1FF', key: 0xFFD21F },
+    { name: 'Sunny', shell: 0xFFD21F, emblem: 'heart', emc: 0xFF3EA5, topper: 'chef', face: '#FF7AC6', key: 0xFF3EA5 },
+    { name: 'Minty', shell: 0x5BE3B5, emblem: 'diamond', emc: 0xFFFFFF, topper: 'headphones', face: '#5BF0B5', key: 0x7B2FF7 },
+    { name: 'Grape', shell: 0x7B2FF7, emblem: 'moon', emc: 0xFFD21F, topper: 'goggles', face: '#FFB547', key: 0xFFD21F },
+    { name: 'Peach', shell: 0xFF8A3D, emblem: 'flame', emc: 0xFFFFFF, topper: 'propeller', face: '#58E1FF', key: 0x7B2FF7 },
+    { name: 'Lagoon', shell: 0x2EC4B6, emblem: 'bolt', emc: 0xFFFFFF, topper: 'chef', face: '#FF7AC6', key: 0xFF3EA5 },
+    { name: 'Cherry', shell: 0xE84855, emblem: 'heart', emc: 0xFFFFFF, topper: 'headphones', face: '#FFB547', key: 0xFFD21F },
+    { name: 'Bubblegum', shell: 0xFF9BD2, emblem: 'star', emc: 0x7B2FF7, topper: 'goggles', face: '#58E1FF', key: 0x7B2FF7 },
+    { name: 'Midnight', shell: 0x3A2E8C, emblem: 'moon', emc: 0x5BE3B5, topper: 'propeller', face: '#5BF0B5', key: 0x5BE3B5 },
+    { name: 'Lemonade', shell: 0xFFE45C, emblem: 'diamond', emc: 0x3FA9F5, topper: 'headphones', face: '#FF7AC6', key: 0x3FA9F5 },
+    { name: 'Lavender', shell: 0xB79CFF, emblem: 'flame', emc: 0xFFD21F, topper: 'chef', face: '#FFB547', key: 0xFF3EA5 }
+  ];
+
+  componentDidMount() { this._poll(); }
+  componentWillUnmount() { this._dead = true; clearTimeout(this._t); if (this._fr) this._fr.destroy(); }
+  componentDidUpdate() {
+    if (this._fr) {
+      this._fr.setSpeed(this.props.speed ?? 1);
+      this._fr.setConfetti(this.props.confetti ?? true);
+    }
+  }
+
+  _poll() {
+    if (this._dead || this._fr) return;
+    const host = document.getElementById('fr-stage');
+    if (host && window.THREE && host.clientWidth > 0) {
+      try {
+        this._fr = this.makeScene(host, window.THREE, this.state.hero);
+        this._fr.setSpeed(this.props.speed ?? 1);
+        this._fr.setConfetti(this.props.confetti ?? true);
+        this.setState({ ready: true });
+      } catch (e) { console.warn('Fall Rush scene failed', e); }
+      return;
+    }
+    this._t = setTimeout(() => this._poll(), 120);
+  }
+
+  pickHero(i) {
+    this.setState({ hero: i });
+    if (this._fr) this._fr.setHero(i);
+  }
+
+  renderVals() {
+    const P = Component.PRESETS;
+    const hero = this.state.hero;
+    const hex = (n) => '#' + n.toString(16).padStart(6, '0');
+    const topperName = { goggles: 'goggles', propeller: 'propeller cap', chef: 'chef hat', headphones: 'headphones' };
+    const swatches = P.map((p, i) => ({
+      label: 'Choose ' + p.name,
+      pressed: i === hero ? 'true' : 'false',
+      pick: () => this.pickHero(i),
+      style: 'flex: 0 0 auto; width: 44px; height: 44px; border-radius: 14px; cursor: pointer; padding: 0; background: linear-gradient(180deg, #FFFFFF 0 46%, #2A1250 46% 54%, ' + hex(p.shell) + ' 54% 100%); border: 3px solid ' + (i === hero ? '#2A1250' : 'rgba(42,18,80,0.25)') + '; box-shadow: ' + (i === hero ? '0 4px 0 #2A1250, 0 0 0 3px #FFD21F' : '0 3px 0 rgba(42,18,80,0.25)') + ';'
+    }));
+    const tint = ['#FFD9EC', '#E4D9FF', '#D6EDF9', '#FFF1C7'];
+    const rounds = [
+      { no: '01', mode: 'RACE', name: 'Block Party Dash' },
+      { no: '02', mode: 'SURVIVAL', name: 'Goo Tower' },
+      { no: '03', mode: 'SKILL', name: 'Star Scramble' },
+      { no: '04', mode: 'FINAL', name: 'Crumble Shelf' }
+    ].map((r, i) => ({ ...r, style: 'display: flex; flex-direction: column; gap: 4px; min-width: 112px; padding: 10px 12px; border-radius: 14px; border: 2px solid #2A1250; background: ' + tint[i] + ';' }));
+    const h = P[hero];
+    return {
+      notReady: !this.state.ready,
+      swatches,
+      rounds,
+      heroName: h.name,
+      heroDesc: h.emblem + ' emblem, ' + topperName[h.topper]
+    };
+  }
+
+  makeScene(host, T, heroIndex) {
+    const PRESETS = Component.PRESETS;
+    const INK = 0x2A1250;
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let speedK = 1, confettiOn = !reduce;
+
+    const renderer = new T.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(host.clientWidth, host.clientHeight);
+    renderer.outputColorSpace = T.SRGBColorSpace;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = T.PCFSoftShadowMap;
+    host.appendChild(renderer.domElement);
+
+    const scene = new T.Scene();
+    scene.fog = new T.Fog(0xD4EAF9, 20, 66);
+    const cam = new T.PerspectiveCamera(36, host.clientWidth / host.clientHeight, 0.1, 200);
+
+    scene.add(new T.HemisphereLight(0xEFF6FF, 0xF3C9E4, 1.25));
+    const sun = new T.DirectionalLight(0xFFF3E0, 2.1);
+    sun.position.set(5, 11, 7);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    const sc = sun.shadow.camera; sc.left = -7; sc.right = 7; sc.top = 7; sc.bottom = -7; sc.near = 1; sc.far = 32;
+    sun.shadow.bias = -0.0005;
+    scene.add(sun);
+    const rim = new T.DirectionalLight(0xFFD6F0, 0.6); rim.position.set(-6, 4, -8); scene.add(rim);
+
+    const mat = (c, r) => new T.MeshStandardMaterial({ color: c, roughness: r == null ? 0.38 : r, metalness: 0 });
+    const tex = (cv, rx, ry) => { const t = new T.CanvasTexture(cv); t.colorSpace = T.SRGBColorSpace; t.anisotropy = 8; if (rx) { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); } return t; };
+    const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+    const rr = (x, X, Y, W, H, R) => { x.beginPath(); x.moveTo(X + R, Y); x.arcTo(X + W, Y, X + W, Y + H, R); x.arcTo(X + W, Y + H, X, Y + H, R); x.arcTo(X, Y + H, X, Y, R); x.arcTo(X, Y, X + W, Y, R); x.closePath(); };
+
+    // ---------- textures ----------
+    const faceCache = {};
+    const faceTex = (mode, tint) => {
+      const k = mode + tint; if (faceCache[k]) return faceCache[k];
+      const c = canvas(256, 128), x = c.getContext('2d');
+      x.fillStyle = '#1A0F33'; rr(x, 6, 6, 244, 116, 46); x.fill();
+      x.strokeStyle = tint; x.fillStyle = tint; x.lineWidth = 13; x.lineCap = 'round'; x.lineJoin = 'round';
+      x.shadowColor = tint; x.shadowBlur = 16;
+      const eyes = [86, 170], y = 64;
+      eyes.forEach((cx) => {
+        x.beginPath();
+        if (mode === 'happy') { x.moveTo(cx - 20, y + 10); x.lineTo(cx, y - 12); x.lineTo(cx + 20, y + 10); x.stroke(); }
+        else if (mode === 'run') { x.arc(cx, y, 13, 0, Math.PI * 2); x.fill(); }
+        else if (mode === 'jump') { x.arc(cx, y, 18, 0, Math.PI * 2); x.stroke(); }
+        else if (mode === 'blink') { x.moveTo(cx - 18, y); x.lineTo(cx + 18, y); x.stroke(); }
+        else if (mode === 'star') {
+          for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 11 : 26; const px = cx + Math.cos(a) * r, py = y + Math.sin(a) * r; if (i) x.lineTo(px, py); else x.moveTo(px, py); }
+          x.closePath(); x.fill();
+        }
+      });
+      return (faceCache[k] = tex(c));
+    };
+    const hexs = (n) => '#' + n.toString(16).padStart(6, '0');
+    const emblemTex = (kind, col) => {
+      const c = canvas(128, 128), x = c.getContext('2d');
+      x.fillStyle = hexs(col); x.strokeStyle = '#2A1250'; x.lineWidth = 7; x.lineJoin = 'round';
+      x.beginPath();
+      const poly = (pts) => { pts.forEach((p, i) => (i ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1]))); x.closePath(); };
+      if (kind === 'bolt') poly([[74, 10], [30, 72], [60, 72], [48, 118], [98, 52], [68, 52], [84, 10]]);
+      else if (kind === 'star') { const pts = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 22 : 52; pts.push([64 + Math.cos(a) * r, 68 + Math.sin(a) * r]); } poly(pts); }
+      else if (kind === 'diamond') poly([[64, 12], [104, 64], [64, 116], [24, 64]]);
+      else if (kind === 'heart') { x.moveTo(64, 112); x.bezierCurveTo(10, 72, 14, 22, 44, 22); x.bezierCurveTo(56, 22, 64, 32, 64, 42); x.bezierCurveTo(64, 32, 72, 22, 84, 22); x.bezierCurveTo(114, 22, 118, 72, 64, 112); x.closePath(); }
+      else if (kind === 'flame') { x.moveTo(64, 10); x.bezierCurveTo(84, 40, 106, 56, 100, 84); x.bezierCurveTo(96, 108, 78, 118, 64, 118); x.bezierCurveTo(44, 118, 26, 104, 28, 80); x.bezierCurveTo(30, 62, 44, 56, 46, 40); x.bezierCurveTo(56, 52, 58, 62, 58, 70); x.bezierCurveTo(70, 56, 70, 34, 64, 10); x.closePath(); }
+      else if (kind === 'moon') { x.arc(64, 64, 48, Math.PI * 0.35, Math.PI * 1.65, false); x.arc(86, 54, 40, Math.PI * 1.45, Math.PI * 0.62, true); x.closePath(); }
+      x.fill(); x.stroke();
+      return tex(c);
+    };
+    const trackTex = (() => {
+      const c = canvas(512, 512), x = c.getContext('2d');
+      const tops = ['#F9D1E2', '#F9EDC2', '#D6EDF9', '#DED1F9'];
+      const chev = ['#F0BFD5', '#F0DFA8', '#C2E1F2', '#CDBDF2'];
+      tops.forEach((col, i) => {
+        x.fillStyle = col; x.fillRect(0, i * 128, 512, 128);
+        x.strokeStyle = chev[i]; x.lineWidth = 6; x.strokeRect(3, i * 128 + 3, 506, 122);
+        x.strokeStyle = 'rgba(255,255,255,0.9)'; x.lineWidth = 22; x.lineCap = 'round'; x.lineJoin = 'round';
+        x.beginPath(); x.moveTo(196, i * 128 + 40); x.lineTo(256, i * 128 + 84); x.lineTo(316, i * 128 + 40); x.stroke();
+      });
+      return tex(c, 1, 14);
+    })();
+    const bandTex = (() => {
+      const c = canvas(64, 128), x = c.getContext('2d');
+      x.fillStyle = '#FF6FAE'; x.fillRect(0, 0, 64, 64); x.fillStyle = '#FFD43B'; x.fillRect(0, 64, 64, 64);
+      return tex(c, 1, 60);
+    })();
+    const stripeTex = (rep) => {
+      const c = canvas(128, 128), x = c.getContext('2d');
+      x.fillStyle = '#FF2D8A'; x.fillRect(0, 0, 128, 128); x.fillStyle = '#FFD43B';
+      for (let i = -2; i < 4; i++) { x.beginPath(); x.moveTo(i * 64, 0); x.lineTo(i * 64 + 32, 0); x.lineTo(i * 64 + 160, 128); x.lineTo(i * 64 + 128, 128); x.closePath(); x.fill(); }
+      return tex(c, rep, rep);
+    };
+    const checkerTex = (() => {
+      const c = canvas(128, 128), x = c.getContext('2d');
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { x.fillStyle = (i + j) % 2 ? '#FFFFFF' : '#2FE0A8'; x.fillRect(i * 32, j * 32, 32, 32); }
+      return tex(c, 10, 1);
+    })();
+
+    // ---------- Rushling (ported from RushlingParts.cs: R 0.31, seam 0.54, body height 1.0) ----------
+    const R = 0.31, SEAM = 0.54, LIFT = 0.12;
+    const lowerPts = [], upperPts = [];
+    for (let i = 0; i <= 10; i++) { const a = -Math.PI / 2 + (i / 10) * (Math.PI / 2); lowerPts.push(new T.Vector2(Math.max(0.0001, R * Math.cos(a)), R + R * Math.sin(a))); }
+    lowerPts.push(new T.Vector2(R, SEAM));
+    upperPts.push(new T.Vector2(R, SEAM), new T.Vector2(R, 0.69));
+    for (let i = 1; i <= 10; i++) { const a = (i / 10) * (Math.PI / 2); upperPts.push(new T.Vector2(Math.max(0.0001, R * Math.cos(a)), 0.69 + R * Math.sin(a))); }
+    const G = {
+      lower: new T.LatheGeometry(lowerPts, 36),
+      upper: new T.LatheGeometry(upperPts, 36),
+      seam: new T.TorusGeometry(R + 0.004, 0.016, 8, 48),
+      face: new T.CylinderGeometry(R + 0.006, R + 0.006, 0.25, 24, 1, true, -0.8, 1.6),
+      emblem: new T.CylinderGeometry(R + 0.005, R + 0.005, 0.2, 12, 1, true, -0.34, 0.68),
+      foot: new T.CapsuleGeometry(0.06, 0.07, 4, 10),
+      hand: new T.SphereGeometry(0.068, 14, 10),
+      keyShaft: new T.CylinderGeometry(0.035, 0.035, 0.12, 10),
+      keyLoop: new T.TorusGeometry(0.07, 0.026, 8, 20)
+    };
+    const white = mat(0xFAFAFF, 0.22), inkM = mat(INK, 0.5);
+
+    let rid = 0;
+    const makeRushling = (p) => {
+      const g = new T.Group(), tilt = new T.Group(), sq = new T.Group();
+      g.add(tilt); tilt.add(sq); sq.position.y = LIFT;
+      const shellM = mat(p.shell, 0.3);
+      const add = (geo, m, parent) => { const o = new T.Mesh(geo, m); o.castShadow = true; (parent || sq).add(o); return o; };
+      add(G.lower, shellM); add(G.upper, white);
+      const seam = add(G.seam, inkM); seam.rotation.x = Math.PI / 2; seam.position.y = SEAM;
+      const faceM = new T.MeshBasicMaterial({ map: faceTex('run', p.face), transparent: true });
+      const face = add(G.face, faceM); face.position.y = 0.76; face.castShadow = false;
+      const em = add(G.emblem, new T.MeshStandardMaterial({ map: emblemTex(p.emblem, p.emc), transparent: true, roughness: 0.4 })); em.position.y = 0.36; em.castShadow = false;
+      // wind-up key
+      const keyM = mat(p.key, 0.3);
+      const key = new T.Group(); key.position.set(0, 0.5, -R); sq.add(key);
+      const shaft = add(G.keyShaft, keyM, key); shaft.rotation.x = Math.PI / 2; shaft.position.z = -0.06;
+      const spin = new T.Group(); spin.position.z = -0.13; key.add(spin);
+      [-1, 1].forEach((s) => { const l = add(G.keyLoop, keyM, spin); l.rotation.y = Math.PI / 2; l.position.x = s * 0.085; });
+      // topper
+      const top = new T.Group(); sq.add(top); let prop = null;
+      if (p.topper === 'goggles') {
+        const strap = add(new T.TorusGeometry(R + 0.012, 0.03, 8, 40), mat(0x5A3A1E, 0.6), top); strap.rotation.x = Math.PI / 2 - 0.2; strap.position.y = 0.9;
+        [-1, 1].forEach((s) => {
+          const ring = add(new T.TorusGeometry(0.075, 0.026, 10, 24), mat(0xFFD21F, 0.25), top); ring.position.set(s * 0.09, 0.93, R - 0.02); ring.rotation.x = -0.5;
+          const lens = add(new T.CircleGeometry(0.068, 20), new T.MeshStandardMaterial({ color: 0x3FA9F5, roughness: 0.05, metalness: 0.2 }), top); lens.position.set(s * 0.09, 0.93, R - 0.012); lens.rotation.x = -0.5;
+        });
+      } else if (p.topper === 'propeller') {
+        const hub = add(new T.CylinderGeometry(0.03, 0.03, 0.08, 10), mat(0xFFD21F), top); hub.position.y = 1.03;
+        prop = new T.Group(); prop.position.y = 1.08; top.add(prop);
+        const b1 = add(new T.BoxGeometry(0.38, 0.016, 0.07), mat(0xFF3EA5), prop);
+        const b2 = add(new T.BoxGeometry(0.38, 0.016, 0.07), mat(0x3FA9F5), prop); b2.rotation.y = Math.PI / 2;
+      } else if (p.topper === 'chef') {
+        const band = add(new T.CylinderGeometry(0.17, 0.18, 0.09, 24), mat(0xFFFFFF, 0.6), top); band.position.y = 1.0;
+        const puff = add(new T.SphereGeometry(0.2, 20, 14), mat(0xFFFFFF, 0.6), top); puff.scale.set(1.1, 0.75, 1.1); puff.position.y = 1.13;
+      } else if (p.topper === 'headphones') {
+        const bandH = add(new T.TorusGeometry(R + 0.03, 0.025, 8, 32, Math.PI), inkM, top); bandH.position.y = 0.72;
+        [-1, 1].forEach((s) => { const cup = add(new T.CylinderGeometry(0.1, 0.1, 0.07, 20), mat(0xFF3EA5), top); cup.rotation.z = Math.PI / 2; cup.position.set(s * (R + 0.03), 0.72, 0); });
+      }
+      // feet
+      const footM = mat(p.key, 0.35);
+      const feet = [-1, 1].map((s) => { const f = new T.Mesh(G.foot, footM); f.castShadow = true; f.rotation.x = Math.PI / 2; f.position.set(s * 0.12, 0.06, 0.02); tilt.add(f); return f; });
+      // noodle arms
+      const armM = shellM;
+      const arms = [-1, 1].map((s) => {
+        const m = new T.Mesh(new T.BufferGeometry(), armM); m.castShadow = true; sq.add(m);
+        const hand = new T.Mesh(G.hand, armM); hand.castShadow = true; sq.add(hand);
+        return { s, m, hand, cur: new T.Vector3(s * 0.4, 0.3, 0) };
+      });
+      const id = ++rid;
+      g.traverse((o) => { o.userData.rid = id; });
+      return { id, g, tilt, sq, face, faceM, tint: p.face, key: spin, prop, feet, arms, phase: Math.random() * 6, jumpT: 0, landT: 0, starT: 0, blinkT: 0, nextBlink: 1 + Math.random() * 3, preset: p };
+    };
+
+    const tmpV = new T.Vector3();
+    const setArm = (a, target, dt) => {
+      a.cur.lerp(target, Math.min(1, dt * 14));
+      const sh = new T.Vector3(a.s * (R - 0.03), 0.5, 0);
+      const out = new T.Vector3(a.s * (R + 0.1), 0.48, 0);
+      const mid = tmpV.copy(out).lerp(a.cur, 0.5); mid.y -= 0.06;
+      const curve = new T.CatmullRomCurve3([sh, out, mid.clone(), a.cur.clone()]);
+      const geo = new T.TubeGeometry(curve, 12, 0.034, 7, false);
+      a.m.geometry.dispose(); a.m.geometry = geo;
+      a.hand.position.copy(a.cur);
+    };
+
+    const setFace = (r, mode) => { const t = faceTex(mode, r.tint); if (r.faceM.map !== t) { r.faceM.map = t; r.faceM.needsUpdate = true; } };
+
+    const animRushling = (r, dt, t, opts) => {
+      const run = opts.run;
+      const stepRate = 2.2 + 0.9 * run;
+      r.phase += dt * stepRate * Math.PI;
+      const s = Math.sin(r.phase), c = Math.cos(r.phase);
+      let lift = 0, sy = 1;
+      if (r.jumpT > 0) {
+        r.jumpT -= dt; const u = 1 - Math.max(0, r.jumpT) / 0.8;
+        lift = 4 * u * (1 - u) * 1.15;
+        sy = u < 0.12 ? 0.86 + u * 2.2 : 1 + 0.12 * Math.sin(u * Math.PI);
+        if (r.jumpT <= 0) { r.landT = 0.22; }
+      }
+      if (r.landT > 0) { r.landT -= dt; sy = 1 - 0.18 * Math.max(0, r.landT / 0.22); }
+      const bob = r.jumpT > 0 ? 0 : Math.abs(s) * 0.05 * Math.min(1, run);
+      r.g.position.y = lift;
+      r.sq.position.y = LIFT + bob;
+      r.sq.scale.set(1 / Math.sqrt(sy), sy, 1 / Math.sqrt(sy));
+      r.tilt.rotation.z = r.jumpT > 0 ? 0 : s * 0.11 * Math.min(1, run);
+      r.tilt.rotation.x = r.jumpT > 0 ? -0.12 : 0.1 + 0.06 * run;
+      r.g.rotation.y = (opts.yaw || 0) + s * 0.07;
+      // feet
+      r.feet.forEach((f, i) => { const k = i ? -1 : 1; f.position.z = 0.02 + k * s * 0.13 * Math.min(1, run); f.position.y = 0.06 + Math.max(0, k * c) * 0.07 * Math.min(1, run); });
+      // arms
+      r.arms.forEach((a) => {
+        let target;
+        if (r.jumpT > 0) target = new T.Vector3(a.s * 0.36, 1.02 + Math.sin(t * 30 + a.s) * 0.04, 0.05);
+        else { const k = a.s < 0 ? -1 : 1; target = new T.Vector3(a.s * 0.4, 0.34 + Math.abs(s) * 0.08, -k * s * 0.24 + 0.04); }
+        setArm(a, target, dt);
+      });
+      r.key.rotation.z += dt * (5 + run * 3 + (r.jumpT > 0 ? 14 : 0));
+      if (r.prop) r.prop.rotation.y += dt * (10 + run * 6);
+      // face
+      r.nextBlink -= dt; if (r.nextBlink <= 0) { r.blinkT = 0.12; r.nextBlink = 2 + Math.random() * 4; }
+      if (r.blinkT > 0) r.blinkT -= dt;
+      if (r.starT > 0) r.starT -= dt;
+      const mode = r.starT > 0 ? 'star' : r.jumpT > 0 ? 'jump' : r.blinkT > 0 ? 'blink' : (run > 0.2 ? 'run' : 'happy');
+      setFace(r, mode);
+    };
+
+    // ---------- world ----------
+    const world = new T.Group(); scene.add(world);
+    const trackLen = 84;
+    const trackTop = new T.MeshStandardMaterial({ map: trackTex, roughness: 0.55 });
+    const trackSide = mat(0x9879DB, 0.6);
+    const track = new T.Mesh(new T.BoxGeometry(4.6, 0.7, trackLen), [trackSide, trackSide, trackTop, trackSide, trackSide, trackSide]);
+    track.position.set(0, -0.35, 6 - trackLen / 2); track.receiveShadow = true; world.add(track);
+    const bandM = new T.MeshStandardMaterial({ map: bandTex, roughness: 0.35 });
+    [-1, 1].forEach((s) => { const rimC = new T.Mesh(new T.CylinderGeometry(0.2, 0.2, trackLen, 16), bandM); rimC.rotation.x = Math.PI / 2; rimC.position.set(s * 2.38, 0.06, 6 - trackLen / 2); rimC.receiveShadow = true; world.add(rimC); });
+    // finish arch (goal = mint + checker)
+    const arch = new T.Group(); arch.position.set(0, 0, -54); world.add(arch);
+    const archM = new T.MeshStandardMaterial({ map: checkerTex, roughness: 0.4 });
+    const archT = new T.Mesh(new T.TorusGeometry(3.3, 0.5, 18, 48, Math.PI), archM); arch.add(archT);
+    const crown = new T.Mesh(new T.ConeGeometry(0.7, 0.9, 5), mat(0xFFD21F, 0.25)); crown.position.y = 4.3; arch.add(crown);
+
+    // floating islands + pillars, moving with the course
+    const pastel = [[0xF9D1E2, 0xDB79A4, 0xFF6FAE], [0xF9EDC2, 0xDBC679, 0xFFD43B], [0xD6EDF9, 0x79BADB, 0x4CC2FF], [0xE0F9D1, 0x9EDB79, 0x86E04E], [0xDED1F9, 0x9879DB, 0xA77DFF], [0xF9E4D1, 0xDBA879, 0xFF9A3D]];
+    const decor = [];
+    const pillarM = mat(0x8F6FD6, 0.7);
+    const flagM = new T.MeshStandardMaterial({ color: 0xFF3EA5, roughness: 0.5, side: T.DoubleSide });
+    const flagShape = new T.Shape(); flagShape.moveTo(0, 0); flagShape.lineTo(0.9, -0.25); flagShape.lineTo(0, -0.5); flagShape.closePath();
+    const flagGeo = new T.ShapeGeometry(flagShape);
+    for (let i = 0; i < 14; i++) {
+      const pal = pastel[i % pastel.length];
+      const side = i % 2 ? 1 : -1;
+      const r = 1.1 + Math.random() * 1.3;
+      const isl = new T.Group();
+      const body = new T.Mesh(new T.CylinderGeometry(r, r * 0.9, 0.7, 40), [mat(pal[1], 0.6), mat(pal[0], 0.55), mat(pal[1], 0.6)]); isl.add(body);
+      const lip = new T.Mesh(new T.TorusGeometry(r, 0.14, 10, 40), mat(pal[2], 0.3)); lip.rotation.x = Math.PI / 2; lip.position.y = 0.35; isl.add(lip);
+      const pil = new T.Mesh(new T.CylinderGeometry(r * 0.35, r * 0.2, 7, 16), pillarM); pil.position.y = -3.8; isl.add(pil);
+      let spinner = null, flag = null;
+      if (i % 3 === 0) {
+        spinner = new T.Mesh(new T.CylinderGeometry(r * 0.72, r * 0.72, 0.14, 40), [mat(0xFF2D8A), new T.MeshStandardMaterial({ map: stripeTex(2), roughness: 0.3 }), mat(0xFF2D8A)]);
+        spinner.position.y = 0.45; isl.add(spinner);
+        const hub = new T.Mesh(new T.SphereGeometry(0.22, 16, 12), mat(0xFFD21F, 0.2)); hub.position.y = 0.55; isl.add(hub);
+      } else if (i % 3 === 1) {
+        const pole = new T.Mesh(new T.CylinderGeometry(0.04, 0.04, 1.8, 8), mat(0xFFFFFF)); pole.position.set(0, 1.25, 0); isl.add(pole);
+        flag = new T.Mesh(flagGeo, flagM); flag.position.set(0, 2.1, 0); isl.add(flag);
+      }
+      const x = side * (4.6 + Math.random() * 5.5), y = -1.6 + Math.random() * 3.2, z = 6 - (i / 14) * 84;
+      isl.position.set(x, y, z);
+      world.add(isl);
+      decor.push({ o: isl, y, ph: Math.random() * 6, spinner, flag });
+    }
+    // clouds
+    const cloudM = new T.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 1 });
+    const puff = new T.SphereGeometry(1, 16, 12);
+    for (let i = 0; i < 12; i++) {
+      const cl = new T.Group();
+      const n = 4 + Math.floor(Math.random() * 3);
+      for (let j = 0; j < n; j++) { const m = new T.Mesh(puff, cloudM); const s = 0.9 + Math.random() * 1.1; m.scale.set(s * 1.3, s, s); m.position.set((j - n / 2) * 1.2, Math.random() * 0.5, Math.random() * 0.8); cl.add(m); }
+      const y = i % 3 === 0 ? 7 + Math.random() * 4 : -4 - Math.random() * 2;
+      cl.position.set((Math.random() - 0.5) * 34, y, 6 - Math.random() * 84);
+      world.add(cl); decor.push({ o: cl, y, ph: Math.random() * 6, cloud: true });
+    }
+    // swinging foam mallet (hazard = hit pink + stripe)
+    const mallet = new T.Group(); mallet.position.set(5.2, 6.4, -9); scene.add(mallet);
+    const handle = new T.Mesh(new T.CylinderGeometry(0.12, 0.12, 3.6, 12), mat(0xFFD21F)); handle.position.y = -1.8; mallet.add(handle);
+    const head = new T.Mesh(new T.CylinderGeometry(0.8, 0.8, 2.0, 28), [new T.MeshStandardMaterial({ map: stripeTex(3), roughness: 0.3 }), mat(0xFF2D8A, 0.3), mat(0xFF2D8A, 0.3)]);
+    head.rotation.z = Math.PI / 2; head.position.y = -3.8; head.castShadow = true; mallet.add(head);
+
+    // confetti
+    const CN = 160;
+    const conf = new T.InstancedMesh(new T.PlaneGeometry(0.07, 0.13), new T.MeshBasicMaterial({ side: T.DoubleSide }), CN);
+    const palette = [0xFF3EA5, 0xFFD21F, 0x7B2FF7, 0x3FA9F5, 0x2FE0A8, 0xFF9A3D].map((c) => new T.Color(c));
+    const cp = [], cv = [], cr = [];
+    const dummy = new T.Object3D();
+    const seedC = (i, burst, at) => {
+      if (burst) { cp[i] = at.clone().add(new T.Vector3((Math.random() - 0.5) * 0.6, 1.2, (Math.random() - 0.5) * 0.6)); cv[i] = new T.Vector3((Math.random() - 0.5) * 5, 3 + Math.random() * 4, (Math.random() - 0.5) * 4); cv[i].burst = true; }
+      else { cp[i] = new T.Vector3((Math.random() - 0.5) * 18, 9 + Math.random() * 3, 4 - Math.random() * 16); cv[i] = new T.Vector3(0, -(0.5 + Math.random() * 0.8), 0); }
+      cr[i] = [Math.random() * 6, Math.random() * 6, 2 + Math.random() * 6];
+    };
+    for (let i = 0; i < CN; i++) { seedC(i); cp[i].y = Math.random() * 12 - 1; conf.setColorAt(i, palette[i % palette.length]); }
+    scene.add(conf);
+
+    // ---------- cast ----------
+    let hero = null; let runners = [];
+    const runnerSlots = [[-1.2, -1.6], [1.6, -4.2], [-0.4, -7.2], [1.0, -10.5], [-1.5, -13.5]];
+    const heroSlot = [1.0, 2.4];
+    const build = (hi) => {
+      if (hero) scene.remove(hero.g);
+      runners.forEach((r) => scene.remove(r.g));
+      hero = makeRushling(PRESETS[hi]); hero.g.scale.setScalar(1.45); hero.g.position.set(heroSlot[0], 0, heroSlot[1]); scene.add(hero.g);
+      const order = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0].filter((i) => i !== hi).slice(0, runnerSlots.length);
+      runners = order.map((pi, k) => { const r = makeRushling(PRESETS[pi]); r.slot = runnerSlots[k]; r.g.scale.setScalar(1.25); r.g.position.set(r.slot[0], 0, r.slot[1]); r.drift = Math.random() * 6; scene.add(r.g); return r; });
+      hero.jumpT = 0.8; hero.starT = 1.6;
+    };
+    build(heroIndex);
+
+    // ---------- layout + input ----------
+    const base = { pos: new T.Vector3(), look: new T.Vector3() };
+    const layout = () => {
+      const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return;
+      renderer.setSize(w, h); cam.aspect = w / h;
+      if (w / h > 1.15) { cam.fov = 34; base.pos.set(-2.0, 2.7, 9.4); base.look.set(-1.9, 1.15, -4); }
+      else { cam.fov = 48; base.pos.set(0.4, 3.6, 12); base.look.set(0.4, 3.0, -4); }
+      cam.updateProjectionMatrix();
+    };
+    layout();
+    const ro = new ResizeObserver(layout); ro.observe(host);
+    const mouse = { x: 0, y: 0, sx: 0, sy: 0 };
+    const onMove = (e) => { mouse.x = (e.clientX / window.innerWidth) * 2 - 1; mouse.y = (e.clientY / window.innerHeight) * 2 - 1; };
+    window.addEventListener('pointermove', onMove);
+    const ray = new T.Raycaster(), ndc = new T.Vector2();
+    const onDown = (e) => {
+      const b = renderer.domElement.getBoundingClientRect();
+      ndc.set(((e.clientX - b.left) / b.width) * 2 - 1, -((e.clientY - b.top) / b.height) * 2 + 1);
+      ray.setFromCamera(ndc, cam);
+      const all = [hero, ...runners];
+      const hits = ray.intersectObjects(all.map((r) => r.g), true);
+      const r = hits.length ? all.find((q) => q.id === hits[0].object.userData.rid) : hero;
+      if (r && r.jumpT <= 0) {
+        r.jumpT = 0.8; r.starT = 1.4;
+        if (confettiOn) { const at = new T.Vector3(); r.g.getWorldPosition(at); for (let k = 0; k < 50; k++) seedC(Math.floor(Math.random() * CN), true, at); }
+      }
+    };
+    renderer.domElement.addEventListener('pointerdown', onDown);
+
+    let visible = true;
+    const io = new IntersectionObserver((en) => { visible = en[0].isIntersecting; }); io.observe(host);
+
+    // ---------- loop ----------
+    const clock = new T.Clock();
+    let raf = 0, t = 0, autoJ = 2.5;
+    const loop = () => {
+      raf = requestAnimationFrame(loop);
+      const dt = Math.min(0.05, clock.getDelta());
+      if (!visible || document.hidden) return;
+      const k = (reduce ? 0.3 : 1) * speedK;
+      t += dt;
+      const v = 5.5 * k;
+      trackTex.offset.y += dt * v / (trackLen / 14) / 1;
+      bandTex.offset.y -= dt * v / (trackLen / 60);
+      decor.forEach((d) => {
+        d.o.position.z += dt * v * (d.cloud ? 0.6 : 1);
+        if (d.o.position.z > 12) d.o.position.z -= 90;
+        d.o.position.y = d.y + Math.sin(t * 0.8 + d.ph) * (d.cloud ? 0.15 : 0.25);
+        if (d.spinner) d.spinner.rotation.y += dt * 1.6 * Math.max(0.2, k);
+        if (d.flag) d.flag.rotation.y = Math.sin(t * 3 + d.ph) * 0.35;
+      });
+      mallet.rotation.z = Math.sin(t * 1.4 * Math.max(0.3, k)) * 0.75;
+      crown.rotation.y += dt * 0.8;
+
+      mouse.sx += (mouse.x - mouse.sx) * 0.05; mouse.sy += (mouse.y - mouse.sy) * 0.05;
+      cam.position.set(base.pos.x + mouse.sx * 0.9, base.pos.y - mouse.sy * 0.45, base.pos.z);
+      cam.lookAt(base.look);
+
+      animRushling(hero, dt, t, { run: k, yaw: mouse.sx * 0.5 - 0.12 });
+      runners.forEach((r) => {
+        r.g.position.x = r.slot[0] + Math.sin(t * 0.7 + r.drift) * 0.35;
+        r.g.position.z = r.slot[1] + Math.sin(t * 0.45 + r.drift * 2) * 0.9;
+        animRushling(r, dt, t, { run: k, yaw: Math.sin(t * 0.7 + r.drift) * 0.15 });
+      });
+      autoJ -= dt;
+      if (autoJ <= 0 && !reduce) { const r = runners[Math.floor(Math.random() * runners.length)]; if (r.jumpT <= 0) r.jumpT = 0.8; autoJ = 1.6 + Math.random() * 2.4; }
+
+      conf.visible = confettiOn;
+      if (confettiOn) {
+        for (let i = 0; i < CN; i++) {
+          const p = cp[i], vv = cv[i];
+          if (vv.burst) vv.y -= 7 * dt; else p.x += Math.sin(t * 1.3 + i) * 0.006;
+          p.addScaledVector(vv, dt);
+          if (p.y < -2) seedC(i);
+          cr[i][0] += dt * cr[i][2]; cr[i][1] += dt * cr[i][2] * 0.7;
+          dummy.position.copy(p); dummy.rotation.set(cr[i][0], cr[i][1], 0); dummy.updateMatrix();
+          conf.setMatrixAt(i, dummy.matrix);
+        }
+        conf.instanceMatrix.needsUpdate = true;
+      }
+      renderer.render(scene, cam);
+    };
+    loop();
+
+    return {
+      setHero: (i) => build(i),
+      setSpeed: (s) => { speedK = Math.max(0, +s || 0); },
+      setConfetti: (on) => { confettiOn = !!on && !reduce; },
+      destroy: () => {
+        cancelAnimationFrame(raf); ro.disconnect(); io.disconnect();
+        window.removeEventListener('pointermove', onMove);
+        renderer.domElement.removeEventListener('pointerdown', onDown);
+        renderer.dispose(); if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

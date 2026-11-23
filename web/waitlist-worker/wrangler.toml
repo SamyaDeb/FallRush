@@ -1,0 +1,45 @@
+# Fall Rush waitlist: join API, poster storage and per-player X share pages.
+# Deploy on the same domain as the landing page (see README), so /api, /r and /p are same-origin.
+name = "fallrush-waitlist"
+main = "src/worker.js"
+compatibility_date = "2026-11-01"
+
+# One Worker serves the whole waitlist site on waitlist.fallrush.fun:
+#  - /api/*, /r/*, /p/* run this worker's code (join API, share cards, posters);
+#  - everything else is the static site built from ../site (Vite `dist/`), with SPA fallback for /join.
+routes = [
+  { pattern = "waitlist.fallrush.fun", custom_domain = true },
+]
+
+[assets]
+directory = "../site/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/r/*", "/p/*"]
+
+[vars]
+SITE_URL = "https://waitlist.fallrush.fun"        # landing page; no trailing slash
+ALLOWED_ORIGIN = "https://waitlist.fallrush.fun"  # origin allowed to call /api (CORS)
+QUEUE_BOOST = "25"                        # spots gained per friend who joins with your link
+BACKUP_DAYS = "30"                        # daily backups kept in R2 (backups/)
+
+# Daily backup of the waitlist into R2 at 02:00 UTC.
+[triggers]
+crons = ["0 2 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fallrush-waitlist"
+database_id = "6cb0244d-f8a7-4d8a-bc8d-4126550383c3"
+
+[[r2_buckets]]
+binding = "POSTERS"
+bucket_name = "fallrush-posters"
+
+# Per-IP limit on POST /api/join (Workers rate limiting binding: 5 per 60 s).
+[[ratelimits]]
+name = "JOIN_LIMITER"
+namespace_id = "1001"
+simple = { limit = 5, period = 60 }
+
+# TURNSTILE_SECRET is a secret: `wrangler secret put TURNSTILE_SECRET` (unset = no bot check, e.g. local dev).
