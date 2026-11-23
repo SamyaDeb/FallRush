@@ -22,7 +22,7 @@ namespace FallRush.OnChain
         private TMP_Text _chips, _betTitle, _betBody, _dropInfo, _banner, _receiptText, _debug;
         private RectTransform _chipsPill, _bannerPill, _debugPanel;
         private readonly Button[] _dropButtons = new Button[5];
-        private Button _claim;
+        private Button _claim, _backup;
         private readonly StringBuilder _sb = new StringBuilder(2048);
         private bool _betOpen;
         private int _betMarket;
@@ -55,6 +55,7 @@ namespace FallRush.OnChain
             BuildBet();
             BuildDropBar();
             BuildReceipt();
+            FallRush.Client.MatchHud.DealOddsProvider = DealOdds;
             _debugPanel = Pill(_canvas, new Vector2(0f, 0.5f), new Vector2(14f, -40f), new Vector2(560f, 300f), new Color(0.08f, 0.04f, 0.16f, 0.88f), out _debug, 13, Color.white);
             _debug.alignment = TextAlignmentOptions.TopLeft;
             _debugPanel.gameObject.SetActive(false);
@@ -166,6 +167,10 @@ namespace FallRush.OnChain
             _receiptText.richText = true;
             _receiptText.alignment = TextAlignmentOptions.TopLeft;
             _claim = UiKit.Button(_receipt, "Claim with Phantom", UiKit.Grape, Claim);
+            // P5 0.4 burner safety: a guest wallet that holds a Crown / capsule lives only in this browser's storage;
+            // "Back up your key" opens /me (same origin, same burner) with the export + copy warning
+            _backup = UiKit.Button(_receipt, "Back up your key", UiKit.Magenta, BackupKey);
+            _backup.gameObject.SetActive(false);
             _receipt.gameObject.SetActive(false);
         }
 
@@ -200,6 +205,26 @@ namespace FallRush.OnChain
             if (e == null || row >= o.Length)
                 return;
             e.Bet(_betMarket, o[row], amount);
+        }
+
+        private static void BackupKey() => Application.OpenURL("/me?backup=1");
+
+        /// <summary>P5 0.6: the Deal screen's market line per capsule (Qualify R1–R3 for rounds 1–3, Champion for the Final).</summary>
+        private static string DealOdds(int r, int rounds)
+        {
+            var st = ChainEconomy.Instance != null ? ChainEconomy.Instance.State : null;
+            if (st?.markets == null)
+                return string.Empty;
+            var k = r == rounds - 1 ? 0 : 2 + r;
+            if (k > 4 || k >= st.markets.Length || st.markets[k] == null || st.markets[k].status < 1)
+                return string.Empty;
+            var mk = st.markets[k];
+            var pool = ChainEconomy.Parse(mk.pool);
+            long top = 0;
+            foreach (var x in mk.stake)
+                top = System.Math.Max(top, ChainEconomy.Parse(x));
+            var odds = top > 0 ? $" · fav x{pool / (double)top:0.0#}" : string.Empty;
+            return $"\n<size=12><color=#7B2FF7>{(k == 0 ? "Champion" : "Qualify")} market: pool {ChainEconomy.Rush(pool)} RUSH{odds}</color></size>";
         }
 
         private void Claim()
@@ -371,6 +396,7 @@ namespace FallRush.OnChain
             if (r?.receipt == null)
             {
                 _claim.gameObject.SetActive(false);
+                _backup.gameObject.SetActive(false);
                 _sb.Append("writing the receipt on the rollup…");
                 _receiptText.text = _sb.ToString();
                 return;
@@ -411,8 +437,12 @@ namespace FallRush.OnChain
 
             _sb.Append("<size=14>Drops: ").Append(r.receipt.drops).Append(" · rounds 1–3 ● server-recorded · Final ◆ program-computed · core v").Append(r.receipt.coreVersion).Append("</size>\n");
             _sb.Append(r.onSolana ? "<color=#1FA36A>Rollup ✓ → Solana ✓</color>" : "Rollup ✓ → Solana …").Append("  <size=12>").Append(Short(r.match)).Append("</size>");
+            var holds = me >= 0 && r.onSolana && (((r.receipt.flags & 4) != 0 && champ == me) || (r.receipt.mintedMask >> me & 1) == 1);
+            if (holds && string.IsNullOrEmpty(ChainWallet.PhantomPubkey))
+                _sb.Append("\n<size=14><color=#FF3EA5><b>⚠ Guest wallet:</b> your Crown / capsule lives only in this browser. Back up your key or claim it to Phantom before clearing site data.</color></size>");
             _receiptText.text = _sb.ToString();
-            _claim.gameObject.SetActive(me >= 0 && r.onSolana && (((r.receipt.flags & 4) != 0 && champ == me) || (r.receipt.mintedMask >> me & 1) == 1));
+            _claim.gameObject.SetActive(holds);
+            _backup.gameObject.SetActive(holds && Application.platform == RuntimePlatform.WebGLPlayer);
             UiKit.SetButtonText(_claim, string.IsNullOrEmpty(ChainWallet.PhantomPubkey) ? "Connect Phantom to claim" : "Claim with Phantom → " + Short(ChainWallet.PhantomPubkey));
         }
 

@@ -746,13 +746,25 @@ namespace FallRush.Client
                 var shown = r < reveal;
                 var map = m.Maps[r];
                 c.Map.text = shown ? $"{UiNames.Map(map)} <size=13><color=#8C88A6>{MapPoolV1.ModeOf(map)} · {m.Targets[r]} advance</color></size>" : "?";
-                c.Mod.text = shown ? UiNames.Modifier(m.Modifiers[r]) : string.Empty;
+                c.Mod.text = shown ? UiNames.Modifier(m.Modifiers[r]) + DealOdds(r, m.RoundCount) : string.Empty;
                 c.Fill.color = shown ? (r == m.RoundCount - 1 ? new Color(1f, 0.96f, 0.8f) : new Color(0.9f, 0.98f, 0.95f)) : new Color(0.95f, 0.96f, 1f);
             }
 
             // VRF slot (G3.6): practice shows the local seed; M6 shows "VRF ✓" + the callback signature + explorer link.
             _dealVrf.text = deal.Verified ? $"<color=#3FBF8F>VRF ✓</color> {deal.Headline}  <size=13>{deal.VrfSignature}</size>" : $"<color=#8C88A6>●</color> {deal.Headline}";
             _dealSeed.text = $"seed {deal.SeedHex}\nmatch {Sha256.Hex(m.MatchId).Substring(0, 16)}…  ·  {(deal.ExplorerUrl ?? "explorer link: on ranked matches (M6)")}"; // TODO(M6): clickable explorer link
+        }
+
+        /// <summary>
+        /// P5 0.6 (UI only): the Rush Market of each capsule on the Deal screen (round index, round count → a line with
+        /// the live pool + the favourite's odds). Set by the on-chain economy HUD (FallRush.OnChain), null otherwise.
+        /// </summary>
+        public static System.Func<int, int, string> DealOddsProvider;
+
+        private static string DealOdds(int r, int rounds)
+        {
+            try { return DealOddsProvider != null ? DealOddsProvider(r, rounds) ?? string.Empty : string.Empty; }
+            catch { return string.Empty; }
         }
 
         private void ShowRound(ClientSim cs, MatchStateMessage m, string mode, uint now, ref string sub, ref string counter, ref string timer)
