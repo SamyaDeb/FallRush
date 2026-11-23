@@ -1,0 +1,35 @@
+{
+ "flow": "sealed",
+ "started": "2026-11-23T17:29:13.212Z",
+ "marks": {
+  "loaded": {
+   "t": 6.78
+  },
+  "guest_ready": {
+   "t": 14.68,
+   "ready": "you: 3V1H…Wxdw · 1,000 RUSH chips"
+  },
+  "sealed_clicked": {
+   "t": 14.7,
+   "bet": "#1★ x11.0"
+  },
+  "sealed_result": {
+   "t": 17,
+   "ok": "22:59:46 you sealed 10 RUSH on a Champion pick 🔒 (pick in the private book, 1807 ms) · commit tx"
+  },
+  "attestation": {
+   "t": 32.08,
+   "att": "22:59:47 🛡 TEE attested in this browser (Intel TDX quote, 3845 ms)"
+  },
+  "closed": {
+   "t": 263.52,
+   "closed": "23:03:52 🔓 Champion market closed: 3/3 sealed bets revealed from the private book"
+  },
+  "revealed": {
+   "t": 263.55,
+   "rev": "yours: 10 on #1 ✓revealed "
+  }
+ },
+ "pass": true,
+ "finished": "2026-11-23T17:33:53.264Z"
+}

@@ -25,6 +25,16 @@ const r = await build({
   logLevel: 'warning',
 });
 
+// P6: the TEE attestation module (on demand; @phala/dcap-qvl from tools/p6/node_modules), next to the bundle
+const teeOut = resolve(dirname(out), 'fallrush-tee.js');
+const p6mods = resolve(pkg, '../../tools/p6/node_modules');
+const empty = { name: 'empty', setup(b) { b.onResolve({ filter: /^(crypto|node-fetch)$/ }, () => ({ path: 'empty', namespace: 'empty' })); b.onLoad({ filter: /.*/, namespace: 'empty' }, () => ({ contents: 'module.exports = {}' })); } };
+await build({
+  entryPoints: [resolve(pkg, 'src/tee-attest.ts')], outfile: teeOut, bundle: true, format: 'iife', platform: 'browser', target: ['es2020'], minify: true,
+  legalComments: 'none', nodePaths: [p6mods], plugins: [empty], inject: [resolve(pkg, 'src/buffer-shim.ts')], define: { 'process.env.NODE_ENV': '"production"', global: 'globalThis' }, logLevel: 'warning',
+});
+console.log(`fallrush-tee.js: ${readFileSync(teeOut).length} B raw, ${gzipSync(readFileSync(teeOut), { level: 9 }).length} B gzip`);
+
 // configs next to the bundle: StreamingAssets/chain/<name>.json
 const cfgOut = resolve(dirname(out), 'chain');
 mkdirSync(cfgOut, { recursive: true });

@@ -85,4 +85,21 @@ pub enum FallRushError {
     ReceiptNotReady,
     #[msg("Reward already minted or not owed")]
     NothingToMint,
+    // ---- P6 (appended: earlier codes unchanged)
+    #[msg("Sealed bets of this market are not revealed / finished yet")]
+    SealedPending,
+    #[msg("Sealed reveal does not match the commitment")]
+    BadReveal,
+    #[msg("Sealed book / escrow is not in the required state")]
+    SealedState,
+    #[msg("Sealed book / escrow is full (32 entries)")]
+    SealedFull,
+    #[msg("Season is not in the required state")]
+    SeasonState,
+    #[msg("Match is outside this season")]
+    NotInSeason,
+    #[msg("Match already recorded for this wallet / season (or too old for the record ring)")]
+    AlreadyRecorded,
+    #[msg("Committed market / drop copies do not match the receipt")]
+    BadCopies,
 }

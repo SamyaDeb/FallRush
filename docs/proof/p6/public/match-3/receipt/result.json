@@ -1,0 +1,12 @@
+{
+ "flow": "receipt",
+ "started": "2026-11-23T17:54:59.882Z",
+ "marks": {
+  "rollup_solana_ok": {
+   "t": 3.25
+  }
+ },
+ "text": "Rollup ✓\nreceipt written on devnet-as by write_receipt\nwrite_receipt tx · finalize (commit + undelegate)\nSolana ✓\nthe Match is back on Solana (owner = the program)\nMatch account\nTrust\n● rounds 1–3 recorded by the game authority (Classic server)\n◆ the Final computed by the program (rush-core on the rollup)\ncore v2 · status Completed\nRewards\na bot won: no Crown\nminted by the Magic Action + keeper retry\nPlacements (the Final)\n#\tslot\tcapsule\n1\t#8 (bot)\t—\n2\t#5 (bot)\t—\n3\t#12 (bot)\t—\nRush Markets\nmarket\tpool\twinners\tsettled by\nChampion\t85 RUSH\t#8\t◆ program-settled\nFinal winner\t54 RUSH\t#8\t◆ program-settled\nQualify R1\t0 RUSH\t#3 #4 #5 #6 #7 #8 #10 #12\tno winner (refund)\nQualify R2\t0 RUSH\t#5 #6 #7 #8 #12\tno winner (refund)\nQualify R3\t8 RUSH\t#5 #8 #12\t● server-recorded\nSealed Champion bets 🔒\n2 sealed bet(s) · 17 RUSH · 2 revealed from the private book · ◆ settled by the program with the Champion market\npicks were hidden in MagicBlock's Private Ephemeral Rollup (TEE, devnet-tee) until the market closed: close; each reveal is checked against the commitment sha256(pick ‖ amount ‖ salt ‖ wallet) · entries hash 9d6d4c0c5a230dd1…\nFNhs…cDDx 10 on #1 · G2Wu…djGu 7 on #1\nSeason & achievements\nrecorded into 2026 · week 48\nFNhs…cDDx: —\nG2Wu…djGu: —\nChaos Drops\n0 drop(s) · 0 RUSH · log hash 0000000000000000…\nAssets\nRushling Capsule (Common) · Common · shell Glacier\nRushling Capsule (Epic) · Epic · shell SourApple\nHashes\nmap 44bc4e756140708faa2897f898c06ea63d422bf9345c563644d6106a01948811\nrounds 1–3 transcript 0000000000000000000000000000000000000000000000000000000000000000\nFinal transcript 3f1cbef87422a679cbd20a7a35b8c33d35d926482a9197113504dd0ecfb49b95\ncapsule VRF seed 6a00d6c304a037abe519c01d07b7900743ca6d8d37bf906051587740b5a2565a\n\nReplay it yourself",
+ "pass": true,
+ "finished": "2026-11-23T17:55:06.579Z"
+}

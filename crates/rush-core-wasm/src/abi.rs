@@ -402,3 +402,50 @@ pub extern "C" fn rc_ingest_drop(h: i32, kind: u32) -> u32 {
     })
     .unwrap_or(0)
 }
+
+/// P6 D-CROWN harness (feature `harness`, never in the shipped rush_core.wasm): the input rush-core's own bot brain
+/// (tier REFERENCE) would send for `slot` on the next tick of the handle's World, written as 5 B
+/// {move_x, move_y, buttons, cam_yaw LE}. The slot's bot memory is kept per handle across `rc_set_world` calls (the
+/// chain's World has none for a human slot). No simulation change: the same `bots::bot_input` the program runs.
+///
+/// # Safety
+/// `out_ptr` → 5 writable bytes.
+#[cfg(feature = "harness")]
+#[no_mangle]
+pub unsafe extern "C" fn rc_bot_input(h: i32, slot: u32, out_ptr: *mut u8) -> i32 {
+    thread_local! {
+        static KEEP: RefCell<Vec<[Option<rush_core::bots::BotState>; MAX_PLAYERS]>> = const { RefCell::new(Vec::new()) };
+    }
+    let s = slot as usize;
+    if s >= MAX_PLAYERS || out_ptr.is_null() {
+        return -1;
+    }
+    let cmd = with(h, |c| {
+        let map = MapView::new(&c.map).unwrap();
+        let mut sc = rush_core::collide::Scene::new(map);
+        let cfg = c.w.motor_config(&c.params);
+        let tick = c.w.tick.wrapping_add(1);
+        world::pose_scene_into(&mut sc, &c.w, &map, &cfg, tick);
+        let kept = KEEP.with(|k| { let mut k = k.borrow_mut(); while k.len() <= h as usize { k.push([None; MAX_PLAYERS]); } k[h as usize][s] });
+        let mut b = kept.unwrap_or_default();
+        if kept.is_none() {
+            b.tier = rush_core::bots::tier::REFERENCE;
+        }
+        c.w.players[s].bot = b;
+        let cmd = rush_core::bots::bot_input(s, &mut c.w, &map, &sc);
+        let nb = c.w.players[s].bot;
+        KEEP.with(|k| k.borrow_mut()[h as usize][s] = Some(nb));
+        cmd
+    });
+    match cmd {
+        Some(c) => {
+            let o = std::slice::from_raw_parts_mut(out_ptr, 5);
+            o[0] = c.move_x as u8;
+            o[1] = c.move_y as u8;
+            o[2] = c.buttons;
+            o[3..5].copy_from_slice(&c.cam_yaw.to_le_bytes());
+            0
+        }
+        None => -1,
+    }
+}

@@ -1,0 +1,35 @@
+{
+ "flow": "sealed",
+ "started": "2026-11-23T16:04:58.697Z",
+ "marks": {
+  "loaded": {
+   "t": 1.41
+  },
+  "guest_ready": {
+   "t": 91.61,
+   "ready": null
+  },
+  "no_sealed_market": {
+   "t": 692.1,
+   "bet": null
+  },
+  "sealed_result": {
+   "t": 692.1,
+   "ok": null
+  },
+  "attestation": {
+   "t": 734.29,
+   "att": null
+  },
+  "closed": {
+   "t": 734.3,
+   "closed": "21:45:43 🔓 Champion market closed: 0/2 sealed bets revealed from the private book"
+  },
+  "revealed": {
+   "t": 794.51,
+   "rev": null
+  }
+ },
+ "pass": false,
+ "finished": "2026-11-23T16:18:14.658Z"
+}

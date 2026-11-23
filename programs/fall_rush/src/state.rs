@@ -137,7 +137,18 @@ pub struct Receipt {
     pub rarity: [u8; 12],
     /// Champion, FinalWinner, Qualify 1..3.
     pub markets: [MarketResult; 5],
-    pub _reserved: [u8; 372],
+    /// P6 (in the former reserved space, same size): sealed Champion bets of this match (committed / revealed /
+    /// forfeited), their chips, a hash over every market bet + drop buy (what `record_season` checks the committed
+    /// market copies against) and a hash over the sealed entries.
+    pub sealed_n: u8,
+    pub sealed_revealed: u8,
+    pub sealed_forfeits: u8,
+    pub p6_flags: u8,
+    pub sealed_pool: u64,
+    pub sealed_forfeit: u64,
+    pub bets_hash: [u8; 32],
+    pub sealed_hash: [u8; 32],
+    pub _reserved: [u8; 288],
 }
 
 impl Default for Receipt {
@@ -160,7 +171,15 @@ impl Default for Receipt {
             placements: [255; 12],
             rarity: [255; 12],
             markets: [MarketResult::default(); 5],
-            _reserved: [0; 372],
+            sealed_n: 0,
+            sealed_revealed: 0,
+            sealed_forfeits: 0,
+            p6_flags: 0,
+            sealed_pool: 0,
+            sealed_forfeit: 0,
+            bets_hash: [0; 32],
+            sealed_hash: [0; 32],
+            _reserved: [0; 288],
         }
     }
 }

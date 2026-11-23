@@ -9,6 +9,7 @@ const sa = join(root, 'client-unity/Assets/StreamingAssets');
 mkdirSync(join(app, 'public/chain'), { recursive: true });
 cpSync(join(sa, 'fallrush-chain.js'), join(app, 'public/chain/fallrush-chain.js'));
 cpSync(join(sa, 'rush_core.wasm'), join(app, 'public/chain/rush_core.wasm'));
+cpSync(join(sa, 'fallrush-tee.js'), join(app, 'public/chain/fallrush-tee.js')); // P6: TEE attestation (on demand)
 for (const f of readdirSync(join(sa, 'chain')).filter((f) => f.endsWith('.json'))) cpSync(join(sa, 'chain', f), join(app, 'public/chain', f));
 mkdirSync(join(app, 'public/maps'), { recursive: true });
 for (const m of ['CrumbleShelf', 'Lobby']) cpSync(join(root, `maps/${m}.mapblob`), join(app, `public/maps/${m}.mapblob`));

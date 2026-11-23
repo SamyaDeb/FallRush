@@ -1,0 +1,20 @@
+{
+ "flow": "replay",
+ "started": "2026-11-23T17:36:03.144Z",
+ "marks": {
+  "verdict": {
+   "t": 12.6,
+   "text": "replay = on-chain ✓ · 2077/2077 consecutive ticks re-simulated byte-exact with rush_core.wasm (45 gaps in the recording skipped) · receipt Final transcript found in the final World ✓ · 2123 snapshots, ticks 12–2056"
+  }
+ },
+ "replay": {
+  "pass": true,
+  "pairs": 2077,
+  "ok": 2077,
+  "gaps": 45,
+  "transcript": true
+ },
+ "text": "replay = on-chain ✓ · 2077/2077 consecutive ticks re-simulated byte-exact with rush_core.wasm (45 gaps in the recording skipped) · receipt Final transcript found in the final World ✓ · 2123 snapshots, ticks 12–2056",
+ "pass": true,
+ "finished": "2026-11-23T17:36:22.944Z"
+}

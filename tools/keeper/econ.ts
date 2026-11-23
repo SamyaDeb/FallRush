@@ -69,6 +69,9 @@ export function decodeReceipt(d: Buffer) {
     capsuleSeed: d.subarray(r + 145, r + 177).toString("hex"), crown: new PublicKey(d.subarray(r + 177, r + 209)),
     wallets: Array.from({ length: 12 }, (_, s) => new PublicKey(d.subarray(r + 209 + 32 * s, r + 241 + 32 * s))),
     placements: [...d.subarray(r + 593, r + 605)], rarity: [...d.subarray(r + 605, r + 617)], markets,
+    // P6: sealed Champion bets + the bets hash (record_season checks the committed copies against it)
+    sealedN: d[r + 717], sealedRevealed: d[r + 718], sealedForfeits: d[r + 719], sealedPool: d.readBigUInt64LE(r + 721), sealedForfeit: d.readBigUInt64LE(r + 729),
+    betsHash: d.subarray(r + 737, r + 769).toString("hex"), sealedHash: d.subarray(r + 769, r + 801).toString("hex"), completedAt: Number(d.readBigInt64LE(r + 1089 + 16)),
   };
 }
 
@@ -198,6 +201,8 @@ export async function mmSeed(mm: Keypair, arenaId: number, k: number, matchPda: 
 export async function writeReceipt(arenaId: number, matchPda: PublicKey, maps: PublicKey[]) {
   const arena = pda.arena(arenaId);
   const accs = [w_(matchPda), r_(arena), r_(pda.world(arena)), r_(epda.drops(arena)), ...Array.from({ length: MARKETS }, (_, k) => r_(epda.market(arenaId, k))), ...maps.map(r_)];
+  // P6: the arena's sealed escrow (optional trailing account): sealed summary + bets hash in the receipt
+  if (process.env.SEALED !== "0") accs.push(r_(PublicKey.findProgramAddressSync([Buffer.from("sealed"), arena.toBuffer()], PROGRAM_ID)[0]));
   return sendEr([cu(400_000), await econIx(wallet.publicKey, OP.WRITE_RECEIPT, 0, 0, accs)], [wallet], "write_receipt", 10);
 }
 export async function requestCapsules(matchPda: PublicKey) {

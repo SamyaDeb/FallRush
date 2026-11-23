@@ -1,0 +1,3 @@
+2026-11-23T17:42:25Z keeper-1: waiting for stage 'receipt'
+2026-11-23T17:54:03Z keeper-1 restarted at stage 'receipt'
+2026-11-23T17:54:05Z keeper-1 recovered (resume from on-chain state) in 13 s; stages after restart: rounds_1_3 start_final final sealed_reveal sealed_finish settle receipt capsules finalize rewards season idle 

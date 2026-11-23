@@ -1,0 +1,78 @@
+{
+  "at": "2026-11-23T15:01:01.902Z",
+  "steps": {
+    "setup_2": {
+      "init_0": "3G2EUfDKkqG4Ee95RC2v31daGTBxdXr13rvNpQPk98isgvqigN2aj33Gm7KcXAtFMQfRMZh8h51n8fwcfnvSiLm8",
+      "delegate_0": "4BRZnhnfxmBVrxoeAVBSqpdErt69PC7FP78F9NymSGuexZivKWSACPdLb2hyk75JNdfR4cDReLNWANh577szfu7W",
+      "init_1": "oUeUirVmqme1x8SJJH6nr81JCQgy95MPMkmQyB1V711W21zZyqbCFWh15RnqEkp3vigAWU8mQdQ18Qu5ka8rGws",
+      "delegate_1": "kKFDWWCJtQgKx2xGnFUGeEJ66g5sQkbP1PcUXRQW3QjkqMDNsroaui3X42eGZK8dWM1SrjSbjLyqMP1D1sJvpDZ"
+    },
+    "setup_3": {
+      "init_0": "2Uv849guimU7QyR2BRW4tNduaiHeChpDWDyqMJzCYfuqfif5f3H1je2W4rjepZbCmA3VYtp2duDct4MCLoNUniG9",
+      "delegate_0": "x9wyQSBrf7gMjUyrGpYv32FLQPGvyW6XobbgJESPZu2QqmwNEafb9iAdDHUf1SZAMdtKSETkqRwwq5QRAoMndHN",
+      "init_1": "4Azhq15yKeoSVv4kExBvFrd9EvBmaLo1JAvrjkG5qd9zTwvzj94jJNeq3LrDhw3F9KuAj6C7b3pST1KTycgobTza",
+      "delegate_1": "49pbe2EMhHvvbpRFMB8L7TTj2rDfDM3K6cAUagL2QemDFXYLmvqYWBgoQdqgkkFWsvkyNK9MTDZVdfWhKozJ4M3c"
+    },
+    "bookOpen": {
+      "sig": "4C3khVpQyuwoYoRVGokCHgGc2GnBYEHxUm33E5z9t8zfRFP3d1Y3dFMc4NUs9dEjEB6tjtU7Fx995tnWUHTuGwA8",
+      "ms": 535
+    },
+    "bookOpenMs": 537,
+    "pick": {
+      "sig": "34LAVSfEttFSJWug6WozWrHe8Drxifot1nb1PLmsk18ADpC1JXCHW4aW5F5NUV4kXn2RMviPbVR3zyNtNGNmdc77",
+      "err": null,
+      "ms": 252
+    },
+    "bookClose": {
+      "sig": "4a57Sy5iiTBgWLwBuqup1Ew8M4XiydwePN3E5UhdGgAzSaHHp3YaXYMEZkCfsfTEkSD7JqcR6hL3RYpKPFS3TsfG",
+      "ms": 277
+    },
+    "closeToPublicMs": 279,
+    "reopen": {
+      "sig": "32qdTJABxKfkRyNVV3mtK2ybz9nFgm8B6CQ6DeQ3mmXdgp8iMZA8djtaG8bjCbZWNqpEBAh6JA7wiSdGdqAmMt6z",
+      "ms": 245,
+      "err": "tx:{\"InstructionError\":[1,\"InvalidAccountData\"]}"
+    },
+    "bookOpen3": {
+      "sig": "4jMpRRjjnYp1JR8V4zQ2dA3UxxnFPsZN7YvnT8dPN6gZ8cKrAZfKLki9X1kgFR3ijxGnxSFBSQ14xJEgKWGYXcg9",
+      "ms": 324
+    }
+  },
+  "bettor": "AhBCpuUH5BjB6hb81SAk3HKNozKwJVdUoSp3sutNU5ei",
+  "privateReads": {
+    "outsider": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"context\":{\"slot\":868872128},\"value\":null}}"
+    },
+    "bettorItself": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"context\":{\"slot\":868872137},\"value\":null}}"
+    },
+    "gameAuthority": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"context\":{\"slot\":868872145},\"value\":null}}"
+    },
+    "noToken": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"context\":{\"slot\":868872153},\"value\":null}}"
+    },
+    "solanaBase": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"result\":{\"context\":{\"apiVersion\":\"4.5.0-beta.0\",\"slot\":525468873},\"value\":{\"data\":[\"8vK+EyZ0TrD2n/ttrL4R5IV2niUAZm1uiOyOMFMH0Fo/Be5TIdvq8wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+  },
+  "publicAfterClose": {
+    "n": 1,
+    "closed": 1,
+    "entry0": {
+      "wallet": "AhBCpuUH5BjB6hb81SAk3HKNozKwJVdUoSp3sutNU5ei",
+      "outcome": 4,
+      "amount": "5000000",
+      "saltOk": true
+    }
+  },
+  "reopenedRead": {
+    "http": 200,
+    "body": "{\"jsonrpc\":\"2.0\",\"result\":{\"context\":{\"slot\":868872242},\"value\":{\"lamports\":11472768,\"data\":[\"8vK+EyZ0TrD2n/ttrL4R5IV2niUAZm1uiOyOMFMH0Fo/Be5TIdvq8wEuK7QBFFlxXfqc2G4Bmo/MU6tvUzr0xUEWoA8zzDviAQEAAAAAAACQA/PIuysfr1/5EaYsC4iLZpoJ40zpqDjdS+q6Peweg0BLTAAAAAAAuN9QIic6i2tIWHh2g0VMjQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  }
+}

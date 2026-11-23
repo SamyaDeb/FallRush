@@ -10,6 +10,10 @@ publish.workspace = true
 crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 
+[features]
+# P6 D-CROWN harness only (tools/p6/crown-harness.ts): `rc_bot_input`. The shipped rush_core.wasm is built without it.
+harness = []
+
 [dependencies]
 rush-core = { path = "../rush-core" }
 sha2 = { version = "=0.10.9", default-features = false }

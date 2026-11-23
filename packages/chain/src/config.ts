@@ -107,6 +107,10 @@ export interface ChainConfig {
     p2?: P2Config | null;
     /** P4: the rollup validator (delegation of the player's ChipBalance) */
     validator?: string;
+    /** P6: the MagicBlock Private Ephemeral Rollup (TEE) RPC for the sealed book (default devnet-tee) */
+    teeUrl?: string;
+    /** P6: the indexer origin for /api/season (default: same origin) */
+    indexerUrl?: string;
     join?: {
       ix?: InstructionSpec | null;
       layer?: 'er' | 'base';

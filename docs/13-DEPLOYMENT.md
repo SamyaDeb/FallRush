@@ -86,6 +86,15 @@ docker compose project `fallrush` (/opt/fallrush, infra/prod/docker-compose.yml)
   `scripts/p5-neighbours.sh` (finity + Ovelo + raw-IP check), `scripts/p5-kill-test.sh`.
 - The real IP / hostnames live only in `~/.config/fall-rush/vps.env` (local) and `/opt/fallrush/.env` (VPS).
 
+### 2a.1 P6 changes (2026-11-23)
+- Node image `fallrush-node:p6` (keepers + indexer; `bs58` + `tweetnacl` pinned in `infra/prod/node-package.json`);
+  `fallrush-node:p5` kept for a rollback. `.env` adds `SEALED=1`, `SEASONS=1`, `TEE_URL=https://devnet-tee.magicblock.app`,
+  `TEST_SEASON=0` (an active test season id ≥ 1,000,000, or 0).
+- The keepers talk to a third endpoint, the MagicBlock TEE RPC (sealed book), with a token from the game authority's
+  signed challenge. The indexer serves `/api/season` + `/api/seasons`.
+- Redeploy: `scripts/p6-vps-deploy.sh build|indexer|keeper-1|arena3|web` (one service at a time, waits while a human
+  is in a match; the web step keeps `web/site`, the landing). No new ports, no nginx change.
+
 ## 3. Configuration (`.env.example`; placeholders only)
 
 ```env

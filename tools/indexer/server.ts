@@ -3,6 +3,8 @@
 //   GET  /api/matches             the archived matches, newest first (summary fields)
 //   GET  /api/match/:id           one match: the keeper summary (signatures, markets, drops, receipt) + tx lists
 //   GET  /api/replay/:id/:file    world2.bin | ticks.json | classic.jsonl | keeper.jsonl (the replay's inputs)
+//   GET  /api/season?id=&wallet=  P6: the on-chain Season board (+ a PlayerSeason) and the same boards rebuilt from the archive
+//   GET  /api/seasons             P6: the seasons the archived matches were recorded into
 //   POST /api/gas  {burner}       guest gas: a small devnet SOL top-up for a new burner (the only signer here: FUNDER)
 //   POST /api/faucet-gate {burner} the per-IP / per-session soft limit for the chips faucet (signs nothing; on-chain
 //                                 the faucet is limited per wallet only)
@@ -75,7 +77,77 @@ function brief(id: string) {
     match: id, arena: s.arena, doneAt: s.doneAt, startedAt: s.startedAt, champion: rc.champion, humanMask: rc.humanMask, flags: rc.flags, mintedMask: rc.mintedMask,
     finalOnChain: !!s.final, realTime: s.final?.realTime, drops: s.drops?.count ?? 0, pools: [0, 1, 2, 3, 4].map((k) => s[`market${k}`]?.pool ?? "0"),
     finalizeMode: s.finalizeMode, replay: existsSync(join(ARCHIVE, id, "world2.bin")),
+    // P6: aborted (status 6) / no human and no on-chain Final (hidden from the default lists), sealed bets
+    status: rc.status, aborted: rc.status === 6, hidden: !rc.humanMask && !s.final, sealed: s.sealed ? { n: s.sealed.n ?? 0, revealed: s.sealed.revealed ?? 0, forfeits: s.sealed.forfeits ?? 0 } : null,
   };
+}
+
+// ------------------------------------------------------------------ P6 seasons: the on-chain board + a rebuild from the archive
+const u32le = (n: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
+const seasonPda = (id: number) => PublicKey.findProgramAddressSync([Buffer.from("season"), u32le(id)], PROGRAM)[0];
+const pseasonPda = (id: number, w: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from("pseason"), u32le(id), w.toBuffer()], PROGRAM)[0];
+function isoWeek(ts: number) {
+  const days = Math.floor(ts / 86_400), wd = ((days + 3) % 7 + 7) % 7, th = days - wd + 3, y = new Date(th * 86_400_000).getUTCFullYear();
+  return y * 100 + Math.floor((th - Math.floor(Date.UTC(y, 0, 1) / 86_400_000)) / 7) + 1;
+}
+const board = (d: Buffer, o: number) => Array.from({ length: 10 }, (_, i) => ({ wallet: new PublicKey(d.subarray(o + 40 * i, o + 40 * i + 32)).toBase58(), score: d.readBigInt64LE(o + 40 * i + 32).toString() })).filter((e) => e.wallet !== PublicKey.default.toBase58());
+function decodeSeason(d: Buffer) {
+  const b = 8;
+  return { id: d.readUInt32LE(b), status: d[b + 4], trophies: d[b + 5], test: d[b + 7], startsAt: Number(d.readBigInt64LE(b + 8)), endsAt: Number(d.readBigInt64LE(b + 16)), nMatches: d.readUInt32LE(b + 24), nPlayers: d.readUInt32LE(b + 28), champions: board(d, b + 32), predictors: board(d, b + 432), dropMvps: board(d, b + 832) };
+}
+function decodePSeason(d: Buffer) {
+  const b = 8, u16 = (o: number) => d.readUInt16LE(b + o);
+  return { wallet: new PublicKey(d.subarray(b, b + 32)).toBase58(), season: d.readUInt32LE(b + 32), achievements: d.readUInt32LE(b + 36), net: d.readBigInt64LE(b + 40).toString(), crowns: u16(48), finals: u16(50), roundsSurvived: u16(52), matches: u16(54), betsWon: u16(56), betsLost: u16(58), drops: u16(60) };
+}
+const seasonCache = new Map<number, { at: number; body: any }>();
+async function season(id: number) {
+  const c = seasonCache.get(id);
+  if (c && Date.now() - c.at < 10_000) return c.body;
+  const k = seasonPda(id);
+  const i = await BASE.getAccountInfo(k).catch(() => null);
+  const onChain = i && i.owner.equals(PROGRAM) ? decodeSeason(i.data as Buffer) : null;
+  const rb = rebuild(id);
+  const same = (a: any[], b: any[]) => a.length === b.length && a.every((x, j) => x.wallet === b[j].wallet && x.score === b[j].score);
+  const check = onChain ? { champions: same(onChain.champions, rb.champions), predictors: same(onChain.predictors, rb.predictors), dropMvps: same(onChain.dropMvps, rb.dropMvps) } : null;
+  const body = { ok: true, id, account: k.toBase58(), onChain, rebuild: rb, matches: check ? check.champions && check.predictors && check.dropMvps : null, check };
+  seasonCache.set(id, { at: Date.now(), body });
+  return body;
+}
+/** The same boards rebuilt from the archived keeper summaries of matches recorded into `id` (markets, drops, receipt). */
+function rebuild(id: number) {
+  const ps = new Map<string, { crowns: number; finals: number; net: bigint; drops: number }>();
+  const get = (w: string) => { let x = ps.get(w); if (!x) ps.set(w, (x = { crowns: 0, finals: 0, net: 0n, drops: 0 })); return x; };
+  let n = 0;
+  for (const d of matchDirs()) {
+    const s = readJson(join(ARCHIVE, d.id, "summary.json"));
+    const rec = s?.seasons?.[id];
+    if (!rec || !rec.sigs?.length) continue;
+    n++;
+    const rc = s.receipt ?? {};
+    const recorded = new Set<string>();
+    for (let k = 0; k < 5; k++) for (const b of s[`market${k}`]?.bets ?? []) recorded.add(b.wallet);
+    for (let sl = 0; sl < 12; sl++) if ((rc.humanMask >> sl) & 1) recorded.add(rc.wallets[sl]);
+    for (const b of s.drops?.buys ?? []) recorded.add(b.by);
+    for (const w of rec.walletList ?? recorded) {
+      const x = get(w);
+      for (let sl = 0; sl < 12; sl++) if ((rc.humanMask >> sl) & 1 && rc.wallets[sl] === w) {
+        const st = s.chainWorker?.finalists ?? [];
+        if (rc.champion === sl && rc.status === 5) x.crowns++;
+        if (st.includes(sl) || rc.champion === sl) x.finals++;
+      }
+      for (let k = 0; k < 5; k++) {
+        const m = s[`market${k}`];
+        if (!m || m.status !== 3 || m.refund === 1) continue;
+        for (const b of m.bets) if (b.wallet === w) {
+          const won = (m.winners >> b.outcome) & 1 && BigInt(m.winningStake) > 0n ? (BigInt(b.amount) * BigInt(m.pool)) / BigInt(m.winningStake) : 0n;
+          x.net += won - BigInt(b.amount);
+        }
+      }
+      if (s.final) for (const b of s.drops?.buys ?? []) if (b.by === w) x.drops++;
+    }
+  }
+  const top = (f: (x: any) => bigint) => [...ps.entries()].map(([wallet, x]) => ({ wallet, score: f(x) })).filter((e) => e.score > 0n).sort((a, b) => (b.score > a.score ? 1 : b.score < a.score ? -1 : 0)).slice(0, 10).map((e) => ({ wallet: e.wallet, score: e.score.toString() }));
+  return { matches: n, champions: top((x) => BigInt(x.crowns * 1000 + x.finals)), predictors: top((x) => x.net), dropMvps: top((x) => BigInt(x.drops)) };
 }
 const ECON_SEEDS = (arenaId: number, arena: PublicKey) => [
   ...[0, 1, 2, 3, 4].map((k) => PublicKey.findProgramAddressSync([Buffer.from("market"), Buffer.from([arenaId]), Buffer.from([k])], PROGRAM)[0]),
@@ -146,7 +218,27 @@ createServer(async (req, res) => {
     const p = u.pathname.replace(/^\/api/, "");
     if (p === "/status") return send(res, 200, await status());
     if (p === "/health") return send(res, 200, { ok: true, funder: funder?.publicKey.toBase58() ?? null, funderLamports: funder ? await BASE.getBalance(funder.publicKey).catch(() => -1) : null, matches: matchDirs().length });
-    if (p === "/matches") return send(res, 200, { ok: true, matches: matchDirs().slice(0, Number(u.searchParams.get("n") ?? 50)).map((d) => brief(d.id)).filter(Boolean) });
+    if (p === "/matches") {
+      // P6: matches with no human and no on-chain Final (aborted bot-only lobbies) only with ?all=1
+      const all = u.searchParams.get("all") === "1";
+      const xs = matchDirs().map((d) => brief(d.id)).filter((x): x is NonNullable<ReturnType<typeof brief>> => !!x && (all || !x.hidden));
+      return send(res, 200, { ok: true, matches: xs.slice(0, Number(u.searchParams.get("n") ?? 50)) });
+    }
+    if (p === "/season") {
+      const id = Number(u.searchParams.get("id") ?? isoWeek(Date.now() / 1000));
+      const body = await season(id);
+      const w = u.searchParams.get("wallet");
+      if (w && SAFE.test(w)) {
+        const i = await BASE.getAccountInfo(pseasonPda(id, new PublicKey(w))).catch(() => null);
+        return send(res, 200, { ...body, player: i && i.owner.equals(PROGRAM) ? decodePSeason(i.data as Buffer) : null, playerAccount: pseasonPda(id, new PublicKey(w)).toBase58() });
+      }
+      return send(res, 200, body);
+    }
+    if (p === "/seasons") {
+      const ids = new Set<number>([isoWeek(Date.now() / 1000)]);
+      for (const d of matchDirs().slice(0, 200)) for (const k of Object.keys(readJson(join(ARCHIVE, d.id, "summary.json"))?.seasons ?? {})) ids.add(Number(k));
+      return send(res, 200, { ok: true, current: isoWeek(Date.now() / 1000), seasons: [...ids].sort((a, b) => b - a).map((id) => ({ id, account: seasonPda(id).toBase58(), test: id >= 1_000_000 })) });
+    }
     let m = p.match(/^\/match\/([1-9A-HJ-NP-Za-km-z]{32,44})$/);
     if (m) {
       const dir = join(ARCHIVE, m[1]);

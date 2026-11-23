@@ -15,9 +15,16 @@ namespace FallRush.OnChain
     [Serializable] public sealed class EMatch { public string pda; public int status, flags, players, round, champion; public int[] slots = Array.Empty<int>(); }
     [Serializable] public sealed class EState { public bool ok; public string error, wallet; public EChips chips; public EMarket[] markets = Array.Empty<EMarket>(); public EDrops drops; public EWorld world; public EMatch match; public int[] prices = Array.Empty<int>(); }
     [Serializable] public sealed class EMarketResult { public string pool, winningStake; public int winners, label, status; }
-    [Serializable] public sealed class EReceiptBody { public int flags, trust, coreVersion, humanMask, mintedMask, drops; public string dropSpent, mapHash, preFinal, finalTranscript, dropLog, capsuleSeed, crown; public string[] wallets = Array.Empty<string>(); public int[] placements = Array.Empty<int>(), rarity = Array.Empty<int>(); public EMarketResult[] markets = Array.Empty<EMarketResult>(); }
+    [Serializable] public sealed class EReceiptBody { public int flags, trust, coreVersion, humanMask, mintedMask, drops, sealedN, sealedRevealed, sealedForfeits; public string dropSpent, mapHash, preFinal, finalTranscript, dropLog, capsuleSeed, crown; public string[] wallets = Array.Empty<string>(); public int[] placements = Array.Empty<int>(), rarity = Array.Empty<int>(); public EMarketResult[] markets = Array.Empty<EMarketResult>(); }
     [Serializable] public sealed class EReceipt { public bool ok, onSolana; public string error, match, crownAsset, me; public int status, flags, champion, round; public EReceiptBody receipt; public string[] capsuleAssets = Array.Empty<string>(); }
     [Serializable] public sealed class EReply { public bool ok, session; public string error, sig; public int ms; }
+    // P6: sealed Champion bets (pick in MagicBlock's private rollup, stake + commitment on devnet-as) and the season
+    [Serializable] public sealed class ESealedEscrow { public string pool, forfeit; public int n, nRevealed, state, nForfeit; public long closedAt; }
+    [Serializable] public sealed class ESealedSaved { public int outcome; public string amount; }
+    [Serializable] public sealed class ESealedMine { public int i, state; public string amount; public ESealedSaved saved; }
+    [Serializable] public sealed class ESealed { public bool ok, open; public string match, error; public ESealedEscrow escrow; public ESealedMine[] mine = Array.Empty<ESealedMine>(); }
+    [Serializable] public sealed class ESeasonPlayer { public int crowns, finals, matches, achievements, betsWon, betsLost, drops, roundsSurvived; public string net, wallet; }
+    [Serializable] public sealed class ESeason { public bool ok; public int id; public ESeasonPlayer player; }
 
     /// <summary>
     /// P4: the player's side of the economy (RUSH chips, Rush Markets, Chaos Drops, receipt, claim), over the on-chain
@@ -32,6 +39,15 @@ namespace FallRush.OnChain
 
         public EState State;
         public EReceipt Receipt;
+        /// <summary>P6: the arena's sealed Champion escrow (+ my sealed entries) and my season stats.</summary>
+        public ESealed Sealed;
+        public ESeason Season;
+        public string SeasonFor;
+        private double _selfRevealAt;
+        /// <summary>P6 test hook (dev / verification): <c>?autobet=&lt;RUSH&gt;</c> places one sealed Champion bet through
+        /// <see cref="Bet"/> (the bet panel's path) as soon as the sealed market opens, on the first alive slot.</summary>
+        private int _autobet = -1;
+        private string _autobetFor;
         public string LastError, LastSig, LastAction;
         public bool LastSession;
         public long Balance => State?.chips != null ? Parse(State.chips.balance) : -1;
@@ -138,6 +154,36 @@ namespace FallRush.OnChain
                     }
 
                     State = s;
+                    // P6: the sealed escrow (and the commit-reveal fallback: reveal my own pick if the private book's
+                    // reveal has not happened 6 s into the reveal window)
+                    Call("sealedState", "{}", r2 =>
+                    {
+                        var x = JsonUtility.FromJson<ESealed>(r2);
+                        if (x == null || !x.ok)
+                            return;
+                        Sealed = x;
+                        var nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                        if (x.escrow != null && x.escrow.state == 2 && nowUnix > x.escrow.closedAt + 6 && Time.realtimeSinceStartupAsDouble > _selfRevealAt + 5)
+                            foreach (var mine in x.mine)
+                                if (mine.state == 0 && mine.saved != null && !string.IsNullOrEmpty(mine.saved.amount))
+                                {
+                                    _selfRevealAt = Time.realtimeSinceStartupAsDouble;
+                                    Call("sealedReveal", "{}", r3 => Note("self-reveal: " + r3));
+                                    break;
+                                }
+                    });
+                    if (_autobet < 0)
+                        _autobet = int.TryParse(FallRush.Shared.NetTargets.GetQueryParam(Application.absoluteURL, "autobet"), out var ab) ? ab : 0;
+                    if (_autobet > 0 && Sealed != null && Sealed.open && s.match != null && _autobetFor != s.match.pda && MarketOpen(0))
+                    {
+                        _autobetFor = s.match.pda;
+                        var slot = 0;
+                        for (var i = 0; i < s.match.slots.Length && i < s.match.players; i++)
+                            if (s.match.slots[i] == 1 || s.match.slots[i] == 2) { slot = i; break; }
+                        Debug.Log($"[econ] autobet: sealed Champion bet {_autobet} RUSH on slot {slot + 1}");
+                        Bet(0, slot, _autobet, ok => Debug.Log($"[econ] autobet sealed {(ok ? "ok" : "failed: " + LastError)} sig {LastSig}"));
+                    }
+
                     var m = s.match?.pda;
                     if (!string.IsNullOrEmpty(m) && m != MatchPda)
                     {
@@ -174,8 +220,29 @@ namespace FallRush.OnChain
         }
 
         /// <summary>A bet of <paramref name="amountRush"/> whole RUSH on <paramref name="outcome"/> (slot) in market k.</summary>
-        public void Bet(int k, int outcome, int amountRush, Action<bool> after = null) =>
+        public void Bet(int k, int outcome, int amountRush, Action<bool> after = null)
+        {
+            // P6: the Champion market is sealed (the pick is hidden until close; the program reveals it from the book)
+            if (k == 0 && Sealed != null && Sealed.open)
+            {
+                Call("sealedBet", $"{{\"outcome\":{outcome},\"amount\":{amountRush}}}", r => Reply($"bet sealed {outcome} {amountRush}", r, after));
+                return;
+            }
+
             Call("bet", $"{{\"k\":{k},\"outcome\":{outcome},\"amount\":{amountRush}}}", r => Reply($"bet {k}/{outcome} {amountRush}", r, after));
+        }
+
+        /// <summary>P6: my season stats (crowns, achievements) from the indexer's /api/season.</summary>
+        public void FetchSeason(string forMatch) =>
+            Call("season", "{}", r =>
+            {
+                var x = JsonUtility.FromJson<ESeason>(r);
+                if (x != null && x.ok)
+                {
+                    Season = x;
+                    SeasonFor = forMatch;
+                }
+            });
 
         public void Drop(int kind, Action<bool> after = null) =>
             Call("drop", $"{{\"kind\":{kind}}}", r => Reply($"drop {kind}", r, after));

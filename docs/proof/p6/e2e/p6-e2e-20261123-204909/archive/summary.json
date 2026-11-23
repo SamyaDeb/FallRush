@@ -1,0 +1,481 @@
+{
+ "match": "DaptHYRrSGTJGataqxabtxkmLcoEvijcxBMaQicMqFX",
+ "matchHex": "04869f70d12bb63858aaa42109733232",
+ "arena": 3,
+ "arenaKey": "E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG",
+ "world": "9Q5KBadvfx3Yoen1uqLUgbU1x6tXn4GmkEkjGqfPuRWn",
+ "resumed": false,
+ "startedAt": 1795447179111,
+ "sigs": {
+  "create": "3AHt8xugTA9KkbVbZt378M1GmGG8ypMnhNVnUrNqmr9tesbhxNjkCY7A9jLQr9cSmE5aik3HTBFPZQ1qQEEjBWkk",
+  "delegate": "2nrobHnd2HtyTKkGK7rWzZDpcUTjU7KVw73oYKFrMDM9CuP4CpfpqGPKTPEXM4KD2CvJ73VLfVHmtfMx2LckGN9P",
+  "openLobby": "2JJBbL1j7gw33PUhGAVHcehPQ2JAWLUKtGpEeGC1iSUGgaN1TTevmhXQkHgdYyS99JDa6yaxskixB1eQF1EQbjdV",
+  "openMarkets": "5Envgmw6iP6NoQDvSwxwE5etRrKMBqJJ8GgyYWfyTTgrU5auAGJYmCmnHggoywbqXRkTFWowrckAbMoZ2BhRNriC",
+  "escrowOpen": "61cXyi13QBqXWoxa7dceVyYvgiWA56DqXvUU3bSshz1uTBzptoX65x5WPJCtV9NAxnZ4ybjqN5STJfmmeYi4s8Ya",
+  "bookOpen": "3dD7iuN8fxzkMJz8VcBHApk8jSB2bKYz3G2Yxn4h5Ug9wFmQAgJ65g4AJonB7iU6TAastTZqB3xuatfhPznbUywv",
+  "requestDeal": "62TEPoALubojhwYHBxR9TCey8bEKbtDEaqxbiAdQh4NvMFUNHvQSXBxVmegaB5fBHNjnMVqBGuY1V7hCNthiy8VV",
+  "startFinal": "5vkV2t9xmcRK1Cx1GndFRzubpWjkEMPLFbc6gm7FJW2tJCpndo4jsrAdNXSaVhps2FazP19c6y9sfKn3aAHNjRqi",
+  "sealedClose": "2biXc2sXhydCEA9pA6P4gZqeaavoQhSD51wnCtzTfcFTMWHTpdYRasAxv9i35Exq6t5FJ3QeSwUuYonuHjPpxjQf",
+  "bookClose": "3Mm8QqEGLrW8sTv6S4SGZ4weK9P57QKwV9tShbrfdCtXr9JNtcWLXAan8RonYbBn6qVTQuHuAvKdMjkQNzMyLQA3",
+  "sealedFinish": "5PhSB6Zq2Qw1Ns7yM7wFF1kfU1T97xffa6kvwuf4ziTsvfTFwcQ5Qda9cPGnL51ETWAkJoMrieeShKEu5f4ntk4g",
+  "writeReceipt": "3rTRLi2e7mbTVKYBTssf5AWsstaUShSCtkzVkN4wXZKtmDMjp49QXsqFK1iUX2W5NuP68seq7q9yVvKH56rDa7ic",
+  "endSim": "2k5uAiUAWL6e1KF84pH5CnZQvr1V78m8jswXPnoDAKVqbe7SRvqCaTs4yDxSNxmtKcvQxQNrvDiR5hSuYAEoXTuc",
+  "finalize": "4iqa2zf8yn7gEbUU5C1sBrWsngepdcxURsTNW9h73scDaFtrREm95y9dbvyiYkvNQSAABbhNW12DWyHQXjW8nBGf"
+ },
+ "humansInRoster": 1,
+ "chainWorker": {
+  "finalists": [
+   4,
+   7,
+   9
+  ],
+  "sent": 31,
+  "skipped": 31
+ },
+ "sealed": {
+  "closedAt": 1795447201764,
+  "bookClosed": 1795447202645,
+  "reveals": [
+   "vxq8dJQeYH6EgYPm3jcdchyKyBsh5JeSvjDmLQipMteH4kS7Pwt6ov1qNB5jXD4bn35WNAhYaPsKcni9s99kzwF"
+  ],
+  "revealedAt": 1795447203278,
+  "n": 5,
+  "revealed": 5,
+  "forfeits": 0,
+  "state": 3,
+  "pool": "55000000",
+  "forfeit": "0",
+  "entries": [
+   {
+    "wallet": "76ZpY8EYsDkpPz2ikdhipBGAye3VdyudNnTeAAB8Jw9J",
+    "amount": "5000000",
+    "hash": "0d50012981dd89c3c798e3618d502cbabc7018a87ffd76ba6de2d6adce96e7b0",
+    "outcome": 0,
+    "state": 1
+   },
+   {
+    "wallet": "qLJ5pc81tQpSGdwb1v4KaSeUREWD5EXbYoNYB2qgvch",
+    "amount": "8000000",
+    "hash": "4d47423f795b48415e6680c926cf186fc9b84c3b2f75f3dbb57349731303aeb9",
+    "outcome": 3,
+    "state": 1
+   },
+   {
+    "wallet": "EEYWQbUq6aKSPcpCnrQdjWthi1j4zaXRPGBa6rkv9pS2",
+    "amount": "11000000",
+    "hash": "e418c2eb0e0d112fa2346c0415e0592451eb497cce14f6d9164bf709aca7b09b",
+    "outcome": 5,
+    "state": 1
+   },
+   {
+    "wallet": "B7u3xv8dq4Jm5WXKhbXmHoUnu2ASZvjx62Udde4RkCNN",
+    "amount": "14000000",
+    "hash": "a09226ee51d7c8ee5e16bafce5a8e19a7368ea348e35f50b4f7495c6164ea7e0",
+    "outcome": 7,
+    "state": 1
+   },
+   {
+    "wallet": "FxyXQu93gf6ASNHjUyeYMppPwEFD57G2ZjaeHM3t8Rmu",
+    "amount": "17000000",
+    "hash": "846c9725c5377bbed7c3029899ebdff9b4464125ea7e41dd8831b742af467811",
+    "outcome": 9,
+    "state": 1
+   }
+  ],
+  "book": [
+   {
+    "wallet": "76ZpY8EYsDkpPz2ikdhipBGAye3VdyudNnTeAAB8Jw9J",
+    "amount": "5000000",
+    "outcome": 0,
+    "salt": "daab774fa26aee77a18bde1f6cea98d8"
+   },
+   {
+    "wallet": "qLJ5pc81tQpSGdwb1v4KaSeUREWD5EXbYoNYB2qgvch",
+    "amount": "8000000",
+    "outcome": 3,
+    "salt": "fe0f9f149cd6e16040a77916255f4b81"
+   },
+   {
+    "wallet": "EEYWQbUq6aKSPcpCnrQdjWthi1j4zaXRPGBa6rkv9pS2",
+    "amount": "11000000",
+    "outcome": 5,
+    "salt": "f74cccf3417568266e898cc9cfd6fd0e"
+   },
+   {
+    "wallet": "B7u3xv8dq4Jm5WXKhbXmHoUnu2ASZvjx62Udde4RkCNN",
+    "amount": "14000000",
+    "outcome": 7,
+    "salt": "655980aeaf88dc54ad3e726d102c8006"
+   },
+   {
+    "wallet": "FxyXQu93gf6ASNHjUyeYMppPwEFD57G2ZjaeHM3t8Rmu",
+    "amount": "17000000",
+    "outcome": 9,
+    "salt": "0de7d41b3e5b7477724d2466d1a47353"
+   }
+  ]
+ },
+ "final": {
+  "complete": true,
+  "ticks": 2400,
+  "restarts": 0,
+  "realTime": 0.9998362988427588,
+  "gapP95": 124,
+  "cu": {
+   "n": 117,
+   "p95": 196638,
+   "max": 231778
+  }
+ },
+ "mm": [
+  {
+   "tag": "champion",
+   "k": 0,
+   "sigs": 12,
+   "errs": []
+  },
+  {
+   "tag": "q1",
+   "k": 2,
+   "sigs": 0,
+   "errs": [
+    "2/0: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "2/1: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "2/2: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "2/3: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "2/4: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "2/5: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "2/6: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "2/7: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "2/8: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "2/9: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "2/10: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "2/11: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}"
+   ]
+  },
+  {
+   "tag": "q3",
+   "k": 4,
+   "sigs": 1,
+   "errs": [
+    "4/3: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "4/4: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "4/7: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "4/9: tx:{\"InstructionError\":[0,{\"Custom\":6030}]}"
+   ]
+  },
+  {
+   "tag": "final",
+   "k": 1,
+   "sigs": 3,
+   "errs": []
+  }
+ ],
+ "settle": {
+  "0": 1,
+  "1": 1,
+  "2": 1,
+  "3": 1,
+  "4": 1
+ },
+ "market0": {
+  "pool": "100000000",
+  "winners": 16,
+  "winningStake": "4000000",
+  "label": 1,
+  "status": 3,
+  "refund": 0,
+  "paidTotal": "100000000",
+  "bets": [
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 0,
+    "amount": "4000000",
+    "paid": 1
+   },
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 1,
+    "amount": "7000000",
+    "paid": 1
+   },
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 2,
+    "amount": "4000000",
+    "paid": 1
+   },
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 3,
+    "amount": "4000000",
+    "paid": 1
+   },
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 4,
+    "amount": "4000000",
+    "paid": 1
+   },
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 5,
+    "amount": "2000000",
+    "paid": 1
+   },
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 6,
+    "amount": "4000000",
+    "paid": 1
+   },
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 7,
+    "amount": "4000000",
+    "paid": 1
+   },
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 8,
+    "amount": "2000000",
+    "paid": 1
+   },
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 9,
+    "amount": "4000000",
+    "paid": 1
+   },
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 10,
+    "amount": "4000000",
+    "paid": 1
+   },
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 11,
+    "amount": "2000000",
+    "paid": 1
+   },
+   {
+    "wallet": "76ZpY8EYsDkpPz2ikdhipBGAye3VdyudNnTeAAB8Jw9J",
+    "outcome": 0,
+    "amount": "5000000",
+    "paid": 1
+   },
+   {
+    "wallet": "qLJ5pc81tQpSGdwb1v4KaSeUREWD5EXbYoNYB2qgvch",
+    "outcome": 3,
+    "amount": "8000000",
+    "paid": 1
+   },
+   {
+    "wallet": "EEYWQbUq6aKSPcpCnrQdjWthi1j4zaXRPGBa6rkv9pS2",
+    "outcome": 5,
+    "amount": "11000000",
+    "paid": 1
+   },
+   {
+    "wallet": "B7u3xv8dq4Jm5WXKhbXmHoUnu2ASZvjx62Udde4RkCNN",
+    "outcome": 7,
+    "amount": "14000000",
+    "paid": 1
+   },
+   {
+    "wallet": "FxyXQu93gf6ASNHjUyeYMppPwEFD57G2ZjaeHM3t8Rmu",
+    "outcome": 9,
+    "amount": "17000000",
+    "paid": 1
+   }
+  ]
+ },
+ "market1": {
+  "pool": "24000000",
+  "winners": 16,
+  "winningStake": "8000000",
+  "label": 1,
+  "status": 3,
+  "refund": 0,
+  "paidTotal": "24000000",
+  "bets": [
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 4,
+    "amount": "8000000",
+    "paid": 1
+   },
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 7,
+    "amount": "8000000",
+    "paid": 1
+   },
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 9,
+    "amount": "8000000",
+    "paid": 1
+   }
+  ]
+ },
+ "market2": {
+  "pool": "0",
+  "winners": 735,
+  "winningStake": "0",
+  "label": 5,
+  "status": 3,
+  "refund": 1,
+  "paidTotal": "0",
+  "bets": []
+ },
+ "market3": {
+  "pool": "0",
+  "winners": 668,
+  "winningStake": "0",
+  "label": 5,
+  "status": 3,
+  "refund": 1,
+  "paidTotal": "0",
+  "bets": []
+ },
+ "market4": {
+  "pool": "8000000",
+  "winners": 656,
+  "winningStake": "0",
+  "label": 5,
+  "status": 3,
+  "refund": 1,
+  "paidTotal": "8000000",
+  "bets": [
+   {
+    "wallet": "D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE",
+    "outcome": 2,
+    "amount": "8000000",
+    "paid": 1
+   }
+  ]
+ },
+ "drops": {
+  "count": 0,
+  "pot": "50000000",
+  "buys": []
+ },
+ "finalizeMode": "action",
+ "finalizeToBaseMs": 1818,
+ "rewards": {
+  "minted": {},
+  "attempts": 0,
+  "failures": []
+ },
+ "assets": [],
+ "receipt": {
+  "owner": "4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4",
+  "flags": 25,
+  "trust": 3,
+  "coreVersion": 2,
+  "humanMask": 0,
+  "mintedMask": 0,
+  "drops": 0,
+  "dropSpent": "0",
+  "mapHash": "44bc4e756140708faa2897f898c06ea63d422bf9345c563644d6106a01948811",
+  "preFinal": "0000000000000000000000000000000000000000000000000000000000000000",
+  "finalTranscript": "1e34665ca862bc9abf7f6a28a5abd0c68f6256ba8b80a1514a9f943caa1c197e",
+  "dropLog": "0000000000000000000000000000000000000000000000000000000000000000",
+  "capsuleSeed": "0000000000000000000000000000000000000000000000000000000000000000",
+  "crown": "11111111111111111111111111111111",
+  "wallets": [
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111"
+  ],
+  "placements": [
+   4,
+   7,
+   9,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255
+  ],
+  "rarity": [
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255
+  ],
+  "markets": [
+   {
+    "pool": "100000000",
+    "winningStake": "4000000",
+    "winners": 16,
+    "label": 1,
+    "status": 3
+   },
+   {
+    "pool": "24000000",
+    "winningStake": "8000000",
+    "winners": 16,
+    "label": 1,
+    "status": 3
+   },
+   {
+    "pool": "0",
+    "winningStake": "0",
+    "winners": 735,
+    "label": 5,
+    "status": 3
+   },
+   {
+    "pool": "0",
+    "winningStake": "0",
+    "winners": 668,
+    "label": 5,
+    "status": 3
+   },
+   {
+    "pool": "8000000",
+    "winningStake": "0",
+    "winners": 656,
+    "label": 5,
+    "status": 3
+   }
+  ],
+  "sealedN": 5,
+  "sealedRevealed": 5,
+  "sealedForfeits": 0,
+  "sealedPool": "55000000",
+  "sealedForfeit": "0",
+  "betsHash": "0074fe5d1d488da21938cb1222eafd077c0b0ccbdedbcd299807de59dd7e20bf",
+  "sealedHash": "d5218517e9203875d380a41c0fe07a70297ce972f795704367a5689bc5c3a8ed",
+  "completedAt": 1795447273,
+  "status": 5,
+  "champion": 4
+ },
+ "seasons": {},
+ "seasonError": "Simulation failed. \nMessage: Transaction simulation failed: Error processing Instruction 1: custom program error: 0x179f. \nLogs: \n[\n  \"Program ComputeBudget111111111111111111111111111111 invoke [1]\",\n  \"Program ComputeBudget111111111111111111111111111111 success\",\n  \"Program 4yehffTS5zxw9vqHpmiAgxoq",
+ "doneAt": 1795447356269
+}
