@@ -48,6 +48,7 @@ namespace FallRush.OnChain
         {
             Instance = this;
             _canvas = UiKit.CreateCanvas("EconomyCanvas", 40);
+            DontDestroyOnLoad(_canvas.gameObject); // the on-chain session loads the map scene after this HUD exists
             _chipsPill = Pill(_canvas, new Vector2(1f, 1f), new Vector2(-150f, -10f), new Vector2(230f, 40f), UiKit.Ink, out _chips, 18, UiKit.SunYellow);
             _bannerPill = Pill(_canvas, new Vector2(0.5f, 1f), new Vector2(0f, -132f), new Vector2(720f, 54f), UiKit.Grape, out _banner, 24, Color.white);
             _bannerPill.gameObject.SetActive(false);
@@ -90,6 +91,12 @@ namespace FallRush.OnChain
         private static Button Small(Transform row, string text, Color c, float w, UnityEngine.Events.UnityAction a)
         {
             var b = UiKit.Button(row, text, c, a);
+            foreach (var t in b.GetComponentsInChildren<TMP_Text>(true))
+            {
+                t.fontSize = w < 100f ? 13 : 16;
+                t.enableAutoSizing = false;
+                t.textWrappingMode = TextWrappingModes.NoWrap;
+            }
             var le = b.GetComponent<LayoutElement>();
             le.preferredWidth = le.minWidth = w;
             le.preferredHeight = le.minHeight = 34;
@@ -105,7 +112,7 @@ namespace FallRush.OnChain
             for (var k = 0; k < 5; k++)
             {
                 var kk = k;
-                Small(tabs, new[] { "Champ", "Final", "Q1", "Q2", "Q3" }[k], UiKit.SkyLight, 72f, () => _betMarket = kk);
+                Small(tabs, new[] { "Champ", "Final", "Q1", "Q2", "Q3" }[k], UiKit.SkyLight, 70f, () => _betMarket = kk);
             }
 
             _betTitle = UiKit.Label(_bet, string.Empty, 20, UiKit.Grape, FontStyle.Bold, 30);
@@ -117,14 +124,14 @@ namespace FallRush.OnChain
             for (var i = 0; i < 6; i++)
             {
                 var ii = i;
-                Small(r1, $"#{i + 1} +10", UiKit.SunYellow, 62f, () => PlaceOn(ii, 10));
+                Small(r1, $"#{i + 1} +10", UiKit.SunYellow, 58f, () => PlaceOn(ii, 10));
             }
 
             var r2 = UiKit.Row(_bet, 36f, 6f);
             for (var i = 0; i < 6; i++)
             {
                 var ii = i;
-                Small(r2, $"#{i + 1} +50", UiKit.Amber, 62f, () => PlaceOn(ii, 50));
+                Small(r2, $"#{i + 1} +50", UiKit.Amber, 58f, () => PlaceOn(ii, 50));
             }
 
             UiKit.Label(_bet, "B: bet panel · devnet test chips only, no real-money value", 12, UiKit.Grey);
@@ -133,9 +140,10 @@ namespace FallRush.OnChain
 
         private void BuildDropBar()
         {
-            _dropBar = UiKit.Panel(_canvas, new Vector2(980f, 128f), new Color(1f, 1f, 1f, 0.96f));
+            _dropBar = UiKit.Panel(_canvas, new Vector2(980f, 112f), new Color(1f, 1f, 1f, 0.94f));
             _dropBar.anchorMin = _dropBar.anchorMax = _dropBar.pivot = new Vector2(0.5f, 0f);
-            _dropBar.anchoredPosition = new Vector2(0f, 176f);
+            _dropBar.anchoredPosition = new Vector2(0f, 168f);
+            _dropBar.localScale = Vector3.one * 0.8f;
             var row = UiKit.Row(_dropBar, 40f, 10f, TextAnchor.MiddleCenter);
             for (var k = 1; k <= 4; k++)
             {
@@ -150,10 +158,11 @@ namespace FallRush.OnChain
 
         private void BuildReceipt()
         {
-            _receipt = UiKit.Panel(_canvas, new Vector2(620f, 430f), UiKit.CloudWhite);
+            _receipt = UiKit.Panel(_canvas, new Vector2(440f, 360f), UiKit.CloudWhite);
             _receipt.anchorMin = _receipt.anchorMax = _receipt.pivot = new Vector2(0f, 0.5f);
-            _receipt.anchoredPosition = new Vector2(16f, 0f);
-            _receiptText = UiKit.Label(_receipt, string.Empty, 16, UiKit.Ink, FontStyle.Normal, 320);
+            _receipt.anchoredPosition = new Vector2(8f, -40f);
+            _receipt.localScale = Vector3.one * 0.85f;
+            _receiptText = UiKit.Label(_receipt, string.Empty, 14, UiKit.Ink, FontStyle.Normal, 260);
             _receiptText.richText = true;
             _receiptText.alignment = TextAlignmentOptions.TopLeft;
             _claim = UiKit.Button(_receipt, "Claim with Phantom", UiKit.Grape, Claim);
@@ -218,6 +227,8 @@ namespace FallRush.OnChain
 
         private void Update()
         {
+            if (_canvas == null)
+                return;
             var e = ChainEconomy.Instance;
             var session = OnChainSession.Instance;
             var on = e != null && session != null && session.isActiveAndEnabled && e.Available && session.Cfg.target != "emu";

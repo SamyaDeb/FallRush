@@ -1,0 +1,13 @@
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=B modifier=None seed=0x45411fcdbf01f5b9 start=1202 qualify=8/12 intro=60 countdown=90 timer=4500 rush@1202 participants=12
+[gs] mevt #1 START_ROUND r1 slot=- arg=- tick=1051 transcript=f4f8d07579a026d8
+[gs] mevt #14 COMPLETE_ROUND r1 slot=- arg=8 tick=3381 transcript=b4959d44e7e5c614
+[gs] round 2/4 GooTower (Survival) start: map=1 variant=A modifier=None seed=0x2dd2f6c58c9d9b8f start=3953 qualify=5/8 intro=60 countdown=90 timer=4500 rush@3953 participants=8
+[gs] mevt #15 START_ROUND r2 slot=- arg=- tick=3802 transcript=e62c0bd99e8c3eef
+[gs] mevt #24 COMPLETE_ROUND r2 slot=- arg=5 tick=5663 transcript=5b6c2122b6d023d0
+[gs] round 3/4 StarScramble (Skill) start: map=2 variant=A modifier=TurboToys seed=0xf6bec17d230cf621 start=6235 qualify=3/5 intro=60 countdown=90 timer=1800 rush@6235 participants=5
+[gs] mevt #25 START_ROUND r3 slot=- arg=- tick=6084 transcript=1578d6e238846a6f
+[gs] mevt #31 COMPLETE_ROUND r3 slot=- arg=3 tick=8035 transcript=4eec5650034800ea
+[gs] round 4/4 CrumbleShelf (Final) start: map=3 variant=A modifier=None seed=0x2132d6f8d4d0b83a start=8607 qualify=1/3 intro=60 countdown=90 timer=3600 rush@8607 participants=3
+[gs] mevt #32 START_ROUND r4 slot=- arg=- tick=8456 transcript=d0dddab9e6089eef
+[gs] mevt #36 COMPLETE_ROUND r4 slot=- arg=1 tick=11046 transcript=1350ef135a0f7716
+[gs] mevt #37 COMPLETE_MATCH r4 slot=10 arg=- tick=11226 transcript=efb7eee7fe669d22

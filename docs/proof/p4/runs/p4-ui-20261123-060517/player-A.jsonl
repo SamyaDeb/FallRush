@@ -1,0 +1,11 @@
+{"t":1795394118418,"name":"A","role":"bettor","act":"init","burner":"7GG8nDiFfhV3soLYVNpzUr35rzi4n8hDbwnb3AEF3hJB","session":"GWAu7VKqwijx4vwHKMHRctU9HyWr8hanZDGWgBUMo6kS"}
+{"t":1795394118752,"name":"A","role":"bettor","act":"session","ok":true,"token":"5pXx9xmnFqmNEa48cKkjbvSWssKwoCvZGtk5KMycttaN"}
+{"t":1795394118947,"name":"A","role":"bettor","act":"chips","ok":true,"balance":"996543336"}
+{"t":1795394163018,"name":"A","role":"bettor","act":"match","match":"EfUCy6KXVn6Htx4vZZ6PSeEwX3grSR4FnEy86uDvQpcK"}
+{"t":1795394163356,"name":"A","role":"bettor","act":"bet","k":0,"outcome":11,"amount":15,"ok":true,"sig":"5gnA9nxze5pK9HEKcAR5ztyR3H9RxiR9kPJLonNDdc96oABrh1TmQuaQc47f4eBHNvAhmkGThD1Uatd8cFe7jrJu","session":true,"ms":236}
+{"t":1795394163665,"name":"A","role":"bettor","act":"bet","k":2,"outcome":5,"amount":8,"ok":true,"sig":"4eNUNDsg45eJULJdat4CdJyB6ceiv9wYM7gfUzykjYrnFFNh4cNQrTuticyktwHESV4KuS36nzvuqofR11bCLYN3","session":true,"ms":221}
+{"t":1795394176400,"name":"A","role":"bettor","act":"bet","k":3,"outcome":0,"amount":6,"ok":true,"sig":"Y2dhDeMzfQueyFzzhKbe4SSnjqVNtduh9J591zk1aC8tkHV2w19wjvBNG3nkiMzRPAp8sDyaUXSrUD87s66BScH","session":true,"ms":191}
+{"t":1795394187093,"name":"A","role":"bettor","act":"bet","k":4,"outcome":8,"amount":5,"ok":true,"sig":"4jUCtZFRL4HsdeBbDuVEt45DGtZFmLuvcfwdeQ42tcoVCoCFM1GR8cUHahK5tgwxucGdNcRPst9NkTyFWokmbDiQ","session":true,"ms":193}
+{"t":1795394200015,"name":"A","role":"bettor","act":"bet","k":1,"outcome":9,"amount":12,"ok":true,"sig":"5EoiMQ7AsaCYLYQvo1WLtBnD5anm3gCViGjMttiZD8FZmYWpe2ifovW45pHDpxHQddJxQwgTCNp2TGSt9xETEmB8","session":true,"ms":329}
+{"t":1795394286902,"name":"A","role":"bettor","act":"markets_paid","balance":"980704728"}
+{"t":1795394287126,"name":"A","role":"bettor","act":"end","balance":"980704728","won":"156704728","spent":"176000000"}

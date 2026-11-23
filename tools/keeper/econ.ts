@@ -73,24 +73,31 @@ export function decodeReceipt(d: Buffer) {
 }
 
 // ------------------------------------------------------------------ setup (idempotent)
+/** A base-layer read retried through transient network errors ("fetch failed", 429). */
+async function baseInfo(k: PublicKey) {
+  for (let i = 0; ; i++) {
+    try { return await base.getAccountInfo(k, "confirmed"); } catch (e) { if (i >= 8) throw e; await sleep(1500 * (i + 1)); }
+  }
+}
 export async function setupEcon(arenaId: number, out: Record<string, string> = {}) {
   const arena = pda.arena(arenaId);
   const cfg = pda.config();
   const val = [{ pubkey: EP.validator, isSigner: false, isWritable: false }];
   for (let k = 0; k <= MARKETS; k++) {
     const acc = k < MARKETS ? epda.market(arenaId, k) : epda.drops(arena);
-    const onBase = await base.getAccountInfo(acc);
+    const onBase = await baseInfo(acc);
     if (!onBase) out[`init_econ_${k}`] = await sendBase([await econIx(wallet.publicKey, OP.INIT_ECON, arenaId, k, [r_(cfg), r_(arena), w_(acc), r_(SystemProgram.programId)], false)], [wallet], `init_econ ${k}`);
     // the public RPC can lag behind the confirmation: wait until the new account is visible before delegating it
-    let now = await base.getAccountInfo(acc, "confirmed");
-    for (let i = 0; i < 60 && !now; i++) { await sleep(1000); now = await base.getAccountInfo(acc, "confirmed"); }
+    let now = await baseInfo(acc);
+    for (let i = 0; i < 60 && !now; i++) { await sleep(1000); now = await baseInfo(acc); }
     if (now && now.owner.equals(PROGRAM_ID)) {
       out[`delegate_econ_${k}`] = await sendBase([await pb.methods.delegateSim(k < MARKETS ? 4 : 5, arenaId, k < MARKETS ? k : 0).accountsPartial({ authority: wallet.publicKey, pda: acc }).remainingAccounts(val).instruction()], [wallet], `delegate econ ${k}`);
     }
   }
   // treasury PDA (pays Core asset rent in mint_rewards)
   const tre = epda.treasury();
-  const tb = (await base.getBalance(tre)) ?? 0;
+  let tb = 0;
+  for (let i = 0; i < 8; i++) { try { tb = await base.getBalance(tre); break; } catch { await sleep(1500 * (i + 1)); } }
   const want = Number(process.env.TREASURY_LAMPORTS ?? (NET === "local" ? 2_000_000_000 : 60_000_000));
   if (tb < want / 2) out.treasury = await sendBase([SystemProgram.transfer({ fromPubkey: wallet.publicKey, toPubkey: tre, lamports: want - tb })], [wallet], "fund treasury");
   // RUSH mint: a plain SPL mint whose mint authority is the program PDA (no freeze authority)
@@ -100,7 +107,7 @@ export async function setupEcon(arenaId: number, out: Record<string, string> = {
 
 export async function ensureRushMint(out: Record<string, string> = {}) {
   const mint = RUSH_MINT;
-  if (await base.getAccountInfo(mint)) return mint;
+  if (await baseInfo(mint)) return mint;
   // a plain SPL mint (keypair account) whose mint authority is the program PDA; the keypair only signs the creation
   const kp = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(new URL("./.keys/rush-mint.json", import.meta.url), "utf8"))));
   if (!kp.publicKey.equals(mint)) throw new Error("tools/keeper/.keys/rush-mint.json is not the pinned RUSH mint");

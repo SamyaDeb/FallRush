@@ -1,0 +1,60 @@
+[relay] join {"name":"P4","spectate":false} (waits for the arena lobby and start_final)
+[relay] join: session {"state":"reused","token":"wGuktwSWgKRLP6Sbq4t4QcvT7Gymt9sMuuRa1GsMFMo"}
+[relay] join: waitingLobby {"arenaStatus":3}
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 160.8 gaps 0 slices 0 ws 0 stale 0 reconn 0 clients 1
+[relay] join: lobbyOpen {"arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","match":"5gTjge8KaqxNG9pHPGVN3b3uHrJaXbjRanJCERyoa82m","humanMask":0}
+[relay] join: finalists {"finalists":[1,7,10]}
+[relay] join: lobbyJoined {"slot":1,"sig":"3x1erMdSV3zzU8yk17vKiAzenApd9WKv9PZY6x1xFor6GaoxTQUiWHBVcB4sPrrj6H4sWKptNXdZJz5Kzu26tQBR","player":"CwXAeM4mTakTSV7MSK169cZxf715atYDRDyo6VKgMkXU","withSessionToken":true}
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 126.9 gaps 0 slices 0 ws 0 stale 0 reconn 0 clients 1
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 110.7 gaps 0 slices 0 ws 0 stale 0 reconn 0 clients 1
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 130.2 gaps 0 slices 0 ws 0 stale 0 reconn 0 clients 1
+[relay] tick -1 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 146.1 gaps 0 slices 0 ws 0 stale 0 reconn 0 clients 1
+[relay] joined: slot 1 arena HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt match 5gTjge8KaqxNG9pHPGVN3b3uHrJaXbjRanJCERyoa82m roster [{"slot":1,"kind":"human","name":"P4","wallet":"J2hGejfJwcuyADRLN8F5hsywscwhRmRz35BzX7kgxihq"},{"slot":7,"kind":"bot"},{"slot":10,"kind":"bot"}]
+[relay] join: started {"slot":1,"match":"5gTjge8KaqxNG9pHPGVN3b3uHrJaXbjRanJCERyoa82m","finalists":[1,7,10],"ms":28031}
+[relay] tick 34 upd/s 11 in/s 3.5 confirm p50/p95 95.7/285.8 ms rtt 119.7 gaps 0 slices 0 ws 133 stale 113 reconn 0 clients 1
+[relay] tick 184 upd/s 30 in/s 10.5 confirm p50/p95 142.4/225.3 ms rtt 107.9 gaps 0 slices 0 ws 1141 stale 976 reconn 0 clients 1
+[relay] tick 334 upd/s 30 in/s 10 confirm p50/p95 148.1/214.9 ms rtt 96.8 gaps 0 slices 0 ws 2153 stale 1843 reconn 0 clients 1
+[relay] tick 484 upd/s 30 in/s 10 confirm p50/p95 153/199.9 ms rtt 99.4 gaps 0 slices 0 ws 3161 stale 2706 reconn 0 clients 1
+[relay] tick 634 upd/s 30 in/s 10 confirm p50/p95 150.9/192.9 ms rtt 91.3 gaps 0 slices 0 ws 4171 stale 3571 reconn 0 clients 1
+[relay] tick 784 upd/s 30 in/s 9.5 confirm p50/p95 147.6/194.6 ms rtt 89.6 gaps 0 slices 0 ws 5177 stale 4432 reconn 0 clients 1
+[relay] tick 934 upd/s 30 in/s 9.5 confirm p50/p95 148.7/192.9 ms rtt 87.4 gaps 0 slices 0 ws 6191 stale 5301 reconn 0 clients 1
+[relay] tick 1084 upd/s 30 in/s 0 confirm p50/p95 150.4/194.9 ms rtt 92.2 gaps 0 slices 0 ws 7141 stale 6106 reconn 0 clients 1
+[relay] tick 1234 upd/s 30.5 in/s 0 confirm p50/p95 150.4/194.9 ms rtt 100.3 gaps 0 slices 0 ws 8051 stale 6871 reconn 0 clients 1
+[relay] tick 1384 upd/s 30 in/s 0 confirm p50/p95 150.4/194.9 ms rtt 100.3 gaps 0 slices 0 ws 8961 stale 7636 reconn 0 clients 1
+[relay] tick 1534 upd/s 30 in/s 0 confirm p50/p95 150.4/194.9 ms rtt 110.2 gaps 0 slices 0 ws 9871 stale 8401 reconn 0 clients 1
+[relay] tick 1684 upd/s 30 in/s 0 confirm p50/p95 150.4/194.9 ms rtt 108.6 gaps 0 slices 0 ws 10781 stale 9166 reconn 0 clients 1
+[relay] tick 1834 upd/s 29.5 in/s 0 confirm p50/p95 150.4/194.9 ms rtt 123.2 gaps 0 slices 0 ws 11688 stale 9927 reconn 0 clients 1
+[relay] tick 1986 upd/s 29.5 in/s 0 confirm p50/p95 150.4/194.9 ms rtt 295.8 gaps 0 slices 0 ws 12607 stale 10699 reconn 0 clients 1
+[relay] tick 2137 upd/s 30.5 in/s 0 confirm p50/p95 150.4/194.9 ms rtt 217.3 gaps 0 slices 0 ws 13521 stale 11467 reconn 0 clients 1
+[relay] tick 2286 upd/s 29.5 in/s 0 confirm p50/p95 150.4/194.9 ms rtt 188 gaps 0 slices 0 ws 14429 stale 12231 reconn 0 clients 1
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":651}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":651}
+[relay] tick 2410 upd/s 17 in/s 0 confirm p50/p95 150.4/194.9 ms rtt 161.9 gaps 0 slices 0 ws 15181 stale 12864 reconn 2 clients 1
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":812}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":807}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":765}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":761}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":765}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":765}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":755}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":754}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":830}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":828}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":782}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":778}
+[relay] tick 2410 upd/s 0 in/s 0 confirm p50/p95 150.4/194.9 ms rtt 181.1 gaps 0 slices 0 ws 15181 stale 12868 reconn 14 clients 1
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":732}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":727}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":752}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":747}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":696}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":696}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":817}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":811}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":764}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":764}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":741}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":739}
+[relay] tick 2410 upd/s 0 in/s 0 confirm p50/p95 150.4/194.9 ms rtt 202.9 gaps 0 slices 0 ws 15181 stale 12873 reconn 26 clients 1
+[relay] tick 2410 upd/s 0 in/s 0 confirm p50/p95 150.4/194.9 ms rtt 150.9 gaps 0 slices 0 ws 15181 stale 12879 reconn 26 clients 1
+[relay] receipt {"arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","world":"HYJRSXpSGZ3HdjmZr4oMy3x6VgTWLcarkgHav7L4hSTQ","match":"5gTjge8KaqxNG9pHPGVN3b3uHrJaXbjRanJCERyoa82m","joinSig":"3x1erMdSV3zzU8yk17vKiAzenApd9WKv9PZY6x1xFor6GaoxTQUiWHBVcB4sPrrj6H4sWKptNXdZJz5Kzu26tQBR","slot":1,"finalists":[1,7,10],"lastInputSig":"59S12UuVvuGm7fa4TDNcxgRa8hWhNQf4hBHCkCez5uUzDLdNhgozB6XvH6nNgCp9YRfpR2vR8Am9mQJcmDSvbA7h"}

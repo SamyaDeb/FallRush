@@ -1,0 +1,106 @@
+{
+ "realTime": {
+  "gameS": 90.1,
+  "wallS": 90.068,
+  "ratio": 1.000355287116401,
+  "slotWallS": 90.1,
+  "slotRatio": 1,
+  "tickGapOnChainMs": {
+   "p50": 30,
+   "p95": 40,
+   "p99": 50,
+   "max": 370,
+   "n": 2663
+  },
+  "tickGapClientMs": {
+   "p50": 39,
+   "p95": 60,
+   "p99": 77,
+   "max": 375,
+   "n": 2677
+  }
+ },
+ "finalists": [
+  1,
+  4,
+  9
+ ],
+ "preFinal": {
+  "transcript": "61913f086bb8204af605a984384af16c4ed116d0708c11f1e1114d20d696ebcb",
+  "eventSeq": 32,
+  "humans": {
+   "want": 1,
+   "joined": 1,
+   "ms": 75
+  }
+ },
+ "econ": {
+  "settled": 5,
+  "rewards": {
+   "minted": {
+    "capsule1": "2cXZa1NLAmSPMYyFbRi1ybYCoM13kMhxdypGUNGqbrLEab1TfGk6aZ9cRyXBFtJpfwRrYjm58ZehDc3NPtFjnFXS"
+   },
+   "attempts": 2,
+   "failures": [
+    "2: Simulation failed. \nMessage: Transaction simulation failed: Error processing Instruction 1: custom program error: 0x1797. \nLogs: \n[\n  \"Program ComputeBudget1111"
+   ]
+  }
+ },
+ "match": 1,
+ "matchPda": "EKfYtd4rB6YwiBkGweKwvvjejdywkZKVNvKK2ncvEUhb",
+ "complete": true,
+ "wallS": 90.472,
+ "gameS": 90.53333333333333,
+ "ticks": 2716,
+ "executions": 8208,
+ "notDue": 5499,
+ "execPerTick": 3.0220913107511045,
+ "budgetHit": 0,
+ "restarts": 0,
+ "fallback": 0,
+ "cuPerPart": {
+  "r4": {
+   "n": 111,
+   "p50": 139767,
+   "p95": 166188,
+   "max": 229803
+  }
+ },
+ "gapMs": {
+  "p50": 33.875,
+  "p95": 38.42857142857143,
+  "max": 65.66666666666667
+ },
+ "onSolana": {
+  "status": "completed",
+  "champion": 4,
+  "round": 4,
+  "transcript": "2967e2a156506aea06dfc2c3ce44ec0a79fe3409f521ead3178afa27605db8ba",
+  "vrfSeed": "138a623775856a34027c06925a771bfbe0b06f191ebb51b8647dbbaef87c97a6"
+ },
+ "sigs": {
+  "create": "5PQKmHjgaMJsYv5ns6DpsGxuNqzf26QZQRL5KgaVAAtpJHC9kU4fz7N1AgiRB94aHagqG2xpR5bijbFebbWJy3rx",
+  "delegate": "swCQCrooQ3KvX3jkkRFm5FQnwzuwiWJia7xUAtr78T279ZF3Yd4XvjnLvc2zc8QywQkBRgG8DoVDYaFj6CqXxGG",
+  "openLobby": "3C9bAAe9mqLCTGooG9tH34vGEpGfWWtHLRwneZoqpjqhW2LTVCQGtUF3KoauYLJXg7vGMPqVgpxZqY91TCM9dE8x",
+  "openMarkets": "32kQCqrCsEbtiZB4h4RAWkvyWmhJiJ3VnR69KRQMd7Cg8XMftU8bRSieaJgyigGMG8JxNo37L4D9D3L8vPTma75U",
+  "requestDeal": "4utD7moscf7s2ByPTBNXSrQG3bMeFmByqU6nSJ5twX3J4Am9aYquUFGdNYig3ERE334ASvfDojdSEt4wsFEWwEL8",
+  "startFinal": "2QSyYgofBoDhP9PWKgiiMUgyBS48r14PU1qCJdZvqisBTA3zhASrPRmsnT8rkiBCmkbB747oSwpjBZPXVK8tTjTM",
+  "schedule": "2sjFidsCUX1QhF5W8kSMsJp6MJLC1f1NA6oanHpie4xQAjqsD63NPk8tebio8JzkoiEa4KK47N3ma3CdTVGjh3se",
+  "commit4": "4bvyS8z7GwGtAuycVR32VTneJzxk6obVK8tGUFMYkMLgjravwzGLigkoDGBk9Nxn8qzd6TF6GLrsATeveeVVAEN3",
+  "writeReceipt": "5SRpjUgqnGHZ5rwKTLitxPptb3FDpLQbB3wuFfP8HvSAUdwnyvrH5fyUV3rGCk63ZrYNyFv7ch6hFnoAEUwnK9hq",
+  "requestCapsules": "5BGv9gCpTqL627Sux6JaWNJDdUSKB1cAfAnSZCCvYWNcpuq5oqvHZAZdbpBffdSBDpCHGk4cz92epCSjiFa8VazH",
+  "endSim": "66XxiRypqmXh4x16Tz5SFwBYUyR9X6kY7Zjb3pu6sk5rPVyGLRzf8of87v7yWdKzU2hK5zBQPmPxffNzJjWm7aVv",
+  "finalize": "XMwaj3QBLEotnpVusqZiw7wYE26WfVZzdwsjJyfgsrYMNd4S5YiyzAkAeM3nX9SVLqXeDFC7vomckMGinYuBAkN"
+ },
+ "mode": "final",
+ "parts": 1,
+ "interval": 11,
+ "arena": "HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt",
+ "maps": [
+  "86hLenUHLLULngacRGesYdVUaLhTVQtMSgx2UsF9ZKuv",
+  "Dh2MMQSM3MXATAvoHPXWPCifBHF1g6hyzAxRA2zFN8za",
+  "GYeqhxkkjzvXAS1Mv2FLM3EqALH5TjZfqJKiQqu6E8LG",
+  "2zzJi24AJTKVopXd9UMz2j1poAzway5ZMSvuw9jNBCgC",
+  "DxuXdFPfomJW6SXNiCkNgDauW3p2xkiEoPfoPjuYVsCD"
+ ]
+}

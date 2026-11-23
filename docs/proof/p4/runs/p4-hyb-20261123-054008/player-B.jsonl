@@ -1,0 +1,4 @@
+{"t":1795392620584,"name":"B","role":"bettor","act":"init","burner":"7sTcTJnvnvodpZ9KBwYYDNUDSC2FdJJxy84tmy9mWt1b","session":"DY42irGfDrkD8RQha3VQEbEto21sZX7hxKGXmGKzRz8A"}
+{"t":1795392621351,"name":"B","role":"bettor","act":"fund","ok":true,"sig":"q7dpkj1cUkz3Kendg6s3TEFZnLjzZ94vha8sm3PnoX3NhYBXfrhteQ8dHnn3MzdmfVM76htMW51visn4eTDMS3u","lamports":20000000}
+{"t":1795392624355,"name":"B","role":"bettor","act":"session","ok":true,"sig":"3dhmSk4e2XvjWZHSZS1WZaADFMfwUA6DqSGyFVzCoMDgk13GpsVq44aHRUGMtPrJHmBnyeA1vCznnJ2Ad5mty9is","token":"48Px4LLN1Yu4Wa2PZx1oymZ66P4nsYYpRx3Z6SQ4Popq"}
+{"t":1795392626346,"name":"B","role":"bettor","act":"chips","ok":true,"created":"sLmwEMRq7yEBLZw7Ggdh4t6Ttw7XEddzSrTFWMUU8c5zdW7kKYpiZbcmKMedu8zxiJwaFokiqY7faG9R8kxDtyv","faucet":"9oGm2Eybhunqy2N5PqzQQSFbbAL1BRJGqvF6AnScRTejFLr4yThKP8qidWHP8y1iVGBEWWhmpCvcFS7ihUd2dYh","balance":"1000000000"}

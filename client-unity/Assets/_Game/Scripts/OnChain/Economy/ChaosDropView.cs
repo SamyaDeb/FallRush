@@ -25,7 +25,11 @@ namespace FallRush.OnChain
         public static void Ensure()
         {
             if (FindFirstObjectByType<ChaosDropView>() == null)
-                new GameObject("ChaosDropView").AddComponent<ChaosDropView>();
+            {
+                var go = new GameObject("ChaosDropView");
+                DontDestroyOnLoad(go); // survives the map scene load that follows the session start
+                go.AddComponent<ChaosDropView>();
+            }
         }
 
         private static Material Mat()

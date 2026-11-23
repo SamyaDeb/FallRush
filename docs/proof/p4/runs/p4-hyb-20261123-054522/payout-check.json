@@ -1,0 +1,410 @@
+{
+ "match": "3Equ1P3Smokg2M9dGyfwBq3rJUubUypZuLVXuXoSe9wQ",
+ "ok": true,
+ "markets": [
+  {
+   "k": 0,
+   "kind": 0,
+   "round": 4,
+   "label": 1,
+   "refund": 0,
+   "pool": "89000000",
+   "winners": 1024,
+   "winningStake": "7000000",
+   "paidTotal": "89000000",
+   "handSum": "89000000",
+   "dust": "0",
+   "allPaid": true,
+   "ok": true,
+   "bets": [
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 0,
+     "stake": "4000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "7sTcTJnvnvodpZ9KBwYYDNUDSC2FdJJxy84tmy9mWt1b",
+     "outcome": 6,
+     "stake": "16000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "7GG8nDiFfhV3soLYVNpzUr35rzi4n8hDbwnb3AEF3hJB",
+     "outcome": 11,
+     "stake": "15000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 1,
+     "stake": "7000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 2,
+     "stake": "4000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 3,
+     "stake": "4000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 4,
+     "stake": "4000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 5,
+     "stake": "4000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 6,
+     "stake": "4000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 7,
+     "stake": "4000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 8,
+     "stake": "2000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 9,
+     "stake": "7000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 10,
+     "stake": "7000000",
+     "win": true,
+     "pay": "89000000",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 11,
+     "stake": "7000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    }
+   ]
+  },
+  {
+   "k": 1,
+   "kind": 1,
+   "round": 4,
+   "label": 1,
+   "refund": 0,
+   "pool": "55000000",
+   "winners": 1024,
+   "winningStake": "26000000",
+   "paidTotal": "54999999",
+   "handSum": "54999999",
+   "dust": "1",
+   "allPaid": true,
+   "ok": true,
+   "bets": [
+    {
+     "wallet": "7sTcTJnvnvodpZ9KBwYYDNUDSC2FdJJxy84tmy9mWt1b",
+     "outcome": 3,
+     "stake": "13000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 3,
+     "stake": "8000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "7GG8nDiFfhV3soLYVNpzUr35rzi4n8hDbwnb3AEF3hJB",
+     "outcome": 10,
+     "stake": "12000000",
+     "win": true,
+     "pay": "25384615",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 7,
+     "stake": "8000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 10,
+     "stake": "14000000",
+     "win": true,
+     "pay": "29615384",
+     "paid": 1
+    }
+   ]
+  },
+  {
+   "k": 2,
+   "kind": 2,
+   "round": 1,
+   "label": 5,
+   "refund": 1,
+   "pool": "0",
+   "winners": 3770,
+   "winningStake": "0",
+   "paidTotal": "0",
+   "handSum": "0",
+   "dust": "0",
+   "allPaid": true,
+   "ok": true,
+   "bets": []
+  },
+  {
+   "k": 3,
+   "kind": 2,
+   "round": 2,
+   "label": 2,
+   "refund": 0,
+   "pool": "101000000",
+   "winners": 1178,
+   "winningStake": "58000000",
+   "paidTotal": "100999997",
+   "handSum": "100999997",
+   "dust": "3",
+   "allPaid": true,
+   "ok": true,
+   "bets": [
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 1,
+     "stake": "14000000",
+     "win": true,
+     "pay": "24379310",
+     "paid": 1
+    },
+    {
+     "wallet": "7sTcTJnvnvodpZ9KBwYYDNUDSC2FdJJxy84tmy9mWt1b",
+     "outcome": 11,
+     "stake": "7000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "7GG8nDiFfhV3soLYVNpzUr35rzi4n8hDbwnb3AEF3hJB",
+     "outcome": 1,
+     "stake": "6000000",
+     "win": true,
+     "pay": "10448275",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 3,
+     "stake": "8000000",
+     "win": true,
+     "pay": "13931034",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 4,
+     "stake": "8000000",
+     "win": true,
+     "pay": "13931034",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 5,
+     "stake": "8000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 7,
+     "stake": "8000000",
+     "win": true,
+     "pay": "13931034",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 9,
+     "stake": "14000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 10,
+     "stake": "14000000",
+     "win": true,
+     "pay": "24379310",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 11,
+     "stake": "14000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    }
+   ]
+  },
+  {
+   "k": 4,
+   "kind": 2,
+   "round": 3,
+   "label": 2,
+   "refund": 0,
+   "pool": "63000000",
+   "winners": 1160,
+   "winningStake": "36000000",
+   "paidTotal": "63000000",
+   "handSum": "63000000",
+   "dust": "0",
+   "allPaid": true,
+   "ok": true,
+   "bets": [
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 1,
+     "stake": "14000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "7sTcTJnvnvodpZ9KBwYYDNUDSC2FdJJxy84tmy9mWt1b",
+     "outcome": 10,
+     "stake": "6000000",
+     "win": true,
+     "pay": "10500000",
+     "paid": 1
+    },
+    {
+     "wallet": "7GG8nDiFfhV3soLYVNpzUr35rzi4n8hDbwnb3AEF3hJB",
+     "outcome": 4,
+     "stake": "5000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 3,
+     "stake": "8000000",
+     "win": true,
+     "pay": "14000000",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 4,
+     "stake": "8000000",
+     "win": false,
+     "pay": "0",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 7,
+     "stake": "8000000",
+     "win": true,
+     "pay": "14000000",
+     "paid": 1
+    },
+    {
+     "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+     "outcome": 10,
+     "stake": "14000000",
+     "win": true,
+     "pay": "24500000",
+     "paid": 1
+    }
+   ]
+  }
+ ],
+ "wallets": [
+  {
+   "wallet": "7GG8nDiFfhV3soLYVNpzUr35rzi4n8hDbwnb3AEF3hJB",
+   "wonDelta": "35832890",
+   "handCalc": "35832890",
+   "ok": true
+  },
+  {
+   "wallet": "7sTcTJnvnvodpZ9KBwYYDNUDSC2FdJJxy84tmy9mWt1b",
+   "wonDelta": "10500000",
+   "handCalc": "10500000",
+   "ok": true
+  },
+  {
+   "wallet": "BFJvM2TiDKEc4pnEXKQeGjkeFw97aVjXiEPnwgBgvYTi",
+   "wonDelta": "0",
+   "handCalc": "0",
+   "ok": true
+  },
+  {
+   "wallet": "J2hGejfJwcuyADRLN8F5hsywscwhRmRz35BzX7kgxihq",
+   "wonDelta": "0",
+   "handCalc": "0",
+   "ok": true
+  },
+  {
+   "wallet": "5BNa1yatkwssHUZv7naWwV1D49VJGFrFopQNQiqvx2RN",
+   "wonDelta": "261667106",
+   "handCalc": "261667106",
+   "ok": true
+  }
+ ]
+}

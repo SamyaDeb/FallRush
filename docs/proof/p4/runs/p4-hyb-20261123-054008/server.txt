@@ -1,0 +1,5 @@
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=A modifier=TurboToys seed=0x6fadd0ca62feef10 start=1154 qualify=8/12 intro=60 countdown=90 timer=4500 rush@1154 participants=12
+[gs] mevt #1 START_ROUND r1 slot=- arg=- tick=1003 transcript=af98f2a411f545ca
+[gs] mevt #14 COMPLETE_ROUND r1 slot=- arg=8 tick=4630 transcript=2066d2034eb3ce22
+[gs] round 2/4 GooTower (Survival) start: map=1 variant=A modifier=None seed=0x250ea1272b90d600 start=5221 qualify=5/8 intro=60 countdown=90 timer=4500 rush@5221 participants=8
+[gs] mevt #15 START_ROUND r2 slot=- arg=- tick=5070 transcript=de56cbcf8616c522

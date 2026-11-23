@@ -1,0 +1,12 @@
+{"t":1795392937550,"name":"B","role":"bettor","act":"init","burner":"7sTcTJnvnvodpZ9KBwYYDNUDSC2FdJJxy84tmy9mWt1b","session":"DY42irGfDrkD8RQha3VQEbEto21sZX7hxKGXmGKzRz8A"}
+{"t":1795392938384,"name":"B","role":"bettor","act":"fund","ok":true,"sig":"5r4vjJDCkKwaMaNHQZ8FuqjY6GiRr7Tn5oVHTKJcA3hD6TjoXVfbavfKnxrmF1YKRNN8vAEjmRYyHwGSDvUgH5G7","lamports":7707320}
+{"t":1795392940886,"name":"B","role":"bettor","act":"session","ok":true,"token":"48Px4LLN1Yu4Wa2PZx1oymZ66P4nsYYpRx3Z6SQ4Popq"}
+{"t":1795392941064,"name":"B","role":"bettor","act":"chips","ok":true,"balance":"1000000000"}
+{"t":1795393075205,"name":"B","role":"bettor","act":"match","match":"3Equ1P3Smokg2M9dGyfwBq3rJUubUypZuLVXuXoSe9wQ"}
+{"t":1795393075815,"name":"B","role":"bettor","act":"bet","k":0,"outcome":6,"amount":16,"ok":true,"sig":"23EVqwogfgPMwysbwp9KhLDwgYygt34Ah1o9y6vLhh1SqVUt4qTCDsCFJ556GHd8iuHhLowFYgTbDSerzHshakM8","session":true,"ms":466}
+{"t":1795393076310,"name":"B","role":"bettor","act":"bet","k":2,"outcome":0,"amount":9,"ok":false,"sig":"3A1r7ue9jJ1iiWULFPkxZ2tFRDekzJvATsdtNGZkFGDytL7k2brHjQk7H5X7hznEcedivhNkLaYrECQbpqVCYPo4","session":true,"ms":373,"error":"{\"InstructionError\":[0,{\"Custom\":6030}]}"}
+{"t":1795393135308,"name":"B","role":"bettor","act":"bet","k":3,"outcome":11,"amount":7,"ok":true,"sig":"zjRUbN64TWFYAkcV6Yh8iMYzrGzL9Q7uhqVsUjmtYUbPTFwMG14iRnKtgERkiq7XvjzwPgiJiJcfedwN4syct76","session":true,"ms":284}
+{"t":1795393207871,"name":"B","role":"bettor","act":"bet","k":4,"outcome":10,"amount":6,"ok":true,"sig":"5LByP33YgnhDrQLBJPovVFtFjedg8op2rN5guWYXgxcHdgdx8M7B639jFukKacGken69bHjhBp9qzcQYbVpjgCLF","session":true,"ms":342}
+{"t":1795393285937,"name":"B","role":"bettor","act":"bet","k":1,"outcome":3,"amount":13,"ok":true,"sig":"2QDMBMTufjev8n6hBkNqPrfYUzZ3JZw4PoP2daPavNvAahA3ytidFB8F3JuEW9o2W7BNkSZPvuDsUeAv4AA2Kj4y","session":true,"ms":229}
+{"t":1795393386713,"name":"B","role":"bettor","act":"markets_paid","balance":"968500000"}
+{"t":1795393386899,"name":"B","role":"bettor","act":"end","balance":"968500000","won":"10500000","spent":"42000000"}

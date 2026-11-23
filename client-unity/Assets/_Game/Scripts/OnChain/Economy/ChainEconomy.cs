@@ -105,7 +105,9 @@ namespace FallRush.OnChain
                     _pending.Remove(k);
             }
 
-            if (!Rollup || tx.Joined == null)
+            // economy reads / writes need the chain link only, not a joined slot (a hybrid pre-joined client bets
+            // through rounds 1–3, before the Final starts)
+            if (!Rollup || !tx.Connected)
                 return;
             var now = Time.realtimeSinceStartupAsDouble;
             // chips on first use: init + delegate (burner) + the day's faucet claim (session key), no popup

@@ -132,8 +132,31 @@ namespace FallRush.OnChain
             e.Drop(kind, ok => Debug.Log($"[onchain] auto-drop {kind}: {(ok ? "ok" : e.LastError)} {(e.LastSession ? "session key" : "")} {e.LastSig}"));
         }
 
+        // P4 UI proof: -fallrushOnchainShots <dir> → an in-app screenshot every 10 s (the economy HUD in the player build)
+        private static readonly string ShotsDir = ArgValue("-fallrushOnchainShots");
+        private float _shotsAt = 5f;
+        private int _shotsN;
+
+        private static string ArgValue(string k)
+        {
+            var a = Environment.GetCommandLineArgs();
+            for (var i = 0; i < a.Length - 1; i++)
+                if (a[i] == k)
+                    return a[i + 1];
+            return null;
+        }
+
+        private void PeriodicShot()
+        {
+            if (string.IsNullOrEmpty(ShotsDir) || _t < _shotsAt)
+                return;
+            _shotsAt = _t + 10f;
+            ScreenCapture.CaptureScreenshot(Path.Combine(ShotsDir, $"ui-{++_shotsN:00}.png"));
+        }
+
         private void AutoBet(OnChainSession s)
         {
+            PeriodicShot();
             var e = ChainEconomy.Instance;
             if (e != null && e.State != null)
                 AutoDrop(e);

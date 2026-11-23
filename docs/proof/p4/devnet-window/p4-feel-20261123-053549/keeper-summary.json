@@ -1,0 +1,104 @@
+{
+ "realTime": {
+  "gameS": 53.03333333333333,
+  "wallS": 53.019,
+  "ratio": 1.0002703433360367,
+  "slotWallS": 53.03,
+  "slotRatio": 1.0000628575020427,
+  "tickGapOnChainMs": {
+   "p50": 30,
+   "p95": 40,
+   "p99": 50,
+   "max": 50,
+   "n": 1322
+  },
+  "tickGapClientMs": {
+   "p50": 34.888888888888886,
+   "p95": 66,
+   "p99": 127,
+   "max": 610,
+   "n": 1354
+  }
+ },
+ "finalists": [
+  4,
+  6,
+  10
+ ],
+ "preFinal": {
+  "transcript": "8b726c14611496c5dd27d4102461a9e0fb29e958aeb366c81490e03ca1c8e95c",
+  "eventSeq": 32,
+  "humans": {
+   "want": 1,
+   "joined": 1,
+   "ms": 108
+  }
+ },
+ "econ": {
+  "settled": 5,
+  "rewards": {
+   "minted": {
+    "capsule4": "5UNsrK9fZ1PaLgNWVZETTW3DPp7WByESUoynXHhaqV1qTtt1vJAtVJDrCAATfcUQmzd4n2oWhDTenioQ5oJd8MMt"
+   },
+   "attempts": 1,
+   "failures": []
+  }
+ },
+ "match": 1,
+ "matchPda": "HPmk9ShnXd3V1sWWohhLUrTVKiwM6bKr12q2prSMEt1m",
+ "complete": true,
+ "wallS": 53.591,
+ "gameS": 53.63333333333333,
+ "ticks": 1609,
+ "executions": 4845,
+ "notDue": 3246,
+ "execPerTick": 3.011187072715973,
+ "budgetHit": 0,
+ "restarts": 0,
+ "fallback": 0,
+ "cuPerPart": {
+  "r4": {
+   "n": 79,
+   "p50": 105359,
+   "p95": 157801,
+   "max": 187275
+  }
+ },
+ "gapMs": {
+  "p50": 33.1,
+  "p95": 39.666666666666664,
+  "max": 96.55555555555556
+ },
+ "onSolana": {
+  "status": "completed",
+  "champion": 6,
+  "round": 4,
+  "transcript": "825ab8e51777988146e3c65a4b1fc00ec1fc430f5388e98314e3ebc0dd85d97b",
+  "vrfSeed": "cc9a028b2b07bd966d5136f6de5cf660a3cc45e34de304b3e2d52d42f5d10ca3"
+ },
+ "sigs": {
+  "create": "4eDMAFzBBgqwPVQUPx5qCQUxEkqHxaPxrP9wk5jYnXSxgf6HyM5p7vYWVDyhGBWvaN6PsHSUbXSGDG3APZkGij9K",
+  "delegate": "2t52U7oucWSXK4dgLrKRCcPNuPQnzpHTSGZAK5RMNi2iFXNxzSWqycSFrCwaxMJJ4e4W1yWwqzSQyZoWgpXkESSY",
+  "openLobby": "2ePQJhT5GHevxL44z1EdS8Zg7tNhY4m9UgRfSKaS8gb4fpTcJRwXBqKCvZZfJNwgxecaF83EvLnwhTYFn1NqT35a",
+  "openMarkets": "28ehdMzQwqZ1BZLmo9hrA83VCVEqrbdrfdQAft5nyhtdYWCocSmurHimqG7jKK42LUyR8KECnQL8DN2Rvwhs7fjM",
+  "requestDeal": "3ryTapjEK8YftXj7NUp2dZ83bTaQCvVfHFEskcov34FCFGPLDVAwEuxcqESXj1ioSmuvNh6cUmnkeD5H78xAwbKC",
+  "startFinal": "4FmyWN4AVmrW1wyjA9evyvH9SyytVqVEdbrKTqixxK6zTfvfiCcoQfvW2MpNpPkyZR4jqqmENDkXmZpWGXVRSrrU",
+  "schedule": "2J7mt1utb79DL2hXxFQPWvsFJuu3ZVwGdiNhAxQsimChTt7RNd1cBiAAEcXXDUrWF1w1jWcDhjNuyxDGbC8UhzXf",
+  "commit4": "21bRd99r8ihaDPR1uywhCuMipRCf8UJLNPwekS9eY5J9XTwggSCvmGicmAmPweD2JwtQqFoQu1T2C9DZuF9c9zh3",
+  "writeReceipt": "67ousGCELtaC7ACjLLTKycNucmPW2dRyU8NgyfdWS8zvFZsVc981qygUypZZHATP8QFXdCTAx6GaEgHsGLvLxrXn",
+  "requestCapsules": "WmjvLZHfjrCrNVAHbhq3vPbmL5CFcgoyzdAYNvj3antib4A9u677yUgKrn9ZouXGMger8xNxs1nCnTnSehXrWCj",
+  "endSim": "53mf61PXMVd8vZBFCDSCANLdGRc6hGSnY4Y6LajomBrrmUxRxb8LYBPjUkPr4MVRLA5wLSyQ7hhUpqM1JUk9AEvp",
+  "finalize": "5VUQAGsNhFAPvxZwihHRPy3hexTTVLT7ETnegeRmP6Qz1dubwuutVDZ3aquAnZr8xjFpaf1H1ZCxNV34jykko3qY"
+ },
+ "mode": "final",
+ "parts": 1,
+ "interval": 11,
+ "arena": "HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt",
+ "maps": [
+  "86hLenUHLLULngacRGesYdVUaLhTVQtMSgx2UsF9ZKuv",
+  "Dh2MMQSM3MXATAvoHPXWPCifBHF1g6hyzAxRA2zFN8za",
+  "GYeqhxkkjzvXAS1Mv2FLM3EqALH5TjZfqJKiQqu6E8LG",
+  "2zzJi24AJTKVopXd9UMz2j1poAzway5ZMSvuw9jNBCgC",
+  "DxuXdFPfomJW6SXNiCkNgDauW3p2xkiEoPfoPjuYVsCD"
+ ]
+}

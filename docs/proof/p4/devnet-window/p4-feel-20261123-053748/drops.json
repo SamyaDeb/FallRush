@@ -1,0 +1,36 @@
+[
+ {
+  "file": "docs/proof/p2/runs/p4-feel-20261123-053748-m1/world.bin",
+  "drops": [
+   {
+    "kind": "LID_FRENZY",
+    "trigger": 219,
+    "seen_tick": 196,
+    "telegraph_ticks": 23
+   },
+   {
+    "kind": "WIND_GUST",
+    "trigger": 387,
+    "seen_tick": 364,
+    "telegraph_ticks": 23
+   },
+   {
+    "kind": "BUMPER_RAIN",
+    "trigger": 565,
+    "seen_tick": 542,
+    "telegraph_ticks": 23
+   }
+  ],
+  "eliminations": [
+   {
+    "slot": 3,
+    "tick": 943
+   },
+   {
+    "slot": 11,
+    "tick": 1690
+   }
+  ],
+  "deaths_during_or_1s_after_a_drop": []
+ }
+]
