@@ -66,7 +66,7 @@ try {
     const before = await (await fetch(`${BASE}/api/matches?n=1`)).json().catch(() => ({ matches: [] }));
     const last = before.matches?.[0]?.match;
     const sv = opt('server', '');
-    await send('Page.navigate', { url: `${BASE}/play?bot=match&onchainauto=900&hud=1${opt('q', '')}${sv ? '&server=' + encodeURIComponent(sv) : ''}` });
+    await send('Page.navigate', { url: `${BASE}/play?bot=match&onchainauto=900${opt('q', '')}${sv ? '&server=' + encodeURIComponent(sv) : ''}` });
     let got = null; let k = 0;
     for (const end = Date.now() + MAX * 1000; Date.now() < end && !got;) {
       await shot(`t${String(Math.round(T())).padStart(4, '0')}`);

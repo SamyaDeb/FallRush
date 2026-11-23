@@ -63,6 +63,11 @@ namespace FallRush.OnChain
         private string _dealFor;
         private double _dealAt;
         public bool Available { get; private set; } = true;
+        /// <summary>P7: the chips account is set up on the rollup (bets before that fail with 3007).</summary>
+        public bool ChipsReady => _chipsDone;
+        /// <summary>P7: the <c>?autobet=</c> test hook owns the sealed Champion bet (the auto-play must not bet it too:
+        /// P6's "autobet fires twice" was the two hooks each placing one).</summary>
+        public bool AutobetOwnsChampion => _autobet > 0;
         public int Calls, Errors;
         public readonly List<string> Log = new List<string>();
 
@@ -81,7 +86,11 @@ namespace FallRush.OnChain
             return go.AddComponent<ChainEconomy>();
         }
 
-        private void Awake() => Instance = this;
+        private void Awake()
+        {
+            Instance = this;
+            _autobet = int.TryParse(FallRush.Shared.NetTargets.GetQueryParam(Application.absoluteURL, "autobet"), out var ab) ? ab : 0;
+        }
         private void OnDestroy() { if (Instance == this) Instance = null; }
 
         public static long Parse(string s) => long.TryParse(s, out var v) ? v : 0;
@@ -185,7 +194,8 @@ namespace FallRush.OnChain
                     });
                     if (_autobet < 0)
                         _autobet = int.TryParse(FallRush.Shared.NetTargets.GetQueryParam(Application.absoluteURL, "autobet"), out var ab) ? ab : 0;
-                    if (_autobet > 0 && Sealed != null && Sealed.open && s.match != null && _autobetFor != s.match.pda && MarketOpen(0))
+                    // P7: only once the chips account is on the rollup (a fresh guest's first bet failed with 3007 before)
+                    if (_autobet > 0 && _chipsDone && Sealed != null && Sealed.open && s.match != null && _autobetFor != s.match.pda && MarketOpen(0))
                     {
                         _autobetFor = s.match.pda;
                         var slot = 0;
@@ -210,8 +220,8 @@ namespace FallRush.OnChain
         private void DealPoll()
         {
             var m = State?.match?.pda;
-            if (string.IsNullOrEmpty(m) || Application.platform != RuntimePlatform.WebGLPlayer)
-                return;
+            if (string.IsNullOrEmpty(m) || Application.platform != RuntimePlatform.WebGLPlayer || State.match.round > 1)
+                return; // the Deal screen only (the keeper's request_deal lands during round 1 at the latest)
             if (_dealFor != m)
             {
                 _dealFor = m;

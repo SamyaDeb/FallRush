@@ -5,7 +5,7 @@ name: fallrush
 x-logs: &logs
   logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
 x-node: &node
-  image: fallrush-node:p6
+  image: fallrush-node:p7
   restart: unless-stopped
   env_file: .env
   <<: *logs

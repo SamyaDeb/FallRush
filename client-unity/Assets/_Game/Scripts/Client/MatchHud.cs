@@ -736,7 +736,7 @@ namespace FallRush.Client
                 conn = $"<color=#5BE3B5>●</color> {(ping != null && ping.SampleCount > 0 ? ping.P50Ms.ToString("F0") : "…")} ms{(cs.Remote.Lagging && ChainAdapters.Override == null ? "  <color=#FFA51F>LAGGING</color>" : "")}";
             SetPill(_connPill, _conn, conn);
 
-            _panels ??= new[] { _lobby, _deal, _results, _inter, _receipt, _champ };
+            _panels ??= new[] { _lobby, _deal, _results, _inter, _receipt }; // the CHAMPION card has its own timing (Champion())
             _want = null;
             if (_center.text.Length > 0)
                 _center.text = string.Empty;
@@ -944,7 +944,7 @@ namespace FallRush.Client
             var dealt = m.Phase == MatchPhase.Dealt;
             _dealMachine.Spin(!dealt);
             _dealHead.text = dealt ? $"{m.PlayerCount} players · {m.RoundCount} rounds · one crown" : "The Chaos Capsule machine is dealing…";
-            var reveal = dealt ? Mathf.Clamp(Mathf.FloorToInt((Time.unscaledTime - _dealtAt) / 0.7f) + 1, 0, m.RoundCount) : 0;
+            var reveal = dealt ? Mathf.Clamp(Mathf.FloorToInt((Time.unscaledTime - _dealtAt) / 0.4f) + 1, 0, m.RoundCount) : 0; // the Classic deal phase is short: 0.4 s apart
             while (_dealtShown < reveal)
             {
                 var r = _dealtShown++;
@@ -969,7 +969,7 @@ namespace FallRush.Client
                     c.Mode.text = (mode == "Final" ? "FINAL · on-chain" : mode.ToUpperInvariant()) + (m.Modifiers[r] != 0 ? $"\n<color=#FF3EA5>{UiNames.Modifier(m.Modifiers[r])}</color>" : string.Empty);
                     c.Target.text = mode == "Final" ? "1 wins the crown" : $"{m.Targets[r]} advance";
                     c.Card.Title.text = r == m.RoundCount - 1 ? "FINAL" : $"ROUND {r + 1}";
-                    UiMotion.SlideIn(c.Root, new Vector2(-170f - r * 30f, -30f));
+                    UiMotion.SlideIn(c.Root, new Vector2(-70f, -24f));
                     c.Shown = true;
                 }
                 else if (!shown && c.Shown)

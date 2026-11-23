@@ -521,7 +521,10 @@ namespace FallRush.OnChain
             var cs = ClientSim.Instance;
             var classicOut = cs != null && cs.Match != null && (cs.MatchSlot == 255 || (cs.TryGetSlotInfo(cs.MatchSlot, out var si) && !si.Has(MatchSlotInfo.Alive)));
             var spectating = inFinal ? session.Spectate || session.OwnSlot >= 12 || session.OwnOut : classicOut;
-            var finalRush = s?.world != null && inFinal && s.world.round == 4 && s.world.roundPhase == 3;
+            // the Final is live only while the server's match is still in its last round (the arena World keeps its last
+            // RUSH state after the Final until the next one starts: P7 fix, the drop bar stayed up into the next lobby)
+            var classicFinal = cs?.Match != null && cs.Match.Phase >= MatchPhase.RoundIntro && cs.Match.Phase <= MatchPhase.RoundActive;
+            var finalRush = s?.world != null && inFinal && s.world.round == 4 && s.world.roundPhase == 3 && s.match.status < 5 && classicFinal;
             var anyOpen = false;
             for (var k = 0; k < 5; k++)
                 anyOpen |= e.MarketOpen(k);
@@ -710,7 +713,12 @@ namespace FallRush.OnChain
 
         private void DrawReceipt(ChainEconomy e, EState s)
         {
-            var done = s?.match != null && s.match.status == 5 && (s.match.flags & 0x40) != 0;
+            // P7: the receipt card opens as soon as the on-chain Final is over (then Rollup ✓ → Solana ✓ tick in as they land),
+            // not ~40 s later when the Match reaches "completed"
+            var cs = ClientSim.Instance;
+            var finalOver = s?.match != null && (s.match.flags & 0x40) != 0 && (s.match.status == 5 || (s.world != null && s.world.round == 4 && s.world.roundPhase > 3) ||
+                            (cs?.Match != null && cs.Match.Phase >= MatchPhase.Champion && cs.Match.Phase <= MatchPhase.Done));
+            var done = finalOver && s.match.status != 6;
             if (!done && e.Receipt == null)
             {
                 UiMotion.SetVisible(_receipt, false);
@@ -727,7 +735,7 @@ namespace FallRush.OnChain
                 _steps.Reset();
             }
 
-            if (mpda != null && _receiptFor != mpda && Time.frameCount % 120 == 0)
+            if (mpda != null && _receiptFor != mpda && Time.frameCount % 90 == 0)
                 e.FetchReceipt(mpda);
             if (e.Receipt != null && e.Receipt.match == mpda && e.Receipt.onSolana)
                 _receiptFor = mpda;
