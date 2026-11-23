@@ -1,0 +1,13 @@
+name = "fallrush-front"
+main = "src/worker.js"
+compatibility_date = "2026-11-01"
+
+# Zone routes on the existing proxied (orange-cloud) records: the Worker answers every request before the old origin
+# (custom domains would need the existing A/CNAME records deleted, which needs a DNS-edit token).
+routes = [
+  { pattern = "fallrush.fun/*", zone_name = "fallrush.fun" },
+  { pattern = "www.fallrush.fun/*", zone_name = "fallrush.fun" },
+]
+
+# ORIGIN (the game host, holds the VPS address) is passed with --var by scripts/front-deploy.sh;
+# FRONT_KEY is a wrangler secret. Neither is committed.
