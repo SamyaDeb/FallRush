@@ -575,7 +575,7 @@ fn mirror_final(m: &mut Match, w: &World) {
 /// `submit_input`: writes `INPUT_BATCH` inputs for ticks `start .. start + batch` (4 B each: move x, move y, buttons,
 /// cam yaw high byte) into the signer's InputBuf. Rejects ticks outside the window (not the hot tick: a real error).
 pub fn submit_input(ib: &mut InputBuf, owner: &Pubkey, world_tick: u32, lead: u32, start: u32, batch: &[u8; 4 * INPUT_BATCH]) -> Result<()> {
-    require_keys_eq!(ib.owner, *owner, FallRushError::Unauthorized);
+    keq!(ib.owner, *owner, FallRushError::Unauthorized);
     require!(start + INPUT_WINDOW >= world_tick && start <= world_tick + lead.min(INPUT_LEAD_MAX), FallRushError::InputOutOfWindow);
     let mut k = 0;
     while k < INPUT_BATCH {

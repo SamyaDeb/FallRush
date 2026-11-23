@@ -1,0 +1,2 @@
+{ "name": "p6-tools", "private": true, "type": "module",
+  "dependencies": { "@magicblock-labs/ephemeral-rollups-sdk": "0.18.0", "@solana/web3.js": "1.99.0", "tweetnacl": "1.0.3" } }

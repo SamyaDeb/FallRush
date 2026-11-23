@@ -13,11 +13,22 @@ use ephemeral_rollups_sdk::vrf::instructions::{
 };
 use ephemeral_rollups_sdk::vrf::types::SerializableAccountMeta;
 
+/// P6 (program size): `keq!` = `require_keys_eq!` without Anchor's "Left / Right" pubkey logging (each call site inlined
+/// `core::fmt` code; ~100 call sites). Same error codes.
+macro_rules! keq {
+    ($a:expr, $b:expr, $e:expr $(,)?) => {
+        if $a != $b {
+            return Err(anchor_lang::error::Error::from($e));
+        }
+    };
+}
+
 pub mod deal;
 pub mod econ;
 pub mod errors;
 pub mod events;
 pub mod magic;
+pub mod p6;
 pub mod sim;
 pub mod state;
 
@@ -145,7 +156,7 @@ pub mod fall_rush {
     pub fn delegate_match(ctx: Context<DelegateMatch>, match_id: [u8; 16]) -> Result<()> {
         {
             let info = ctx.accounts.match_account.to_account_info();
-            require_keys_eq!(*info.owner, crate::ID, FallRushError::InvalidStatus);
+            keq!(*info.owner, crate::ID, FallRushError::InvalidStatus);
             let data = info.try_borrow_data()?;
             let m = Match::try_deserialize(&mut &data[..])?;
             require!(m.status == MatchStatus::Created, FallRushError::InvalidStatus);
@@ -426,7 +437,7 @@ pub mod fall_rush {
     /// (`MAP_HDR + len` bytes). The first call claims it for the game authority.
     pub fn upload_map_chunk(ctx: Context<MapWrite>, map_id: u8, offset: u32, total_len: u32, data: Vec<u8>) -> Result<()> {
         let info = ctx.accounts.map.to_account_info();
-        require_keys_eq!(*info.owner, crate::ID, FallRushError::Unauthorized);
+        keq!(*info.owner, crate::ID, FallRushError::Unauthorized);
         let mut d = info.try_borrow_mut_data()?;
         require!(d.len() >= sim::MAP_HDR + total_len as usize, FallRushError::BadMap);
         if d[0..8] != sim::MAP_MAGIC {
@@ -448,7 +459,7 @@ pub mod fall_rush {
     /// must parse.
     pub fn seal_map(ctx: Context<MapWrite>, sha256: [u8; 32]) -> Result<()> {
         let info = ctx.accounts.map.to_account_info();
-        require_keys_eq!(*info.owner, crate::ID, FallRushError::Unauthorized);
+        keq!(*info.owner, crate::ID, FallRushError::Unauthorized);
         let mut d = info.try_borrow_mut_data()?;
         require!(d.len() >= sim::MAP_HDR && d[0..8] == sim::MAP_MAGIC && d[8..40] == *ctx.accounts.authority.key().as_ref(), FallRushError::BadMap);
         let len = u32::from_le_bytes([d[40], d[41], d[42], d[43]]) as usize;
@@ -466,7 +477,8 @@ pub mod fall_rush {
     }
 
     /// Solana. Delegates one sim PDA to the ER validator (remaining_accounts[0], optional).
-    /// kind 0 arena · 1 world · 2 event log · 3 input `slot` · 4 market `slot` · 5 drop queue · 6 chips (P4).
+    /// kind 0 arena · 1 world · 2 event log · 3 input `slot` · 4 market `slot` · 5 drop queue · 6 chips (P4) · 7 sealed
+    /// escrow · 8 sealed book (P6).
     pub fn delegate_sim(ctx: Context<DelegateSim>, kind: u8, id: u8, slot: u8) -> Result<()> {
         let validator = ctx.remaining_accounts.first().map(|a| a.key());
         // P4: kind 6 = a player's `["chips", wallet]` (any payer: guests delegate their own); the sim / economy
@@ -481,7 +493,7 @@ pub mod fall_rush {
             ctx.accounts.delegate_pda(&ctx.accounts.authority, &[econ::CHIPS_SEED, wallet.as_ref()], cfg)?;
             return Ok(());
         }
-        require_keys_eq!(ctx.accounts.authority.key(), ctx.accounts.config.game_authority, FallRushError::Unauthorized);
+        keq!(ctx.accounts.authority.key(), ctx.accounts.config.game_authority, FallRushError::Unauthorized);
         let idb = [id];
         let sb = [slot];
         let arena = Pubkey::find_program_address(&[sim::ARENA_SEED, &idb], &crate::ID).0;
@@ -494,6 +506,9 @@ pub mod fall_rush {
             // P4: market k = `slot` (0 Champion, 1 FinalWinner, 2..4 Qualify 1..3), the arena's drop queue
             4 => ctx.accounts.delegate_pda(&ctx.accounts.authority, &[econ::MARKET_SEED, &idb, &sb], cfg)?,
             5 => ctx.accounts.delegate_pda(&ctx.accounts.authority, &[econ::DROPQ_SEED, arena.as_ref()], cfg)?,
+            // P6: the arena's sealed escrow (devnet-as) / sealed book (the TEE validator, passed as remaining_accounts[0])
+            7 => ctx.accounts.delegate_pda(&ctx.accounts.authority, &[p6::ESCROW_SEED, arena.as_ref()], cfg)?,
+            8 => ctx.accounts.delegate_pda(&ctx.accounts.authority, &[p6::BOOK_SEED, arena.as_ref()], cfg)?,
             _ => return err!(FallRushError::InvalidSlot),
         }
         Ok(())
@@ -503,7 +518,7 @@ pub mod fall_rush {
     /// remaining_accounts: the 12 InputBufs (owners cleared).
     pub fn open_lobby<'info>(ctx: Context<'info, ArenaAuth<'info>>, match_account: Pubkey) -> Result<()> {
         let mut a = ctx.accounts.arena.load_mut()?;
-        require_keys_eq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
+        keq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
         require!(a.status != sim::arena_status::RUNNING, FallRushError::BadArenaState);
         a.match_account = match_account;
         a.owners = [Pubkey::default(); sim::N];
@@ -534,7 +549,7 @@ pub mod fall_rush {
                 t.key()
             }
             None => {
-                require_keys_eq!(me, wallet, FallRushError::Unauthorized);
+                keq!(me, wallet, FallRushError::Unauthorized);
                 Pubkey::default()
             }
         };
@@ -544,7 +559,7 @@ pub mod fall_rush {
         require!(s < sim::N, FallRushError::InvalidSlot);
         require!(a.human_mask >> s & 1 == 0, FallRushError::SlotTaken);
         require!(!a.wallets.contains(&wallet) && !a.owners.contains(&me), FallRushError::AlreadyJoined);
-        require_keys_eq!(a.inputs[s], ctx.accounts.input.key(), FallRushError::InvalidSlot);
+        keq!(a.inputs[s], ctx.accounts.input.key(), FallRushError::InvalidSlot);
         a.owners[s] = me;
         a.wallets[s] = wallet;
         a.human_mask |= 1 << s;
@@ -559,15 +574,15 @@ pub mod fall_rush {
     /// exactly `slots` alive. Then the keeper schedules ticks.
     pub fn start_final(ctx: Context<StartSim>, slots: [u8; 3]) -> Result<()> {
         let mut a = ctx.accounts.arena.load_mut()?;
-        require_keys_eq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
+        keq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
         require!(a.status == sim::arena_status::LOBBY, FallRushError::BadArenaState);
-        require_keys_eq!(a.match_account, ctx.accounts.match_account.key(), FallRushError::BadArenaState);
-        require_keys_eq!(a.maps[sim::MAP_LOBBY_SLOT], ctx.accounts.lobby_map.key(), FallRushError::BadMap);
+        keq!(a.match_account, ctx.accounts.match_account.key(), FallRushError::BadArenaState);
+        keq!(a.maps[sim::MAP_LOBBY_SLOT], ctx.accounts.lobby_map.key(), FallRushError::BadMap);
         let info = ctx.accounts.lobby_map.to_account_info();
         let d = info.try_borrow_data()?;
         let lobby = sim::map_bytes(&info, &d).ok_or(error!(FallRushError::BadMap))?;
         let mut w = ctx.accounts.world.load_mut()?;
-        require_keys_eq!(w.arena, ctx.accounts.arena.key(), FallRushError::BadArenaState);
+        keq!(w.arena, ctx.accounts.arena.key(), FallRushError::BadArenaState);
         let m = &mut ctx.accounts.match_account;
         require!(m.flags & sim::MATCH_SIM_STARTED == 0, FallRushError::InvalidStatus);
         sim::start_final(&mut a, &mut w, m, lobby, &slots)
@@ -576,15 +591,15 @@ pub mod fall_rush {
     /// ER. Roster lock + start: free slots become bots, the director starts from the match's VRF seed.
     pub fn start_sim(ctx: Context<StartSim>) -> Result<()> {
         let mut a = ctx.accounts.arena.load_mut()?;
-        require_keys_eq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
+        keq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
         require!(a.status == sim::arena_status::LOBBY, FallRushError::BadArenaState);
-        require_keys_eq!(a.match_account, ctx.accounts.match_account.key(), FallRushError::BadArenaState);
-        require_keys_eq!(a.maps[sim::MAP_LOBBY_SLOT], ctx.accounts.lobby_map.key(), FallRushError::BadMap);
+        keq!(a.match_account, ctx.accounts.match_account.key(), FallRushError::BadArenaState);
+        keq!(a.maps[sim::MAP_LOBBY_SLOT], ctx.accounts.lobby_map.key(), FallRushError::BadMap);
         let info = ctx.accounts.lobby_map.to_account_info();
         let d = info.try_borrow_data()?;
         let lobby = sim::map_bytes(&info, &d).ok_or(error!(FallRushError::BadMap))?;
         let mut w = ctx.accounts.world.load_mut()?;
-        require_keys_eq!(w.arena, ctx.accounts.arena.key(), FallRushError::BadArenaState);
+        keq!(w.arena, ctx.accounts.arena.key(), FallRushError::BadArenaState);
         // a Match runs once: an arena can never re-enter an old match
         let m = &mut ctx.accounts.match_account;
         require!(m.flags & sim::MATCH_SIM_STARTED == 0, FallRushError::InvalidStatus);
@@ -606,7 +621,7 @@ pub mod fall_rush {
         // a session signer's token must still be there (not revoked) and not expired
         if ib.token != Pubkey::default() {
             let t = ctx.accounts.session_token.as_ref().ok_or(error!(FallRushError::SessionInvalid))?;
-            require_keys_eq!(t.key(), ib.token, FallRushError::SessionInvalid);
+            keq!(t.key(), ib.token, FallRushError::SessionInvalid);
             require!(!t.is_expired()?, FallRushError::SessionInvalid);
         }
         sim::submit_input(&mut ib, &ctx.accounts.owner.key(), w.tick, w.lead(), start, &batch)
@@ -615,9 +630,9 @@ pub mod fall_rush {
     /// ER. The arena's forward input window (P4 0.4): `lead` ticks (8 ..= 13; 0 = the default 8). Authority only.
     pub fn set_input_lead(ctx: Context<ArenaWorldAuth>, lead: u8) -> Result<()> {
         let a = ctx.accounts.arena.load()?;
-        require_keys_eq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
+        keq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
         let mut w = ctx.accounts.world.load_mut()?;
-        require_keys_eq!(w.arena, ctx.accounts.arena.key(), FallRushError::BadArenaState);
+        keq!(w.arena, ctx.accounts.arena.key(), FallRushError::BadArenaState);
         require!(lead == 0 || (sim::INPUT_WINDOW..=sim::INPUT_LEAD_MAX).contains(&(lead as u32)), FallRushError::InputOutOfWindow);
         w.input_lead = lead;
         Ok(())
@@ -664,7 +679,7 @@ pub mod fall_rush {
     /// ER. The director reached DONE: the arena is free for the next match (the keeper then runs finalize_match).
     pub fn end_sim(ctx: Context<ArenaAuth>) -> Result<()> {
         let mut a = ctx.accounts.arena.load_mut()?;
-        require_keys_eq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
+        keq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
         let w = ctx.accounts.world.load()?;
         require!(w.phase >= rush_core::rules::director::phase::DONE || a.status != sim::arena_status::RUNNING, FallRushError::BadArenaState);
         a.status = sim::arena_status::DONE;
@@ -674,7 +689,7 @@ pub mod fall_rush {
     /// ER. Stops the arena (authority): no more ticks run; the keeper cancels the task and aborts the match.
     pub fn abort_arena(ctx: Context<ArenaAuth>) -> Result<()> {
         let mut a = ctx.accounts.arena.load_mut()?;
-        require_keys_eq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
+        keq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
         a.status = sim::arena_status::ABORTED;
         Ok(())
     }
@@ -759,6 +774,12 @@ pub mod fall_rush {
     /// and minting are separate ops, never inside `tick()`.
     pub fn econ<'info>(ctx: Context<'info, Econ<'info>>, op: u8, a: u64, b: u64) -> Result<()> {
         econ::dispatch(&ctx.accounts.signer, ctx.remaining_accounts, op, a, b)
+    }
+
+    /// P6 (sealed bets, seasons, achievements; `p6.rs`): one entry point like `econ`, plus 32 bytes of data (a
+    /// commitment, a salt or a match key). Every account in remaining_accounts, checked by hand (`p6::op`).
+    pub fn p6<'info>(ctx: Context<'info, Econ<'info>>, op: u8, a: u64, b: u64, data: [u8; 32]) -> Result<()> {
+        p6::dispatch(&ctx.accounts.signer, ctx.remaining_accounts, op, a, b, data)
     }
 
     /// ER, game authority: the second VRF draw at match end (capsule rarity), once the receipt is written.
@@ -1062,14 +1083,14 @@ pub struct JoinLobby<'info> {
 /// `SessionTokenV2` checks (session-keys' own `validate` form, without its trait plumbing): this program, this
 /// signer, this wallet, the token PDA's seeds, not expired.
 pub(crate) fn sim_session_check(t: &Account<session_keys::SessionTokenV2>, signer: &Pubkey, wallet: &Pubkey) -> Result<()> {
-    require_keys_eq!(t.target_program, crate::ID, FallRushError::SessionInvalid);
-    require_keys_eq!(t.session_signer, *signer, FallRushError::SessionInvalid);
-    require_keys_eq!(t.authority, *wallet, FallRushError::SessionInvalid);
+    keq!(t.target_program, crate::ID, FallRushError::SessionInvalid);
+    keq!(t.session_signer, *signer, FallRushError::SessionInvalid);
+    keq!(t.authority, *wallet, FallRushError::SessionInvalid);
     let (pda, _) = Pubkey::find_program_address(
         &[session_keys::SessionTokenV2::SEED_PREFIX.as_bytes(), crate::ID.as_ref(), signer.as_ref(), wallet.as_ref()],
         &session_keys::ID,
     );
-    require_keys_eq!(pda, t.key(), FallRushError::SessionInvalid);
+    keq!(pda, t.key(), FallRushError::SessionInvalid);
     require!(!t.is_expired()?, FallRushError::SessionInvalid);
     Ok(())
 }

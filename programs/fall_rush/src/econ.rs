@@ -57,6 +57,15 @@ pub mod mkind {
     pub const QUALIFY: u8 = 2;
 }
 
+/// P6: `Market::_pad[SEALED_PAD]` = the market's sealed state (layout unchanged: pad space, doc 15 D-LAYOUT).
+pub const SEALED_PAD: usize = 0;
+pub mod sealed_state {
+    pub const NONE: u8 = 0;
+    /// Sealed commits in the arena's `SealedEscrow` not yet revealed / finished into this market.
+    pub const PENDING: u8 = 1;
+    pub const DONE: u8 = 2;
+}
+
 pub mod mstatus {
     pub const IDLE: u8 = 0;
     pub const OPEN: u8 = 1;
@@ -202,7 +211,7 @@ pub fn acts_for(signer: &Pubkey, wallet: &Pubkey, token: Option<&Account<session
     match token {
         Some(t) => crate::sim_session_check(t, signer, wallet),
         None => {
-            require_keys_eq!(*signer, *wallet, FallRushError::Unauthorized);
+            keq!(*signer, *wallet, FallRushError::Unauthorized);
             Ok(())
         }
     }
@@ -261,6 +270,7 @@ pub fn market_reset(m: &mut Market, match_account: Pubkey, arena: Pubkey, id: u8
     m.n_bets = 0;
     m.n_paid = 0;
     m.refund = 0;
+    m._pad = [0; 6];
     m.bets = [Bet { wallet: Pubkey::default(), amount: 0, outcome: 0, paid: 0, _pad: [0; 6] }; MAX_BETS];
 }
 
@@ -277,11 +287,13 @@ pub struct FinalView {
 /// client's clock or the keeper's choice.
 pub fn bet_window(mk: &Market, m: &Match, f: FinalView, outcome: u8) -> Result<()> {
     require!(mk.status == mstatus::OPEN, FallRushError::MarketClosed);
-    require!((outcome as usize) < (m.player_count as usize).min(MAX_SLOTS_E), FallRushError::InvalidSlot);
+    // P6: outcome 255 = a sealed commit (the pick is hidden): only the market's window is checked
+    let sealed = outcome == 255;
+    require!(sealed || (outcome as usize) < (m.player_count as usize).min(MAX_SLOTS_E), FallRushError::InvalidSlot);
     let final_mode = m.flags & sim::MATCH_FINAL_MODE != 0;
     let over = matches!(m.status, MatchStatus::Completed | MatchStatus::Aborted);
     require!(!over, FallRushError::MarketClosed);
-    let st = m.slots[outcome as usize].state;
+    let st = if sealed { SLOT_ALIVE } else { m.slots[outcome as usize].state };
     match mk.kind {
         mkind::CHAMPION => {
             // open from create_match; closes at the Final's RUSH tick (on-chain Final) or when round 4 starts
@@ -337,6 +349,8 @@ pub fn settle(mk: &mut Market, m: &Match) -> Result<bool> {
     if mk.status != mstatus::OPEN {
         return Ok(false);
     }
+    // P6: sealed commits still pending (not revealed / finished into this market)
+    require!(mk._pad[SEALED_PAD] != sealed_state::PENDING, FallRushError::SealedPending);
     let final_mode = m.flags & sim::MATCH_FINAL_MODE != 0;
     let mut winners = 0u16;
     let mut lab;
@@ -411,7 +425,7 @@ pub fn payout<'a>(mk: &mut Market, chips: &'a [AccountInfo<'a>]) -> Result<u32> 
         let loader = AccountLoader::<ChipBalance>::try_from(info)?;
         let mut c = loader.load_mut()?;
         let (pda, _) = Pubkey::find_program_address(&[CHIPS_SEED, c.wallet.as_ref()], &crate::ID);
-        require_keys_eq!(pda, info.key(), FallRushError::Unauthorized);
+        keq!(pda, info.key(), FallRushError::Unauthorized);
         let mut i = 0;
         while i < mk.n_bets as usize {
             if mk.bets[i].paid == 0 && mk.bets[i].wallet == c.wallet {
@@ -722,12 +736,12 @@ fn session_at<'info>(accs: &'info [AccountInfo<'info>], i: usize) -> Result<Opti
 #[inline(never)]
 fn load_match<'info>(info: &'info AccountInfo<'info>) -> Result<Box<Account<'info, Match>>> {
     let m: Box<Account<Match>> = Box::new(Account::try_from(info)?);
-    require_keys_eq!(pda(&[MATCH_SEED, &m.match_id]).0, info.key(), FallRushError::Unauthorized);
+    keq!(pda(&[MATCH_SEED, &m.match_id]).0, info.key(), FallRushError::Unauthorized);
     Ok(m)
 }
 
 fn config<'info>(info: &'info AccountInfo<'info>) -> Result<Account<'info, GameConfig>> {
-    require_keys_eq!(pda(&[CONFIG_SEED]).0, info.key(), FallRushError::Unauthorized);
+    keq!(pda(&[CONFIG_SEED]).0, info.key(), FallRushError::Unauthorized);
     Account::try_from(info)
 }
 
@@ -755,7 +769,7 @@ fn op_init_chips<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'info>
     let _ = (&me, a, b);
     let chips = acc(accs, 0)?;
     let (k, bump) = pda(&[CHIPS_SEED, me.as_ref()]);
-    require_keys_eq!(k, chips.key(), FallRushError::Unauthorized);
+    keq!(k, chips.key(), FallRushError::Unauthorized);
     require!(chips.owner != &crate::ID, FallRushError::AlreadyJoined);
     create_pda(&signer.to_account_info(), chips, acc(accs, 1)?, &[CHIPS_SEED, me.as_ref(), &[bump]], 8 + core::mem::size_of::<ChipBalance>() as u64, &crate::ID)?;
     let mut d = chips.try_borrow_mut_data()?;
@@ -800,16 +814,16 @@ fn op_mint_cashout<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'inf
     let _ = (&me, a, b);
     let (chips, stamp, mint, auth, wallet, ata, token, atap, system) = (acc(accs, 0)?, acc(accs, 1)?, acc(accs, 2)?, acc(accs, 3)?, acc(accs, 4)?, acc(accs, 5)?, acc(accs, 6)?, acc(accs, 7)?, acc(accs, 8)?);
     let w = wallet.key();
-    require_keys_eq!(pda(&[CHIPS_SEED, w.as_ref()]).0, chips.key(), FallRushError::Unauthorized);
+    keq!(pda(&[CHIPS_SEED, w.as_ref()]).0, chips.key(), FallRushError::Unauthorized);
     let (wk, cashed) = committed_cashout(chips).ok_or(error!(FallRushError::Unauthorized))?;
-    require_keys_eq!(wk, w, FallRushError::Unauthorized);
+    keq!(wk, w, FallRushError::Unauthorized);
     let (sk, sb) = pda(&[CASHOUT_SEED, w.as_ref()]);
-    require_keys_eq!(sk, stamp.key(), FallRushError::Unauthorized);
-    require_keys_eq!(RUSH_MINT, mint.key(), FallRushError::Unauthorized);
+    keq!(sk, stamp.key(), FallRushError::Unauthorized);
+    keq!(RUSH_MINT, mint.key(), FallRushError::Unauthorized);
     let (ak, ab) = pda(&[RUSH_MINT_AUTH_SEED]);
-    require_keys_eq!(ak, auth.key(), FallRushError::Unauthorized);
-    require_keys_eq!(ata.key(), ata_of(&w, &mint.key()), FallRushError::Unauthorized);
-    require_keys_eq!(token.key(), TOKEN_PROGRAM, FallRushError::Unauthorized);
+    keq!(ak, auth.key(), FallRushError::Unauthorized);
+    keq!(ata.key(), ata_of(&w, &mint.key()), FallRushError::Unauthorized);
+    keq!(token.key(), TOKEN_PROGRAM, FallRushError::Unauthorized);
     if stamp.owner != &crate::ID {
         create_pda(&signer.to_account_info(), stamp, system, &[CASHOUT_SEED, w.as_ref(), &[sb]], 16, &crate::ID)?;
     }
@@ -828,16 +842,16 @@ fn op_init_econ<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'info>]
     let me = signer.key();
     let _ = (&me, a, b);
     let cfg = config(acc(accs, 0)?)?;
-    require_keys_eq!(me, cfg.game_authority, FallRushError::Unauthorized);
+    keq!(me, cfg.game_authority, FallRushError::Unauthorized);
     let (id, k) = (a as u8, b as u8);
     let arena = acc(accs, 1)?;
-    require_keys_eq!(pda(&[sim::ARENA_SEED, &[id]]).0, arena.key(), FallRushError::Unauthorized);
+    keq!(pda(&[sim::ARENA_SEED, &[id]]).0, arena.key(), FallRushError::Unauthorized);
     let target = acc(accs, 2)?;
     let system = acc(accs, 3)?;
     let ak = arena.key();
     if k < MARKETS as u8 {
         let (mk, mb) = pda(&[MARKET_SEED, &[id], &[k]]);
-        require_keys_eq!(mk, target.key(), FallRushError::Unauthorized);
+        keq!(mk, target.key(), FallRushError::Unauthorized);
         create_pda(&signer.to_account_info(), target, system, &[MARKET_SEED, &[id], &[k], &[mb]], 8 + core::mem::size_of::<Market>() as u64, &crate::ID)?;
         target.try_borrow_mut_data()?[..8].copy_from_slice(Market::DISCRIMINATOR);
         let l = AccountLoader::<Market>::try_from(target)?;
@@ -846,7 +860,7 @@ fn op_init_econ<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'info>]
         m.status = mstatus::IDLE;
     } else {
         let (dk, db) = pda(&[DROPQ_SEED, ak.as_ref()]);
-        require_keys_eq!(dk, target.key(), FallRushError::Unauthorized);
+        keq!(dk, target.key(), FallRushError::Unauthorized);
         create_pda(&signer.to_account_info(), target, system, &[DROPQ_SEED, ak.as_ref(), &[db]], 8 + core::mem::size_of::<DropQueue>() as u64, &crate::ID)?;
         target.try_borrow_mut_data()?[..8].copy_from_slice(DropQueue::DISCRIMINATOR);
         let l = AccountLoader::<DropQueue>::try_from(target)?;
@@ -862,13 +876,13 @@ fn op_open_markets<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'inf
     let arena_i = acc(accs, 0)?;
     let al = AccountLoader::<sim::Arena>::try_from(arena_i)?;
     let ar = al.load()?;
-    require_keys_eq!(ar.authority, me, FallRushError::Unauthorized);
+    keq!(ar.authority, me, FallRushError::Unauthorized);
     let id = ar.id;
     let mk = acc(accs, 7)?.key();
-    require_keys_eq!(ar.match_account, mk, FallRushError::BadArenaState);
+    keq!(ar.match_account, mk, FallRushError::BadArenaState);
     for k in 0..MARKETS {
         let info = acc(accs, 2 + k)?;
-        require_keys_eq!(pda(&[MARKET_SEED, &[id], &[k as u8]]).0, info.key(), FallRushError::InvalidSlot);
+        keq!(pda(&[MARKET_SEED, &[id], &[k as u8]]).0, info.key(), FallRushError::InvalidSlot);
         let l = AccountLoader::<Market>::try_from(info)?;
         let mut m = l.load_mut()?;
         require!(m.status == mstatus::IDLE || m.status == mstatus::PAID || m.n_bets == 0, FallRushError::MarketBusy);
@@ -876,7 +890,7 @@ fn op_open_markets<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'inf
     }
     let dl = AccountLoader::<DropQueue>::try_from(acc(accs, 1)?)?;
     let mut d = dl.load_mut()?;
-    require_keys_eq!(d.arena, arena_i.key(), FallRushError::BadArenaState);
+    keq!(d.arena, arena_i.key(), FallRushError::BadArenaState);
     d.match_account = mk;
     d.count = 0;
     d.last_tick = 0;
@@ -899,14 +913,14 @@ fn op_place_bet<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'info>]
     let ml = AccountLoader::<Market>::try_from(acc(accs, 1)?)?;
     let mut mk = ml.load_mut()?;
     let m = load_match(acc(accs, 2)?)?;
-    require_keys_eq!(mk.match_account, m.key(), FallRushError::MarketClosed);
+    keq!(mk.match_account, m.key(), FallRushError::MarketClosed);
     let arena_i = acc(accs, 3)?;
-    require_keys_eq!(mk.arena, arena_i.key(), FallRushError::BadArenaState);
+    keq!(mk.arena, arena_i.key(), FallRushError::BadArenaState);
     let al = AccountLoader::<sim::Arena>::try_from(arena_i)?;
     let ar = al.load()?;
     let wl = AccountLoader::<sim::WorldAcc>::try_from(acc(accs, 4)?)?;
     let w = wl.load()?;
-    require_keys_eq!(w.arena, arena_i.key(), FallRushError::BadArenaState);
+    keq!(w.arena, arena_i.key(), FallRushError::BadArenaState);
     let live = ar.match_account == m.key() && ar.status == sim::arena_status::RUNNING && w.round == 4;
     let f = FinalView { live, rushed: live && w.round_phase >= rush_core::rules::phase::RUSH };
     let outcome = a.min(255) as u8;
@@ -924,7 +938,7 @@ fn op_settle<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'info>], a
     let ml = AccountLoader::<Market>::try_from(acc(accs, 0)?)?;
     let mut mk = ml.load_mut()?;
     let m = load_match(acc(accs, 1)?)?;
-    require_keys_eq!(mk.match_account, m.key(), FallRushError::MarketClosed);
+    keq!(mk.match_account, m.key(), FallRushError::MarketClosed);
     settle(&mut mk, &m)?;
     payout(&mut mk, &accs[2..])?;
     Ok(())
@@ -940,11 +954,11 @@ fn op_buy_drop<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'info>],
     require!(ar.status == sim::arena_status::RUNNING, FallRushError::DropClosed);
     let wl = AccountLoader::<sim::WorldAcc>::try_from(acc(accs, 3)?)?;
     let w = wl.load()?;
-    require_keys_eq!(w.arena, arena_i.key(), FallRushError::BadArenaState);
+    keq!(w.arena, arena_i.key(), FallRushError::BadArenaState);
     let dl = AccountLoader::<DropQueue>::try_from(acc(accs, 1)?)?;
     let mut dq = dl.load_mut()?;
-    require_keys_eq!(dq.arena, arena_i.key(), FallRushError::BadArenaState);
-    require_keys_eq!(dq.match_account, ar.match_account, FallRushError::DropClosed);
+    keq!(dq.arena, arena_i.key(), FallRushError::BadArenaState);
+    keq!(dq.match_account, ar.match_account, FallRushError::DropClosed);
     let cl = AccountLoader::<ChipBalance>::try_from(acc(accs, 0)?)?;
     let mut c = cl.load_mut()?;
     acts_for(&me, &c.wallet, session_at(accs, 4)?.as_ref())?;
@@ -967,14 +981,14 @@ fn write_receipt<'info>(accs: &'info [AccountInfo<'info>]) -> Result<()> {
     let w = wl.load()?;
     let dl = AccountLoader::<DropQueue>::try_from(acc(accs, 3)?)?;
     let dq = dl.load()?;
-    require_keys_eq!(w.arena, arena_i.key(), FallRushError::BadArenaState);
-    require_keys_eq!(dq.arena, arena_i.key(), FallRushError::BadArenaState);
+    keq!(w.arena, arena_i.key(), FallRushError::BadArenaState);
+    keq!(dq.arena, arena_i.key(), FallRushError::BadArenaState);
     require!(accs.len() >= 4 + MARKETS + sim::MAP_SLOTS, FallRushError::InvalidSlot);
     require!(matches!(m.status, MatchStatus::Completed | MatchStatus::Aborted), FallRushError::InvalidStatus);
-    require_keys_eq!(ar.match_account, mk, FallRushError::BadArenaState);
+    keq!(ar.match_account, mk, FallRushError::BadArenaState);
     for k in 0..MARKETS {
         let info = &accs[4 + k];
-        require_keys_eq!(pda(&[MARKET_SEED, &[ar.id], &[k as u8]]).0, info.key(), FallRushError::InvalidSlot);
+        keq!(pda(&[MARKET_SEED, &[ar.id], &[k as u8]]).0, info.key(), FallRushError::InvalidSlot);
         let l = AccountLoader::<Market>::try_from(info)?;
         let x = l.load()?;
         if x.match_account == mk {
@@ -987,12 +1001,15 @@ fn write_receipt<'info>(accs: &'info [AccountInfo<'info>]) -> Result<()> {
     let mut mh = [0u8; 32];
     for k in 0..sim::MAP_SLOTS {
         let info = &accs[4 + MARKETS + k];
-        require_keys_eq!(info.key(), ar.maps[k], FallRushError::BadMap);
+        keq!(info.key(), ar.maps[k], FallRushError::BadMap);
         let d = info.try_borrow_data()?;
         require!(d.len() >= sim::MAP_HDR, FallRushError::BadMap);
         mh = hashv(&[&mh, &d[48..80]]).to_bytes();
     }
     m.receipt.map_hash = mh;
+    // P6: the bets hash (what `record_season` checks the committed market copies against) + the sealed entries
+    // (optional trailing `SealedEscrow`, so a P5 keeper's account list still works)
+    crate::p6::receipt_extras(&mut m.receipt, &accs[4..4 + MARKETS], &dq, mk, accs.get(4 + MARKETS + sim::MAP_SLOTS))?;
     m.receipt.core_version = u16::from_le_bytes(w.core_version);
     m.receipt.human_mask = ar.human_mask;
     m.receipt.wallets = ar.wallets;
@@ -1065,10 +1082,10 @@ pub fn mint_rewards_action<'info>(accs: &'info [AccountInfo<'info>], whats: &[u8
     let n = accs.len();
     require!(!whats.is_empty() && whats.len() <= ACTION_MAX_ITEMS + 9 && n == 3 + 7 * whats.len(), FallRushError::InvalidSlot);
     let (src, auth, escrow) = (&accs[n - 3], &accs[n - 2], &accs[n - 1]);
-    require_keys_eq!(src.key(), crate::ID, FallRushError::Unauthorized);
-    require_keys_eq!(auth.key(), pda(&[ESCROW_AUTH_SEED]).0, FallRushError::Unauthorized);
+    keq!(src.key(), crate::ID, FallRushError::Unauthorized);
+    keq!(auth.key(), pda(&[ESCROW_AUTH_SEED]).0, FallRushError::Unauthorized);
     let (ek, _) = Pubkey::find_program_address(&[b"balance", auth.key.as_ref(), &[ESCROW_INDEX]], &DELEGATION_PROGRAM);
-    require_keys_eq!(escrow.key(), ek, FallRushError::Unauthorized);
+    keq!(escrow.key(), ek, FallRushError::Unauthorized);
     require!(escrow.is_signer, FallRushError::Unauthorized);
     let mut i = 0;
     while i < whats.len() {
@@ -1087,7 +1104,7 @@ fn mint_one<'info>(accs: &'info [AccountInfo<'info>], what: u8) -> Result<()> {
     let mut m = load_match(mi)?;
     let mk = mi.key();
     let (asset, owner, treasury, assets_auth, core, system) = (acc(accs, 1)?, acc(accs, 2)?, acc(accs, 3)?, acc(accs, 4)?, acc(accs, 5)?, acc(accs, 6)?);
-    require_keys_eq!(core.key(), MPL_CORE, FallRushError::Unauthorized);
+    keq!(core.key(), MPL_CORE, FallRushError::Unauthorized);
     let (rflags, hmask, minted) = (m.receipt.flags, m.receipt.human_mask, m.receipt.minted_mask);
     require!(rflags & rflag::WRITTEN != 0 && m.status == MatchStatus::Completed, FallRushError::ReceiptNotReady);
     let slot = if what == 0 { m.champion_slot } else { what - 1 };
@@ -1097,13 +1114,13 @@ fn mint_one<'info>(accs: &'info [AccountInfo<'info>], what: u8) -> Result<()> {
     } else {
         require!(rflags & rflag::SEEDED != 0 && minted >> slot & 1 == 0, FallRushError::NothingToMint);
     }
-    require_keys_eq!(owner.key(), m.receipt.wallets[slot as usize], FallRushError::Unauthorized);
+    keq!(owner.key(), m.receipt.wallets[slot as usize], FallRushError::Unauthorized);
     let sb = [slot];
     let (asset_pda, ab) = if what == 0 { pda(&[CROWN_SEED, mk.as_ref()]) } else { pda(&[CAPSULE_SEED, mk.as_ref(), &sb]) };
-    require_keys_eq!(asset_pda, asset.key(), FallRushError::Unauthorized);
+    keq!(asset_pda, asset.key(), FallRushError::Unauthorized);
     let (tk, tb) = pda(&[TREASURY_SEED]);
-    require_keys_eq!(tk, treasury.key(), FallRushError::Unauthorized);
-    require_keys_eq!(pda(&[ASSETS_SEED]).0, assets_auth.key(), FallRushError::Unauthorized);
+    keq!(tk, treasury.key(), FallRushError::Unauthorized);
+    keq!(pda(&[ASSETS_SEED]).0, assets_auth.key(), FallRushError::Unauthorized);
     let (mut b1, mut b2, mut b3, mut b4, mut b5) = ([0u8; 16], [0u8; 44], [0u8; 3], [0u8; 3], [0u8; 3]);
     let id8 = hex_into(&m.match_id[..8], &mut b1);
     let mpda = b58_into(&mk.to_bytes(), &mut b2);

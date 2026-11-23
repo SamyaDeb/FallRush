@@ -1,0 +1,138 @@
+{
+  "at": "2026-11-23T14:04:04.794Z",
+  "program": "2WJiwbdnwo7qVC3zesZjFWEPUcU2NZbBXf8arMUJ6p89",
+  "tee": "https://devnet-tee.magicblock.app",
+  "validator": "MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo",
+  "steps": [
+    {
+      "name": "verifyTeeRpcIntegrity",
+      "ok": true,
+      "ms": 2044,
+      "v": "attested"
+    },
+    {
+      "name": "getAuthToken(member)",
+      "ok": true,
+      "ms": 590,
+      "v": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJwdWJrZXkiOiJEY0Nja1Z6YWFNeXFuSjd3Z1hVYVdtNlhMcFpwVnM3cWVVbTNVUTczYzduTSIsImV4cCI6MTc5ODAzNDY0NywiaWF0IjoxNzk1NDQyNjQ3fQ.A0hCQLSmdPJbD3zQraB6EZk1_IxA0aY-zJlsAoVeVHw"
+    },
+    {
+      "name": "getAuthToken(outsider)",
+      "ok": true,
+      "ms": 300,
+      "v": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJwdWJrZXkiOiI2RHVRUWo5a3c2NW5LcjlxbnFpSHZKZ1ltdERZRzFwNWRTbnBBYjR4WG0zVSIsImV4cCI6MTc5ODAzNDY0NywiaWF0IjoxNzk1NDQyNjQ3fQ.1M8TcXaKiR4RG03HvCPf7SjbBu6XShz2VEp7i7_2fyw"
+    },
+    {
+      "name": "fund member 0.03 SOL",
+      "ok": true,
+      "ms": 3597,
+      "v": "3gzbdqXMNRccaRE5yvDenvDaSS649PrhUpMiQNCCk8dtCFqPKcj3fxurPE1TsHU86PTPdYEpzDcVXYW6C1mWYWUp"
+    },
+    {
+      "name": "base initialize",
+      "ok": true,
+      "ms": 1079,
+      "v": "4orpP24YYQ992m84Jc2ktMd6hyxodHMiCc5Lz9kio5j9CKbCdG92phW31YsrkMg6UJFBYFPkUMVoUK929ee55igu"
+    },
+    {
+      "name": "base delegate → TEE validator",
+      "ok": true,
+      "ms": 1017,
+      "v": "66p8V7nLf38zjfMpcxEz8sZJBnsxbHuvMzgqFDt9Nc7Gw3zPZNiLarRzbKSMXJNgRJXE3zMbFkaNxUVuqtnMahmf"
+    },
+    {
+      "name": "TEE sees counter",
+      "ok": true,
+      "ms": 408,
+      "v": "owner 2WJiwbdnwo7qVC3zesZjFWEPUcU2NZbBXf8arMUJ6p89"
+    },
+    {
+      "name": "TEE init_permission",
+      "ok": true,
+      "ms": 591,
+      "v": "2b3dK1o1oWWiiy4Bn6A8v3FmV9jHofTtnwRtGZd9kjCirKYSRMVLDxPpC7HBwka23Fe1YMQ9tgJ1tsRmuABbdBFp"
+    },
+    {
+      "name": "TEE set_privacy(true) members=[A]",
+      "ok": true,
+      "ms": 351,
+      "v": "26pW2mq4u6BYcmLc6VUssnopCf8S28JuRPDuC9SBTSYRxUA6S9yws9CQ37vTcgbqayYe7MN2wE5iqFLFrvyDdnGk"
+    },
+    {
+      "name": "TEE increment 1",
+      "ok": true,
+      "ms": 334,
+      "v": "WGtkNnjq4hSJEuuf2xgB8QfNosghEMSUFpMdjX8EH7BQvZTCBmM7rpEBxn69bx2hx2kYCPzJwvo8qtpf5E6nQV4"
+    },
+    {
+      "name": "TEE increment 2",
+      "ok": true,
+      "ms": 365,
+      "v": "5vUbq8j38LwEcKgnyK9T9QSXuerBCmNkzP9TV3bMtC24XqCRFfWimhejoEQRanhhjgGbZEN4W32TnNDxmFSMovv1"
+    },
+    {
+      "name": "TEE increment 3",
+      "ok": true,
+      "ms": 349,
+      "v": "3tsYSSqkhS2zMnFoYUoR9K5DJx8caEnJGCPaJYeV8xHYiEwaEE9LYRM4oAZqwpvDkZMaenUfx6tnC3aXJNnTmfB8"
+    },
+    {
+      "name": "TEE set_privacy(false) (reveal)",
+      "ok": true,
+      "ms": 341,
+      "v": "3FNr6rPsgGbTQ6YHgVVLtLg4kDqw4FFnsaFjxetc2JSWhQ75Ks2Xa4wG5ykT3GDLmWjTQnwu9Lge1nYBT973yqCp"
+    },
+    {
+      "name": "TEE close_permission",
+      "ok": true,
+      "ms": 360,
+      "v": "2M28QwF7t8USfn7PmkMSVHFW4d3YGx7JhZY5QS6ZhZTb72B1Ng16s8zWWtVNXVGTMWpAU2CfTu7uV94HDeumKzpC"
+    },
+    {
+      "name": "TEE commit+undelegate",
+      "ok": true,
+      "ms": 408,
+      "v": "8T22orUAhCbeJ7xNgbnhr3GYL8y4x8HLrawc9ek6couagFEVimiD2znNSpe9Ny9dkHZg116Wyb6TKiLZo1novcn"
+    },
+    {
+      "name": "counter back on Solana",
+      "ok": true,
+      "ms": 2327,
+      "v": "count=3"
+    }
+  ],
+  "member": "DcCckVzaaMyqnJ7wgXUaWm6XLpZpVs7qeUm3UQ73c7nM",
+  "outsider": "6DuQQj9kw65nKr9qnqiHvJgYmtDYG1p5dSnpAb4xXm3U",
+  "counter": "HiCzFshEEgnGgT131BW8dViLPQEe3XASaBw7J7PcSaEH",
+  "tokenExpiresAt": 1798034647432,
+  "privateReads": {
+    "member": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"result\":{\"context\":{\"slot\":868529375},\"value\":{\"lamports\":894080,\"data\":[\"/7AE9bz9fBkDAAAAAAAAALtQtMQA2MTnUFaclrOx1f0XA6VfwTJ+x0bMv/44FCG2\",\"base64\"],\"owner\":\"2WJiwbdnwo7qVC3zesZjFWEPUcU2NZbBXf8arMUJ6p89\",\"executable\":false,\"rentEpoch\":18446744073709551615,\"space\":48}},\"id\":1}"
+    },
+    "outsider": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"context\":{\"slot\":868529386},\"value\":null}}"
+    },
+    "noToken": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"context\":{\"slot\":868529399},\"value\":null}}"
+    },
+    "baseLayer": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"result\":{\"context\":{\"apiVersion\":\"4.5.0-beta.0\",\"slot\":525454587},\"value\":{\"data\":[\"/7AE9bz9fBkAAAAAAAAAALtQtMQA2MTnUFaclrOx1f0XA6VfwTJ+x0bMv/44FCG2\",\"base64\"],\"executable\":false,\"lamports\":899232,\"owner\":\"DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh\",\"rentEpoch\":18446744073709551615,\"space\":48}},\"id\":1}\n"
+    }
+  },
+  "revealMs": 341,
+  "publicReads": {
+    "outsider": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"result\":{\"context\":{\"slot\":868529455},\"value\":{\"lamports\":895136,\"data\":[\"/7AE9bz9fBkDAAAAAAAAALtQtMQA2MTnUFaclrOx1f0XA6VfwTJ+x0bMv/44FCG2\",\"base64\"],\"owner\":\"2WJiwbdnwo7qVC3zesZjFWEPUcU2NZbBXf8arMUJ6p89\",\"executable\":false,\"rentEpoch\":18446744073709551615,\"space\":48}},\"id\":1}"
+    },
+    "noToken": {
+      "http": 200,
+      "body": "{\"jsonrpc\":\"2.0\",\"result\":{\"context\":{\"slot\":868529466},\"value\":{\"lamports\":895136,\"data\":[\"/7AE9bz9fBkDAAAAAAAAALtQtMQA2MTnUFaclrOx1f0XA6VfwTJ+x0bMv/44FCG2\",\"base64\"],\"owner\":\"2WJiwbdnwo7qVC3zesZjFWEPUcU2NZbBXf8arMUJ6p89\",\"executable\":false,\"rentEpoch\":18446744073709551615,\"space\":48}},\"id\":1}"
+    }
+  },
+  "undelegateMs": 3096
+}

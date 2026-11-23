@@ -45,7 +45,7 @@ pub fn intent_data(n: usize, undelegate: bool) -> Vec<u8> {
 /// Commits (and optionally undelegates) `accounts` from the rollup, paid by `payer` (= the builder's
 /// `commit(..).build_and_invoke()` / `commit_and_undelegate(..)`).
 pub fn commit<'info>(payer: &AccountInfo<'info>, magic_context: &AccountInfo<'info>, magic_program: &AccountInfo<'info>, accounts: &[AccountInfo<'info>], undelegate: bool) -> Result<()> {
-    require_keys_eq!(magic_program.key(), ephemeral_rollups_sdk::consts::MAGIC_PROGRAM_ID, crate::errors::FallRushError::BadTask);
+    keq!(magic_program.key(), ephemeral_rollups_sdk::consts::MAGIC_PROGRAM_ID, crate::errors::FallRushError::BadTask);
     let mut metas = vec![AccountMeta::new(payer.key(), true), AccountMeta::new(magic_context.key(), false)];
     let mut infos = vec![payer.clone(), magic_context.clone()];
     for a in accounts {
@@ -95,7 +95,7 @@ pub fn intent_data_with_action(n: usize, escrow_index: u8, escrow_authority: u8,
 /// `escrow_auth_seeds` and is appended after the committed accounts (its index is passed as `escrow_authority`).
 #[allow(clippy::too_many_arguments)]
 pub fn commit_undelegate_with_action<'info>(payer: &AccountInfo<'info>, magic_context: &AccountInfo<'info>, magic_program: &AccountInfo<'info>, accounts: &[AccountInfo<'info>], escrow_auth: &AccountInfo<'info>, escrow_auth_seeds: &[&[u8]], escrow_index: u8, compute_units: u32, metas: &[(Pubkey, bool)], data: &[u8]) -> Result<()> {
-    require_keys_eq!(magic_program.key(), ephemeral_rollups_sdk::consts::MAGIC_PROGRAM_ID, crate::errors::FallRushError::BadTask);
+    keq!(magic_program.key(), ephemeral_rollups_sdk::consts::MAGIC_PROGRAM_ID, crate::errors::FallRushError::BadTask);
     let mut am = vec![AccountMeta::new(payer.key(), true), AccountMeta::new(magic_context.key(), false)];
     let mut infos = vec![payer.clone(), magic_context.clone()];
     for a in accounts {
