@@ -1,0 +1,35 @@
+{
+ "flow": "sealed",
+ "started": "2026-11-23T16:27:10.980Z",
+ "marks": {
+  "loaded": {
+   "t": 1.39
+  },
+  "guest_ready": {
+   "t": 12.42,
+   "ready": "you: GaCK…1uUR · 1,000 RUSH chips"
+  },
+  "no_sealed_market": {
+   "t": 613.12,
+   "bet": null
+  },
+  "sealed_result": {
+   "t": 613.13,
+   "ok": null
+  },
+  "attestation": {
+   "t": 654.94,
+   "att": null
+  },
+  "closed": {
+   "t": 1255.4,
+   "closed": null
+  },
+  "revealed": {
+   "t": 1316.02,
+   "rev": null
+  }
+ },
+ "pass": false,
+ "finished": "2026-11-23T16:49:08.032Z"
+}

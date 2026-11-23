@@ -38,7 +38,8 @@ case "${1:-}" in
     note "build: node image fallrush-node:p6 + web.p6 staged (not live)" ;;
   web)
     wait_idle
-    "${SSH[@]}" 'set -e; cd /opt/fallrush; rm -rf web.p5bak; cp -a web web.p5bak; find web -mindepth 1 -delete; cp -a web.p6/. web/; docker exec fallrush-web nginx -t -q && docker exec fallrush-web nginx -s reload'
+    # the landing (web/site, another session's deploy) lives in web/site: never delete or overwrite it
+    "${SSH[@]}" 'set -e; cd /opt/fallrush; rm -rf web.p5bak; mkdir web.p5bak; (cd web && tar --exclude=./site -cf - .) | tar -C web.p5bak -xf -; find web -mindepth 1 -maxdepth 1 ! -name site -exec rm -rf {} +; (cd web.p6 && tar --exclude=./site -cf - .) | tar -C web -xf -; test -d web/site && echo "web/site kept"; docker exec fallrush-web nginx -t -q && docker exec fallrush-web nginx -s reload'
     note "web: switched to the P6 build (web.p5bak kept)" ;;
   indexer|keeper-1)
     wait_idle

@@ -359,9 +359,14 @@ async function seasons(matchPda: PublicKey, mlog: string, out: any) {
   const champion = rc.champion < 12 && (rc.humanMask >> rc.champion) & 1 ? rc.wallets[rc.champion] : null;
   out.seasons = {};
   for (const id of S.seasonsFor(rc.completedAt)) {
-    if (id < S.TEST_SEASON_BASE) await S.ensureSeason(id).catch(() => {});
-    const sigs = await S.recordSeason(ARENA, matchPda, id, wallets, champion, mlog);
-    out.seasons[id] = { wallets: wallets.length, walletList: wallets.map((x) => x.toBase58()), sigs };
+    if (id < S.TEST_SEASON_BASE) await S.ensureSeason(id).catch((e) => log({ ev: "season_open_failed", err: String(e).slice(0, 200) }));
+    // a just-created Season may not be visible to the public RPC yet (simulation: AccountOwnedByWrongProgram): wait, retry
+    for (let i = 0; i < 20 && !(await S.season(id)); i++) await sleep(1500);
+    let sigs: string[] = [], err = "";
+    for (let t = 0; t < 3 && !sigs.length; t++) {
+      try { sigs = await S.recordSeason(ARENA, matchPda, id, wallets, champion, mlog); } catch (e: any) { err = String(e?.message ?? e).slice(0, 200); log({ ev: "record_retry", season: id, t, err }); await sleep(4000); }
+    }
+    out.seasons[id] = { wallets: wallets.length, walletList: wallets.map((x) => x.toBase58()), sigs, err: sigs.length ? undefined : err };
   }
 }
 

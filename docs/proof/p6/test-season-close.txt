@@ -1,0 +1,8 @@
+before {"id":1000001,"status":0,"trophies":0,"test":1,"startsAt":1795447139,"endsAt":1795454339,"nMatches":4,"nPlayers":8,"champions":[{"wallet":"G7ZcJAaEmdZCa8nTgzeiDLZhxWsgRXkNPw6ZNzzYe5HN","score":"1002"},{"wallet":"3BfiL28q3UdzE954UZLAeFLXa1rjc5ZGr2ZVcTTMq3DL","score":"2"}],"predictors":[{"wallet":"D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE","score":"55000000"}],"dropMvps":[]}
+sigs {"close":"5QbbnA7gVM8Kdtp46pFMagbUXiHbihVLJJtwFTU1rBqAbhnsmH5FxbwwdRBaezw4dN3Pt2zTwbHokhHhsXcYgxNT","trophy0":"3BkuaooGfamSUbJDprJ9vzcLT9L4gLfrPMZ8kCNp7xYwGe2sUKhYsWLgVWib6J9Ph73PvihXNRS2H25V2pmfyF6K","trophy1":"4PFNmCPZWZu5bxUaRrnnrmUuJ8zCuMM8ggLc7xoQvtx5Y47k8jebZ6bo3zP7SJi6rnzqqJkGbrSEzY8YPwyNhUmp"}
+trophies [
+  '6KmXyYtgzkW8aNXhfvx3nh7i2bGwfxXLUmGQYZmftEsN',
+  '83ggmMHN4ptV77CyiWRwtqYeaXfMDUvX5dWRrCgYGoo1',
+  '13z1PAypQ9SC3FEEqTNV2mUgNQvu9UcDxsg1zfaHJLNs'
+]
+after {"id":1000001,"status":1,"trophies":3,"test":1,"startsAt":1795447139,"endsAt":1795454339,"nMatches":4,"nPlayers":8,"champions":[{"wallet":"G7ZcJAaEmdZCa8nTgzeiDLZhxWsgRXkNPw6ZNzzYe5HN","score":"1002"},{"wallet":"3BfiL28q3UdzE954UZLAeFLXa1rjc5ZGr2ZVcTTMq3DL","score":"2"}],"predictors":[{"wallet":"D4aZuqCi3XpRHbEkT7cUgoSiDcQyHMU283vY4aMX1oBE","score":"55000000"}],"dropMvps":[]}

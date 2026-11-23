@@ -1,0 +1,7 @@
+sealed loaded 1.4 {}
+sealed guest_ready 91.6 {"ready":null}
+sealed no_sealed_market 692.1 {"bet":null}
+sealed sealed_result 692.1 {"ok":null}
+sealed attestation 734.3 {"att":null}
+sealed closed 734.3 {"closed":"21:45:43 🔓 Champion market closed: 0/2 sealed bets revealed from the private book"}
+sealed revealed 794.5 {"rev":null}

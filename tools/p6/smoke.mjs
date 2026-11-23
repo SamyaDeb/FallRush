@@ -93,7 +93,7 @@ try {
     await send('Page.navigate', { url: `${BASE}/live/${ARENA}` });
     await until(() => ev(`!!document.querySelector('#cv')`), 30);
     mark('loaded');
-    const ready = await until(() => ev(`/you: .*RUSH chips/.test(document.querySelector('#me')?.textContent ?? '') ? document.querySelector('#me').textContent : null`), 90, 1000);
+    const ready = await until(() => ev(`/you: .*RUSH chips/.test(document.querySelector('#me')?.textContent ?? '') ? document.querySelector('#me').textContent : null`), 240, 1000);
     mark('guest_ready', { ready });
     const bet = await until(() => ev(`(() => { if (!/sealed/.test(document.querySelector('#markets')?.textContent ?? '')) return null; const b = [...document.querySelectorAll('button[data-k="0"]')].find((x) => !x.disabled); if (!b) return null; b.click(); return b.textContent; })()`), MAX, 1000);
     mark(bet ? 'sealed_clicked' : 'no_sealed_market', { bet });

@@ -1,0 +1,1 @@
+17:27:12 fallrush-keeper-2=0.05%/52.95MiB / 512MiB fallrush-keeper-1=0.06%/61.24MiB / 512MiB fallrush-indexer=0.00%/64.26MiB / 512MiB fallrush-web=0.00%/3.523MiB / 256MiB fallrush-gs2=3.98%/113.2MiB / 1GiB fallrush-gs1=3.49%/139MiB / 1GiB ovelo-app-1=0.00%/463.1MiB / 1GiB ovelo-cloudflared-1=0.30%/17.23MiB / 256MiB 0.13 finity=200/0.562537
