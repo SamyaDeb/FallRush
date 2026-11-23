@@ -333,14 +333,14 @@ pub unsafe extern "C" fn rc_lids(h: i32, out_ptr: *mut u8, cap: u32) -> u32 {
         for g in 0..hz.count(HazardType::LidFlip) {
             let d = hz.lid_grid(g);
             sc.lid_states(g, &d, t30, &mut st);
-            for k in 0..(d.count() as usize).min(lid::MAX_LIDS_PER_GRID) {
+            for (k, s) in st.iter().enumerate().take((d.count() as usize).min(lid::MAX_LIDS_PER_GRID)) {
                 if (n + 1) * 9 > out.len() {
                     return n as u32;
                 }
                 let (x, _, z) = d.lid_center(k as i32);
                 out[n * 9..n * 9 + 4].copy_from_slice(&x.to_le_bytes());
                 out[n * 9 + 4..n * 9 + 8].copy_from_slice(&z.to_le_bytes());
-                out[n * 9 + 8] = st[k] as u8;
+                out[n * 9 + 8] = *s as u8;
                 n += 1;
             }
         }
