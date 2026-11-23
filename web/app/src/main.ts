@@ -9,7 +9,8 @@ import { season } from './pages/season';
 
 export type Page = (root: HTMLElement, params: string[]) => (() => void) | void;
 const routes: [RegExp, Page][] = [
-  [/^\/$/, home], [/^\/play\/?$/, play], [/^\/live\/?(\d+)?\/?$/, live],
+  // `/arenas` = the old home (arenas + recent matches + the season strip); `/` is the landing (web/site)
+  [/^\/arenas\/?$/, home], [/^\/play\/?$/, play], [/^\/live\/?(\d+)?\/?$/, live],
   [/^\/replay\/([1-9A-HJ-NP-Za-km-z]{32,44})\/?$/, replay], [/^\/receipt\/([1-9A-HJ-NP-Za-km-z]{32,44})\/?$/, receipt], [/^\/me\/?$/, me], [/^\/season\/?(\d+)?\/?$/, season],
 ];
 let cleanup: (() => void) | void;
@@ -23,7 +24,7 @@ function render() {
     const m = p.match(re);
     if (m) { cleanup = page(root, m.slice(1)); return; }
   }
-  root.innerHTML = '<div class="card"><h2>Not found</h2><a href="/" data-link>Home</a></div>';
+  root.innerHTML = '<div class="card"><h2>Not found</h2><a href="/">Home</a></div>';
 }
 document.addEventListener('click', (e) => {
   const a = (e.target as HTMLElement).closest('a[data-link]') as HTMLAnchorElement | null;

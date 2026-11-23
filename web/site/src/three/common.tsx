@@ -205,7 +205,7 @@ export class Confetti {
   }
 }
 
-const cloudGeo = new THREE.SphereGeometry(1, 14, 10);
+const cloudGeo = new THREE.SphereGeometry(1, 24, 16);
 export const cloudMaterial = () => new THREE.MeshStandardMaterial({ color: '#FFFFFF', roughness: 1 });
 
 /** A puffy cloud: a few squashed spheres merged into one mesh (one draw call). */

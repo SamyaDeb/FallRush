@@ -20,6 +20,8 @@ run_worker_first = ["/api/*", "/r/*", "/p/*"]
 [vars]
 SITE_URL = "https://waitlist.fallrush.fun"        # landing page; no trailing slash
 ALLOWED_ORIGIN = "https://waitlist.fallrush.fun"  # origin allowed to call /api (CORS)
+# ALLOWED_ORIGINS (comma list, extra origins: the game URL, whose front door is this landing) is passed at deploy time by
+# scripts/landing-deploy-cf.sh (the game URL holds the VPS address, which stays out of git).
 QUEUE_BOOST = "25"                        # spots gained per friend who joins with your link
 BACKUP_DAYS = "30"                        # daily backups kept in R2 (backups/)
 

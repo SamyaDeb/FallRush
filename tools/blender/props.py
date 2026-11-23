@@ -2,6 +2,7 @@
 G4.9 Fall Rush prop kit: ~20 original capsule-toy props, generated headless in Blender.
 
     blender -b --factory-startup -P tools/blender/props.py -- --out client-unity/Assets/_Game/Art/Props
+    blender -b --factory-startup -P tools/blender/props.py -- --glb web/site/public/models   (landing page .glb kit)
 
 Everything is built here from maths (lathes, rounded boxes, tubes, extruded outlines): no imported mesh, texture or
 reference file. Motif: a capsule-toy machine (capsule seams, coin slots, prize stars, wind-up keys).
@@ -771,11 +772,35 @@ def export(ob, path):
         use_custom_props=False, use_metadata=False)
 
 
+def export_glb(ob, path):
+    """Web landing (web/site): the same mesh as a .glb with the soft-look preview colours (COLOR_0 = albedo x shade)."""
+    for o in bpy.context.scene.objects:
+        o.select_set(False)
+    ob.select_set(True)
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.export_scene.gltf(
+        filepath=path, export_format="GLB", use_selection=True, export_texcoords=False, export_normals=True,
+        export_materials="NONE", export_vertex_color="ACTIVE", export_all_vertex_colors=False, export_yup=True,
+        export_apply=False, export_animations=False, export_extras=False)
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     out = "client-unity/Assets/_Game/Art/Props"
     if "--out" in argv:
         out = argv[argv.index("--out") + 1]
+    if "--glb" in argv:
+        # only the .glb files (the Unity FBX kit and props.json are left untouched)
+        glb = argv[argv.index("--glb") + 1]
+        os.makedirs(glb, exist_ok=True)
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        for name in sorted(PROPS):
+            ob, tris, _ = build(name, PROPS[name])
+            ob.data.color_attributes.active_color = ob.data.color_attributes["Col"]
+            export_glb(ob, os.path.join(glb, name + ".glb"))
+            bpy.data.objects.remove(ob)
+            print(f"[props] {name}.glb: {tris} tris")
+        return
     os.makedirs(out, exist_ok=True)
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.context.scene.unit_settings.system = "METRIC"

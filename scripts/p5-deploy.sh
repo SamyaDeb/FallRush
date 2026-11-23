@@ -12,6 +12,10 @@ SSH=(ssh -o IdentitiesOnly=yes -i "$SSH_KEY" "root@$VPS_IP")
 STAGE="$(mktemp -d)"; trap 'rm -rf "$STAGE"' EXIT
 if [[ "$WHAT" == web || "$WHAT" == all ]]; then
   (cd web/app && node scripts/assets.mjs && ./node_modules/.bin/vite build --logLevel warn)
+  # the landing (web/site) is the front door at `/`: built into dist/site; Play links stay same-origin, the waitlist API,
+  # share links and posters stay on the Cloudflare worker (waitlist.fallrush.fun; ALLOWED_ORIGINS includes this host)
+  (cd web/site && VITE_PLAY_URL= VITE_LIVE_API= VITE_API_BASE=https://waitlist.fallrush.fun VITE_SITE_URL=https://waitlist.fallrush.fun \
+    ./node_modules/.bin/vite build --logLevel warn --outDir ../app/dist/site --emptyOutDir)
   rm -rf web/app/dist/unity && mkdir -p web/app/dist/unity
   cp -R client-unity/Builds/WebGL/Build client-unity/Builds/WebGL/StreamingAssets web/app/dist/unity/
   python3 tools/p5/build-json.py web/app/dist
