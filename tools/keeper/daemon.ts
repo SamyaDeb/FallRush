@@ -280,10 +280,14 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
     out.sigs.create = await act("create_match", async () => sendBase([await pb.methods.createMatch([...matchId], [...Buffer.from(h.rosterHash, "hex")], h.players).accountsPartial({ authority: wallet.publicKey }).instruction()], [wallet], "create_match"), mlog);
     for (let i = 0; i < 60; i++) { if ((await baseOwner(matchPda))?.equals(PROGRAM_ID)) break; await sleep(1000); }
   }
-  if ((await baseOwner(matchPda))?.equals(PROGRAM_ID) && !(await erMatch(matchPda))) {
+  // delegate unless already delegated: decided by the Solana owner (the rollup clones any account it is asked to
+  // read, so "readable on the rollup" does not mean delegated)
+  const bm: any = (await baseOwner(matchPda))?.equals(PROGRAM_ID) ? await pb.account.match.fetch(matchPda).catch(() => null) : null;
+  if (bm && statusName(bm) === "created") {
     stage("delegate_match");
     out.sigs.delegate = await act("delegate_match", async () => sendBase([await pb.methods.delegateMatch([...matchId]).accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).remainingAccounts([{ pubkey: EP.validator, isSigner: false, isWritable: false }]).instruction()], [wallet], "delegate_match"), mlog);
-    for (let i = 0; i < 60 && !(await erMatch(matchPda)); i++) await sleep(500);
+    for (let i = 0; i < 60 && !(await baseOwner(matchPda))?.equals(E.DELEGATION); i++) await sleep(500);
+    await sleep(1500);
   }
   stage("chain_setup");
   // 2. ER: lobby (the arena points at this match), markets, deal
@@ -298,7 +302,11 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
   let m: any = await erMatch(matchPda);
   if (!m) throw new Error("the Match is not on the rollup");
   if (!(m.flags & 0x80) && ["created", "dealing", "dealt"].includes(statusName(m)) && m.currentRound === 0) {
-    out.sigs.openMarkets = (await act("open_markets", async () => E.openMarkets(ARENA, matchPda), mlog)).sig;
+    // a just-delegated Match can be refused as writable for a moment (InvalidWritableAccount): retry with backoff
+    for (let i = 0; ; i++) {
+      try { out.sigs.openMarkets = (await act("open_markets", async () => E.openMarkets(ARENA, matchPda), mlog)).sig; break; }
+      catch (e: any) { if (i >= 12 || !/InvalidWritableAccount|AccountNotFound|cloner|timeout|Blockhash/i.test(String(e?.message ?? e))) throw e; await sleep(1000 + 500 * i); }
+    }
   }
   let mmw: { stop: () => Promise<void> } | null = null;
   const mmLog: any[] = [];
@@ -411,12 +419,17 @@ for (;;) {
   let j: string | null = null;
   while (!(j = newestJsonl())) await sleep(1000);
   const h = await header(j);
-  try { await driveMatch(h.matchId.toString("hex"), j, false); }
-  catch (e: any) {
-    stage("match_failed", { err: String(e?.message ?? e).slice(0, 300) });
-    st.done.push(h.matchId.toString("hex")); saveState(); // never loop on a broken match; the next resume finishes it
-    await sleep(3000);
+  const hex = h.matchId.toString("hex");
+  // a transient failure mid-match: drive the same match again (every stage is idempotent), up to 3 times
+  let ok = false;
+  for (let tries = 0; tries < 3 && !ok; tries++) {
+    try { await driveMatch(hex, j, tries > 0); ok = true; }
+    catch (e: any) { stage("match_retry", { tries: tries + 1, err: String(e?.message ?? e).slice(0, 300) }); await sleep(2000); }
+  }
+  if (!ok) {
+    stage("match_failed", { match: hex });
+    st.done.push(hex); saveState(); // never loop on a broken match
     // finish whatever is on-chain (refunds, receipt, finalize) so the arena is free for the next match
-    try { await driveMatch(h.matchId.toString("hex"), null, true); } catch (e2: any) { log({ ev: "cleanup_failed", err: String(e2?.message ?? e2).slice(0, 300) }); }
+    try { await driveMatch(hex, null, true); } catch (e2: any) { log({ ev: "cleanup_failed", err: String(e2?.message ?? e2).slice(0, 300) }); }
   }
 }

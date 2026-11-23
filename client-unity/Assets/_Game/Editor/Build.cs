@@ -76,6 +76,31 @@ public static class Build
         Finish(ok, exitWhenDone: true);
     }
 
+    /// <summary>
+    /// P5 (doc 15 D-OTHER "server build"): the shipped Linux x86_64 game server as the SAME recipe as the Mac dev server
+    /// (Player subtarget + FALLRUSH_DEV_SERVER, started with <c>-batchmode -nographics -fallrushServer</c>), because the
+    /// Dedicated Server subtarget does not compile the G4 editor tools that use the client assembly (P3 proof §5).
+    /// Output names match infra/gameserver.Dockerfile (Builds/Server/FallRushServer.x86_64).
+    /// Batch: <c>-buildTarget Linux64 -executeMethod Build.LinuxDevServer</c>.
+    /// </summary>
+    public static void LinuxDevServer()
+    {
+        ProjectSetup.ApplyPlayerSettings();
+        var options = new BuildPlayerOptions
+        {
+            scenes = ClientScenes,
+            locationPathName = Path.Combine(ServerOut, ServerExe),
+            target = BuildTarget.StandaloneLinux64,
+            targetGroup = BuildTargetGroup.Standalone,
+            subtarget = (int)StandaloneBuildSubtarget.Player,
+            extraScriptingDefines = new[] { "FALLRUSH_DEV_SERVER" },
+            options = BuildOptions.None,
+        };
+        var ok = Run("linuxdevserver", options, ServerOut);
+        SavePlayerSettings();
+        Finish(ok, exitWhenDone: true);
+    }
+
     public const string MacClientOut = "Builds/Mac-p1-feellab";
     public const string MacClientApp = "FallRush.app";
 

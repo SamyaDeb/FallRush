@@ -406,8 +406,9 @@ namespace FallRush.OnChain
         {
             _ownSlot = j.slot;
             ChainAdapters.Override = _adapter; // from the join on (a pre-join stays invisible until the Final starts)
-            if (_joinedAt < 0)
-                _joinedAt = ClientSim.Now;
+            // P5: the switch's "no World" window starts at this join (a pre-join's early join result set _joinedAt at
+            // roster lock, minutes before the server confirms the Final: the 8 s check then fired at once, WebGL hybrid)
+            _joinedAt = ClientSim.Now;
             _feed.OwnSlot = j.slot;
             _adapter.Arena = j.arena;
             if (!string.IsNullOrEmpty(j.match) && j.match.Length >= 32 && j.match.Length <= 44 && Cfg.target != "emu")
