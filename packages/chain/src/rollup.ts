@@ -733,7 +733,12 @@ export class RollupTransport implements Transport {
     const cfg = this.ctx.cfg;
     const program = resolvePubkey('$program', this.refs());
     const arena = new PublicKey(cfg.addresses.arena);
-    const arenaId = this.rc.p2?.arenaId ?? 0;
+    // P5 arena pool: the arena id behind the configured / handed-off arena address (market PDAs are keyed by it)
+    let arenaId = this.rc.p2?.arenaId ?? 0;
+    const te = new TextEncoder();
+    for (let id = 0; id < 32; id++) {
+      if (PublicKey.findProgramAddressSync([te.encode('arena'), Uint8Array.of(id)], program).equals(arena)) { arenaId = id; break; }
+    }
     return { program, arena, arenaId, P: Econ.econPdas(program, arena, arenaId), world: new PublicKey(cfg.addresses.world) };
   }
 
