@@ -846,6 +846,58 @@ export class RollupTransport implements Transport {
         const capsules = Array.from({ length: 12 }, (_, s) => ((r.receipt.humanMask >> s) & 1 ? E.P.capsule(pk, s).toBase58() : null));
         return big({ ok: true, onSolana, match: pk.toBase58(), ...r, crownAsset: crown, capsuleAssets: capsules, me: me.toBase58() });
       }
+      if (action === 'rush') {
+        // P5 0.1: the wallet's real RUSH SPL balance on Solana (base units, 6 decimals)
+        const owner = args.owner ? new PublicKey(String(args.owner)) : me;
+        const ata = Econ.ataOf(owner, Econ.RUSH_MINT);
+        const ai = await this.base.getAccountInfo(ata, 'confirmed');
+        const ad = ai ? toU8(ai.data) : null;
+        const amount = ad && ad.length >= 72 ? new DataView(ad.buffer, ad.byteOffset).getBigUint64(64, true) : 0n;
+        return big({ ok: true, owner: owner.toBase58(), ata: ata.toBase58(), amount, exists: !!ai });
+      }
+      if (action === 'cashout') {
+        // P5 0.1 "assets you can sell anytime": chips → cashout (rollup; commits the ChipBalance to Solana) →
+        // mint_cashout (Solana, permissionless: mints exactly the committed, not yet minted amount) → real RUSH SPL in
+        // the burner's ATA. args.amount in whole RUSH; args.mintOnly = retry the Solana half only.
+        const chips = E.P.chips(me);
+        const out: Record<string, unknown> = { ok: false };
+        if (!args.mintOnly) {
+          const amount = BigInt(Math.round(Number(args.amount))) * Econ.ONE;
+          if (amount <= 0n) return { ok: false, error: 'amount must be > 0' };
+          const { signer, token } = this.econSigner();
+          const MAGIC_CONTEXT = new PublicKey('MagicContext1111111111111111111111111111111');
+          const MAGIC_PROGRAM = new PublicKey('Magic11111111111111111111111111111111111111');
+          const ix = Econ.econIx(E.program, signer.publicKey, Econ.OP.CASHOUT, amount, 0, [acc(chips, true), acc(MAGIC_CONTEXT, true), acc(MAGIC_PROGRAM, false), ...(token ? [acc(token, false)] : [])]);
+          const r = await this.econEr(ix, signer, 'cashout');
+          this.ctx.events.push({ type: 'econ', what: 'cashout', ok: r.ok, sig: r.sig, err: r.ok ? undefined : safeJson(r.err) });
+          if (!r.ok) return { ok: false, stage: 'rollup', sig: r.sig, error: safeJson(r.err) };
+          out.cashoutSig = r.sig; out.session = !!token; out.rollupMs = r.ms;
+        }
+        // wait until Solana holds the committed cashed_out total (the commit lands within seconds)
+        const er0 = await this.readEr(chips);
+        const want = er0 ? Econ.decodeChips(er0).cashedOut : 0n;
+        const t0 = this.clock.now();
+        let committed = 0n;
+        for (let i = 0; i < 90; i++) {
+          const bd = await this.base.getAccountInfo(chips, 'confirmed').catch(() => null);
+          if (bd) committed = Econ.decodeChips(toU8(bd.data)).cashedOut;
+          if (committed >= want && committed > 0n) break;
+          await sleep(this.clock, 1000);
+        }
+        out.commitMs = Math.round(this.clock.now() - t0); out.committedCashedOut = committed;
+        if (committed < want || committed === 0n) return big({ ...out, ok: false, stage: 'commit', error: 'the commit has not reached Solana yet (retry with mintOnly)' });
+        const r2 = await this.sendBase([Econ.mintCashoutIx(E.program, me, me)], 'mint_cashout');
+        out.mintSig = r2.sig;
+        if (!r2.ok) return big({ ...out, ok: false, stage: 'mint', error: safeJson(r2.err) });
+        return big({ ...out, ok: true, ata: Econ.ataOf(me, Econ.RUSH_MINT).toBase58() });
+      }
+      if (action === 'sendRush') {
+        // P5: move real RUSH (SPL TransferChecked, burner-signed) to another wallet, e.g. the player's Phantom
+        const to = new PublicKey(String(args.to));
+        const amount = BigInt(Math.round(Number(args.amount) * 1e6));
+        const r = await this.sendBase(Econ.rushTransferIxs(me, to, amount), 'send_rush');
+        return { ok: r.ok, sig: r.sig, error: r.ok ? undefined : safeJson(r.err) };
+      }
       if (action === 'claim') {
         const asset = new PublicKey(String(args.asset));
         const to = new PublicKey(String(args.to));
