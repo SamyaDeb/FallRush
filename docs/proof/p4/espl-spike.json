@@ -1,0 +1,146 @@
+{
+ "started": "2026-11-22T22:00:46.511Z",
+ "rounds": [
+  {
+   "k": 1,
+   "steps": [
+    {
+     "what": "deposit+delegate (base)",
+     "sig": "2re6m6ndbPnAGZkeStsTheKePg69La2MVgRN48hMC3owskZRitP6X5GpF6LzDQeDzf7dcMrJZXvBsj3nFDjDqUjv",
+     "ms": 1214
+    },
+    {
+     "what": "other eATA delegate (base)",
+     "sig": "3qv1sFQbxLo6Qd7FbKmJtw2DatXP6dDN1GryT1N8fRYK6ijPko7rjjxsNtDpifcnCHm2oL2Eug7iJdGjfqTMxKsH",
+     "ms": 815
+    },
+    {
+     "what": "transfer in rollup (owner)",
+     "sig": "4ZQw28hWYUQsbw42xoP5jsUw46KmubfKJvbCbWz9mi6ENrQFHE8EXYi5pWPxCZNcr8jfUvcEzU3ysd8QBssF7QUe",
+     "ms": 476
+    },
+    {
+     "what": "approve session (rollup)",
+     "sig": "3KBWEmJMqtVeXMJ8txfuJgeByyCS4di9ZLqiwNEgPFyRryRS1GqNRhMef5BVboPzyjFtkg1fvK3kiJfoTqRk1e1d",
+     "ms": 5243
+    },
+    {
+     "what": "transfer in rollup (session delegate)",
+     "sig": "2jumHVoFYvgXE6tbaiTyVc61HgFRBEYbYL1ZRCQFq6CXDrgovPetSRwhjaGGrywhvqCQqe3aeSFiVUbCfNdjQ1A1",
+     "ms": 349
+    },
+    {
+     "what": "withdraw (rollup → Solana)",
+     "sig": "3q7eEyeQoDKUc87VkXTEyVP9Z9T2thrzKQRdyjDSXVJ3B2mTLgiZoahwwLKqD6wfWP36cdFatWhvYgz4aZpap56L",
+     "ms": 9540,
+     "err": "{\"InstructionError\":[1,{\"Custom\":27}]}"
+    },
+    {
+     "what": "withdraw (base)",
+     "sig": "5qzh6FMgoy27LAooVkmbdgnxrzoS6z6vWbGBfqwLwcShgsu5ferWaq99ZtfcM6eoETcwjUiYknNaKLzJicMWi3fe",
+     "ms": 1145
+    }
+   ],
+   "rollupSeenMs": 358,
+   "rollupOwnerAmount": "100000000",
+   "afterTransfers": {
+    "owner": "85000000",
+    "other": "15000000"
+   },
+   "baseOwnerAmount": "900000000",
+   "baseSeenMs": 81,
+   "ok": false
+  },
+  {
+   "k": 2,
+   "steps": [
+    {
+     "what": "deposit+delegate (base)",
+     "sig": "3cyvJDbjEwTdLSEqsqTemvff65FLotZW5sBsW6re317vxAgoyBkkk5BdTYZNUY1adbg3M4by7fePtDAdWWnVaWYn",
+     "ms": 734
+    },
+    {
+     "what": "transfer in rollup (owner)",
+     "sig": "38TzkUQQnjSZ1LBRCVw31LxqP4eowGFKoHSKnJPGv6BfBjcSE1pmPENNccg4ndnbznsYVTRT7zqyGckrJCZxdhYF",
+     "ms": 294
+    },
+    {
+     "what": "approve session (rollup)",
+     "sig": "5Ne721nuhJtKJG4zCdNEZGJdH5byjxj8owT1m7gEAtDvVHdBM2g3qEB5WJ3BpECAqw22NAitwE8xCMGaiTjGbzC5",
+     "ms": 291
+    },
+    {
+     "what": "transfer in rollup (session delegate)",
+     "sig": "58SwtP668DCAVH97qbJVYkVvX1Vzdt7vk2HXv34PPr4XKTHKzZpcfSR47ocVKKWBEqaz91xepWEfJTKFJPe7YC1X",
+     "ms": 234
+    },
+    {
+     "what": "withdraw (rollup → Solana)",
+     "sig": "nsc3Hd2rdbrW1WoTBWMbHUndXbCeRpAYUaSxvojMo56KXvBpt7exrX7hti393X1Szk1MXdkiTU7KUVF8kLnL4Mf",
+     "ms": 334,
+     "err": "{\"InstructionError\":[1,{\"Custom\":27}]}"
+    },
+    {
+     "what": "withdraw (base)",
+     "sig": "",
+     "ms": 221,
+     "err": "Simulation failed. \nMessage: Transaction simulation failed: Error processing Instruction 2: custom program error: 0x1. \nLogs: \n[\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2 success\",\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2 invoke [1]\",\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2 consumed 1836 of 598272 compute units\",\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV2"
+    }
+   ],
+   "rollupSeenMs": 118,
+   "rollupOwnerAmount": "35000000",
+   "afterTransfers": {
+    "owner": "120000000",
+    "other": "30000000"
+   },
+   "baseOwnerAmount": "850000000",
+   "baseSeenMs": 45827,
+   "ok": false
+  },
+  {
+   "k": 3,
+   "steps": [
+    {
+     "what": "deposit+delegate (base)",
+     "sig": "",
+     "ms": 234,
+     "err": "Simulation failed. \nMessage: Transaction simulation failed: Error processing Instruction 2: custom program error: 0x1. \nLogs: \n[\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2 success\",\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2 invoke [1]\",\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2 consumed 1836 of 598272 compute units\",\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV2"
+    }
+   ]
+  },
+  {
+   "k": 4,
+   "steps": [
+    {
+     "what": "deposit+delegate (base)",
+     "sig": "",
+     "ms": 257,
+     "err": "Simulation failed. \nMessage: Transaction simulation failed: Error processing Instruction 2: custom program error: 0x1. \nLogs: \n[\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2 success\",\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2 invoke [1]\",\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2 consumed 1836 of 598272 compute units\",\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV2"
+    }
+   ]
+  },
+  {
+   "k": 5,
+   "steps": [
+    {
+     "what": "deposit+delegate (base)",
+     "sig": "",
+     "ms": 236,
+     "err": "Simulation failed. \nMessage: Transaction simulation failed: Error processing Instruction 2: custom program error: 0x1. \nLogs: \n[\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2 success\",\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2 invoke [1]\",\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2 consumed 1836 of 598272 compute units\",\n  \"Program SPLxh1LVZzEkX99H6rqYizhytLWPZVV2"
+    }
+   ]
+  }
+ ],
+ "notes": [],
+ "mint": "ELHZqPr6zHHLCtNMAXYJQMeFa4DuvNGE1QFSuNoF9Y7a",
+ "owner": "8C4gz1xeFkuB5mu3vPHu1getEmkNW2iKh2BsgkQMTV7s",
+ "other": "CA97eDjFfupkYEk6BDjotYGNLudxWJZ9k6TKS5HENCEi",
+ "session": "45ZhACm6PNhcJcHoQ5etEYkT1JumX2y173eAmiPszmR3",
+ "setup": {
+  "what": "mint+fund",
+  "sig": "5jhP9zo3wu6Ci1yA7PnyNog5JC1Bn6J9xddfWUxYBZrGbhc5N75GAQ4MecQWkmWXhrHEqjZuHPpAK2zatFFFFUsT",
+  "ms": 1391
+ },
+ "pass": 0,
+ "finished": "2026-11-22T22:01:56.547Z"
+}

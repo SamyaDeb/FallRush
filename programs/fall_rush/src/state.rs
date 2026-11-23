@@ -86,8 +86,87 @@ pub struct Pick {
     pub slot: u8,
 }
 
+/// One market's result in the receipt (P4).
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Default, PartialEq, Eq, Debug, InitSpace)]
+pub struct MarketResult {
+    pub pool: u64,
+    pub winning_stake: u64,
+    /// Outcome mask that won (slots).
+    pub winners: u16,
+    /// `econ::label` (◆ program / ● authority / refunds).
+    pub label: u8,
+    /// `econ::mstatus` at receipt time.
+    pub status: u8,
+}
+
+/// The match receipt (P4 task 4), written by `write_receipt` before `finalize_match` commits the `Match` to Solana;
+/// `mint_rewards` mints from it there. Replaces doc 06's unused Fan Picks (`picks[32]` + `pick_count`, 1,089 B):
+/// same serialized size, so the `Match` layout (and every offset after it) is unchanged.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
+pub struct Receipt {
+    /// `econ::rflag` bits: written, capsule seed, crown minted, markets settled, no crown (bot champion).
+    pub flags: u8,
+    /// `econ::trust` bits: rounds 1–3 recorded by the game authority, the Final computed by the program.
+    pub trust: u8,
+    /// `rush_core::VERSION` of the Final.
+    pub core_version: u16,
+    /// Humans in the arena (bit = slot); everyone else was a bot.
+    pub human_mask: u16,
+    /// Capsules minted (bit = slot).
+    pub minted_mask: u16,
+    /// Chaos Drops bought in the Final and the chips they cost.
+    pub drops: u8,
+    pub drop_spent: u64,
+    /// sha256 over the 5 map blob hashes of the arena (deal ids 0..3, lobby).
+    pub map_hash: [u8; 32],
+    /// `Match::transcript_hash` when the Final started (rounds 1–3, authority-recorded).
+    pub pre_final: [u8; 32],
+    /// The on-chain director's transcript of the Final (program-computed).
+    pub final_transcript: [u8; 32],
+    /// sha256 over the drop log (buyer, tick, kind per drop).
+    pub drop_log: [u8; 32],
+    /// Second VRF draw at match end (capsule rarity).
+    pub capsule_seed: [u8; 32],
+    /// The Crown Capsule asset (Metaplex Core), once minted.
+    pub crown: Pubkey,
+    /// The arena's human wallets by slot (default = bot).
+    pub wallets: [Pubkey; 12],
+    /// The Final's finish order (slots; 255 = none).
+    pub placements: [u8; 12],
+    /// Capsule rarity per slot (`econ::rarity`; 255 = no capsule).
+    pub rarity: [u8; 12],
+    /// Champion, FinalWinner, Qualify 1..3.
+    pub markets: [MarketResult; 5],
+    pub _reserved: [u8; 372],
+}
+
+impl Default for Receipt {
+    fn default() -> Self {
+        Receipt {
+            flags: 0,
+            trust: 0,
+            core_version: 0,
+            human_mask: 0,
+            minted_mask: 0,
+            drops: 0,
+            drop_spent: 0,
+            map_hash: [0; 32],
+            pre_final: [0; 32],
+            final_transcript: [0; 32],
+            drop_log: [0; 32],
+            capsule_seed: [0; 32],
+            crown: Pubkey::default(),
+            wallets: [Pubkey::default(); 12],
+            placements: [255; 12],
+            rarity: [255; 12],
+            markets: [MarketResult::default(); 5],
+            _reserved: [0; 372],
+        }
+    }
+}
+
 /// Single match PDA, layout per doc 06 §2.2 (fixed arrays, no Vec) so later milestones need no
-/// migration. M0 does not touch `picks` / `pick_count`.
+/// migration. P4 replaced the unused Fan Picks with the [`Receipt`] (same size).
 #[account]
 #[derive(InitSpace)]
 pub struct Match {
@@ -116,8 +195,7 @@ pub struct Match {
     pub slots: [SlotResult; MAX_SLOTS],
     /// 255 = none
     pub champion_slot: u8,
-    pub picks: [Pick; MAX_PICKS],
-    pub pick_count: u8,
+    pub receipt: Receipt,
     pub created_at: i64,
     pub dealt_at: i64,
     pub completed_at: i64,
