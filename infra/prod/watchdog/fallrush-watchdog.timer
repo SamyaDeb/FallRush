@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the Fall Rush watchdog every 60 s
+
+[Timer]
+OnBootSec=120
+OnUnitActiveSec=60
+AccuracySec=5
+
+[Install]
+WantedBy=timers.target

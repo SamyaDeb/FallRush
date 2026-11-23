@@ -26,7 +26,7 @@ export const inputsOf = (hdr: Uint8Array) => {
 const eq = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((x, i) => x === b[i]);
 const has = (hay: Uint8Array, hex: string) => { const n = Uint8Array.from(hex.match(/../g)!.map((h) => parseInt(h, 16))); outer: for (let i = 0; i + n.length <= hay.length; i++) { for (let j = 0; j < n.length; j++) if (hay[i + j] !== n[j]) continue outer; return true; } return false; };
 
-export interface Verdict { pass: boolean; pairs: number; ok: number; gaps: number; first: number; dropsIngested: number; transcript: boolean | null; frames: Frame[]; cw: CoreWorld; error?: string }
+export interface Verdict { pass: boolean; pairs: number; ok: number; gaps: number; first: number; dropsIngested: number; mapLoad?: number; transcript: boolean | null; frames: Frame[]; cw: CoreWorld; error?: string }
 
 /** Downloads the archive of `id` and re-simulates the Final; `progress(i, n)` while it runs. */
 export async function verifyMatch(id: string, summary: any, progress: (i: number, n: number) => void = () => {}): Promise<Verdict> {
@@ -36,10 +36,14 @@ export async function verifyMatch(id: string, summary: any, progress: (i: number
   if (!r.ok) return { ...empty, error: 'no World recording for this match' };
   const frames = parseWorld2(new Uint8Array(await r.arrayBuffer())).filter((f) => f.part === 0 && f.hdr[11] === 4); // round 4 (the Final)
   if (frames.length < 2) return { ...empty, frames, error: 'the recording has no Final' };
-  let pairs = 0, ok = 0, gaps = 0, first = -1, dropsIngested = 0;
+  let pairs = 0, ok = 0, gaps = 0, first = -1, dropsIngested = 0, mapLoad = 0;
   const buys: { kind: number }[] = summary?.drops?.buys ?? [];
   for (let i = 1; i < frames.length; i++) {
     if (frames[i].tick !== frames[i - 1].tick + 1) { gaps++; continue; }
+    // P7 fix (match 3's "first-tick mismatch"): the Final's tick 0 → 1 is the program's map load (director::needs_map →
+    // load_round, run in `tick()` before stepping), which rush_core.wasm's per-tick rc_step does not perform; the check
+    // starts at the first tick after the load (archives that begin later never contained this pair)
+    if (frames[i - 1].tick === 0) { mapLoad++; continue; }
     pairs++;
     // Chaos Drops: the program copies new DropQueue purchases into the World before stepping (sim.rs ingest_drops);
     // the archived purchase kinds are applied at the tick the recording shows them entering the World
@@ -53,5 +57,5 @@ export async function verifyMatch(id: string, summary: any, progress: (i: number
   const ft = summary?.receipt?.finalTranscript;
   const last = frames[frames.length - 1];
   const transcript = ft && /^[0-9a-f]{64}$/.test(ft) && ft !== '0'.repeat(64) ? has(last.world, ft) : null;
-  return { pass: pairs > 0 && ok === pairs && transcript !== false, pairs, ok, gaps, first, dropsIngested, transcript, frames, cw };
+  return { pass: pairs > 0 && ok === pairs && transcript !== false, pairs, ok, gaps, first, dropsIngested, mapLoad, transcript, frames, cw };
 }
