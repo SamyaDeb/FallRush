@@ -1,7 +1,7 @@
-sealed loaded 1.4 {}
-sealed guest_ready 12.4 {"ready":"you: GaCK…1uUR · 1,000 RUSH chips"}
-sealed no_sealed_market 613.1 {"bet":null}
-sealed sealed_result 613.1 {"ok":null}
-sealed attestation 654.9 {"att":null}
-sealed closed 1255.4 {"closed":null}
-sealed revealed 1316.0 {"rev":null}
+sealed loaded 6.8 {}
+sealed guest_ready 14.7 {"ready":"you: 3V1H…Wxdw · 1,000 RUSH chips"}
+sealed sealed_clicked 14.7 {"bet":"#1★ x11.0"}
+sealed sealed_result 17.0 {"ok":"22:59:46 you sealed 10 RUSH on a Champion pick 🔒 (pick in the private book, 1807 ms) · commit tx"}
+sealed attestation 32.1 {"att":"22:59:47 🛡 TEE attested in this browser (Intel TDX quote, 3845 ms)"}
+sealed closed 263.5 {"closed":"23:03:52 🔓 Champion market closed: 3/3 sealed bets revealed from the private book"}
+sealed revealed 263.5 {"rev":"yours: 10 on #1 ✓revealed "}
