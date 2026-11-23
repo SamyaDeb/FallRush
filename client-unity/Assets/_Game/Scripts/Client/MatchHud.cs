@@ -788,7 +788,10 @@ namespace FallRush.Client
                     {
                         _champAt = Time.unscaledTime;
                         _champLanded = false;
-                        _finalTime = _finalStartTick > 0 && m.PhaseStartTick > _finalStartTick ? $"{(m.PhaseStartTick - _finalStartTick) / 30f:0.0} s" : string.Empty;
+                        // the Final's length when the server timed it (the hybrid match's round 4 runs on the rollup: the Classic
+                        // round start is a sentinel there, so implausible values are left out)
+                        var ft = m.PhaseStartTick > _finalStartTick ? (m.PhaseStartTick - _finalStartTick) / 30f : -1f;
+                        _finalTime = _finalStartTick > 0 && ft > 0f && ft < 600f ? $"{ft:0.0} s" : string.Empty;
                     }
                 }
                 else if (m.Phase < MatchPhase.Champion)
@@ -1362,8 +1365,8 @@ namespace FallRush.Client
             var on = m != null && (m.Phase == MatchPhase.Champion || m.Phase == MatchPhase.Finalizing) && m.Champion != 255 && _champAt >= 0f;
             if (!on)
             {
-                if (_champ.gameObject.activeSelf && (m == null || m.Phase != MatchPhase.Done))
-                    UiMotion.Hide(_champ);
+                if (_champ.gameObject.activeSelf)
+                    UiMotion.Hide(_champ); // the receipt (Done) names the champion
                 return;
             }
 

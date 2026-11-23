@@ -44,6 +44,7 @@ elif [ "$1" = indexer ]; then
   T0=$(date +%s); "${SSH[@]}" "docker stop fallrush-indexer >/dev/null"; log "indexer stopped"
   curl -s -o /dev/null -w "during: /api/status %{http_code}\n" --max-time 8 "$P/api/status" | tee -a "$OUT"
   curl -s -o /dev/null -w "during: /arenas %{http_code}\n" --max-time 8 "$P/arenas" | tee -a "$OUT"
-  until "${SSH[@]}" "docker inspect -f '{{.State.Health.Status}}' fallrush-indexer 2>/dev/null | grep -q healthy"; do sleep 5; [ $(( $(date +%s) - T0 )) -gt 600 ] && { log "indexer: not back in 600 s"; exit 1; }; done
+  sleep 5  # a stopped container keeps its last health status: wait for it to be running AND healthy again
+  until "${SSH[@]}" "docker inspect -f '{{.State.Running}} {{.State.Health.Status}}' fallrush-indexer 2>/dev/null | grep -q 'true healthy'"; do sleep 5; [ $(( $(date +%s) - T0 )) -gt 600 ] && { log "indexer: not back in 600 s"; exit 1; }; done
   log "indexer back (healthy) $(( $(date +%s) - T0 )) s after the stop; watchdog: $("${SSH[@]}" "grep restart /opt/fallrush/logs/watchdog.log | tail -1")"
 fi

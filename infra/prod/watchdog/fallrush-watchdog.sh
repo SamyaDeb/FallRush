@@ -20,8 +20,9 @@ check() { # $1 = service → exit 0 when healthy
   case "$s" in
     fallrush-web) curl -sf --max-time 5 http://127.0.0.1:3110/healthz >/dev/null ;;
     fallrush-indexer) echo "$STATUS" | grep -q '"ok":true' ;;
-    fallrush-gs1) echo "$STATUS" | python3 -c 'import json,sys; s=json.load(sys.stdin); sys.exit(0 if any(x["id"]=="gs1" and x.get("up") for x in s["servers"]) else 1)' 2>/dev/null ;;
-    fallrush-gs2) echo "$STATUS" | python3 -c 'import json,sys; s=json.load(sys.stdin); sys.exit(0 if any(x["id"]=="gs2" and x.get("up") for x in s["servers"]) else 1)' 2>/dev/null ;;
+    # the game servers write their own heartbeat (status.json, every few s): independent of the indexer (P7 fix: with
+    # the indexer down, /api/status failed and the old check restarted both game servers mid-match)
+    fallrush-gs1|fallrush-gs2) python3 -c 'import json,sys,time; s=json.load(open(sys.argv[1])); sys.exit(0 if time.time()*1000 - s.get("t",0) < 30000 else 1)' "/opt/fallrush/logs/${s#fallrush-}/status.json" 2>/dev/null ;;
     fallrush-keeper-1) curl -sf --max-time 5 http://127.0.0.1:3111/health | grep -q '"ok":true' ;;
     fallrush-keeper-2) curl -sf --max-time 5 http://127.0.0.1:3113/health | grep -q '"ok":true' ;;
   esac
