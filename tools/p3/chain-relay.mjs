@@ -163,6 +163,12 @@ export async function startRelay({ chain, port = DEFAULT_PORT, host = '127.0.0.1
     try { m = JSON.parse(s); } catch { return; }
     if (m.t === 'ping') { let er = null; try { er = JSON.parse(chain.stats()).rttMs ?? null; } catch {} return sendText(c, { t: 'pong', c: m.c, er }); }
     if (m.t === 'join') return void doJoin(c, m);
+    // P4 economy: {t:'econ', id, a, args} → the bundle's econ(a, args) → {t:'econ_r', id, r}
+    if (m.t === 'econ') {
+      chain.econ(String(m.a || ''), JSON.stringify(m.args || {})).then((r) => { let j; try { j = JSON.parse(r); } catch { j = { ok: false, error: r }; } sendText(c, { t: 'econ_r', id: m.id, r: j }); })
+        .catch((e) => sendText(c, { t: 'econ_r', id: m.id, r: { ok: false, error: String(e) } }));
+      return;
+    }
     if (m.t === 'get') {
       const b64 = chain.latestWorldBase64();
       if (b64 && c.joined) c.ws.sendBinary(accFrame(OP.POLL, seq, viewToWorldAcc(Buffer.from(b64, 'base64'))));

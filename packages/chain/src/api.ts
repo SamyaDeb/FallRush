@@ -88,6 +88,15 @@ export function createChain(deps: Deps = {}) {
       } catch (e) { return fail(e); }
     },
 
+    /** P4 economy: chips | state | bet {k, outcome, amount} | drop {kind} | receipt {match} | claim {asset, to}. */
+    async econ(action: string, argsJson?: string): Promise<string> {
+      try {
+        const { transport } = need();
+        if (!transport.econ) return JSON.stringify({ ok: false, error: 'no economy on this transport (' + transport.kind + ')' });
+        return JSON.stringify(await transport.econ(action, argsJson ? JSON.parse(argsJson) : {}));
+      } catch (e) { return fail(e); }
+    },
+
     async join(argsJson?: string): Promise<string> {
       try {
         const { transport } = need();

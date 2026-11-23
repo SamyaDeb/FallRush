@@ -6,13 +6,19 @@
 use rush_core::mapblob::{builder, testmaps};
 use rush_core::vectors::*;
 
-pub const KINDS: [(&str, u8, u32); 5] = [
+pub const KINDS: [(&str, u8, u32); 6] = [
     ("fx_v1", KIND_FX, COUNT_FX),
     ("collide_v1", KIND_COLLIDE, COUNT_COLLIDE),
     ("motor_v1", KIND_MOTOR, COUNT_MOTOR),
     ("hazard_v2", KIND_HAZARD, COUNT_HAZARD),
     ("world_v1", KIND_WORLD, COUNT_WORLD),
+    ("drops_v1", KIND_DROPS, COUNT_DROPS),
 ];
+
+/// The Lid Flip map blob (`maps/CrumbleShelf.mapblob`, map id 3) for the Chaos Drop vectors.
+pub fn lid_flip_map() -> Vec<u8> {
+    std::fs::read(crate::repo_root().join("maps/CrumbleShelf.mapblob")).expect("maps/CrumbleShelf.mapblob")
+}
 
 pub fn vector_map() -> Vec<u8> {
     builder::build(&testmaps::motor_course_spec())
@@ -35,6 +41,10 @@ fn cases(kind: u8, n: u32, map: &[u8]) -> Vec<Vec<u8>> {
             KIND_COLLIDE => collide_case(&sc, SEED, i, &mut buf),
             KIND_MOTOR => motor_case(&sc, SEED, i, &mut buf),
             KIND_HAZARD => hazard_case(SEED, i, &mut buf),
+            KIND_DROPS => {
+                let mut w = rush_core::world::World::new(&view, 30);
+                rush_core::world::drops_case(&mut w, map, SEED, i, &mut buf)
+            }
             _ => {
                 let mut w = rush_core::world::World::new(&view, 20);
                 rush_core::world::vector_case(&mut w, map, SEED, i, &mut buf)
@@ -50,7 +60,9 @@ pub fn gen(args: &[String]) -> i32 {
     std::fs::create_dir_all(&d).unwrap();
     let map = vector_map();
     std::fs::write(d.join("vector_map.mapblob"), &map).unwrap();
+    let lid = lid_flip_map();
     for (name, kind, n) in KINDS {
+        let map = if kind == KIND_DROPS { lid.clone() } else { map.clone() };
         let cs = cases(kind, n, &map);
         let mut h = Fnv::default();
         for c in &cs {

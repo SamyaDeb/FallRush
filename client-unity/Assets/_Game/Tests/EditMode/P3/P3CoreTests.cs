@@ -17,7 +17,7 @@ namespace FallRush.Tests
         public void VersionFileNamesTheP2Commit()
         {
             var t = File.ReadAllText(Path.Combine(Application.dataPath, "_Game", "Plugins", "rush_core_version.txt"));
-            StringAssert.Contains("p2_commit ", t);
+            StringAssert.Contains("commit ", t); // P4: built from this repo (P3: "p2_commit")
             var core = RushCoreAbi.Create();
             Assert.IsTrue(core.Ready, core.Error);
             StringAssert.Contains($"rc_version 0x{core.Version:x}", t);
@@ -54,7 +54,7 @@ namespace FallRush.Tests
         {
             var core = RushCoreAbi.Create();
             var n = RcSelfTest.Run(core, name => File.ReadAllBytes(Path.Combine(Vec, name)), File.ReadAllText(Path.Combine(Vec, "subset_expected.txt")), out var report);
-            Assert.AreEqual(5, n, report);
+            Assert.AreEqual(6, n, report); // P4: + drops_v1
             StringAssert.Contains("PASS", report);
             StringAssert.DoesNotContain("FAIL", report);
         }

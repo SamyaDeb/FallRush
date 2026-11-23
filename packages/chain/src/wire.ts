@@ -76,7 +76,7 @@ export function parseWorldAccount(acc: Uint8Array, L: WorldLayout): ParsedWorld 
   const vd = new DataView(view.buffer);
   const tick = u32(L.tickOffset);
   vd.setUint32(0, tick, true);
-  vd.setUint32(4, u32(L.coreVersionOffset), true);
+  vd.setUint32(4, L.coreVersionBytes === 2 ? u16(L.coreVersionOffset) : u32(L.coreVersionOffset), true);
   vd.setUint32(8, u32(L.arenaSeqOffset), true);
   let flags = u16(L.flagsOffset);
   if (L.flagsOffset == null && L.phaseOffset != null && L.phaseOffset < acc.length) {

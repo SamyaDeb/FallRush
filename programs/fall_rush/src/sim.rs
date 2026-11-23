@@ -14,8 +14,6 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::instruction::{AccountMeta, Instruction};
 use anchor_lang::InstructionData;
-use magicblock_magic_program_api::args::ScheduleTaskArgs;
-use magicblock_magic_program_api::instruction::MagicBlockInstruction;
 use rush_core::collide::Scene;
 use rush_core::config::MovementParams;
 use rush_core::input::InputCmd;
@@ -45,8 +43,11 @@ pub const MAP_SLOTS: usize = 5;
 pub const MAP_LOBBY_SLOT: usize = 4;
 /// Inputs per `submit_input` (30 Hz: 3 ticks per transaction, 120 tx/s for 12 players; P2 0.1).
 pub const INPUT_BATCH: usize = 3;
-/// `submit_input` accepts ticks in [World.tick − 8, World.tick + 8 + batch].
+/// `submit_input` accepts batches starting in [World.tick − 8, World.tick + lead]; lead = `Arena::input_lead`
+/// (`set_input_lead`, P4 0.4), default [`INPUT_WINDOW`]. Every pending tick T+1 … T+lead+batch−1 must fit in the
+/// 16-entry ring, so lead ≤ [`INPUT_LEAD_MAX`].
 pub const INPUT_WINDOW: u32 = 8;
+pub const INPUT_LEAD_MAX: u32 = (RING as u32) - INPUT_BATCH as u32;
 
 /// `Match::flags` bit set by `start_sim` (bits 1..=4 are `commit_round`'s per-round marks, bit 0 = unranked).
 pub const MATCH_SIM_STARTED: u8 = 0x20;
@@ -123,14 +124,33 @@ pub struct WorldAcc {
     /// Last round whose result was written into `Match` (255 = none), last director phase seen.
     pub results_round: u8,
     pub last_code: u8,
-    pub _pad: [u8; 2],
+    /// `rush_core::VERSION` of the program that started the current match (LE u16; P4 0.1): a client with another
+    /// core refuses the arena.
+    pub core_version: [u8; 2],
     /// The inputs latched for the tick in progress (part 0 reads the InputBufs; later parts reuse them).
     pub cur: [[u8; 4]; N],
     pub cur_some: u16,
-    pub _pad2: [u8; 6],
+    /// Match serial (LE u32 = the low bits of `Arena::matches_run`, P4 0.2): changes exactly when a new match starts.
+    pub serial: [u8; 4],
+    /// `submit_input`'s forward window in ticks (0 = [`INPUT_WINDOW`]; P4 0.4, `set_input_lead`). Here, not in
+    /// `Arena`, so `submit_input` keeps its account list (it already reads this account).
+    pub input_lead: u8,
+    /// rush-core round phase mirror (`rules::phase`: … 3 RUSH, 4 ENDED; P4: `buy_drop` / `place_bet` close at RUSH).
+    pub round_phase: u8,
     /// Slot of the first tick of the match (the real-time gate counts ticks from it).
     pub start_slot: u64,
     pub world: [u8; WORLD_BYTES],
+}
+
+impl WorldAcc {
+    /// The forward input window (ticks).
+    pub fn lead(&self) -> u32 {
+        if self.input_lead == 0 {
+            INPUT_WINDOW
+        } else {
+            (self.input_lead as u32).clamp(INPUT_WINDOW, INPUT_LEAD_MAX)
+        }
+    }
 }
 
 #[zero_copy]
@@ -240,7 +260,8 @@ fn zero_copy_ref<'a, T: bytemuck::Pod + anchor_lang::Discriminator>(info: &'a Ac
 
 // ------------------------------------------------------------------ tick
 
-/// `tick()`: accounts `[arena, world, event_log, match, map_0, map_1, map_2, map_3, map_lobby, input_0 … input_11]`.
+/// `tick()`: accounts `[arena, world, event_log, match, map_0, map_1, map_2, map_3, map_lobby, input_0 … input_11,
+/// (drop_queue)]` (P4: the arena's `DropQueue`, optional, read-only).
 /// Runs the next pending part of the current tick. Never returns an error (see the module doc).
 pub fn tick(accs: &[AccountInfo]) -> Result<()> {
     let code = tick_inner(accs);
@@ -358,6 +379,12 @@ fn tick_inner(accs: &[AccountInfo]) -> u8 {
             };
             rush_core::rules::director::load_round(&mut w, &v, &mut h);
         }
+        // P4 Chaos Drops: purchases in the arena's DropQueue (optional account 9 + N, read-only) enter the World at
+        // this tick with the telegraph (trigger = this tick + TELEGRAPH); the queue is part of World, so clients
+        // predict them exactly
+        if let Some(dqi) = accs.get(9 + N) {
+            ingest_drops(dqi, &accs[0], &arena, &mut w);
+        }
     }
     let ms = map_slot(&w);
     let d = match accs[4 + ms].try_borrow_data() {
@@ -401,6 +428,7 @@ fn tick_inner(accs: &[AccountInfo]) -> u8 {
     }
     wa.phase = w.dir.phase;
     wa.round = w.dir.round;
+    wa.round_phase = w.round.phase;
     // events → EventLog ring
     if ev.n > 0 {
         if let Some(mut log) = zero_copy_mut::<EventLog>(&accs[2]) {
@@ -419,6 +447,34 @@ fn tick_inner(accs: &[AccountInfo]) -> u8 {
         mirror_match(&accs[3], &w);
     }
     tick_code::RAN
+}
+
+/// Copies the DropQueue's purchases not yet in the World into `World::drop_queue` (bad account = ignored).
+#[inline(never)]
+fn ingest_drops(dqi: &AccountInfo, arena_info: &AccountInfo, arena: &Arena, w: &mut World) {
+    let dq = match zero_copy_ref::<crate::econ::DropQueue>(dqi) {
+        Some(d) => d,
+        None => return,
+    };
+    if dq.arena != arena_info.key() || dq.match_account != arena.match_account {
+        return;
+    }
+    let have = rush_core::drops::queued(&w.drop_queue);
+    let mut i = have;
+    let trigger = w.tick.wrapping_add(1).wrapping_add(rush_core::drops::TELEGRAPH);
+    while i < (dq.count as usize).min(dq.buys.len()) {
+        let k = dq.buys[i].kind;
+        let arg = rush_core::drops::arg_for(w.hazard_seed, i as u8, k);
+        if !rush_core::drops::enqueue(&mut w.drop_queue, k, arg, trigger) {
+            break;
+        }
+        i += 1;
+    }
+}
+
+/// The World's `round_start` (hazard time 0 = the RUSH tick) from the canonical bytes (offset 18).
+pub fn world_round_start(wa: &WorldAcc) -> u32 {
+    u32::from_le_bytes([wa.world[18], wa.world[19], wa.world[20], wa.world[21]])
 }
 
 /// Writes the director's state into the `Match` account: round, alive / eliminated / champion, transcript, deal,
@@ -516,9 +572,9 @@ fn mirror_final(m: &mut Match, w: &World) {
 
 /// `submit_input`: writes `INPUT_BATCH` inputs for ticks `start .. start + batch` (4 B each: move x, move y, buttons,
 /// cam yaw high byte) into the signer's InputBuf. Rejects ticks outside the window (not the hot tick: a real error).
-pub fn submit_input(ib: &mut InputBuf, owner: &Pubkey, world_tick: u32, start: u32, batch: &[u8; 4 * INPUT_BATCH]) -> Result<()> {
+pub fn submit_input(ib: &mut InputBuf, owner: &Pubkey, world_tick: u32, lead: u32, start: u32, batch: &[u8; 4 * INPUT_BATCH]) -> Result<()> {
     require_keys_eq!(ib.owner, *owner, FallRushError::Unauthorized);
-    require!(start + INPUT_WINDOW >= world_tick && start <= world_tick + INPUT_WINDOW, FallRushError::InputOutOfWindow);
+    require!(start + INPUT_WINDOW >= world_tick && start <= world_tick + lead.min(INPUT_LEAD_MAX), FallRushError::InputOutOfWindow);
     let mut k = 0;
     while k < INPUT_BATCH {
         let t = start + k as u32;
@@ -585,7 +641,14 @@ pub fn start_sim(arena: &mut Arena, wa: &mut WorldAcc, m: &Match, lobby: &[u8]) 
     wa.round = w.dir.round;
     arena.status = arena_status::RUNNING;
     arena.matches_run = arena.matches_run.wrapping_add(1);
+    stamp_match(arena, wa);
     Ok(())
+}
+
+/// Core version + match serial into the `WorldAcc` header (P4 0.1 / 0.2).
+fn stamp_match(arena: &Arena, wa: &mut WorldAcc) {
+    wa.core_version = (rush_core::VERSION as u16).to_le_bytes();
+    wa.serial = (arena.matches_run as u32).to_le_bytes();
 }
 
 /// The Final on-chain after Classic rounds 1–3 (doc 15 OC-11): the `Match` must be `RoundResolved` after round 3
@@ -629,6 +692,7 @@ pub fn start_final(arena: &mut Arena, wa: &mut WorldAcc, m: &mut Match, lobby: &
     m.flags |= MATCH_SIM_STARTED | MATCH_FINAL_MODE;
     arena.status = arena_status::RUNNING;
     arena.matches_run = arena.matches_run.wrapping_add(1);
+    stamp_match(arena, wa);
     Ok(())
 }
 
@@ -655,18 +719,26 @@ pub fn schedule<'info>(payer: &AccountInfo<'info>, magic_program: &AccountInfo<'
         cpi_metas.push(AccountMeta { pubkey: a.key(), is_signer: false, is_writable: a.is_writable });
         infos.push(a.clone());
     }
-    let data = bincode::serialize(&MagicBlockInstruction::ScheduleTask(ScheduleTaskArgs { task_id, execution_interval_millis: interval_ms, iterations, instructions: vec![ix] }))
-        .map_err(|_| error!(FallRushError::BadTask))?;
+    let data = crate::magic::schedule_task_data(task_id, interval_ms, iterations, &ix);
     anchor_lang::solana_program::program::invoke(&Instruction { program_id: magic_program.key(), accounts: cpi_metas, data }, &infos)?;
     msg!("fall_rush task_id {}", task_id);
     Ok(())
 }
 
 pub fn cancel<'info>(payer: &AccountInfo<'info>, magic_program: &AccountInfo<'info>, task_ctx: &AccountInfo<'info>, task_id: i64) -> Result<()> {
-    let data = bincode::serialize(&MagicBlockInstruction::CancelTask { task_id }).map_err(|_| error!(FallRushError::BadTask))?;
+    let data = crate::magic::cancel_task_data(task_id);
     anchor_lang::solana_program::program::invoke(
         &Instruction { program_id: magic_program.key(), accounts: vec![AccountMeta::new(payer.key(), true), AccountMeta::new(task_ctx.key(), false)], data },
         &[payer.clone(), task_ctx.clone()],
     )?;
     Ok(())
 }
+
+// Account layouts are part of the client protocol (P2 proof §10; `packages/chain/config/*.json`): pinned here.
+const _: () = assert!(core::mem::size_of::<WorldAcc>() == 2248);
+const _: () = assert!(core::mem::offset_of!(WorldAcc, core_version) + 8 == 142);
+const _: () = assert!(core::mem::offset_of!(WorldAcc, serial) + 8 == 194);
+const _: () = assert!(core::mem::offset_of!(WorldAcc, input_lead) + 8 == 198);
+const _: () = assert!(core::mem::offset_of!(WorldAcc, round_phase) + 8 == 199);
+const _: () = assert!(core::mem::offset_of!(WorldAcc, world) + 8 == 208);
+const _: () = assert!(core::mem::size_of::<Arena>() + 8 == 1432);

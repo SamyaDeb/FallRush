@@ -60,4 +60,29 @@ pub enum FallRushError {
     NothingToCommit,
     #[msg("Session token missing, revoked, expired or not for this signer / wallet / program")]
     SessionInvalid,
+    // ---- P4 economy
+    #[msg("Faucet already claimed in the last 24 h")]
+    FaucetCooldown,
+    #[msg("Not enough RUSH chips")]
+    InsufficientChips,
+    #[msg("Market is closed for bets")]
+    MarketClosed,
+    #[msg("Market has 64 bet records")]
+    MarketFull,
+    #[msg("Bet below the minimum (1 RUSH)")]
+    BetTooSmall,
+    #[msg("Market still holds the previous match (settle and pay it first)")]
+    MarketBusy,
+    #[msg("Unknown Chaos Drop kind")]
+    InvalidDrop,
+    #[msg("Chaos Drops are sold during the on-chain Final's RUSH phase only")]
+    DropClosed,
+    #[msg("Chaos Drop cap reached for this round")]
+    DropCap,
+    #[msg("Chaos Drop cooldown (5 s)")]
+    DropCooldown,
+    #[msg("Receipt not written / not ready")]
+    ReceiptNotReady,
+    #[msg("Reward already minted or not owed")]
+    NothingToMint,
 }

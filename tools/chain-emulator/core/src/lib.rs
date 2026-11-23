@@ -2,7 +2,7 @@
 //! on-chain program does itself: begin a round, report the last step's events, describe the World byte layout.
 //! The client never loads this file; it uses P2's `rush_core_wasm.wasm`.
 #![allow(clippy::missing_safety_doc)]
-include!("../../../../.p2-core/crates/rush-core-wasm/src/abi.rs");
+include!("../../../../crates/rush-core-wasm/src/abi.rs");
 
 use rush_core::world::Event;
 

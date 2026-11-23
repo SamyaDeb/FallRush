@@ -4,6 +4,20 @@ An original 12-player, 4-round knockout party game for the **MagicBlock Solana B
 
 **Trust model:** the authoritative game server decides physics and who qualified. The `fall_rush` program accepts results only from the configured game authority, in strict sequence, for roster slots, with counts consistent with the committed ruleset; the deal is derived on-chain from VRF. It does **not** prove that gameplay was fair.
 
+## P4: the economy (on-chain Final)
+**RUSH chips are devnet test chips only, no real-money value** (doc 15 OC-2; mainnet would need a legal review).
+- Chips: 1,000 RUSH per wallet per 24 h from the faucet, no popup (a `ChipBalance` PDA on the rollup; real SPL RUSH
+  `3s8KstqicXn1kgFyWPVq3AZXkMprDtEtT7BNTxtQccEw` minted by the program on cash-out).
+- Rush Markets: Champion and Final winner are **◆ program-settled** (the on-chain Final decides); Qualify R1–R3 are
+  **● server-recorded** (the Classic rounds, recorded by the game authority). Shared pool, fee 0 %. A labelled market
+  maker ("mm") seeds every market.
+- Chaos Drops: spectators buy map-wide events for the on-chain Final (Lid Frenzy, Bumper Rain, Wind Gust, Sweeper
+  Rush): telegraphed 0.77 s, ≤ 3 per round, 5 s apart, never aimed at a player.
+- Receipt + assets: the match receipt is committed to Solana; the program mints the champion's Crown Capsule and one
+  VRF-rolled capsule per human (Metaplex Core); "Claim with Phantom" moves them to your wallet.
+- Run the economy locally: `bash scripts/heavy-lock.sh p4-local -- bash scripts/p4-local-e2e.sh`; devnet:
+  `scripts/p4-devnet-crown.sh`, `scripts/p4-devnet-hybrid.sh`, `scripts/p4-feel.sh` (proof: `docs/proof/P4-economy.md`).
+
 ## Layout
 | Path | What |
 |---|---|

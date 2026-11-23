@@ -1,0 +1,40 @@
+[relay] tick 1885 upd/s 28.5 in/s 0 confirm p50/p95 0/0 ms rtt 98.6 gaps 9 slices 14 ws 11404 stale 9618 reconn 0 clients 1
+[relay] tick 2035 upd/s 28 in/s 0 confirm p50/p95 0/0 ms rtt 107.7 gaps 9 slices 14 ws 12318 stale 10386 reconn 0 clients 1
+[relay] tick 2187 upd/s 29 in/s 0 confirm p50/p95 0/0 ms rtt 151.9 gaps 9 slices 14 ws 13238 stale 11160 reconn 0 clients 1
+[relay] tick 2341 upd/s 30 in/s 0 confirm p50/p95 0/0 ms rtt 135 gaps 9 slices 14 ws 14168 stale 11940 reconn 0 clients 1
+[relay] tick 2489 upd/s 29 in/s 0 confirm p50/p95 0/0 ms rtt 112.2 gaps 9 slices 14 ws 15066 stale 12695 reconn 0 clients 1
+[relay] tick 2643 upd/s 29.5 in/s 0 confirm p50/p95 0/0 ms rtt 149.9 gaps 9 slices 14 ws 15987 stale 13467 reconn 0 clients 1
+[relay] tick 2794 upd/s 30 in/s 0 confirm p50/p95 0/0 ms rtt 154.1 gaps 10 slices 14 ws 16916 stale 14251 reconn 0 clients 1
+[relay] tick 2939 upd/s 27 in/s 0 confirm p50/p95 0/0 ms rtt 215.7 gaps 10 slices 14 ws 17794 stale 14989 reconn 0 clients 1
+[relay] tick 3097 upd/s 29.5 in/s 0 confirm p50/p95 0/0 ms rtt 172.9 gaps 10 slices 14 ws 18756 stale 15798 reconn 0 clients 1
+[relay] tick 3251 upd/s 29.5 in/s 0 confirm p50/p95 0/0 ms rtt 140.4 gaps 10 slices 14 ws 19671 stale 16564 reconn 0 clients 1
+[relay] tick 3403 upd/s 30.5 in/s 0 confirm p50/p95 0/0 ms rtt 110.7 gaps 10 slices 14 ws 20603 stale 17349 reconn 0 clients 1
+[relay] tick 3553 upd/s 30.5 in/s 0 confirm p50/p95 0/0 ms rtt 101.3 gaps 10 slices 14 ws 21510 stale 18111 reconn 0 clients 1
+[relay] tick 3702 upd/s 29.5 in/s 0 confirm p50/p95 0/0 ms rtt 88.6 gaps 10 slices 14 ws 22418 stale 18875 reconn 0 clients 1
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":814}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":815}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":735}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":734}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":765}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":764}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":777}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":771}
+[relay] tick 3737 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 84.5 gaps 10 slices 14 ws 22630 stale 19057 reconn 8 clients 1
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":753}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":724}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":750}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":749}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":755}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":751}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":748}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":748}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":749}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":749}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":810}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":809}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":1058}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":1057}
+[relay] tick 3737 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 110.3 gaps 10 slices 14 ws 22630 stale 19062 reconn 22 clients 1
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":0,"silentMs":823}
+[relay] wsReconnect {"transport":"rollup","how":"rawReopen","socket":1,"silentMs":823}
+[relay] tick 3737 upd/s 0 in/s 0 confirm p50/p95 0/0 ms rtt 117.6 gaps 10 slices 14 ws 22630 stale 19067 reconn 24 clients 1

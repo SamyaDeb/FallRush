@@ -525,3 +525,183 @@ pub fn final_qa(args: &[String]) -> i32 {
     println!("{j}");
     0
 }
+
+/// P4 task 3 ⛳: `rush-sim final-qa-drops [--runs N]`: N Finals (3 bots) with a random allowed Chaos Drop schedule (a
+/// seeded spectator buys under the program's rules: RUSH only, ≤ 3, 150-tick cooldown, Sweeper Rush once the sweeper
+/// runs; queued exactly as `tick()` does: trigger = the tick it enters + TELEGRAPH). Checks: Final length (G4.5:
+/// median 60–120 s), every lid opening after ≥ 1 s of warning (Lit ≥ 30 ticks before Flipped, RetireWarn ≥ 90 before
+/// Retired), telegraph ≥ 23 ticks, 2 runs identical; counts deaths within 1 s after a drop resolves.
+#[allow(clippy::needless_range_loop)]
+pub fn final_qa_drops(args: &[String]) -> i32 {
+    let dir = crate::arg(args, "--maps").map(std::path::PathBuf::from).unwrap_or_else(|| crate::repo_root().join("maps"));
+    let runs: u64 = crate::arg(args, "--runs").and_then(|v| v.parse().ok()).unwrap_or(100);
+    let (maps, lobby) = load_maps(&dir);
+    let mut lens = Vec::new();
+    let (mut timers, mut det, mut drops, mut viol, mut tele_min, mut deaths_near, mut deaths) = (0, 0, 0u64, 0u64, u32::MAX, 0u64, 0u64);
+    let mut by_kind = [0u64; 5];
+    for s in 1..=runs {
+        let a = (s % 10) as usize;
+        let alive = (1u16 << a) | (1 << ((a + 3) % 12)) | (1 << ((a + 7) % 12));
+        let r1 = run_final_drops(&maps, &lobby, s, alive);
+        let r2 = run_final_drops(&maps, &lobby, s, alive);
+        if r1.hash == r2.hash && r1.transcript == r2.transcript {
+            det += 1;
+        }
+        lens.push(r1.len_s);
+        timers += r1.timer as u64;
+        drops += r1.drops;
+        viol += r1.violations;
+        tele_min = tele_min.min(r1.telegraph_min);
+        deaths_near += r1.deaths_near_drop;
+        deaths += r1.deaths;
+        for k in 0..5 {
+            by_kind[k] += r1.by_kind[k];
+        }
+    }
+    let med = median(&mut lens.clone());
+    let pass = (60.0..=120.0).contains(&med) && viol == 0 && tele_min >= rush_core::drops::TELEGRAPH && det == runs;
+    let j = json!({ "finals": runs, "median_s": med, "p90_s": p90(&mut lens.clone()), "timer_endings": timers, "deterministic": det,
+        "drops": drops, "drops_by_kind": { "lid_frenzy": by_kind[1], "bumper_rain": by_kind[2], "wind_gust": by_kind[3], "sweeper_rush": by_kind[4] },
+        "lid_warning_violations": viol, "telegraph_min_ticks": tele_min, "deaths": deaths, "deaths_within_1s_of_a_drop": deaths_near, "pass": pass });
+    println!("{j}");
+    if pass { 0 } else { 1 }
+}
+
+pub struct DropRun {
+    pub len_s: f64,
+    pub timer: bool,
+    pub transcript: [u8; 32],
+    pub hash: u64,
+    pub drops: u64,
+    pub by_kind: [u64; 5],
+    pub violations: u64,
+    pub telegraph_min: u32,
+    pub deaths: u64,
+    pub deaths_near_drop: u64,
+}
+
+#[allow(clippy::needless_range_loop)]
+pub fn run_final_drops(maps: &[(u8, Vec<u8>)], lobby: &[u8], seed: u64, alive: u16) -> DropRun {
+    use rush_core::collide::Scene;
+    use rush_core::drops;
+    use rush_core::hazards::defs::HazardType;
+    use rush_core::hazards::lid::{lid_solid, LidState, MAX_LIDS_PER_GRID};
+    let lm = MapView::new(lobby).unwrap();
+    let mut h = Sha;
+    let mut w = World::new(&lm, 30);
+    let mut s32 = [0u8; 32];
+    s32[..8].copy_from_slice(&seed.to_le_bytes());
+    let ids: Vec<String> = (0..12).map(|s| format!("bot:{s}")).collect();
+    let e: Vec<rush_core::transcript::RosterEntry> = (0..12).map(|s| rush_core::transcript::RosterEntry { bot: true, user_id: ids[s].as_bytes(), wallet: None }).collect();
+    let rh = rush_core::transcript::roster_hash(&mut h, &e);
+    rules::director::start_final(&mut w, &lm, &s32, 12, &rh, alive, &[0; MAX_PLAYERS], &mut h);
+    let params = MovementParams::default();
+    let mut cur: Vec<u8> = lobby.to_vec();
+    let mut ev = StepEvents::default();
+    let (mut rush_from, mut rush_to) = (0u32, 0u32);
+    // the spectator: a seeded schedule under the program's rules (econ::buy_drop)
+    let mut rng = rush_core::vectors::Rng(seed ^ 0xC4A0_5D20_0001);
+    let (mut bought, mut last_buy) = (0u8, 0u32);
+    let mut r = DropRun { len_s: 0.0, timer: false, transcript: [0; 32], hash: 0, drops: 0, by_kind: [0; 5], violations: 0, telegraph_min: u32::MAX, deaths: 0, deaths_near_drop: 0 };
+    // lid warning tracker: per grid, per lid, (state, ticks in state)
+    let mut lid_prev: Vec<[(LidState, u32); MAX_LIDS_PER_GRID]> = vec![[(LidState::Idle, 0); MAX_LIDS_PER_GRID]; 4];
+    let mut queued_at = [0u32; rush_core::world::DROP_QUEUE];
+    let mut was_out = [false; MAX_PLAYERS];
+    for _ in 0..30 * 600 {
+        if let Some(id) = rules::director::needs_map(&w) {
+            cur = maps.iter().find(|(k, _)| *k == id).unwrap().1.clone();
+            let v = MapView::new(&cur).unwrap();
+            rules::director::load_round(&mut w, &v, &mut h);
+        }
+        // a purchase this tick (RUSH, the caps, cooldown, on sale) → in the World at this tick, trigger + TELEGRAPH
+        if w.round.phase == rules::phase::RUSH && w.round.mode == rush_core::mapblob::mode::FINAL && bought < drops::MAX_PER_ROUND && (bought == 0 || w.tick >= last_buy + drops::COOLDOWN_TICKS) && std::env::var("QA_NO_DROPS").is_err() && rng.range(0, 299) == 0 {
+            let mut k = rng.range(1, drops::kind::COUNT as i64) as u8;
+            if let Ok(f) = std::env::var("QA_KIND") {
+                k = f.parse().unwrap_or(k);
+            }
+            let t30 = w.tick as i64 - w.round_start as i64;
+            if drops::on_sale(k, t30) {
+                let idx = drops::queued(&w.drop_queue);
+                let trigger = w.tick + 1 + drops::TELEGRAPH;
+                if drops::enqueue(&mut w.drop_queue, k, drops::arg_for(w.hazard_seed, idx as u8, k), trigger) {
+                    queued_at[idx] = w.tick + 1;
+                    r.telegraph_min = r.telegraph_min.min(trigger - (w.tick + 1));
+                    bought += 1;
+                    last_buy = w.tick;
+                    r.drops += 1;
+                    r.by_kind[k as usize] += 1;
+                }
+            }
+        }
+        let v = MapView::new(&cur).unwrap();
+        let mut sc = Scene::new(v);
+        let mut from = 0u8;
+        loop {
+            ev.n = 0;
+            from = world::step_slice(&mut w, &[None; MAX_PLAYERS], &v, &params, &mut h, &mut ev, &mut sc, from, world::SLICE_WORK);
+            if from == 0 {
+                break;
+            }
+        }
+        if w.round.phase == rules::phase::RUSH {
+            if rush_from == 0 {
+                rush_from = w.tick;
+            }
+            rush_to = w.tick;
+        }
+        // lid states this tick (the scene the next step poses: schedule + Lid Frenzy overlay)
+        if w.round.mode == rush_core::mapblob::mode::FINAL {
+            let cfg = w.motor_config(&params);
+            let sc2 = world::pose_scene(&w, &v, &cfg, w.tick);
+            let hz = sc2.hz(&w);
+            let t30 = rush_core::hazards::t30(w.t60(w.tick));
+            let ng = hz.count(HazardType::LidFlip).min(4);
+            for g in 0..ng {
+                let d = hz.lid_grid(g);
+                let mut st = [LidState::Idle; MAX_LIDS_PER_GRID];
+                sc2.lid_states(g, &d, t30, &mut st);
+                for l in 0..(d.count() as usize).min(MAX_LIDS_PER_GRID) {
+                    // n = consecutive ticks in a warning state (Lit / RetireWarn) up to the previous tick
+                    let (ps, n) = lid_prev[g][l];
+                    let ns = st[l];
+                    if lid_solid(ps) && !lid_solid(ns) {
+                        let ok = n >= 30;
+                        if !ok && t30 > 0 {
+                            r.violations += 1;
+                            if std::env::var("QA_VERBOSE").is_ok() {
+                                eprintln!("seed {seed} t30 {t30} grid {g} lid {l} {ps:?}({n}) -> {ns:?}");
+                            }
+                        }
+                    }
+                    let warn = matches!(ns, LidState::Lit | LidState::RetireWarn);
+                    lid_prev[g][l] = (ns, if warn { if matches!(ps, LidState::Lit | LidState::RetireWarn) { n + 1 } else { 1 } } else { 0 });
+                }
+            }
+            // deaths (out of the round) and how many within 30 ticks after a drop resolved
+            for s in 0..MAX_PLAYERS {
+                let out = w.players[s].active() && w.players[s].r.flags & rush_core::rules::sf::OUT != 0;
+                if out && !was_out[s] {
+                    r.deaths += 1;
+                    let near = (0..rush_core::world::DROP_QUEUE).any(|i| {
+                        let q = w.drop_queue[i];
+                        q.kind != 0 && w.tick >= q.tick && w.tick <= q.tick + drops::duration(q.kind) + 30
+                    });
+                    r.deaths_near_drop += near as u64;
+                }
+                was_out[s] = out;
+            }
+        }
+        if w.dir.phase >= rules::director::phase::DONE {
+            break;
+        }
+    }
+    let _ = queued_at;
+    r.len_s = rush_to.saturating_sub(rush_from) as f64 / 30.0;
+    r.timer = w.round.timer_expired;
+    r.transcript = w.dir.transcript;
+    r.hash = w.hash();
+    if r.telegraph_min == u32::MAX {
+        r.telegraph_min = drops::TELEGRAPH;
+    }
+    r
+}

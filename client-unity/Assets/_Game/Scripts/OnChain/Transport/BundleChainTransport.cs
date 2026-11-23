@@ -26,6 +26,8 @@ namespace FallRush.OnChain
         [DllImport("__Internal")] private static extern string fr_drain_events();
         [DllImport("__Internal")] private static extern string fr_stats();
         [DllImport("__Internal")] private static extern void fr_stop();
+        [DllImport("__Internal")] private static extern void fr_econ(int id, string action, string args);
+        [DllImport("__Internal")] private static extern string fr_econ_result(int id);
 #else
         private static void fr_boot(string a, string b, string c) => throw new PlatformNotSupportedException("the chain bundle runs in WebGL players only");
         private static int fr_state() => -1;
@@ -39,12 +41,18 @@ namespace FallRush.OnChain
         private static string fr_drain_events() => "[]";
         private static string fr_stats() => "{}";
         private static void fr_stop() { }
+        private static void fr_econ(int id, string a, string b) { }
+        private static string fr_econ_result(int id) => null;
 #endif
+
+        public void Econ(int id, string action, string argsJson) => fr_econ(id, action ?? "", string.IsNullOrEmpty(argsJson) ? "{}" : argsJson);
+
+        public string EconResult(int id) => fr_econ_result(id);
 
         /// <summary>The bundle's normalised WorldView: tick 0, core 4, seq 8, flags 12, len 14, applied 16, World at 64.</summary>
         public static readonly WorldAccLayout Layout = new WorldAccLayout
         {
-            offset = 64, lenOffset = 14, tickOffset = 0, appliedTickOffset = 16, coreVersionOffset = 4, flagsOffset = 12,
+            offset = 64, lenOffset = 14, tickOffset = 0, appliedTickOffset = 16, coreVersionOffset = 4, arenaSeqOffset = 8, flagsOffset = 12,
         };
 
         private readonly byte[] _buf = new byte[64 * 2200];

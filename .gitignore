@@ -51,3 +51,15 @@ client-unity/Assets/Resources/PerformanceTestRunSettings.json*
 .p2-logs/
 # P2 run recordings (World snapshots, ~100 MB per match): kept locally, summaries + replay results are committed
 docs/proof/p2/runs/*/world.bin
+
+# P4 local logs
+.p4-*.txt
+.p4-*.log
+.anchor*.log
+.espl-spike.log
+docs/proof/p2/runs/p4-*/
+docs/proof/p2/keeper-p4-*.jsonl
+.p4-logs/
+docs/proof/p2/runs/local-*/
+docs/proof/p2/keeper-local-*.jsonl
+tools/p4/.keys/

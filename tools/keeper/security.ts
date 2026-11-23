@@ -29,6 +29,7 @@ if (a0.status === 2) await sendEr([await pe.methods.abortArena().accountsPartial
 // a match for this arena
 const matchId = randomBytes(16), matchPda = pda.match(matchId);
 await sendBase([await pb.methods.createMatch([...matchId], [...randomBytes(32)], N).accountsPartial({ authority: wallet.publicKey }).instruction()]);
+for (let i = 0; i < 60; i++) { const ai = await base.getAccountInfo(matchPda, "confirmed").catch(() => null); if (ai && ai.owner.equals(PROGRAM_ID)) break; await sleep(500); } // RPC lag
 await sendBase([await pb.methods.delegateMatch([...matchId]).accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).remainingAccounts([{ pubkey: EP.validator, isSigner: false, isWritable: false }]).instruction()]);
 await sendEr([await pe.methods.openLobby(matchPda).accountsPartial({ authority: wallet.publicKey, arena, world }).remainingAccounts(inputMetas).instruction()], [wallet], "open_lobby", 40);
 
@@ -111,6 +112,16 @@ await expectCode("input tick out of window (+50)", sub(p1, 0, w0.tick + 50, Arra
 for (let i = 0; i < 4 * 14; i++) await sendEr([cu(1_400_000), await pe.methods.tick().remainingAccounts(tickAccounts(arena, matchPda, maps)).instruction()], [wallet], "tick", 2);
 const wt = decodeWorld((await er.getAccountInfo(world))!.data as Buffer).tick;
 await expectCode(`input tick out of window (−10 at tick ${wt})`, sub(p1, 0, wt - 10, Array(12).fill(0)), "InputOutOfWindow");
+// P4 0.4: the forward window (default +8; set_input_lead 8..13 by the authority only)
+const lead = async (who: Keypair, l: number) => sendEr([await pe.methods.setInputLead(l).accountsPartial({ authority: who.publicKey, arena, world }).instruction()], [who], "lead", 3);
+await expectCode("input at T+12 with the default window (+8)", sub(p1, 0, wt + 12, Array(12).fill(0)), "InputOutOfWindow");
+await expectCode("set_input_lead by a non-authority", lead(p1, 12), "Unauthorized");
+await expectCode("set_input_lead beyond the 16-entry ring (14)", lead(wallet, 14), "InputOutOfWindow");
+check("set_input_lead(12) by the authority", !(await lead(wallet, 12)).err);
+const wt2 = decodeWorld((await er.getAccountInfo(world))!.data as Buffer).tick;
+check("input at T+12 with the +12 window", !(await sub(p1, 0, wt2 + 12, Array(12).fill(0))).err);
+await expectCode("input at T+13 with the +12 window", sub(p1, 0, wt2 + 13, Array(12).fill(0)), "InputOutOfWindow");
+await lead(wallet, 0);
 const hs = await sub(p1, 0, wt + 2, [0x80, 0x80, 0xff, 0x7f, 0x80, 0x80, 0xff, 0x7f, 0x80, 0x80, 0xff, 0x7f]);
 const ib: any = await pe.account.inputBuf.fetch(inputs[0]);
 const e = ib.ring[(wt + 2) % 16];

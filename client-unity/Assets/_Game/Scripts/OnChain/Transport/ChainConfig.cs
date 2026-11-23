@@ -23,6 +23,9 @@ namespace FallRush.OnChain
         public WorldAccLayout world = new WorldAccLayout();
         /// <summary>Inputs stamped T + lead for the first tick of a batch (doc: T+3).</summary>
         public int inputLead = 3;
+        /// <summary>P4 0.4: the arena's forward input window (`submit_input` accepts a batch starting ≤ T + window;
+        /// program default 8, `set_input_lead` up to 13). Caps the adaptive extra lead.</summary>
+        public int inputWindow = 8;
         /// <summary>Ticks per input transaction (doc: 3, one transaction per 100 ms at 30 Hz).</summary>
         public int batchTicks = 3;
         public int rate = 30;
@@ -50,6 +53,9 @@ namespace FallRush.OnChain
             var lead = GetArg("-fallrushOnchainLead") ?? NetTargets.GetQueryParam(Application.absoluteURL, "lead");
             if (int.TryParse(lead, out var l) && l >= 0 && l <= 8)
                 c.inputLead = l;
+            var win = GetArg("-fallrushOnchainWindow") ?? NetTargets.GetQueryParam(Application.absoluteURL, "window");
+            if (int.TryParse(win, out var wv) && wv >= 8 && wv <= 13)
+                c.inputWindow = wv;
             return c;
         }
 

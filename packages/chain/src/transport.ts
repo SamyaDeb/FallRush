@@ -24,6 +24,8 @@ export interface Transport {
   subscribe(addr: string): void;
   unsubscribe(addr: string): void;
   session(action: string, args: Record<string, unknown>): Promise<Record<string, unknown>>;
+  /** P4 economy (rollup only): chips | state | bet | drop | receipt | claim */
+  econ?(action: string, args: Record<string, unknown>): Promise<Record<string, unknown>>;
   status(): Record<string, unknown>;
   stop(): void;
 }

@@ -1,5 +1,6 @@
-# rc_version 0x10001  (P3-A subset: 40 cases per file)
+# rc_version 0x10002  (P3-A subset: 40 cases per file)
 collide_v1.bin 2 26719300686512129 40 ecef555686f146c6 collide_v1.bin.map
+drops_v1.bin 6 26719300686512129 40 b43c263924ef28be drops_v1.bin.map
 fx_v1.bin 1 26719300686512129 40 555d7eee5afcb7e0 -
 hazard_v2.bin 4 26719300686512129 40 458142349d352041 -
 motor_v1.bin 3 26719300686512129 40 b7d0b50a7a70fa3d motor_v1.bin.map

@@ -1,0 +1,9 @@
+{"t":1795395289619,"name":"C","role":"spectator","act":"init","burner":"BFJvM2TiDKEc4pnEXKQeGjkeFw97aVjXiEPnwgBgvYTi","session":"FFGXvkC37UYtSceyp2ccCXiKUgWQd1dnt6WFid2Pv5p4"}
+{"t":1795395289968,"name":"C","role":"spectator","act":"session","ok":true,"token":"6VTeYnnuTFB6BzNv9rYt1tDxUoJyZdUSWSDrRpLjywXH"}
+{"t":1795395290157,"name":"C","role":"spectator","act":"chips","ok":true,"balance":"400000000"}
+{"t":1795395415819,"name":"C","role":"spectator","act":"match","match":"8UsXiayMDGJwEtJqBm55H6y5ZSsrqQBjLcPPFLa34dPr"}
+{"t":1795395716647,"name":"C","role":"spectator","act":"drop","kind":1,"tick":166,"ok":true,"sig":"mSh2i4fVUuTjEgpvg1FhHUAE38PNVuvzTdYV5KyJ668X5GmoPasD3WSFSNY8h3snhTmsyqarfF6NrzVQXFMsxiz","session":true,"ms":792}
+{"t":1795395722229,"name":"C","role":"spectator","act":"drop","kind":3,"tick":353,"ok":true,"sig":"2U71GSdNNWmssBx29WwgTBhPvv4yFy9BkyWeoEGJmabVyYxRKPdDv5vZsJFGxmjDUweqYfSf7XDCR5Fa4qAaR6iW","session":true,"ms":356}
+{"t":1795395735842,"name":"C","role":"spectator","act":"drop","kind":4,"tick":761,"ok":true,"sig":"5vgZiKNg19GviRQgPd3soE1Qq9KkUAGzjQ9ozBaZUofT6SRgnMZdzq9BdBm8Jn5ZMCNaF46dtAWG9n4pAFnufEDe","session":true,"ms":310}
+{"t":1795395824275,"name":"C","role":"spectator","act":"markets_paid","balance":"280000000"}
+{"t":1795395824780,"name":"C","role":"spectator","act":"end","balance":"280000000","won":"0","spent":"720000000"}

@@ -437,6 +437,21 @@ Six throw-away prototypes. They live in `spikes/p0-*`, are never shipped, and ar
 
 ---
 
+**P4 as built (2026-11-23, `docs/proof/P4-economy.md`):**
+- **Chips:** a program `ChipBalance` PDA per wallet (OC-12; the Ephemeral SPL spike failed 0/5), faucet 1,000 RUSH /
+  24 h with no popup; real SPL RUSH minted by the program on cash-out.
+- **Markets:** Champion + Final winner (◆ program-settled from the on-chain Final) and Qualify R1–R3 ("pick who
+  qualifies", ● server-recorded); windows by program state (Champion / Final winner close at the RUSH tick, Qualify at
+  `start_round`), **settlement in a separate permissionless op** (not inside `tick()`), shared pool, refunds incl. the
+  Classic fallback; the labelled market maker seeds every market.
+- **Chaos Drops:** Lid Frenzy, Bumper Rain, Wind Gust, Sweeper Rush (Goo Surge / Star Shower are other maps' and stay
+  for when those rounds go on-chain); telegraph **23 ticks** at 30 Hz (the plan's "+15" was 20 Hz); `buy_drop` writes a
+  separate `DropQueue` that `tick()` reads; QA + CU in the proof §4.
+- **Receipt:** in `Match` (replaces the unused Fan Picks, same size); a second VRF draw rolls the capsules; the
+  follow-up call is the permissionless `mint_rewards` op on Solana (OC-13: program-minted Metaplex Core, not a Magic
+  Action); pots cut.
+- **UI:** chips pill, bet panel, drop bar, drop banner + in-world telegraphs, receipt card with Claim with Phantom, F3.
+
 ### P5 — Product layer
 
 **Build:**

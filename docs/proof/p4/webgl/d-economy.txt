@@ -1,0 +1,20 @@
+63.9	log	[onchain] auto-bet market 2 on slot 0
+63.9	log	[onchain] auto-bet market 0: ok  5jibWrTPMUvB7ow47XC6xRVFTydvEU6GNWwFhjPfMSPArE7EsWzishq3ujd8VrjpTLj41rfxftrK9dt5xWbyyuZz
+65.9	log	[onchain] auto-bet market 2: ok  4VBgv2CKvx2wjABzRcGMXBMiVib7VpsZBnovTxW4oYd8WtrhavdeGWpPF9MQmhPsu2KzCgTymPJZsAhPqW4VMscF
+69.9	log	[onchain] auto-bet market 3 on slot 0
+71.9	log	[onchain] auto-bet market 3: ok  3TDKjAe9PfBis1YkPN8ouG5zLvX9uf5MAjR28JVfFSVZq3asG5pLaLgMxNFYdFZ3UkVYttnSTtHDkmUCBsRvS2KY
+77.9	log	[onchain] auto-bet market 4 on slot 0
+79.9	log	[onchain] auto-bet market 4: ok  5okr9gBUgVEQbDdis9WiNUrqgYcmHSZxj7cbrLGaGiCWDTwS73Ra8YpowPZfpGGAn4Y7wfHFzVqyFm3cwmHDYbah
+83.9	log	[onchain] auto-bet market 1 on slot 4
+86.0	log	[onchain] auto-bet market 1: ok  4qcagB9GTiEPbq2DjD2SUuc8whUjAHPu6QHGyhLGb1Xr1R6q8gc61pnydNYYwdLxKt16v7fTimaq6QthWhZj6VrH
+87.9	log	[onchain] auto-drop LID FRENZY
+89.9	log	[onchain] auto-drop 1: ok  3ahgV9d9o8JzeBer6QwkJdF5rvNQv7Fy9YbJDQF2wzZ5n95R1DWmJpCAANZT1RUGTwtxHTtVSTu3Vh8moHfXy85
+95.0	log	[onchain] auto-drop WIND GUST
+96.9	log	[onchain] auto-drop 3: ok  51KDDjGXBDHQ8kpY5UQksuci8DMzMbT7dUjZUZAWwx4iBn5id5FMaBFjv3AXP5E918urQjGRDExpb2JfPY9w6Bth
+163.2	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+167.0	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+171.0	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+175.0	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+179.0	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+183.1	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+188.1	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.

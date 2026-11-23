@@ -79,7 +79,7 @@ always a finalist** (G4.5 §2: 60–120 s, 0–3 %). Kept for the record (`SLICE
 
 | Account | Seeds | Bytes (with disc.) | Content |
 |---|---|---|---|
-| `Arena` | `["arena", id u8]` | 1,904 | authority, match_account, maps[5] (deal ids 0..3, lobby), owners[12] (InputBuf writers), wallets[12] (roster identity), inputs[12], task_id, nonce, matches_run, id, status, parts, human_mask, cosmetic[12], slot_ms |
+| `Arena` | `["arena", id u8]` | 1,432 (P4 fix: was written 1,904) | authority, match_account, maps[5] (deal ids 0..3, lobby), owners[12] (InputBuf writers), wallets[12] (roster identity), inputs[12], task_id, nonce, matches_run, id, status, parts, human_mask, cosmetic[12], slot_ms |
 | `WorldAcc` | `["world", arena]` | 2,256 | see §10 |
 | `InputBuf` | `["in", arena, slot u8]` | 248 | arena, owner, token (SessionTokenV2 or default), latest, count, slot, ring[16] × {tick u32, input 4 B} |
 | `EventLog` | `["ev", arena]` | 6,448 | head, ring[400] × {tick, seq, arg, kind, tag, slot, round} |

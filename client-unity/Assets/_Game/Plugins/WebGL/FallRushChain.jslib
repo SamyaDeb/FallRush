@@ -2,7 +2,23 @@
 // Loaded lazily by on-chain play only (a <script> tag), so Classic play never fetches it. All calls are synchronous
 // polls; async bundle calls (init, join) park their result for the next poll.
 mergeInto(LibraryManager.library, {
-  $FRC: { state: 0, err: null, join: null, joining: false },
+  $FRC: { state: 0, err: null, join: null, joining: false, econ: {} },
+
+  // P4 economy: one async bundle call per id; the reply is parked until C# takes it
+  fr_econ__deps: ['$FRC'],
+  fr_econ: function (id, aPtr, argsPtr) {
+    var a = UTF8ToString(aPtr), args = UTF8ToString(argsPtr);
+    window.FallRushChain.econ(a, args).then(function (r) { FRC.econ[id] = r; })
+      .catch(function (e) { FRC.econ[id] = JSON.stringify({ ok: false, error: String(e) }); });
+  },
+
+  fr_econ_result__deps: ['$FRC'],
+  fr_econ_result: function (id) {
+    var v = FRC.econ[id];
+    if (v === undefined) return 0;
+    delete FRC.econ[id];
+    var n = lengthBytesUTF8(v) + 1, b = _malloc(n); stringToUTF8(v, b, n); return b;
+  },
 
   fr_boot__deps: ['$FRC'],
   fr_boot: function (bundlePtr, configPtr, urlPtr) {

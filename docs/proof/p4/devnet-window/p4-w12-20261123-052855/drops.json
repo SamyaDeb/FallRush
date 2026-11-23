@@ -1,0 +1,17 @@
+[
+ {
+  "file": "docs/proof/p2/runs/p4-w12-20261123-052855-m1/world.bin",
+  "drops": [],
+  "eliminations": [
+   {
+    "slot": 1,
+    "tick": 1510
+   },
+   {
+    "slot": 9,
+    "tick": 2290
+   }
+  ],
+  "deaths_during_or_1s_after_a_drop": []
+ }
+]

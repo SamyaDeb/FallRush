@@ -1,0 +1,19 @@
+- Loaded All Assemblies, in  0.145 seconds
+- Finished resetting the current domain, in  0.002 seconds
+[onchain] auto-bet market 0 on slot 0
+[onchain] auto-bet market 0: ok session key W2m47uqnc7VcT2D3axg6WzvoEc4PkLMAgn5WXjKC4zBkuP19UQ8m3gZwYpr2MfoEUYQ9Ft7NTqHycunS6uDnTL7
+[onchain] auto-bet market 2 on slot 0
+[onchain] auto-bet market 2: ok session key 3XrgL8mqC6UAWw1hZDVKB9mJg7MEUtkeYSFSDEdxDczdqWtNTbZHDNRPfU8sBVTU3UjCLnjQJmRdY4GL7ZK6fwkm
+[onchain] auto-bet market 3 on slot 0
+[onchain] auto-bet market 3: ok session key 2EchG3TEZk7jnADQde6Nd71xq228mjJvxC1sazzWUHNyPu57K7wDRhS1NvahZSKzhbn8xEuoWYFSsCGyg1aqBpyJ
+[onchain] auto-bet market 4 on slot 1
+[onchain] auto-bet market 4: ok session key 4BDYeiKUbREe19A6kbYCpBxWZUXYq8dP3mJCqm7e4K1VFR7qexbbQwvyAqNXey7QcuC9C4E9B5R3QzV4jYsBDn1z
+[onchain] auto-bet market 1 on slot 1
+[onchain] auto-bet market 1: ok session key 3MbcyUCCPEaA93cvHBPMDqVPdyhiS7DCH3k8KJ83LsS2jFQ5GyFQNyWk77ZxpnC8rN6nvRpqHpkzUU81zZ13tuco
+[onchain] auto-drop LID FRENZY
+[onchain] drop seen LID FRENZY at tick 159 trigger 182 telegraph 23 ticks (0.77 s) recv 74.738
+[onchain] auto-drop 1: ok session key 2fWV7FhbPF9FiNQn17NuREEiKtQK2ZWWxJVA4vQAPjbYthJkg8Eudq748RaMtC36vo4KKr3NHQaSDg7oGUNotUXx
+[onchain] auto-drop WIND GUST
+[onchain] drop seen WIND GUST at tick 369 trigger 392 telegraph 23 ticks (0.77 s) recv 81.738
+[onchain] auto-drop 3: ok session key 4U25PBvabqQbmBsz3AbpcnC7dJipQm4WH1mwNAMWPdvd5dfKRR96eyT3hQFfNV8re2EfUPjbv1aSspxMPWAwRyhN
+0

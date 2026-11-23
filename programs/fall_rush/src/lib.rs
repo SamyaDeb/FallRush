@@ -7,8 +7,6 @@
 use anchor_lang::prelude::*;
 use ephemeral_rollups_sdk::anchor::{commit, delegate, ephemeral, vrf, vrf_callback};
 use ephemeral_rollups_sdk::cpi::DelegateConfig;
-#[allow(unused_imports)]
-use ephemeral_rollups_sdk::ephem::{FoldableIntentBuilder, MagicIntentBundleBuilder};
 use ephemeral_rollups_sdk::vrf::consts::{program_identity_pubkey, scoped_vrf_identity_const};
 use ephemeral_rollups_sdk::vrf::instructions::{
     create_request_randomness_ix_const, RequestRandomnessParams,
@@ -16,8 +14,10 @@ use ephemeral_rollups_sdk::vrf::instructions::{
 use ephemeral_rollups_sdk::vrf::types::SerializableAccountMeta;
 
 pub mod deal;
+pub mod econ;
 pub mod errors;
 pub mod events;
+pub mod magic;
 pub mod sim;
 pub mod state;
 
@@ -61,6 +61,10 @@ pub mod fall_rush {
         map_pool_version: u16,
         map_pool_hash: [u8; 32],
     ) -> Result<()> {
+        require!(
+            upgrade_authority_of(&ctx.accounts.program, &ctx.accounts.program_data) == Some(ctx.accounts.admin.key()),
+            FallRushError::Unauthorized
+        );
         require!(
             ruleset_version == RULESET_V1_VERSION && ruleset_hash == RULESET_V1_HASH,
             FallRushError::InvalidRuleset
@@ -119,7 +123,7 @@ pub mod fall_rush {
             };
         }
         m.champion_slot = NO_SLOT;
-        m.pick_count = 0;
+        m.receipt = Receipt::default();
         m.created_at = Clock::get()?.unix_timestamp;
 
         cfg.match_count = cfg
@@ -348,13 +352,7 @@ pub mod fall_rush {
             });
         }
         ctx.accounts.match_account.exit(&crate::ID)?;
-        MagicIntentBundleBuilder::new(
-            ctx.accounts.authority.to_account_info(),
-            ctx.accounts.magic_context.to_account_info(),
-            ctx.accounts.magic_program.to_account_info(),
-        )
-        .commit(&[ctx.accounts.match_account.to_account_info()])
-        .build_and_invoke()?;
+        magic::commit(&ctx.accounts.authority.to_account_info(), &ctx.accounts.magic_context.to_account_info(), &ctx.accounts.magic_program.to_account_info(), &[ctx.accounts.match_account.to_account_info()], false)?;
         Ok(())
     }
 
@@ -468,9 +466,22 @@ pub mod fall_rush {
     }
 
     /// Solana. Delegates one sim PDA to the ER validator (remaining_accounts[0], optional).
-    /// kind 0 arena · 1 world · 2 event log · 3 input `slot`.
+    /// kind 0 arena · 1 world · 2 event log · 3 input `slot` · 4 market `slot` · 5 drop queue · 6 chips (P4).
     pub fn delegate_sim(ctx: Context<DelegateSim>, kind: u8, id: u8, slot: u8) -> Result<()> {
         let validator = ctx.remaining_accounts.first().map(|a| a.key());
+        // P4: kind 6 = a player's `["chips", wallet]` (any payer: guests delegate their own); the sim / economy
+        // accounts only by the game authority
+        if kind == 6 {
+            let wallet = {
+                let d = ctx.accounts.pda.try_borrow_data()?;
+                require!(d.len() >= 40 && d[..8] == *econ::ChipBalance::DISCRIMINATOR, FallRushError::Unauthorized);
+                Pubkey::new_from_array(d[8..40].try_into().unwrap())
+            };
+            let cfg = DelegateConfig { validator, ..Default::default() };
+            ctx.accounts.delegate_pda(&ctx.accounts.authority, &[econ::CHIPS_SEED, wallet.as_ref()], cfg)?;
+            return Ok(());
+        }
+        require_keys_eq!(ctx.accounts.authority.key(), ctx.accounts.config.game_authority, FallRushError::Unauthorized);
         let idb = [id];
         let sb = [slot];
         let arena = Pubkey::find_program_address(&[sim::ARENA_SEED, &idb], &crate::ID).0;
@@ -480,6 +491,9 @@ pub mod fall_rush {
             1 => ctx.accounts.delegate_pda(&ctx.accounts.authority, &[sim::WORLD_SEED, arena.as_ref()], cfg)?,
             2 => ctx.accounts.delegate_pda(&ctx.accounts.authority, &[sim::EVLOG_SEED, arena.as_ref()], cfg)?,
             3 => ctx.accounts.delegate_pda(&ctx.accounts.authority, &[sim::INPUT_SEED, arena.as_ref(), &sb], cfg)?,
+            // P4: market k = `slot` (0 Champion, 1 FinalWinner, 2..4 Qualify 1..3), the arena's drop queue
+            4 => ctx.accounts.delegate_pda(&ctx.accounts.authority, &[econ::MARKET_SEED, &idb, &sb], cfg)?,
+            5 => ctx.accounts.delegate_pda(&ctx.accounts.authority, &[econ::DROPQ_SEED, arena.as_ref()], cfg)?,
             _ => return err!(FallRushError::InvalidSlot),
         }
         Ok(())
@@ -595,7 +609,18 @@ pub mod fall_rush {
             require_keys_eq!(t.key(), ib.token, FallRushError::SessionInvalid);
             require!(!t.is_expired()?, FallRushError::SessionInvalid);
         }
-        sim::submit_input(&mut ib, &ctx.accounts.owner.key(), w.tick, start, &batch)
+        sim::submit_input(&mut ib, &ctx.accounts.owner.key(), w.tick, w.lead(), start, &batch)
+    }
+
+    /// ER. The arena's forward input window (P4 0.4): `lead` ticks (8 ..= 13; 0 = the default 8). Authority only.
+    pub fn set_input_lead(ctx: Context<ArenaWorldAuth>, lead: u8) -> Result<()> {
+        let a = ctx.accounts.arena.load()?;
+        require_keys_eq!(a.authority, ctx.accounts.authority.key(), FallRushError::Unauthorized);
+        let mut w = ctx.accounts.world.load_mut()?;
+        require_keys_eq!(w.arena, ctx.accounts.arena.key(), FallRushError::BadArenaState);
+        require!(lead == 0 || (sim::INPUT_WINDOW..=sim::INPUT_LEAD_MAX).contains(&(lead as u32)), FallRushError::InputOutOfWindow);
+        w.input_lead = lead;
+        Ok(())
     }
 
     /// ER. Schedules the timed task driving `tick()` (any payer: the keeper is permissionless). The task id comes
@@ -632,13 +657,7 @@ pub mod fall_rush {
             m.flags |= bit;
         }
         ctx.accounts.match_account.exit(&crate::ID)?;
-        MagicIntentBundleBuilder::new(
-            ctx.accounts.payer.to_account_info(),
-            ctx.accounts.magic_context.to_account_info(),
-            ctx.accounts.magic_program.to_account_info(),
-        )
-        .commit(&[ctx.accounts.match_account.to_account_info()])
-        .build_and_invoke()?;
+        magic::commit(&ctx.accounts.payer.to_account_info(), &ctx.accounts.magic_context.to_account_info(), &ctx.accounts.magic_program.to_account_info(), &[ctx.accounts.match_account.to_account_info()], false)?;
         Ok(())
     }
 
@@ -668,14 +687,56 @@ pub mod fall_rush {
             matches!(status, MatchStatus::Completed | MatchStatus::Aborted),
             FallRushError::InvalidStatus
         );
+        // P4: an on-chain Final commits with its receipt (markets settled, drop log, VRF capsule seed requested)
+        let m = &ctx.accounts.match_account;
+        if m.flags & sim::MATCH_FINAL_MODE != 0 && status == MatchStatus::Completed {
+            require!(m.receipt.flags & econ::rflag::WRITTEN != 0, FallRushError::ReceiptNotReady);
+        }
         ctx.accounts.match_account.exit(&crate::ID)?;
-        MagicIntentBundleBuilder::new(
-            ctx.accounts.authority.to_account_info(),
-            ctx.accounts.magic_context.to_account_info(),
-            ctx.accounts.magic_program.to_account_info(),
-        )
-        .commit_and_undelegate(&[ctx.accounts.match_account.to_account_info()])
-        .build_and_invoke()?;
+        magic::commit(&ctx.accounts.authority.to_account_info(), &ctx.accounts.magic_context.to_account_info(), &ctx.accounts.magic_program.to_account_info(), &[ctx.accounts.match_account.to_account_info()], true)?;
+        Ok(())
+    }
+
+    // ================================================================== P4 economy (econ.rs)
+
+    /// P4 economy, one entry point (program size, doc 15 OC-12 / proof §2): `op` (`econ::op`) with two numeric args;
+    /// every account is in remaining_accounts and checked by hand (layouts in `econ::dispatch`). Settlement, payouts
+    /// and minting are separate ops, never inside `tick()`.
+    pub fn econ<'info>(ctx: Context<'info, Econ<'info>>, op: u8, a: u64, b: u64) -> Result<()> {
+        econ::dispatch(&ctx.accounts.signer, ctx.remaining_accounts, op, a, b)
+    }
+
+    /// ER, game authority: the second VRF draw at match end (capsule rarity), once the receipt is written.
+    pub fn request_capsules(ctx: Context<RequestDeal>) -> Result<()> {
+        let (match_key, caller_seed) = {
+            let m = &mut ctx.accounts.match_account;
+            require!(m.receipt.flags & econ::rflag::WRITTEN != 0 && m.status == MatchStatus::Completed, FallRushError::ReceiptNotReady);
+            require!(m.receipt.flags & econ::rflag::SEEDED == 0, FallRushError::InvalidVrfCallback);
+            m.receipt.flags |= econ::rflag::REQUESTED;
+            (m.key(), solana_sha256_hasher::hashv(&[b"fallrush-capsules", &m.match_id, &m.vrf_seed]).to_bytes())
+        };
+        let ix = create_request_randomness_ix_const(RequestRandomnessParams {
+            payer: ctx.accounts.authority.key(),
+            oracle_queue: ctx.accounts.oracle_queue.key(),
+            callback_program_id: crate::ID,
+            callback_discriminator: instruction::CapsuleCallback::DISCRIMINATOR.to_vec(),
+            caller_seed,
+            accounts_metas: Some(vec![SerializableAccountMeta { pubkey: match_key, is_signer: false, is_writable: true }]),
+            ..Default::default()
+        }, PROGRAM_IDENTITY);
+        ctx.accounts.invoke_signed_vrf(&ctx.accounts.authority.to_account_info(), &ix)?;
+        Ok(())
+    }
+
+    /// ER. VRF callback (the deal's const identity check, PB0): the capsule seed and every human's rarity.
+    pub fn capsule_callback(ctx: Context<DealCallback>, randomness: [u8; 32]) -> Result<()> {
+        let m = &mut ctx.accounts.match_account;
+        require!(m.receipt.flags & econ::rflag::REQUESTED != 0 && m.receipt.flags & econ::rflag::SEEDED == 0, FallRushError::InvalidVrfCallback);
+        m.receipt.capsule_seed = randomness;
+        for s in 0..12u8 {
+            m.receipt.rarity[s as usize] = if m.receipt.human_mask >> s & 1 == 1 { econ::rarity_of(&randomness, s) } else { 255 };
+        }
+        m.receipt.flags |= econ::rflag::SEEDED;
         Ok(())
     }
 
@@ -705,12 +766,32 @@ pub struct InitializeConfig<'info> {
     pub admin: Signer<'info>,
     #[account(init, payer = admin, space = 8 + GameConfig::INIT_SPACE, seeds = [CONFIG_SEED], bump)]
     pub config: Account<'info, GameConfig>,
-    /// Binds `program_data` to this program (pattern from magicblock-examples rewards-delegated-vrf).
-    #[account(constraint = program.programdata_address()? == Some(program_data.key()) @ FallRushError::Unauthorized)]
-    pub program: Program<'info, crate::program::FallRush>,
-    #[account(constraint = program_data.upgrade_authority_address == Some(admin.key()) @ FallRushError::Unauthorized)]
-    pub program_data: Account<'info, ProgramData>,
+    /// Binds `program_data` to this program (pattern from magicblock-examples rewards-delegated-vrf). P4: parsed by
+    /// hand (`upgrade_authority_of`), so the program links no bincode deserializer (program size).
+    /// CHECK: this program's account (`address = crate::ID`); its ProgramData address is read in the handler
+    #[account(address = crate::ID)]
+    pub program: UncheckedAccount<'info>,
+    /// CHECK: owned by the upgradeable loader; layout checked in the handler
+    pub program_data: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
+}
+
+/// The upgrade authority of this program from the loader accounts (bpf_loader_upgradeable layouts: Program =
+/// u32 2 ‖ programdata address; ProgramData = u32 3 ‖ u64 slot ‖ Option<Pubkey>).
+fn upgrade_authority_of(program: &AccountInfo, program_data: &AccountInfo) -> Option<Pubkey> {
+    let loader = anchor_lang::solana_program::bpf_loader_upgradeable::ID;
+    if program.owner != &loader || program_data.owner != &loader {
+        return None;
+    }
+    let p = program.try_borrow_data().ok()?;
+    if p.len() < 36 || p[..4] != [2, 0, 0, 0] || p[4..36] != *program_data.key.as_ref() {
+        return None;
+    }
+    let d = program_data.try_borrow_data().ok()?;
+    if d.len() < 45 || d[..4] != [3, 0, 0, 0] || d[12] != 1 {
+        return None;
+    }
+    Some(Pubkey::new_from_array(d[13..45].try_into().ok()?))
 }
 
 #[derive(Accounts)]
@@ -868,7 +949,8 @@ pub struct MapWrite<'info> {
 #[delegate]
 #[derive(Accounts)]
 pub struct DelegateSim<'info> {
-    #[account(mut, address = config.game_authority @ FallRushError::Unauthorized)]
+    /// The game authority (kinds 0–5, checked in the handler) or any payer (kind 6, chips).
+    #[account(mut)]
     pub authority: Signer<'info>,
     #[account(seeds = [CONFIG_SEED], bump = config.bump)]
     pub config: Account<'info, GameConfig>,
@@ -886,6 +968,14 @@ pub struct ArenaAuth<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ArenaWorldAuth<'info> {
+    pub authority: Signer<'info>,
+    pub arena: AccountLoader<'info, sim::Arena>,
+    #[account(mut)]
+    pub world: AccountLoader<'info, sim::WorldAcc>,
+}
+
+#[derive(Accounts)]
 pub struct JoinLobby<'info> {
     pub player: Signer<'info>,
     #[account(mut)]
@@ -898,7 +988,7 @@ pub struct JoinLobby<'info> {
 
 /// `SessionTokenV2` checks (session-keys' own `validate` form, without its trait plumbing): this program, this
 /// signer, this wallet, the token PDA's seeds, not expired.
-fn sim_session_check(t: &Account<session_keys::SessionTokenV2>, signer: &Pubkey, wallet: &Pubkey) -> Result<()> {
+pub(crate) fn sim_session_check(t: &Account<session_keys::SessionTokenV2>, signer: &Pubkey, wallet: &Pubkey) -> Result<()> {
     require_keys_eq!(t.target_program, crate::ID, FallRushError::SessionInvalid);
     require_keys_eq!(t.session_signer, *signer, FallRushError::SessionInvalid);
     require_keys_eq!(t.authority, *wallet, FallRushError::SessionInvalid);
@@ -964,6 +1054,15 @@ pub struct CommitRound<'info> {
     pub payer: Signer<'info>,
     #[account(mut, seeds = [MATCH_SEED, &match_account.match_id], bump = match_account.bump)]
     pub match_account: Box<Account<'info, Match>>,
+}
+
+// ---------------------------------------------------------------- P4 economy accounts
+
+/// `econ`: the signer (wallet, session key, game authority or any payer, per op); the rest in remaining_accounts.
+#[derive(Accounts)]
+pub struct Econ<'info> {
+    #[account(mut)]
+    pub signer: Signer<'info>,
 }
 
 #[cfg(test)]

@@ -18,6 +18,26 @@ namespace FallRush.OnChain
         [DllImport("__Internal")] private static extern string fr_phantom_result();
 #endif
 
+        /// <summary>P4 "Claim with Phantom": the connected Phantom wallet (WebGL), or <c>-fallrushPhantom &lt;pubkey&gt;</c> in the
+        /// Mac player (dev claims through the relay); null until connected.</summary>
+        public static string PhantomPubkey { get; private set; }
+
+        /// <summary>Starts a Phantom connect (WebGL); the result lands in <see cref="PhantomPubkey"/>.</summary>
+        public static async void Connect()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            var r = await ConnectAsync();
+            if (!string.IsNullOrEmpty(r))
+                PhantomPubkey = r.Trim('"');
+#else
+            await Task.Yield();
+            var args = Environment.GetCommandLineArgs();
+            for (var i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-fallrushPhantom")
+                    PhantomPubkey = args[i + 1];
+#endif
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Register()
         {

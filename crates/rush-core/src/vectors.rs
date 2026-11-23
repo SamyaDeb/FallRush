@@ -16,6 +16,8 @@ pub const KIND_COLLIDE: u8 = 2;
 pub const KIND_MOTOR: u8 = 3;
 pub const KIND_HAZARD: u8 = 4;
 pub const KIND_WORLD: u8 = 5;
+/// P4 Chaos Drops on a Lid Flip map (`drops_v1.bin`).
+pub const KIND_DROPS: u8 = 6;
 
 /// Most bytes one case writes.
 pub const MAX_CASE: usize = 192;
@@ -201,7 +203,7 @@ pub fn hazard_case(seed: u64, i: u32, out: &mut [u8]) -> usize {
 
 /// Runs `n` cases of `kind` (from `seed`), folding every case's bytes. `map` is required for collide / motor / world.
 pub fn run(kind: u8, seed: u64, n: u32, map: Option<&[u8]>) -> u64 {
-    if kind == KIND_WORLD {
+    if kind == KIND_WORLD || kind == KIND_DROPS {
         // native / WASM: the scratch World lives on this (large) stack
         let mut w = match map.and_then(|m| MapView::new(m).ok()) {
             Some(v) => crate::world::World::new(&v, 20),
@@ -230,6 +232,10 @@ pub fn run_from(kind: u8, seed: u64, start: u32, n: u32, map: Option<&[u8]>, sta
             KIND_HAZARD => hazard_case(seed, i, &mut buf),
             KIND_WORLD => match (map, world.as_deref_mut()) {
                 (Some(m), Some(w)) => crate::world::vector_case(w, m, seed, i, &mut buf),
+                _ => 0,
+            },
+            KIND_DROPS => match (map, world.as_deref_mut()) {
+                (Some(m), Some(w)) => crate::world::drops_case(w, m, seed, i, &mut buf),
                 _ => 0,
             },
             _ => 0,
@@ -266,3 +272,4 @@ pub const COUNT_COLLIDE: u32 = 4_000;
 pub const COUNT_MOTOR: u32 = 2_000;
 pub const COUNT_HAZARD: u32 = 6_000;
 pub const COUNT_WORLD: u32 = 64;
+pub const COUNT_DROPS: u32 = 48;

@@ -100,7 +100,8 @@ export class WorldIntake {
     if (source === 'ws') this.stats.wsMsgs++;
     if (!p.complete) { this.stats.slicesDropped++; return false; } // P2 tick slice: only complete ticks go out
     const vdv = new DataView(p.view.buffer);
-    if (this.layout.arenaSeqOffset == null) {
+    // P4 0.2: WorldAcc.serial; 0 = an older program / no serial yet → infer a new match from the tick restarting
+    if (this.layout.arenaSeqOffset == null || vdv.getUint32(8, true) === 0) {
       // no restart counter in the account: a tick far behind the last one = a new match on the same arena
       // a new match restarts the World near tick 0; anything else far behind is a stale read (a slow poll reply)
       if (this.stats.lastTick >= 0 && p.tick + 30 < this.stats.lastTick) {
@@ -110,6 +111,10 @@ export class WorldIntake {
       vdv.setUint32(8, this.epoch, true);
     }
     const arenaSeq = vdv.getUint32(8, true);
+    if (this.arenaSeq !== null && arenaSeq < this.arenaSeq && arenaSeq !== 0 && this.layout.arenaSeqOffset != null) {
+      this.stats.staleDrops++;
+      return false; // P4 0.2: a stale read of the previous match (serials only grow)
+    }
     if (this.arenaSeq !== null && arenaSeq !== this.arenaSeq) {
       // the arena restarted (e.g. the Lid Flip Final): ticks start over
       this.events.push({ type: 'arenaChanged', from: this.arenaSeq, to: arenaSeq, tick: p.tick });

@@ -54,6 +54,8 @@ export interface WorldLayout {
   appliedTickOffset: number | null;
   appliedTickCount?: number; // default 12
   coreVersionOffset: number | null;
+  /** width of the core version field: 4 (default) or 2 (P4 `WorldAcc.core_version`, LE u16 = rush_core::VERSION) */
+  coreVersionBytes?: 2 | 4;
   flagsOffset: number | null;
   arenaSeqOffset?: number | null;
   /** optional magic bytes at offset 0 (hex) to reject foreign accounts */
@@ -103,6 +105,8 @@ export interface ChainConfig {
     submitInput: InstructionSpec;
     /** P2 program join flow (docs/proof/P2-onchain-sim.md §2, §10). When set, join() uses it. */
     p2?: P2Config | null;
+    /** P4: the rollup validator (delegation of the player's ChipBalance) */
+    validator?: string;
     join?: {
       ix?: InstructionSpec | null;
       layer?: 'er' | 'base';
