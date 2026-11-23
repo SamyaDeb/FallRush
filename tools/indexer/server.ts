@@ -52,7 +52,7 @@ async function status() {
       const sv = k.server && Date.now() - k.server.t < 10_000 ? k.server : null;
       return {
         id, url: GS_PUBLIC[id] ?? null, up: !!sv, arena: k.arena, arenaKey: k.arenaKey, world: k.world,
-        keeper: { stage: k.stage, since: k.since, alive: Date.now() - (k.heartbeat ?? 0) < 30_000, match: k.match, worldTick: k.worldTick, worldPhase: k.worldPhase, worldRound: k.worldRound, last: k.last },
+        keeper: { stage: k.stage, since: k.since, alive: Date.now() - (k.heartbeat ?? 0) < 30_000, match: k.match, dealSig: k.dealSig ?? null, worldTick: k.worldTick, worldPhase: k.worldPhase, worldRound: k.worldRound, last: k.last },
         phase: sv?.phase ?? "offline", inMatch: sv?.inMatch ?? false, round: sv?.round ?? 0, humans: sv?.humans ?? 0, size: sv?.size ?? 12, matchHex: sv?.match ?? "", served: sv?.completed ?? 0,
       };
     } catch (e: any) { return { id, url: GS_PUBLIC[id] ?? null, up: false, phase: "offline", error: String(e?.message ?? e).slice(0, 120) }; }

@@ -379,7 +379,7 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
   mkdirSync(mdir, { recursive: true });
   const mlog = join(mdir, "keeper.jsonl");
   const out: any = { match: matchPda.toBase58(), matchHex, arena: ARENA, arenaKey: arena.toBase58(), world: world.toBase58(), resumed, startedAt: Date.now(), sigs: {} as Record<string, string> };
-  status.match = matchPda.toBase58(); status.matchHex = matchHex;
+  status.match = matchPda.toBase58(); status.matchHex = matchHex; status.dealSig = null; // P7: the VRF deal's request tx (the Deal screen links it)
   const a0: any = await arenaAcc();
   const maps: PublicKey[] = a0.maps;
   const lines = jsonl ? readLines(jsonl) : [];
@@ -445,6 +445,7 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
     if (statusName(m) === "created") {
       stage("deal");
       out.sigs.requestDeal = (await act("request_deal", async () => sendEr([await pe.methods.requestDeal().accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda, oracleQueue: EP.vrfQueue }).instruction()], [wallet], "request_deal"), mlog)).sig;
+      status.dealSig = out.sigs.requestDeal ?? null;
     }
     for (const td = Date.now(); ;) {
       m = await erMatch(matchPda);

@@ -6,8 +6,9 @@ namespace FallRush.Client
     /// <summary>
     /// G3.6 today's adapter: the practice match's local seed and "● Server" (nothing is on chain). A DEV toggle cycles
     /// the four chip states for screenshots: F9 in the Editor / development builds, or <c>?chain=cycle</c>
-    /// (<c>-fallrushChain cycle</c>) anywhere (it only changes what the chip shows). TODO(M6): replace with the real
-    /// adapter fed by evt.chainStatus + the VRF deal; this class stays for practice matches.
+    /// (<c>-fallrushChain cycle</c>) anywhere (it only changes what the chip shows). Recorded matches use the on-chain
+    /// adapter (OnChainChainAdapter) while the Final runs on the rollup; the match's VRF deal link comes from the arena
+    /// keeper (MatchHud.DealProvider).
     /// </summary>
     public sealed class PracticeChainAdapter : IChainAdapter
     {
@@ -57,11 +58,11 @@ namespace FallRush.Client
             SeedHex = Sha256.Hex(_seed),
             Headline = "Practice deal (local seed)",
             Verified = false,
-            VrfSignature = null, // TODO(M6): the VRF callback signature
-            ExplorerUrl = null,  // TODO(M6): explorer link for it
+            VrfSignature = null, // practice: nothing on chain
+            ExplorerUrl = null,
         };
 
-        public ReceiptLinks Receipt => default; // TODO(M6): ER tx, Solana tx, Match PDA + explorer links
+        public ReceiptLinks Receipt => default; // practice: not recorded on chain
 
         public void OnMatchState(MatchStateMessage m)
         {

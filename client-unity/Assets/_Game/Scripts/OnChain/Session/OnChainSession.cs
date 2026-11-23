@@ -779,7 +779,7 @@ namespace FallRush.OnChain
             if (SessionExpired)
             {
                 GUI.color = new Color(1f, 0.75f, 0.2f);
-                GUI.Label(new Rect(Screen.width * 0.5f - 220, 96, 440, 24), "Session expired → rejoin (your inputs are no longer accepted)");
+                GUI.Label(new Rect(Screen.width * 0.5f - 220, 96, 440, 24), "Session expired: rejoin (your inputs are no longer accepted)");
                 GUI.color = Color.white;
             }
             if (!_panel)

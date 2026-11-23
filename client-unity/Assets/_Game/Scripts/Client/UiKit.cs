@@ -169,13 +169,39 @@ namespace FallRush.Client
             return f;
         }
 
+        /// <summary>P7: the warm cream body of plain panels (menus, settings): soft look, never pure white.</summary>
+        public static readonly Color Cream = Hex(0xFFF6E6);
+
+        /// <summary>P7 soft panel: a soft drop shadow, a saturated rim, the body, a light top bevel (no hard Ink drop).</summary>
+        public static Image SoftChunk(RectTransform rt, Color fill, Color rim, float width = Outline)
+        {
+            var sh = Shape(rt, "Shadow", new Color(Ink.r, Ink.g, Ink.b, 0.28f), Soft);
+            Stretch(sh.rectTransform, -14f, new Vector2(0f, -7f));
+            var b = Shape(rt, "Border", rim);
+            Stretch(b.rectTransform);
+            var f = Shape(rt, "Fill", fill);
+            Stretch(f.rectTransform, width);
+            var bevel = Shape(f.transform, "Bevel", new Color(1f, 1f, 1f, 0.55f));
+            var brt = bevel.rectTransform;
+            brt.anchorMin = new Vector2(0f, 1f);
+            brt.anchorMax = Vector2.one;
+            brt.pivot = new Vector2(0.5f, 1f);
+            brt.offsetMin = new Vector2(18f, -8f);
+            brt.offsetMax = new Vector2(-18f, -3f);
+            bevel.pixelsPerUnitMultiplier = 6f;
+            sh.transform.SetAsFirstSibling();
+            b.transform.SetSiblingIndex(1);
+            f.transform.SetSiblingIndex(2);
+            return f;
+        }
+
         public static RectTransform Panel(Transform parent, Vector2 size, Color fill)
         {
             var go = new GameObject("Panel", typeof(RectTransform));
             var rt = (RectTransform)go.transform;
             rt.SetParent(parent, false);
             rt.sizeDelta = size;
-            Chunk(rt, fill);
+            SoftChunk(rt, fill == CloudWhite ? Cream : fill, CardRim(CardHue.Grape));
             var layout = go.AddComponent<VerticalLayoutGroup>();
             layout.padding = new RectOffset(36, 36, 28, 32);
             layout.spacing = 14;
@@ -323,6 +349,237 @@ namespace FallRush.Client
             le.minWidth = le.preferredWidth = width;
             le.flexibleWidth = 0f;
             return t;
+        }
+
+        // ------------------------------------------------------------------ P7 cards (soft toy look, doc 17 §3.0)
+
+        /// <summary>The card hues: the six soft-look section hues (PaletteTokens: pastel top, mid side, saturated rim).</summary>
+        public enum CardHue : byte { Bubblegum = 0, Lemon = 1, Soda = 2, Apple = 3, Grape = 4, Tangerine = 5 }
+
+        public enum CardSize : byte { S, M, L }
+
+        public static Color CardPastel(CardHue h) => Hex(FallRush.Net.PaletteTokens.SoftTopHex[(int)h]);
+        public static Color CardSide(CardHue h) => Hex(FallRush.Net.PaletteTokens.SoftSideHex[(int)h]);
+        public static Color CardRim(CardHue h) => Hex(FallRush.Net.PaletteTokens.RimHex[(int)h]);
+
+        /// <summary>Ribbon height, title size, padding and rim width per card size (reference units at 1280 × 720).</summary>
+        public static float CardRibbon(CardSize s) => s == CardSize.S ? 28f : s == CardSize.M ? 40f : 50f;
+        public static int CardTitleSize(CardSize s) => s == CardSize.S ? 17 : s == CardSize.M ? 24 : 32;
+        public static float CardRimWidth(CardSize s) => s == CardSize.S ? 3f : 5f;
+        public static int CardPad(CardSize s) => s == CardSize.S ? 8 : s == CardSize.M ? 16 : 22;
+
+        /// <summary>A built card: <see cref="Body"/> is a vertical layout below the ribbon; <see cref="Footer"/> a chip row.</summary>
+        public sealed class Card
+        {
+            public RectTransform Root, Body, Ribbon;
+            public Image Rim, Fill, RibbonFill, Icon, Shadow;
+            public TMP_Text Title;
+            public CardHue Hue;
+
+            /// <summary>Recolours the card (rim, ribbon, pastel body).</summary>
+            public void SetHue(CardHue h)
+            {
+                Hue = h;
+                Rim.color = CardRim(h);
+                RibbonFill.color = CardRim(h);
+                Fill.color = CardPastel(h);
+            }
+        }
+
+        private static Sprite s_Soft;
+
+        /// <summary>A soft (blurred) rounded rectangle for drop shadows, 9-sliced.</summary>
+        public static Sprite Soft => s_Soft != null ? s_Soft : s_Soft = MakeSoft(96, 22, 16, "UiSoft");
+
+        private static Sprite MakeSoft(int size, int radius, int blur, string name)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { name = name, filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            var px = new Color32[size * size];
+            var inner = radius + blur;
+            for (var y = 0; y < size; y++)
+                for (var x = 0; x < size; x++)
+                {
+                    var cx = Mathf.Clamp(x + 0.5f, inner, size - inner);
+                    var cy = Mathf.Clamp(y + 0.5f, inner, size - inner);
+                    var d = Mathf.Sqrt((x + 0.5f - cx) * (x + 0.5f - cx) + (y + 0.5f - cy) * (y + 0.5f - cy)) - radius;
+                    var a = Mathf.Clamp01(1f - d / blur);
+                    a = a * a * (3f - 2f * a);
+                    px[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                }
+
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            var b = inner;
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(b, b, b, b));
+        }
+
+        /// <summary>
+        /// P7 A1.2: one card builder used everywhere. Layers: a soft drop shadow, the saturated rim, the pastel body, a 2-tone
+        /// bevel (a lighter top edge, a mid-tone lower lip), a rim-coloured header ribbon with an icon and the title in the
+        /// outlined display face. Our own shape (doc 17 §1): no copied banner or result-screen layout.
+        /// </summary>
+        public static Card MakeCard(Transform parent, CardSize size, CardHue hue, string title, Vector2 dims, UiIcon icon = UiIcon.None)
+        {
+            var go = new GameObject("Card", typeof(RectTransform));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(parent, false);
+            rt.sizeDelta = dims;
+            var c = new Card { Root = rt, Hue = hue };
+            var rim = CardRimWidth(size);
+            c.Shadow = Shape(rt, "Shadow", new Color(Ink.r, Ink.g, Ink.b, 0.28f), Soft);
+            Stretch(c.Shadow.rectTransform, -14f, new Vector2(0f, -7f));
+            c.Rim = Shape(rt, "Rim", CardRim(hue));
+            Stretch(c.Rim.rectTransform);
+            c.Fill = Shape(rt, "Fill", CardPastel(hue));
+            Stretch(c.Fill.rectTransform, rim);
+            // bevel: a mid-tone lip along the bottom, a light band along the top
+            var lip = Shape(c.Fill.transform, "Lip", new Color(1f, 1f, 1f, 0f));
+            lip.color = Color.Lerp(CardSide(hue), CardPastel(hue), 0.55f);
+            var lrt = lip.rectTransform;
+            lrt.anchorMin = Vector2.zero;
+            lrt.anchorMax = new Vector2(1f, 0f);
+            lrt.offsetMin = Vector2.zero;
+            lrt.offsetMax = new Vector2(0f, size == CardSize.S ? 6f : 9f);
+            var lipTop = Shape(c.Fill.transform, "LipCover", CardPastel(hue));
+            var lct = lipTop.rectTransform;
+            lct.anchorMin = Vector2.zero;
+            lct.anchorMax = Vector2.one;
+            lct.offsetMin = new Vector2(0f, size == CardSize.S ? 4f : 6f);
+            lct.offsetMax = Vector2.zero;
+            // the cover takes the body colour; SetHue keeps it in step through Fill's colour (see Retint)
+            lipTop.gameObject.AddComponent<CardTint>().Source = c.Fill;
+            var ribbonH = CardRibbon(size);
+            var rib = new GameObject("Ribbon", typeof(RectTransform)).GetComponent<RectTransform>();
+            rib.SetParent(c.Fill.transform, false);
+            rib.anchorMin = new Vector2(0f, 1f);
+            rib.anchorMax = Vector2.one;
+            rib.pivot = new Vector2(0.5f, 1f);
+            rib.offsetMin = new Vector2(0f, -ribbonH);
+            rib.offsetMax = Vector2.zero;
+            c.Ribbon = rib;
+            c.RibbonFill = Shape(rib, "RibbonFill", CardRim(hue));
+            Stretch(c.RibbonFill.rectTransform);
+            var shine = Shape(rib, "Bevel", new Color(1f, 1f, 1f, 0.38f));
+            var srt = shine.rectTransform;
+            srt.anchorMin = new Vector2(0f, 0.58f);
+            srt.anchorMax = Vector2.one;
+            srt.offsetMin = new Vector2(8f, 0f);
+            srt.offsetMax = new Vector2(-8f, -3f);
+            // square off the ribbon's lower corners against the body
+            var foot = Shape(rib, "RibbonFoot", CardRim(hue));
+            foot.gameObject.AddComponent<CardTint>().Source = c.RibbonFill;
+            var frt = foot.rectTransform;
+            frt.anchorMin = Vector2.zero;
+            frt.anchorMax = new Vector2(1f, 0.5f);
+            frt.offsetMin = frt.offsetMax = Vector2.zero;
+            foot.transform.SetSiblingIndex(0);
+            var iconSize = ribbonH - 10f;
+            float textLeft = 12f;
+            if (icon != UiIcon.None)
+            {
+                c.Icon = Shape(rib, "Icon", Color.white, UiIcons.Get(icon));
+                c.Icon.type = Image.Type.Simple;
+                c.Icon.preserveAspect = true;
+                var irt = c.Icon.rectTransform;
+                irt.anchorMin = irt.anchorMax = new Vector2(0f, 0.5f);
+                irt.pivot = new Vector2(0f, 0.5f);
+                irt.anchoredPosition = new Vector2(10f, 0f);
+                irt.sizeDelta = new Vector2(iconSize, iconSize);
+                textLeft = 16f + iconSize;
+            }
+
+            c.Title = Shout(rib, title, CardTitleSize(size), Color.white);
+            c.Title.alignment = TextAlignmentOptions.Left;
+            c.Title.textWrappingMode = TextWrappingModes.NoWrap;
+            c.Title.overflowMode = TextOverflowModes.Ellipsis;
+            c.Title.GetComponent<LayoutElement>().ignoreLayout = true;
+            var trt = (RectTransform)c.Title.transform;
+            trt.anchorMin = Vector2.zero;
+            trt.anchorMax = Vector2.one;
+            trt.offsetMin = new Vector2(textLeft, 0f);
+            trt.offsetMax = new Vector2(-10f, 0f);
+
+            var body = new GameObject("Body", typeof(RectTransform), typeof(VerticalLayoutGroup)).GetComponent<RectTransform>();
+            body.SetParent(c.Fill.transform, false);
+            body.anchorMin = Vector2.zero;
+            body.anchorMax = Vector2.one;
+            var pad = CardPad(size);
+            body.offsetMin = new Vector2(0f, size == CardSize.S ? 6f : 9f);
+            body.offsetMax = new Vector2(0f, -ribbonH);
+            var v = body.GetComponent<VerticalLayoutGroup>();
+            v.padding = new RectOffset(pad, pad, pad / 2 + 2, pad / 2 + 2);
+            v.spacing = size == CardSize.S ? 2 : 6;
+            v.childAlignment = TextAnchor.UpperCenter;
+            v.childControlHeight = v.childControlWidth = true;
+            v.childForceExpandHeight = false;
+            v.childForceExpandWidth = true;
+            c.Body = body;
+            return c;
+        }
+
+        /// <summary>A small rounded chip (icon + label) for card footers, HUD tags and badges.</summary>
+        public static RectTransform Chip(Transform parent, string text, Color fill, Color textColor, UiIcon icon = UiIcon.None, int fontSize = 13, float height = 24f)
+        {
+            var go = new GameObject("Chip", typeof(RectTransform), typeof(LayoutElement), typeof(HorizontalLayoutGroup));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            var bg = Shape(rt, "Bg", fill);
+            bg.pixelsPerUnitMultiplier = 2.4f;
+            Stretch(bg.rectTransform);
+            var h = go.GetComponent<HorizontalLayoutGroup>();
+            h.padding = new RectOffset(9, 10, 2, 2);
+            h.spacing = 4;
+            h.childAlignment = TextAnchor.MiddleCenter;
+            h.childControlWidth = h.childControlHeight = true;
+            h.childForceExpandWidth = h.childForceExpandHeight = false;
+            var le = go.GetComponent<LayoutElement>();
+            le.minHeight = le.preferredHeight = height;
+            if (icon != UiIcon.None)
+                IconImage(rt, icon, textColor, height - 8f);
+            var t = Label(rt, text, fontSize, textColor, FontStyle.Bold, (int)height - 4);
+            t.textWrappingMode = TextWrappingModes.NoWrap;
+            t.overflowMode = TextOverflowModes.Overflow;
+            return rt;
+        }
+
+        /// <summary>An icon from the UI atlas as a fixed-size layout child.</summary>
+        public static Image IconImage(Transform parent, UiIcon icon, Color tint, float size)
+        {
+            var go = new GameObject("Icon", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            go.transform.SetParent(parent, false);
+            var img = go.GetComponent<Image>();
+            img.sprite = UiIcons.Get(icon);
+            img.color = tint;
+            img.preserveAspect = true;
+            img.raycastTarget = false;
+            var le = go.GetComponent<LayoutElement>();
+            le.minWidth = le.preferredWidth = size;
+            le.minHeight = le.preferredHeight = size;
+            ((RectTransform)go.transform).sizeDelta = new Vector2(size, size);
+            return img;
+        }
+
+        /// <summary>
+        /// A layout row whose visible content lives in a child "Face" (stretched, not layout-controlled), so stagger,
+        /// rank slides and highlights animate the face while the layout keeps the slot. Returns the face; the slot is its parent.
+        /// </summary>
+        public static RectTransform FaceRow(Transform parent, float height, float spacing = 8f, TextAnchor align = TextAnchor.MiddleLeft)
+        {
+            var slot = new GameObject("Slot", typeof(RectTransform), typeof(LayoutElement));
+            slot.transform.SetParent(parent, false);
+            var le = slot.GetComponent<LayoutElement>();
+            le.minHeight = le.preferredHeight = height;
+            var face = new GameObject("Face", typeof(RectTransform), typeof(HorizontalLayoutGroup)).GetComponent<RectTransform>();
+            face.SetParent(slot.transform, false);
+            Stretch(face);
+            var h = face.GetComponent<HorizontalLayoutGroup>();
+            h.spacing = spacing;
+            h.childAlignment = align;
+            h.padding = new RectOffset(8, 8, 0, 0);
+            h.childControlWidth = h.childControlHeight = true;
+            h.childForceExpandWidth = false;
+            h.childForceExpandHeight = true;
+            return face;
         }
 
         public static Image Dot(Transform row, Color c, float size = 14f)

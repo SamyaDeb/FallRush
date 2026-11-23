@@ -5,8 +5,9 @@ using UnityEngine;
 namespace FallRush.Client
 {
     /// <summary>
-    /// The champion screen's stage (greybox, M4 §3.6): a three-step toy-block podium high above the map with the winner's
-    /// Rushling on top and a simple crown that pops in (placeholder for M7's crown ceremony). Client only.
+    /// The champion screen's stage: a three-step toy-block podium high above the map with the winner's Rushling on top and
+    /// the crown ceremony (G3.4 #4: the golden Crown Capsule drops, pops open and our crown settles on the dome). The match
+    /// HUD's CHAMPION card (P7) lands right after the crown. Client only.
     /// </summary>
     public sealed class ChampionPodium : MonoBehaviour
     {

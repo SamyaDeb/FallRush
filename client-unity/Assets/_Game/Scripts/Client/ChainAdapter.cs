@@ -14,9 +14,9 @@ namespace FallRush.Client
     {
         public string SeedHex;        // 64 hex chars
         public string Headline;       // "Practice deal (local seed)" | "VRF ✓ MagicBlock VRF"
-        public bool Verified;         // true once the VRF callback is confirmed (M6)
-        public string VrfSignature;   // base58 tx signature of the VRF callback (M6), null in practice
-        public string ExplorerUrl;    // explorer link for VrfSignature (M6), null in practice
+        public bool Verified;         // true once the VRF callback is confirmed
+        public string VrfSignature;   // base58 tx signature of the VRF callback, null in practice
+        public string ExplorerUrl;    // explorer link for VrfSignature, null in practice
     }
 
     /// <summary>The receipt's explorer links (M6); null fields show as placeholders.</summary>

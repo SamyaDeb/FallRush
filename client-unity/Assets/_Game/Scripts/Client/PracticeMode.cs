@@ -44,9 +44,9 @@ namespace FallRush.Client
 
         private static readonly string[] Fields =
         {
-            "run.maxSpeed (mm/s)", "run.groundAccel (mm/s²)", "run.groundDecel (mm/s²)", "run.airControlPermille",
-            "gravity.accel (mm/s²)", "gravity.fallMultiplierPermille", "jump.apexHeight (mm)",
-            "dive.horizontalSpeed (mm/s)", "dive.verticalSpeed (mm/s)", "dive.landStunMs (slide)", "dive.slideDecel (mm/s²)",
+            "run.maxSpeed (mm/s)", "run.groundAccel (mm/s^2)", "run.groundDecel (mm/s^2)", "run.airControlPermille",
+            "gravity.accel (mm/s^2)", "gravity.fallMultiplierPermille", "jump.apexHeight (mm)",
+            "dive.horizontalSpeed (mm/s)", "dive.verticalSpeed (mm/s)", "dive.landStunMs (slide)", "dive.slideDecel (mm/s^2)",
             "stumble.minFallHeight (mm)", "stumble.durationMs", "stumble.speedPermille",
         };
 
@@ -254,13 +254,13 @@ namespace FallRush.Client
 
             GUILayout.BeginArea(new Rect(10, 10, 430, 520), GUI.skin.box);
             GUILayout.Label("<b>PRACTICE / TUNING (dev only)</b>  F6 hide · F7 print JSON · R respawn");
-            GUILayout.Label("PgUp/PgDn select · +/− change (or the buttons) · values in movement_v2.json units");
+            GUILayout.Label("PgUp/PgDn select · +/- change (or the buttons) · values in movement_v2.json units");
             for (var i = 0; i < Fields.Length; i++)
             {
                 GUILayout.BeginHorizontal();
                 GUILayout.Label((i == _sel ? "▶ " : "   ") + Fields[i], GUILayout.Width(250));
                 GUILayout.Label(Field(i).ToString(), GUILayout.Width(60));
-                if (GUILayout.Button("−", GUILayout.Width(28)))
+                if (GUILayout.Button("-", GUILayout.Width(28)))
                     Change(i, -Steps[i]);
                 if (GUILayout.Button("+", GUILayout.Width(28)))
                     Change(i, Steps[i]);

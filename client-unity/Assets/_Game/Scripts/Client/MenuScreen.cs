@@ -10,8 +10,9 @@ namespace FallRush.Client
 {
     /// <summary>
     /// Menu (G3.5, doc 01 §12): the FALL RUSH title, your name, "My Rushling" (12 cosmetic presets with a live 3D preview,
-    /// saved locally, sent in hello; no stats), Play (Quick Play), Settings, Connect Wallet (smoke test) and, in dev builds,
-    /// the practice / tuning mode. UI kit look over the sky gradient.
+    /// saved locally, sent in hello; no stats), Play (Quick Play), Settings and, with <see cref="DevMenu"/> (dev builds or
+    /// ?dev=1), the wallet smoke test, practice / tuning, the G4 sandbox, the Feel Lab and the on-chain-Final-only entry.
+    /// P7: the title and panel animate in, settings open and close with UiMotion.
     /// </summary>
     public sealed class MenuScreen : MonoBehaviour
     {
@@ -47,7 +48,7 @@ namespace FallRush.Client
             panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(0.5f, 0.5f);
             panel.anchoredPosition = new Vector2(-170f, -64f);
             panel.GetComponent<VerticalLayoutGroup>().spacing = 10;
-            UiKit.Label(panel, "Practice match: you + bots, 4 rounds", 17, UiKit.Grape, FontStyle.Bold);
+            UiKit.Label(panel, "Players + bots fill 12 slots · 4 rounds · one crown", 17, UiKit.Grape, FontStyle.Bold);
             NameField(panel);
             MyRushling(panel);
             var play = UiKit.Button(panel, "PLAY", UiKit.SunYellow, OnPlay);
@@ -60,11 +61,14 @@ namespace FallRush.Client
             }
             var row = UiKit.Row(panel, 56f, 12f, TextAnchor.MiddleCenter);
             row.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = true;
-            var set = UiKit.Button(row, "Settings", UiKit.SkyLight, () => _settings.SetActive(!_settings.activeSelf));
+            var set = UiKit.Button(row, "Settings", UiKit.SkyLight, () => UiMotion.SetVisible((RectTransform)_settings.transform, !UiMotion.IsShown((RectTransform)_settings.transform)));
             set.GetComponent<LayoutElement>().preferredWidth = 200;
-            _walletButton = UiKit.Button(row, "Connect Wallet", UiKit.Mint, OnConnectWallet);
+            // P7: the wallet smoke test is dev-only (the public flow makes a guest wallet itself; Phantom lives on /me)
+            _walletButton = UiKit.Button(row, "Connect Wallet (dev)", UiKit.Mint, OnConnectWallet);
             _walletButton.GetComponent<LayoutElement>().preferredWidth = 200;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            _walletButton.gameObject.SetActive(DevMenu.Enabled);
+            if (DevMenu.Enabled) // P7: Editor / development builds, or ?dev=1 on a release build
+            {
             var dev = UiKit.Button(panel, "Practice / tuning (dev)", UiKit.Grey, () => NetBootstrap.StartPractice("BlockPartyDash"));
             dev.GetComponent<LayoutElement>().minHeight = 44;
             // G4.1: the sandbox's G4 section (ball lane + 7 × 7 lid grid, east of the spawn: walk to the edge, bridge at z −20).
@@ -78,12 +82,14 @@ namespace FallRush.Client
             });
             lab.GetComponent<LayoutElement>().minHeight = 44;
             // P3: the on-chain Final against the local chain emulator / the rollup (Scripts/OnChain). Its own entry only.
+            // P7 (OC): the public flow plays the hybrid match from Play (rounds 1–3 Classic, the Final on the rollup);
+            // this entry plays the on-chain Final alone, a dev path, so it is named for what it is and stays dev-only.
             if (OnChainEntry.Available)
             {
-                var oc = UiKit.Button(panel, "Play On-Chain (preview)", UiKit.Mint, () => OnChainEntry.Play());
+                var oc = UiKit.Button(panel, "On-chain Final only (dev)", UiKit.Grey, () => OnChainEntry.Play());
                 oc.GetComponent<LayoutElement>().minHeight = 44;
             }
-#endif
+            }
             _wallet = UiKit.Label(panel, string.Empty, 14, UiKit.Ink, FontStyle.Normal, 20);
             _target = UiKit.Label(panel, string.Empty, 13, UiKit.Grey, FontStyle.Normal, 18);
 
@@ -107,6 +113,10 @@ namespace FallRush.Client
             NetBootstrap.PreferredName = GameSettings.PlayerName;
             NetBootstrap.PreferredPreset = GameSettings.CosmeticPreset;
             ScreenFx.Open();
+            // P7: the title drops in, the tagline and the panel follow
+            UiMotion.SlideIn(trt, new Vector2(0f, 160f));
+            UiMotion.Show(tgrt, 0.12f);
+            UiMotion.Show(panel, 0.18f);
             var shot = Arg("-fallrushMenuShot"); // proof screenshot of the menu (dev tool): -fallrushMenuShot <png> [-fallrushMenuSettings]
             if (shot != null)
                 StartCoroutine(Shot(shot, System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-fallrushMenuSettings") >= 0));
@@ -119,15 +129,15 @@ namespace FallRush.Client
             }
 
             boot.ResolveTarget();
-            _target.text = $"Server: {boot.Target.Url} (from {boot.TargetSource})";
+            _target.text = DevMenu.Enabled ? $"Server: {boot.Target.Url} (from {boot.TargetSource})" : string.Empty;
 
             if (!WalletBridge.Available)
             {
                 _walletButton.interactable = false;
-                _wallet.text = "Wallet: WebGL only (smoke test).";
+                _wallet.text = DevMenu.Enabled ? "Wallet: WebGL only (smoke test)." : string.Empty;
             }
             else
-                _wallet.text = WalletBridge.ProviderLabel ?? string.Empty;
+                _wallet.text = DevMenu.Enabled ? WalletBridge.ProviderLabel ?? string.Empty : string.Empty;
         }
 
         private static string Arg(string name)

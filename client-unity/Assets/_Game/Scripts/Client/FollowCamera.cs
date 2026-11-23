@@ -37,6 +37,16 @@ namespace FallRush.Client
 
         public Transform Target { get; private set; }
 
+        /// <summary>P7: the live gameplay camera (UI juice asks it for small punches; visual only).</summary>
+        public static FollowCamera Active { get; private set; }
+
+        /// <summary>P7 A1.5: a small camera punch from UI moments (eliminated, qualified, Chaos Drop, crown); reduced motion: none.</summary>
+        public static void Punch(float amplitude)
+        {
+            if (Active != null && Active.isActiveAndEnabled)
+                Active.Shake(amplitude);
+        }
+
         public static FollowCamera Create(Camera main, Transform target, int gameplayMask)
         {
             if (main.GetComponent<CinemachineBrain>() == null)
@@ -45,6 +55,7 @@ namespace FallRush.Client
             var go = new GameObject("FollowCam");
             var fc = go.AddComponent<FollowCamera>();
             fc.Target = target;
+            Active = fc;
 
             var vcam = go.AddComponent<CinemachineCamera>();
             vcam.Target = new CameraTarget { TrackingTarget = target, LookAtTarget = target, CustomLookAtTarget = false };
