@@ -8,7 +8,8 @@ import { me } from './pages/me';
 
 export type Page = (root: HTMLElement, params: string[]) => (() => void) | void;
 const routes: [RegExp, Page][] = [
-  [/^\/arenas\/?$/, home], // the old home (arenas + recent matches); `/` is the landing (web/site) [/^\/play\/?$/, play], [/^\/live\/?(\d+)?\/?$/, live],
+  // `/arenas` = the old home (arenas + recent matches); `/` is the landing (web/site)
+  [/^\/arenas\/?$/, home], [/^\/play\/?$/, play], [/^\/live\/?(\d+)?\/?$/, live],
   [/^\/replay\/([1-9A-HJ-NP-Za-km-z]{32,44})\/?$/, replay], [/^\/receipt\/([1-9A-HJ-NP-Za-km-z]{32,44})\/?$/, receipt], [/^\/me\/?$/, me],
 ];
 let cleanup: (() => void) | void;
