@@ -1,0 +1,46 @@
+{
+ "arena": 2,
+ "at": "2026-11-23T20:54:24.508Z",
+ "steps": [
+  {
+   "name": "session create",
+   "ok": true,
+   "ms": 1186,
+   "sig": "3L44KuWRAuLAQMJDaJZ5ifhwbnJ4dFGGXQjC7JVt26MQ3aKBPhugwctm7BovECVLFJtprDLHUqhPjEEipQykMiF3"
+  },
+  {
+   "name": "bet 1 (session key)",
+   "ok": true,
+   "session": true,
+   "ms": 316,
+   "sig": "5RFVfNrKDDEU7c3xLnDR5JBhDgmbXfXixu8W6BqAYez8HTiWJCbenEHAfmKGe28UeAyydEyp88XMnD3B5jMgUD43"
+  },
+  {
+   "name": "session revoke (Solana)",
+   "ok": true,
+   "ms": 1255,
+   "sig": "65uET7K6tkmMYBD4niujFmZJFZFcmBcEMtPGRymt8yZHBWzxoPErQkwuXQMFJMDsRkX8Gfcqio5uK17S6GQ3Ke2H"
+  },
+  {
+   "name": "bet 2 (after the revoke)",
+   "ok": true,
+   "session": false,
+   "ms": 288,
+   "sig": "3Tt3h1h6Ysp5h8WGtJYYV2xTf6pqVfCoi96uDatbdR6uXBGNPduurJdKJA7g2REeFSksMxNiBzwUPuE14dfEoYiY"
+  },
+  {
+   "name": "session create again",
+   "ok": false,
+   "ms": 208,
+   "error": "\"Simulation failed. \\nMessage: Transaction simulation failed: Transaction results in an account (0) with insufficient funds for rent. \\nLogs: \\n[\\n  \\\"Program K"
+  },
+  {
+   "name": "bet 3 (new session)",
+   "ok": true,
+   "session": false,
+   "ms": 299,
+   "sig": "3Tt3h1h6Ysp5h8WGtJYYV2xTf6pqVfCoi96uDatbdR6uXBGNPduurJdKJA7g2REeFSksMxNiBzwUPuE14dfEoYiY"
+  }
+ ],
+ "market": 3
+}

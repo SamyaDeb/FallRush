@@ -1,0 +1,4 @@
+2026-11-23T21:24:22Z indexer stopped
+during: /api/status 502
+during: /arenas 200
+2026-11-23T21:24:23Z indexer back (healthy) 13 s after the stop; watchdog: 

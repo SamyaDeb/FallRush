@@ -1,0 +1,24 @@
+2026-11-23T20:49:59Z keeper-1: waiting for stage 'final'
+2026-11-23T20:49:59Z gs2: waiting for round 2
+2026-11-23T20:53:52Z gs2 restarted mid-round 2 (on-chain match 7xtYMXiUNPqNBHdWpV3LR2M1TMgYeyAWaBimgWFCUJp5)
+2026-11-23T20:53:55Z gs2 back up (LobbyOpen) in 6 s
+2026-11-23T20:53:57Z keeper after the gs restart: finalize {}|rewards {}|idle {}|create_match {}|delegate_match {}|chain_setup {}|deal {}|rounds_1_3 {}|
+2026-11-23T20:59:10Z keeper-1 restarted at stage 'final'
+2026-11-23T21:00:31Z keeper-1 recovered (resume from on-chain state) in 92 s; stages after restart: final sealed_reveal resume chain_setup final sealed_finish settle receipt capsules finalize rewards season 
+2026-11-23T21:05:44Z gs1: waiting for round 2
+2026-11-23T21:16:45Z gs1: waiting for round 2
+2026-11-23T21:19:19Z gs1 restarted mid-round 2 (on-chain match 8BBeQLKdrhLE5nZdw7TLEZ94b1MyktDJomDwLTBWLonY)
+2026-11-23T21:19:21Z gs1 back up (LobbyOpen) in 6 s
+2026-11-23T21:19:23Z keeper after the gs restart: finalize {}|rewards {}|idle {}|create_match {}|delegate_match {}|chain_setup {}|deal {}|rounds_1_3 {}|
+2026-11-23T21:20:28Z keeper-2 started without the TEE (TEE_URL=devnet-tee.invalid)
+2026-11-23T21:24:22Z indexer stopped
+during: /api/status 502
+during: /arenas 200
+2026-11-23T21:24:23Z indexer back (healthy) 13 s after the stop; watchdog: 
+2026-11-23T21:30:25Z keeper-2 back on the normal TEE_URL
+2026-11-23T21:32:36Z keeper-2 started without the TEE (TEE_URL=devnet-tee.invalid)
+2026-11-23T21:36:49Z indexer stopped
+during: /api/status 502
+during: /arenas 200
+2026-11-23T21:39:55Z indexer back (healthy) 197 s after the stop; watchdog: 2026-11-23T21:39:20Z restart fallrush-indexer after 3 failed checks
+2026-11-23T21:42:30Z keeper-2 back on the normal TEE_URL

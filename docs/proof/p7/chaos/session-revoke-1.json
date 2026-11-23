@@ -1,0 +1,48 @@
+{
+ "arena": 2,
+ "at": "2026-11-23T20:50:11.941Z",
+ "steps": [
+  {
+   "name": "session create",
+   "ok": true,
+   "ms": 1302,
+   "sig": "3PgiFNS7UiRhW7RV6f8kDKABAeakF9mQEWJgjGVVeeGrqFC55rY9PxtZLrVFcLcdNJySqVGnTgp1xENV7CvmKFWA"
+  },
+  {
+   "name": "bet 1 (session key)",
+   "ok": true,
+   "session": true,
+   "ms": 349,
+   "sig": "4J2Nk2dmig18HMDfGgVxY8kS9Qk7wB8EfbqfiofPPipcKomMUqHRNKNBnttXpPpY29ZZ9jmpXpQ7Kte28LpC2YUQ"
+  },
+  {
+   "name": "session revoke (Solana)",
+   "ok": true,
+   "ms": 1257,
+   "sig": "5GKT61dpX6QPeWCdX8BcUwKVb8gGPkmj3szq8P3CNBzitwFE2k5m24w8XZGtFfatKTokQwLFtvJxv2yEh9nHQDWF"
+  },
+  {
+   "name": "bet 2 (after the revoke)",
+   "ok": false,
+   "session": false,
+   "ms": 396,
+   "sig": "2GFNjPeURTHRvKTidWRthegJpCAiYG8BNxZu8nKKYABpBJRNuL939sc2S9pPrn1bAZ9z8LVewSsVsakm6Y37t6x1",
+   "error": "{\"InstructionError\":[0,{\"Custom\":6030}]}"
+  },
+  {
+   "name": "session create again",
+   "ok": true,
+   "ms": 572,
+   "sig": "5LBgpbcQjBKCm57YveVoSzJJ9EpyiDNgNZtM3ngACUEcjMEqY2bi4ZKgGVzLU5y3KChm3YfwEydf8qpbRsLiSnyr"
+  },
+  {
+   "name": "bet 3 (new session)",
+   "ok": false,
+   "session": true,
+   "ms": 337,
+   "sig": "3LWJMCwJQk1bYGhqMFg74iJqXJZAqmc5DP11Bs38yqqiSiduycAxygPJ29Cr8WoptW1vqLRP7xSnbisjF7MQGZbK",
+   "error": "{\"InstructionError\":[0,{\"Custom\":6030}]}"
+  }
+ ],
+ "market": 2
+}
