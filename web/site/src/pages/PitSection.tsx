@@ -28,7 +28,7 @@ export default function PitSection({ webgl }: { webgl: boolean }) {
       <div className="pit-copy">
         <span className="st-eyebrow">INTERMISSION</span>
         <h2>The Rushling pit</h2>
-        <p>{webgl ? 'Grab one. Fling it. Bonk the gumballs. That is the whole game, roughly.' : 'Twelve wind-up toys, one toy box, a lot of bonking.'}</p>
+        <p>{webgl ? 'Grab one. Fling it. Bonk the gumballs. That is the whole game, roughly.' : 'A toy box full of wind-up Rushlings, and a lot of bonking.'}</p>
         <div className="row">
           {webgl && (
             <button type="button" className="btn btn-s pink mag" onClick={() => pit.current?.shake()} disabled={!ready}>

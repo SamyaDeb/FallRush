@@ -201,7 +201,7 @@ export default function Home() {
             </div>
 
             <p className="tagline">
-              The knockout party game whose Final runs <b>on-chain</b>. 12 players, 4 rounds, 1 crown. No wallet, no popups.
+              The knockout party game whose Final runs <b>on-chain</b>. Pack the lobby, survive the rounds, take the crown. No wallet, no popups.
             </p>
             {stage === 'button' && (
               <div className="cta">

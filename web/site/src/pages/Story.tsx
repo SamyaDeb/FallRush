@@ -27,16 +27,16 @@ const COPY: Copy[] = [
   {
     id: 'fall',
     eyebrow: 'DROP IN',
-    title: '12 Rushlings. 4 rounds. 1 crown.',
-    body: 'Wind-up capsule toys, dropped into a knockout show. Every round sends some of them home. One walks away wearing the crown.',
+    title: 'Everyone drops in. 1 crown.',
+    body: 'Wind-up capsule toys pile into a knockout show, as many as the lobby holds. Every round sends some of them home. One walks away wearing the crown.',
     side: 'left',
   },
   {
     id: 'run',
     eyebrow: 'ROUND 1 · RACE',
     title: 'Capsule Run',
-    body: 'Gumballs roll down the slope, mallets swing over the hop field, a sweeper spins on the last pad. The first 8 over the line go through.',
-    stat: '12 → 8',
+    body: 'Gumballs roll down the slope, mallets swing over the hop field, a sweeper spins on the last pad. The fastest two-thirds over the line go through.',
+    stat: '~2 in 3 go through',
     side: 'right',
   },
   {
@@ -44,7 +44,7 @@ const COPY: Copy[] = [
     eyebrow: 'ROUND 2 · SURVIVAL',
     title: 'Goo Tower',
     body: 'Two laps of spiral ledge round a capsule-machine core, and the glitter goo rising underneath. Climb, or get swallowed.',
-    stat: '8 → 5',
+    stat: '~3 in 5 survive',
     side: 'left',
   },
   {
@@ -52,7 +52,7 @@ const COPY: Copy[] = [
     eyebrow: 'ROUND 3 · SKILL',
     title: 'Star Fountain',
     body: 'The fountain bursts a wave of stars every 8 seconds. Grab them on the turntable, hop the sweepers. Top 3 go to the Final.',
-    stat: '5 → 3',
+    stat: 'top 3 → Final',
     side: 'right',
   },
   {
@@ -60,7 +60,7 @@ const COPY: Copy[] = [
     eyebrow: 'THE FINAL · ON-CHAIN',
     title: 'Lid Flip',
     body: 'Lids light up, then swing open under you. And this round does not run on our server: a Solana program steps it, tick by tick, inside a MagicBlock Ephemeral Rollup.',
-    stat: '3 → 1',
+    stat: '1 crown',
     side: 'left',
   },
   {
@@ -219,8 +219,8 @@ export default function Story({ webgl, live }: { webgl: boolean; live: Live }) {
           <div className="st-hud" aria-hidden="true">
             <div className="st-alive">
               <span ref={aliveRef} className="n">12</span>
-              <span className="l">Rushlings
-                <br />left</span>
+              <span className="l">left in
+                <br />this show</span>
             </div>
           </div>
         )}

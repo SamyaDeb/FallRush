@@ -36,7 +36,8 @@ export function chapterAt(p: number): number {
 
 /**
  * The cast: 12 Rushlings, slot 0 (Bolt) takes the crown. `out` = [chapter, local progress] of the knockout.
- * Round 1 Capsule Run 12 → 8, Round 2 Goo Tower 8 → 5, Round 3 Star Fountain 5 → 3, Final Lid Flip 3 → 1.
+ * This example show: Capsule Run 12 → 8, Goo Tower 8 → 5, Star Fountain 5 → 3, Lid Flip 3 → 1. The landing copy never
+ * presents the game as fixed at 12 (lobbies vary; qualify counts follow RoundTargets: ~2/3, ~3/5, top 3, 1).
  */
 export const KNOCKOUTS: Record<number, [ChapterId, number]> = {
   11: ['run', 0.3],
@@ -82,9 +83,9 @@ export const ROUND_LABEL: Record<ChapterId, string> = {
 
 /** The round cards that wipe across between chapters (index = the chapter being entered). */
 export const ROUND_CARD: Partial<Record<ChapterId, { eyebrow: string; title: string; line: string; theme: 'pink' | 'sun' | 'night' | 'gold' }>> = {
-  run: { eyebrow: 'ROUND 1 · RACE', title: 'Capsule Run', line: '12 start · 8 go through', theme: 'pink' },
-  goo: { eyebrow: 'ROUND 2 · SURVIVAL', title: 'Goo Tower', line: '8 climb · 5 make the summit', theme: 'sun' },
-  star: { eyebrow: 'ROUND 3 · SKILL', title: 'Star Fountain', line: '5 scramble · 3 reach the Final', theme: 'pink' },
-  lid: { eyebrow: 'THE FINAL · ON-CHAIN', title: 'Lid Flip', line: '3 left · 1 crown · computed on-chain, tick by tick', theme: 'night' },
+  run: { eyebrow: 'ROUND 1 · RACE', title: 'Capsule Run', line: 'the fastest two-thirds go through', theme: 'pink' },
+  goo: { eyebrow: 'ROUND 2 · SURVIVAL', title: 'Goo Tower', line: 'about 3 in 5 make the summit', theme: 'sun' },
+  star: { eyebrow: 'ROUND 3 · SKILL', title: 'Star Fountain', line: 'only the top 3 reach the Final', theme: 'pink' },
+  lid: { eyebrow: 'THE FINAL · ON-CHAIN', title: 'Lid Flip', line: 'the finalists · 1 crown · computed on-chain', theme: 'night' },
   crown: { eyebrow: 'AND THE CROWN GOES TO…', title: 'Bolt!', line: 'champion of show #1', theme: 'gold' },
 };

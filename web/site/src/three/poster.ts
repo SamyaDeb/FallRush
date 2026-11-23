@@ -327,7 +327,7 @@ export async function generatePoster({ preset, rank, siteHost }: PosterInput): P
   // footer line (above the 70 px bottom safe area)
   x.font = '400 28px "Varela Round", sans-serif';
   x.fillStyle = '#2A1250';
-  x.fillText(rank == null ? '12 players · 4 rounds · 1 crown · No wallet needed' : `Pick your Rushling at ${siteHost}`, bx + colW / 2, 790);
+  x.fillText(rank == null ? 'Packed lobbies · 1 crown · No wallet needed' : `Pick your Rushling at ${siteHost}`, bx + colW / 2, 790);
   x.textAlign = 'left';
 
   return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('toBlob failed'))), 'image/png'));
