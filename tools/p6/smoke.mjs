@@ -57,7 +57,7 @@ const done = async (code) => { result.finished = new Date().toISOString(); write
 try {
   if (FLOW === 'lobby') {
     const h0 = humansNow(await status());
-    await send('Page.navigate', { url: BASE + '/' });
+    await send('Page.navigate', { url: BASE + opt('start', '/arenas') });
     await until(() => ev(`!!document.querySelector('a[href="/play"].btn')`), 30, 100);
     mark('landing');
     const tc = Date.now();

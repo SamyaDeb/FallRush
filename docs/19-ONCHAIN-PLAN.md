@@ -515,6 +515,19 @@ Six throw-away prototypes. They live in `spikes/p0-*`, are never shipped, and ar
 
 **Risks:** private-rollup auth inside WebGL; the cross-rollup handoff latency. Keep commit-reveal as the shipped default if the private rollup isn't stable.
 
+**As built (P6, 2026-11-23; `docs/proof/P6-privacy-seasons.md`, doc 15 OC-21…OC-28):**
+- P6.1 shipped on the **Private ER** (Path A): the Champion pick lives in a `SealedBook` delegated to the TEE validator
+  (`devnet-tee`, `MTEW…`) behind an `EphemeralPermission { is_private: true, members: [] }`; the stake + a sha256
+  commitment in a public `SealedEscrow` on devnet-as. No cross-rollup undelegation: at close the book is made public
+  and anyone reveals on devnet-as, the program checking each preimage (close → all revealed 1.1–1.4 s). Commit-reveal is
+  the built-in fallback (the bettor's saved salt). Only the Champion market is sealed (the others keep live odds).
+  Browser: TEE auth by the session key (no popup) + the TDX attestation verified in the page (`fallrush-tee.js`).
+- P6.2 seasons on Solana: weekly `Season` (ISO week id) + `PlayerSeason` + `PlayerProfile`, recorded by a
+  permissionless keeper-sent `record_season` from the receipt's `bets_hash` + the committed market / drop copies (not a
+  second base action: the action's base tx is full); trophies at `close_season` (test season closed with 2 trophies).
+- P6.3 achievements = bits on `PlayerSeason` (first crown, 3-round survivor, perfect predictor, chaos agent); no mint.
+- Carry-over: the Crown minted by the Magic Action proven on devnet (a scripted human with rush-core's bot brain).
+
 ---
 
 ### P7 — Hardening, playtests, launch
