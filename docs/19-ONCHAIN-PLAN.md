@@ -481,6 +481,20 @@ Six throw-away prototypes. They live in `spikes/p0-*`, are never shipped, and ar
 
 **Deliverables:** public URL, `docs/proof/P5-product.md`.
 
+**As built (P5, 2026-11-23; `docs/proof/P5-product.md`, doc 15 OC-14…OC-20):**
+- Public at `https://play.<VPS_IP-dashed>.sslip.io` on the shared VPS (compose stack `fallrush-*`, doc 13 §2a). The
+  hybrid stays the shipped mode: rounds 1–3 on the Classic server (2 game servers), the Final on the rollup (2 arenas,
+  one keeper daemon each, resuming from on-chain state). No `Directory` account: the directory is the servers'
+  `status.json` via the keepers and `/api/status`.
+- P5.1 pool = 2 arenas (not 4; D-HOST measured 2 fine on 2 vCPU). P5.4: burner + session keys + gas station; key
+  backup / restore; Phantom connect + claim + move RUSH (real Phantom UNVERIFIED). P5.5: capsule shells checked by the
+  Classic server over RPC (the on-chain `join_lobby` cosmetic stays a preset). P5.6: `tools/indexer` (archive + replay).
+  P5.7 fanout relay: not needed (clients subscribe to devnet-as directly).
+- The follow-up call is a real **Magic Action** now (`finalize_match_action`, validator-run `mint_rewards_action`);
+  the keeper's `mint_rewards` is the retry. Ephemeral SPL: 5/5 round trips, chips still `ChipBalance` (OC-15).
+- `/replay` re-simulates the archived Final with `rush_core.wasm`, byte-exact per tick (inputs latched by the program +
+  Chaos Drops entering the World) — "replay = on-chain ✓" on all 6 public matches.
+
 ---
 
 ### P6 — Privacy + seasons

@@ -1,0 +1,21 @@
+{
+ "flow": "lobby",
+ "started": "2026-11-23T11:43:04.094Z",
+ "marks": {
+  "landing": {
+   "t": 1.3
+  },
+  "click": {
+   "t": 1.35
+  },
+  "in_lobby": {
+   "t": 19.3,
+   "clickToLobbyS": 17.959
+  }
+ },
+ "clickToLobbyS": 17.959,
+ "pageMarks": "{\"quickplay\":116,\"download\":3498,\"guest\":4257,\"unity\":10996}",
+ "pass": true,
+ "finished": "2026-11-23T11:43:28.390Z",
+ "error": "Error: ENOTEMPTY, Directory not empty: /var/folders/_q/nhljp1fs18d60_zdx2p2_tvw0000gn/T/fr-p5-lobby-59871 '/var/folders/_q/nhljp1fs18d60_zdx2p2_tvw0000gn/T/fr-p5-lobby-59871'\n    at rmSync (node:fs:1282:18)\n    at done (file:///Users/samya/Downloads/FallRush-p5/tools/p5/smoke.mjs:55:195)\n    at async file:///Users/samya/Downloads/FallRush-p5/tools/p5/smoke.mjs:72:5"
+}

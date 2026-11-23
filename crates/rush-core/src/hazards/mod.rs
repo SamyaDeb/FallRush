@@ -483,6 +483,12 @@ pub fn platform_delta(d: &PlatformDef, t60: i64, step60: i64) -> IVec3 {
 // ------------------------------------------------------------------ sweeper / spinner bar
 
 /// `SweeperContactMm`: capsule (feet, r, h mm) vs the bar; the unit push direction (Q15, x/z) on contact.
+/// P5 (views only, never used by the simulation): the bar's direction (cos, sin in Q15) at `t60`.
+pub fn sweeper_dir(d: &SweeperDef, t60: i64) -> (i32, i32) {
+    let p = phase_at(t60, d.period_ticks, d.phase16);
+    (cs(p), sn(p))
+}
+
 pub fn sweeper_contact(d: &SweeperDef, t60: i64, f: IVec3, r: i32, h: i32) -> Option<[i32; 2]> {
     let p = phase_at(t60, d.period_ticks, d.phase16);
     let c = cs(p) as i64;

@@ -1,3 +1,4 @@
+#if !UNITY_SERVER // P5: editor tools on the client assembly (excluded from the Server subtarget, P3 proof §5)
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -166,3 +167,4 @@ public static class CapsuleRunShots
         return null;
     }
 }
+#endif

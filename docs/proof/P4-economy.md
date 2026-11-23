@@ -279,22 +279,6 @@ mouse; a spectator buys drops); not played yet.
 - The automated feel numbers come from the auto-play probe; a human feel test with drops (`scripts/p4-feel.sh`) is
   open for you.
 - The rollup CU numbers are samples (one every ~15 s per Final); LiteSVM measured every tick.
-- Pots: cut (D-POTS), not built.
-- The `#[action]` Magic Action for the follow-up call: not used (OC-13); minting is a keeper-sent program instruction.
-- The prompt's deal-screen pool / odds next to each capsule: not built (the bet panel shows them).
-- "Claim with Phantom" with a real Phantom extension: the claim path ran through the bundle with the burner signing
-  (Core TransferV1, devnet signature in §8.1) to a stand-in wallet; Phantom in a browser was not driven headless.
-- `cashout` → `mint_cashout` on devnet: `mint_cashout` is tested in LiteSVM (SPL minted once, then the difference);
-  the rollup `cashout` + commit is UNVERIFIED on devnet.
-- A market with unpaid bets after its `Match` was finalized (undelegated) cannot be paid any more (settle reads the
-  `Match` on the rollup); the keeper settles and pays before `finalize_match`. A keeper crash in between needs a manual
-  fix (UNVERIFIED path).
-- The WebGL `?rcselftest=1` summary line printed `FAIL 6/5 files` although all 6 files (240 cases incl. drops_v1)
-  passed: the self-test still counted 5 files (fixed in code after the one release build; not rebuilt).
-- Sybil faucet: a new burner gets new chips (devnet test chips; a rate limit per wallet only).
-- The automated feel numbers come from the auto-play probe; a human feel test with drops (`scripts/p4-feel.sh`) is
-  open for you.
-- The rollup CU numbers are samples (one every ~15 s per Final); LiteSVM measured every tick.
 
 ## For P5
 Where the web spectator page (P5) plugs in — everything is readable on the rollup (devnet-as) and the bundle already

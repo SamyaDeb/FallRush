@@ -140,7 +140,7 @@ impl T {
     fn open_markets(&mut self) -> Result<u64, String> {
         let mut accs = vec![ro(self.arena), w(self.dq)];
         accs.extend(self.markets.iter().map(|k| w(*k)));
-        accs.push(ro(self.m));
+        accs.push(w(self.m)); // P5 0.5: open_markets flags the Match (MATCH_ECON)
         let a = self.auth.insecure_clone();
         self.econ(&a, op::OPEN_MARKETS, 0, 0, accs)
     }
@@ -491,10 +491,14 @@ fn receipt_and_core_rewards() {
     accs.extend(t.maps.iter().map(|k| ro(*k)));
     let au = t.auth.insecure_clone();
     assert!(t.econ(&au, op::WRITE_RECEIPT, 0, 0, accs.clone()).is_err(), "markets must be settled first");
+    // P5 0.5: settled but with an unpaid winner (a's ChipBalance not passed) → no receipt (so no finalize)
+    t.settle(0, &[]).unwrap();
+    assert!(t.econ(&au, op::WRITE_RECEIPT, 0, 0, accs.clone()).is_err(), "an unpaid bet blocks the receipt");
     for k in 0..5 {
         t.settle(k, &[ak]).unwrap();
     }
     t.econ(&au, op::WRITE_RECEIPT, 0, 0, accs).unwrap();
+    println!("receipt refuses unpaid winners, then writes once all are paid: OK");
     let r = t.svm.get_account(&t.m).unwrap().data;
     assert_eq!(r[M_RECEIPT] & 1, 1, "written");
     assert_eq!(r[M_RECEIPT + 1], 3, "trust: rounds by the authority + Final by the program");

@@ -1,3 +1,4 @@
+#if !UNITY_SERVER // P5: editor tools on the client assembly (excluded from the Server subtarget, P3 proof §5)
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -257,3 +258,4 @@ public static class StarFountainShots
 
     private static Vector3 V(in MotorState s) => new Vector3(s.PosX * 0.001f, s.PosY * 0.001f, s.PosZ * 0.001f);
 }
+#endif

@@ -128,4 +128,44 @@ export function coreTransferIx(asset: PublicKey, owner: PublicKey, payer: Public
   });
 }
 
+// ---- P5: real RUSH SPL (cash-out, transfers) ----------------------------------------------------------------------
+export const RUSH_MINT = new PublicKey('3s8KstqicXn1kgFyWPVq3AZXkMprDtEtT7BNTxtQccEw');
+export const TOKEN = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+export const ATA_PROGRAM = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+export const ataOf = (owner: PublicKey, mint: PublicKey) => PublicKey.findProgramAddressSync([owner.toBytes(), TOKEN.toBytes(), mint.toBytes()], ATA_PROGRAM)[0];
+
+/** econ(MINT_CASHOUT) on Solana (permissionless; `payer` pays the stamp + ATA rent). Accounts (econ.rs
+ * op_mint_cashout): chips, cashout stamp, mint, mint authority PDA, wallet, wallet ATA, token, ATA program, system. */
+export function mintCashoutIx(program: PublicKey, payer: PublicKey, wallet: PublicKey): TransactionInstruction {
+  const P = (s: Uint8Array[]) => PublicKey.findProgramAddressSync(s, program)[0];
+  const a = (pubkey: PublicKey, isWritable: boolean) => ({ pubkey, isSigner: false, isWritable });
+  return econIx(program, payer, OP.MINT_CASHOUT, 0, 0, [
+    a(P([te.encode('chips'), wallet.toBytes()]), false), a(P([te.encode('cashout'), wallet.toBytes()]), true), a(RUSH_MINT, true),
+    a(P([te.encode('rush_mint_auth')]), false), a(wallet, false), a(ataOf(wallet, RUSH_MINT), true), a(TOKEN, false), a(ATA_PROGRAM, false), a(SystemProgram.programId, false),
+  ]);
+}
+
+/** Create the recipient's RUSH ATA (idempotent) + SPL TransferChecked from `from`'s ATA. */
+export function rushTransferIxs(from: PublicKey, to: PublicKey, amount: bigint): TransactionInstruction[] {
+  const src = ataOf(from, RUSH_MINT), dst = ataOf(to, RUSH_MINT);
+  const create = new TransactionInstruction({
+    programId: ATA_PROGRAM,
+    keys: [
+      { pubkey: from, isSigner: true, isWritable: true }, { pubkey: dst, isSigner: false, isWritable: true }, { pubkey: to, isSigner: false, isWritable: false },
+      { pubkey: RUSH_MINT, isSigner: false, isWritable: false }, { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, { pubkey: TOKEN, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from([1]),
+  });
+  const d = new Uint8Array(10);
+  d[0] = 12; // TransferChecked
+  new DataView(d.buffer).setBigUint64(1, amount, true);
+  d[9] = 6;
+  const xfer = new TransactionInstruction({
+    programId: TOKEN,
+    keys: [{ pubkey: src, isSigner: false, isWritable: true }, { pubkey: RUSH_MINT, isSigner: false, isWritable: false }, { pubkey: dst, isSigner: false, isWritable: true }, { pubkey: from, isSigner: true, isWritable: false }],
+    data: Buffer.from(d),
+  });
+  return [create, xfer];
+}
+
 export type Signer = Keypair;

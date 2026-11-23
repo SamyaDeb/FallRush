@@ -1,6 +1,6 @@
-commit 13c80735f5b26deb06d594fb82d8375bca94521a (p4 worktree; working tree may be ahead)
-built_utc 2026-11-22T23:35:42Z
+commit 851eeaf01579bf8d1502c836a65c539248e942af (p4 worktree; working tree may be ahead)
+built_utc 2026-11-23T13:02:49Z
 rc_version 0x10002
-wasm_sha256 b4fee56d71f80b5f2d72d70a6659a6d18c398472d541af3ce3e3a9ca8cc112bf
-wasm_bytes 316671
-bundle_sha256 093f7a4d9a99e9aaa5c5aab897962fa4d3590983c686884624cd3c92d8579425
+wasm_sha256 6d481b01505a242eef181621930faa1f220a08e9b3b205e42227c42029c79ce5
+wasm_bytes 320148
+bundle_sha256 16a5458b52689fbcee15b9090946aa6819737a47cedcc2d3643959d3b4c8d8a9

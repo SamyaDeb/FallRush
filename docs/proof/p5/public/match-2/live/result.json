@@ -1,0 +1,28 @@
+{
+ "flow": "live",
+ "started": "2026-11-23T12:08:37.147Z",
+ "marks": {
+  "loaded": {
+   "t": 0.93
+  },
+  "no_open_market": {
+   "t": 601.7,
+   "bet": null
+  },
+  "bet_result": {
+   "t": 601.71,
+   "betOk": null
+  },
+  "no_drop_window": {
+   "t": 1202.28,
+   "drop": null
+  },
+  "drop_result": {
+   "t": 1202.29,
+   "dropOk": null
+  }
+ },
+ "oddsSamples": [],
+ "pass": false,
+ "finished": "2026-11-23T12:28:44.291Z"
+}

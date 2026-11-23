@@ -57,6 +57,60 @@ pub fn commit<'info>(payer: &AccountInfo<'info>, magic_context: &AccountInfo<'in
     Ok(())
 }
 
+/// P5 0.3 (Magic Action): `ScheduleIntentBundle` committing + undelegating the accounts at indices `2 .. 2 + n` with
+/// ONE post-undelegate base action (`UndelegateTypeArgs::WithBaseActions`): `ActionArgs { escrow_index, data }`,
+/// `compute_units`, `escrow_authority` (index in the CPI account list; must sign the CPI), `destination_program` and
+/// the action's account metas (pubkey, is_writable; no signers: the escrow is the only signer, injected by the
+/// delegation program's `CallHandlerV2`). Bytes asserted against the SDK bincode in the tests below.
+pub fn intent_data_with_action(n: usize, escrow_index: u8, escrow_authority: u8, compute_units: u32, destination: &Pubkey, metas: &[(Pubkey, bool)], data: &[u8]) -> Vec<u8> {
+    let mut d = Vec::with_capacity(96 + n + metas.len() * 33 + data.len());
+    d.extend_from_slice(&IX_SCHEDULE_INTENT_BUNDLE.to_le_bytes());
+    d.push(0); // commit: None
+    d.push(1); // commit_and_undelegate: Some
+    d.extend_from_slice(&0u32.to_le_bytes()); // CommitTypeArgs::Standalone
+    d.extend_from_slice(&(n as u64).to_le_bytes());
+    for i in 0..n {
+        d.push(2 + i as u8);
+    }
+    d.extend_from_slice(&1u32.to_le_bytes()); // UndelegateTypeArgs::WithBaseActions
+    d.extend_from_slice(&1u64.to_le_bytes()); // one action
+    d.push(escrow_index);
+    d.extend_from_slice(&(data.len() as u64).to_le_bytes());
+    d.extend_from_slice(data);
+    d.extend_from_slice(&compute_units.to_le_bytes());
+    d.push(escrow_authority);
+    d.extend_from_slice(destination.as_ref());
+    d.extend_from_slice(&(metas.len() as u64).to_le_bytes());
+    for (k, w) in metas {
+        d.extend_from_slice(k.as_ref());
+        d.push(*w as u8);
+    }
+    d.push(0); // commit_finalize: None
+    d.push(0); // commit_finalize_and_undelegate: None
+    d.extend_from_slice(&0u64.to_le_bytes()); // standalone_actions: []
+    d
+}
+
+/// Commit + undelegate `accounts` with one post-undelegate action; `escrow_auth` (a program PDA) signs the CPI with
+/// `escrow_auth_seeds` and is appended after the committed accounts (its index is passed as `escrow_authority`).
+#[allow(clippy::too_many_arguments)]
+pub fn commit_undelegate_with_action<'info>(payer: &AccountInfo<'info>, magic_context: &AccountInfo<'info>, magic_program: &AccountInfo<'info>, accounts: &[AccountInfo<'info>], escrow_auth: &AccountInfo<'info>, escrow_auth_seeds: &[&[u8]], escrow_index: u8, compute_units: u32, metas: &[(Pubkey, bool)], data: &[u8]) -> Result<()> {
+    require_keys_eq!(magic_program.key(), ephemeral_rollups_sdk::consts::MAGIC_PROGRAM_ID, crate::errors::FallRushError::BadTask);
+    let mut am = vec![AccountMeta::new(payer.key(), true), AccountMeta::new(magic_context.key(), false)];
+    let mut infos = vec![payer.clone(), magic_context.clone()];
+    for a in accounts {
+        am.push(AccountMeta { pubkey: a.key(), is_signer: a.is_signer, is_writable: a.is_writable });
+        infos.push(a.clone());
+    }
+    let auth_index = am.len() as u8;
+    am.push(AccountMeta::new_readonly(escrow_auth.key(), true));
+    infos.push(escrow_auth.clone());
+    infos.push(magic_program.clone());
+    let d = intent_data_with_action(accounts.len(), escrow_index, auth_index, compute_units, &crate::ID, metas, data);
+    anchor_lang::solana_program::program::invoke_signed(&Instruction { program_id: magic_program.key(), accounts: am, data: d }, &infos, &[escrow_auth_seeds])?;
+    Ok(())
+}
+
 /// bincode of `MagicBlockInstruction::ScheduleTask(ScheduleTaskArgs { task_id, execution_interval_millis, iterations,
 /// instructions: [ix] })`.
 pub fn schedule_task_data(task_id: i64, interval_ms: i64, iterations: i64, ix: &Instruction) -> Vec<u8> {
@@ -100,6 +154,25 @@ mod tests {
             let u = MagicIntentBundleArgs { commit_and_undelegate: Some(CommitAndUndelegateArgs { commit_type: CommitTypeArgs::Standalone(idx), undelegate_type: UndelegateTypeArgs::Standalone }), ..Default::default() };
             assert_eq!(bincode::serialize(&MagicBlockInstruction::ScheduleIntentBundle(u)).unwrap(), intent_data(n, true));
         }
+    }
+
+    #[test]
+    fn action_intent_bytes_equal_the_sdk_bincode() {
+        use magicblock_magic_program_api::args::{ActionArgs, BaseActionArgs, ShortAccountMeta};
+        let metas: Vec<(Pubkey, bool)> = (0..7).map(|i| (Pubkey::new_unique(), i % 2 == 0)).collect();
+        let data = vec![9u8, 8, 7, 6, 5, 4, 3, 2, 1, 0, 3, 0, 0, 0, 0, 1, 4];
+        let act = BaseActionArgs {
+            args: ActionArgs::new(data.clone()).with_escrow_index(255),
+            compute_units: 230_000,
+            escrow_authority: 3,
+            destination_program: crate::ID,
+            accounts: metas.iter().map(|(k, w)| ShortAccountMeta { pubkey: *k, is_writable: *w }).collect(),
+        };
+        let u = MagicIntentBundleArgs {
+            commit_and_undelegate: Some(CommitAndUndelegateArgs { commit_type: CommitTypeArgs::Standalone(vec![2]), undelegate_type: UndelegateTypeArgs::WithBaseActions { base_actions: vec![act] } }),
+            ..Default::default()
+        };
+        assert_eq!(bincode::serialize(&MagicBlockInstruction::ScheduleIntentBundle(u)).unwrap(), intent_data_with_action(1, 255, 3, 230_000, &crate::ID, &metas, &data));
     }
 
     #[test]

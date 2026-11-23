@@ -120,6 +120,39 @@ namespace FallRush.Net
             Debug.Log($"[gs] match mode: size={d.MatchSize} soak={d.Soak} matches={MatchesTarget} simSpeed={SimSpeed} plan={(d.PlanOverride == null ? "deal (4 rounds)" : string.Join(",", Array.ConvertAll(d.PlanOverride, x => MapPoolV1.KeyOf(x))))} seed={(fixedSeed != null ? Sha256.Hex(fixedSeed).Substring(0, 16) + "…" : "random per match")} log={LogDir}");
         }
 
+        private float _statusAt;
+
+        /// <summary>
+        /// P5 directory (additive, read-only for the match): once a second the server writes <c>status.json</c> next to
+        /// its match logs (atomic replace). The arena's keeper shares the log volume and publishes it through
+        /// <c>/api/status</c> (players, phase, round, match id), which the landing page and Quick Play read.
+        /// </summary>
+        private void WriteStatus()
+        {
+            var now = Time.realtimeSinceStartup;
+            if (now - _statusAt < 1f || string.IsNullOrEmpty(LogDir))
+                return;
+            _statusAt = now;
+            try
+            {
+                var d = Director;
+                var id = d.MatchId != null ? Sha256.Hex(d.MatchId) : "";
+                var json = $"{{\"t\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()},\"phase\":\"{d.Phase}\",\"inMatch\":{(d.InMatch ? "true" : "false")},\"round\":{d.Round},\"humans\":{d.HumansConnected()},\"size\":{d.MatchSize},\"serial\":{d.MatchSerial},\"completed\":{d.MatchesCompleted},\"match\":\"{id}\",\"onchainFinal\":{(Handoff != null ? "true" : "false")}}}";
+                Directory.CreateDirectory(LogDir);
+                var tmp = Path.Combine(LogDir, "status.json.tmp");
+                File.WriteAllText(tmp, json);
+                var dst = Path.Combine(LogDir, "status.json");
+                if (File.Exists(dst))
+                    File.Delete(dst);
+                File.Move(tmp, dst);
+            }
+            catch (Exception e)
+            {
+                if (_statusAt < 5f)
+                    Debug.LogWarning("[gs] status.json: " + e.Message);
+            }
+        }
+
         /// <summary>64 hex chars = the 32-byte seed; anything else = sha256("fallrush-dev-seed:" + text).</summary>
         public static byte[] ParseSeed(string s)
         {
@@ -186,6 +219,18 @@ namespace FallRush.Net
 
             if (Director.Phase == MatchPhase.LobbyOpen && _viewers.Count > 0 && _loaded)
                 SeatViewers();
+            WriteStatus();
+            while (ShellCheck.Results.TryDequeue(out var sc))
+            {
+                // P5 task 4: apply a verified capsule shell (lobby only; a falsified id keeps the preset)
+                var slot = _sim.Core.FindSlot(sc.client);
+                Debug.Log($"[gs] capsule shell client={sc.client} slot={slot} asset={sc.asset}: {sc.why}");
+                if (sc.preset >= 0 && slot >= 0 && !Director.InMatch)
+                {
+                    Director.Presets[slot] = CosmeticPresets.Clamp(sc.preset);
+                    OnMatchChanged();
+                }
+            }
             if (Director.MatchId != null && Director.MatchSerial != _loggedSerial && Director.Phase >= MatchPhase.RosterLocked)
             {
                 OpenLog();
@@ -389,6 +434,8 @@ namespace FallRush.Net
             {
                 if (!Seat(clientId, hello.Name, hello.Token, hello.CosmeticPreset))
                     return;
+                if (!string.IsNullOrEmpty(hello.ShellAsset))
+                    ShellCheck.Begin(clientId, hello.ShellAsset, hello.ShellWallet);
             }
 
             SendFullState(clientId);

@@ -1,0 +1,12 @@
+{
+ "flow": "receipt",
+ "started": "2026-11-23T12:07:09.141Z",
+ "marks": {
+  "rollup_solana_ok": {
+   "t": 1.49
+  }
+ },
+ "text": "Rollup ✓\nreceipt written on devnet-as by write_receipt\nwrite_receipt tx · finalize (commit + undelegate)\nSolana ✓\nthe Match is back on Solana (owner = the program)\nMatch account\nTrust\n● rounds 1–3 recorded by the game authority (Classic server)\n◆ the Final computed by the program (rush-core on the rollup)\ncore v2 · status Completed\nRewards\na bot won: no Crown\nminted by the Magic Action + keeper retry\nPlacements (the Final)\n#\tslot\tcapsule\n1\t#2 (bot)\t—\n2\t#7 (bot)\t—\n3\t#3 (bot)\t—\nRush Markets\nmarket\tpool\twinners\tsettled by\nChampion\t43 RUSH\t#2\t◆ program-settled\nFinal winner\t30 RUSH\t#2\t◆ program-settled\nQualify R1\t0 RUSH\t#2 #3 #4 #5 #7 #8 #10 #12\tno winner (refund)\nQualify R2\t66 RUSH\t#2 #3 #7 #8 #10\t● server-recorded\nQualify R3\t46 RUSH\t#2 #3 #7\t● server-recorded\nChaos Drops\n0 drop(s) · 0 RUSH · log hash 0000000000000000…\nAssets\nHashes\nmap 44bc4e756140708faa2897f898c06ea63d422bf9345c563644d6106a01948811\nrounds 1–3 transcript 0000000000000000000000000000000000000000000000000000000000000000\nFinal transcript fcaecd18ea6b6788f5c5daada4f4599098596be15dffb51b2db1e14328487faa\ncapsule VRF seed d66585fb52c71e4d0d3a2cd0e6cf5a7b10741f2cf5423898988ffe7bccc39260\n\nReplay it yourself",
+ "pass": true,
+ "finished": "2026-11-23T12:07:14.412Z"
+}

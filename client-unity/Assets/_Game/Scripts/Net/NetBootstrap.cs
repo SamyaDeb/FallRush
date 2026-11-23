@@ -138,6 +138,13 @@ namespace FallRush.Net
         /// <summary>G2.2 "My Rushling" preset id sent in hello (set by the menu from the saved choice); −1 = the config's.</summary>
         public static int PreferredPreset = -1;
 
+        private static string ShellArg(int part)
+        {
+            var v = GetArgValue("-fallrushShell");
+            var p = string.IsNullOrEmpty(v) ? null : v.Split(':');
+            return p != null && p.Length == 2 ? p[part] : null;
+        }
+
         private static byte HelloPreset(NetClientConfig cfg)
         {
             var q = NetTargets.GetQueryParam(Application.absoluteURL, "preset");
@@ -608,6 +615,9 @@ namespace FallRush.Net
                 CosmeticPreset = HelloPreset(clientConfig),
                 Name = ClientName() ?? string.Empty,
                 Token = SessionToken.Load(), // M4-6: a reconnect within 20 s takes the same slot
+                // P5 task 4: an owned capsule equipped on /me (?shell=<asset>&wallet=<owner>; desktop -fallrushShell asset:wallet)
+                ShellAsset = NetTargets.GetQueryParam(Application.absoluteURL, "shell") ?? ShellArg(0),
+                ShellWallet = NetTargets.GetQueryParam(Application.absoluteURL, "wallet") ?? ShellArg(1),
             };
             Manager.NetworkConfig.ConnectionData = Protocol.EncodeHello(hello);
 

@@ -22,6 +22,7 @@ namespace FallRush.Client
         private Button _walletButton;
         private bool _walletBusy;
         private GameObject _settings;
+        private static bool _quickPlayed;
 
         private void Start()
         {
@@ -51,6 +52,12 @@ namespace FallRush.Client
             MyRushling(panel);
             var play = UiKit.Button(panel, "PLAY", UiKit.SunYellow, OnPlay);
             play.GetComponent<LayoutElement>().minHeight = 70;
+            // P5 Quick Play: the web page's "Play now" was the click (?quickplay=1, /play): join without a second one
+            if (!_quickPlayed && NetTargets.GetQueryParam(Application.absoluteURL, "quickplay") == "1")
+            {
+                _quickPlayed = true;
+                Invoke(nameof(OnPlay), 0.4f);
+            }
             var row = UiKit.Row(panel, 56f, 12f, TextAnchor.MiddleCenter);
             row.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = true;
             var set = UiKit.Button(row, "Settings", UiKit.SkyLight, () => _settings.SetActive(!_settings.activeSelf));

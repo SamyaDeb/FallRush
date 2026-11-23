@@ -64,6 +64,9 @@ namespace FallRush.OnChain
             if (!string.IsNullOrEmpty(f.url))
                 cfg.url = f.url;
             cfg.arena = f.arena;
+            // P5 arena pool: one bundle config per arena (StreamingAssets/chain/devnet-<arena>.json, tools/p5/arena-configs.mjs)
+            if (cfg.target == "devnet" && !string.IsNullOrEmpty(f.arena))
+                cfg.bundleConfig = "devnet-" + f.arena + ".json";
             if (f.t == "final_prejoin")
             {
                 if (OnChainSession.Instance != null)

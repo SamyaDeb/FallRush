@@ -1,0 +1,20 @@
+{
+ "flow": "lobby",
+ "started": "2026-11-23T11:43:57.505Z",
+ "marks": {
+  "landing": {
+   "t": 1.04
+  },
+  "click": {
+   "t": 1.06
+  },
+  "in_lobby": {
+   "t": 21.95,
+   "clickToLobbyS": 20.901
+  }
+ },
+ "clickToLobbyS": 20.901,
+ "pageMarks": "{\"quickplay\":89,\"download\":3010,\"guest\":4833,\"unity\":13711}",
+ "pass": true,
+ "finished": "2026-11-23T11:44:24.011Z"
+}

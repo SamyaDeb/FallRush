@@ -64,3 +64,4 @@ docs/proof/p2/runs/local-*/
 docs/proof/p2/keeper-local-*.jsonl
 tools/p4/.keys/
 /backups/
+docs/proof/p5/PUBLIC_URL.local.md

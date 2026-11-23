@@ -151,7 +151,7 @@ export async function chipsOf(w: PublicKey) {
 // ------------------------------------------------------------------ markets
 export async function openMarkets(arenaId: number, matchPda: PublicKey) {
   const arena = pda.arena(arenaId);
-  const accs = [r_(arena), w_(epda.drops(arena)), ...Array.from({ length: MARKETS }, (_, k) => w_(epda.market(arenaId, k))), r_(matchPda)];
+  const accs = [r_(arena), w_(epda.drops(arena)), ...Array.from({ length: MARKETS }, (_, k) => w_(epda.market(arenaId, k))), w_(matchPda)];
   return sendEr([await econIx(wallet.publicKey, OP.OPEN_MARKETS, 0, 0, accs)], [wallet], "open_markets", 20);
 }
 export async function market(arenaId: number, k: number) {

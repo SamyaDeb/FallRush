@@ -1,0 +1,1 @@
+replay verdict 2.5 {"text":"replay ≠ on-chain ✗ · 1834/1836 consecutive ticks re-simulated byte-exact with rush_core.wasm (55 gaps in the recording skipped) · first mismatch at tick 215 · receipt Final transcript found 
