@@ -45,9 +45,11 @@ if (b.ok && b.burner < 15_000_000 && FUND) {
   log({ act: 'fund', ok: r.ok, sig: r.sig, lamports: r.lamports });
   await sleep(2500);
 }
-const sess = JSON.parse(await chain.session('create', JSON.stringify({})));
+// devnet's public RPC 429s above ~1.5 tx/s: setup calls retried with backoff (players also start staggered)
+const retry = async (what, f, n = 10) => { let r; for (let i = 0; i < n; i++) { r = JSON.parse(await f()); if (r.ok) return r; log({ act: what + '_retry', i, error: String(r.error).slice(0, 160) }); await sleep(2500 * (i + 1)); } return r; };
+const sess = await retry('session', () => chain.session('create', JSON.stringify({})));
 log({ act: 'session', ok: sess.ok, sig: sess.sig, token: sess.token, error: sess.error });
-const chips = JSON.parse(await chain.econ('chips', '{}'));
+const chips = await retry('chips', () => chain.econ('chips', '{}'));
 log({ act: 'chips', ok: chips.ok, created: chips.created, faucet: chips.faucet, balance: chips.chips?.balance, error: chips.error });
 console.log(`[${NAME}] chips ${chips.ok ? chips.chips.balance : chips.error}`);
 

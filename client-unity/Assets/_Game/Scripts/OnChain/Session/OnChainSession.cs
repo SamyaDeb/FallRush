@@ -457,6 +457,10 @@ namespace FallRush.OnChain
                 SceneManager.LoadScene(scene);
         }
 
+        private int _dropsSeen;
+        /// <summary>P4: a Chaos Drop appeared in the World (kind, trigger tick).</summary>
+        public event Action<byte, uint> DropSeen;
+
         /// <summary>P4: the newest World's tick and RUSH tick (the economy HUD's drop bar / bet windows).</summary>
         public uint LastWorldTick, LastRushTick;
 
@@ -513,6 +517,15 @@ namespace FallRush.OnChain
             // P4: the drop queue for the hazard views (Lid Frenzy lids, Sweeper Rush) and the economy HUD
             var vv = view;
             FallRush.Client.ChaosDropFx.Set(i => (vv.DropTick(i), vv.DropKind(i), vv.DropArg(i)), view.RoundStart, view.HazardSeed);
+            for (var i = _dropsSeen; i < 8 && view.DropKind(i) != 0; i++)
+            {
+                // P4 feel: when this client first sees a drop vs when it resolves (the telegraph it actually got)
+                _dropsSeen = i + 1;
+                Debug.Log($"[onchain] drop seen {FallRush.Client.ChaosDropFx.Names[view.DropKind(i)]} at tick {view.Tick} trigger {view.DropTick(i)} telegraph {(int)view.DropTick(i) - (int)view.Tick} ticks ({((int)view.DropTick(i) - (int)view.Tick) / 30f:F2} s) recv {m.RecvAt:F3}");
+                DropSeen?.Invoke(view.DropKind(i), view.DropTick(i));
+            }
+            if (view.DropKind(0) == 0)
+                _dropsSeen = 0;
             LastWorldTick = view.Tick;
             LastRushTick = view.RushTick;
             if (cs != null)

@@ -420,3 +420,38 @@ mod tests {
         assert_eq!(wind_at(&q, 50 + WIND_TICKS), (0, 0));
     }
 }
+
+#[cfg(test)]
+mod parity_digest {
+    use super::*;
+
+    /// The digest the C# port (`ChaosDropFx`, Unity EditMode `ChaosDropFxTests`) must reproduce: Lid Frenzy states over
+    /// args × hazard times × lids of a 9 × 9 grid with retirement rings, the sweeper warp, the bumper spots.
+    pub fn digest() -> u64 {
+        let mut d = LidGridDef { origin_x: 0, origin_z: 0, top: 6000, n: 9, lid: 1800, gap: 60, ring_retire_count: 3, retire_warn_ticks: 90, ..Default::default() };
+        d.ring_retire_ticks[..3].copy_from_slice(&[750, 1500, 2250]);
+        let mut h = crate::vectors::Fnv::default();
+        for arg in [0u8, 7, 77, 200, 255] {
+            for start in [0i64, 700] {
+                let mut t = start - 5;
+                while t < start + 150 {
+                    for lid in 0..81 {
+                        let v = frenzy_state(&d, lid, start, arg, t).map(|s| s as u8 + 1).unwrap_or(0);
+                        h.bytes(&[v]);
+                    }
+                    t += 7;
+                }
+            }
+            let b = bumper_lids(&d, arg, 0x1234_5678_9ABC_DEF0);
+            for x in b {
+                h.bytes(&x.to_le_bytes());
+            }
+        }
+        h.0
+    }
+
+    #[test]
+    fn print_digest() {
+        println!("CHAOS_DROP_DIGEST {:016x}", digest());
+    }
+}

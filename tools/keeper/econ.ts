@@ -81,7 +81,9 @@ export async function setupEcon(arenaId: number, out: Record<string, string> = {
     const acc = k < MARKETS ? epda.market(arenaId, k) : epda.drops(arena);
     const onBase = await base.getAccountInfo(acc);
     if (!onBase) out[`init_econ_${k}`] = await sendBase([await econIx(wallet.publicKey, OP.INIT_ECON, arenaId, k, [r_(cfg), r_(arena), w_(acc), r_(SystemProgram.programId)], false)], [wallet], `init_econ ${k}`);
-    const now = await base.getAccountInfo(acc);
+    // the public RPC can lag behind the confirmation: wait until the new account is visible before delegating it
+    let now = await base.getAccountInfo(acc, "confirmed");
+    for (let i = 0; i < 60 && !now; i++) { await sleep(1000); now = await base.getAccountInfo(acc, "confirmed"); }
     if (now && now.owner.equals(PROGRAM_ID)) {
       out[`delegate_econ_${k}`] = await sendBase([await pb.methods.delegateSim(k < MARKETS ? 4 : 5, arenaId, k < MARKETS ? k : 0).accountsPartial({ authority: wallet.publicKey, pda: acc }).remainingAccounts(val).instruction()], [wallet], `delegate econ ${k}`);
     }

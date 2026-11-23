@@ -1,0 +1,17 @@
+{"t":1795391329595,"name":"S1","role":"stand","act":"init","burner":"J4c9Q6i66PfFaQf7nqdcaycQg64b5R2g1STAsgqnKQKp","session":"JBecoZAk1uh5sQazTxHytvVFM6vFz2k6g5BitkaBc1Ug"}
+{"t":1795391330733,"name":"S1","role":"stand","act":"fund","ok":true,"sig":"4JDX3f2WokTrLgRYVeBkb7BZ93WUQgK71ccjydensCHUHHxW6DYUtkMujRSdyNW3rP5BWs4HkUZKs5nwFaaGSkrc","lamports":7707320}
+{"t":1795391333236,"name":"S1","role":"stand","act":"session","ok":true,"token":"DRZgAW4nyhuUNHmSDAGe7xX8MhpY1uNf3EPNiZfFxE9T"}
+{"t":1795391358782,"name":"S1","role":"stand","act":"chips_retry","i":0,"error":"chips not on the rollup yet"}
+{"t":1795391385379,"name":"S1","role":"stand","act":"chips_retry","i":1,"error":"chips not on the rollup yet"}
+{"t":1795391414783,"name":"S1","role":"stand","act":"chips_retry","i":2,"error":"chips not on the rollup yet"}
+{"t":1795391445782,"name":"S1","role":"stand","act":"chips_retry","i":3,"error":"chips not on the rollup yet"}
+{"t":1795391479520,"name":"S1","role":"stand","act":"chips_retry","i":4,"error":"chips not on the rollup yet"}
+{"t":1795391492354,"name":"S1","role":"stand","act":"chips","ok":true,"balance":"1000000000"}
+{"t":1795391493213,"name":"S1","role":"stand","act":"match","match":"zZ58FK3iL5q64tVKqzno2Br2pa4sNoi7k663rXdZ4Ga"}
+{"t":1795391493495,"name":"S1","role":"stand","act":"bet","k":0,"outcome":5,"amount":18,"ok":true,"sig":"3sp3x9q9Jq3H9tDYxn7Pn2oShBZsrNdap4arhQNRJkqUgjkResWVHqKPPWbrBQ6prrfc325qugPLZDnTZswUutbQ","session":true,"ms":203}
+{"t":1795391495668,"name":"S1","role":"stand","act":"bet","k":3,"outcome":10,"amount":9,"ok":true,"sig":"437xohx1M3bRbp9GJTHvo7WkCD8xWwmJCV2fScVy1CQm7v2drQHEQE3Lpq1guEZP5MX5HHCpzFGLUAbAucbGqd7g","session":true,"ms":212}
+{"t":1795391503070,"name":"S1","role":"stand","act":"bet","k":4,"outcome":7,"amount":8,"ok":true,"sig":"2aW3FPjgYoPYgB67gK1pgtdSSdtATpSeYeqt6bRupyN3TpjPyM2RnFkJFdMAkJqgZXHEtyLiRphAxURbjz2wKJ3Z","session":true,"ms":166}
+{"t":1795391510453,"name":"S1","role":"stand","act":"join","ok":true,"slot":7,"arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","map":"CrumbleShelf","rate":30,"coreVersion":2,"roster":[{"slot":3,"kind":"human","wallet":"959BqHTpT8fjNZp3UJG9UzsYT7estwkT2QkBEXggd6af"},{"slot":4,"kind":"human","wallet":"GKFNanU4D7RG6JEP7GwAvonaRjbRQgKZLcGNc5JSzgy4"},{"slot":7,"kind":"human","name":"P4-S1","wallet":"J4c9Q6i66PfFaQf7nqdcaycQg64b5R2g1STAsgqnKQKp"}],"world":"HYJRSXpSGZ3HdjmZr4oMy3x6VgTWLcarkgHav7L4hSTQ","match":"zZ58FK3iL5q64tVKqzno2Br2pa4sNoi7k663rXdZ4Ga"}
+{"t":1795391511059,"name":"S1","role":"stand","act":"bet","k":1,"outcome":7,"amount":15,"ok":true,"sig":"2CdvwLYibo7RxFkGhXvEm6YPitTA46reJhq2mqqgEGt1tto6gwUyJ9EoCsABRA2bCKUBWs8xZrKNiEuXyszhkb9R","session":true,"ms":215}
+{"t":1795391562267,"name":"S1","role":"stand","act":"markets_paid","balance":"980192307"}
+{"t":1795391562485,"name":"S1","role":"stand","act":"end","balance":"980192307","won":"30192307","spent":"50000000"}

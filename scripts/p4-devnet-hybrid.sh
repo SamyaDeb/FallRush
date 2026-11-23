@@ -17,13 +17,13 @@ bal | tee "$OUT/balances.txt"
 bash scripts/m1-macserver.sh stop >/dev/null 2>&1; sleep 1
 : > .m1-logs/macserver.log
 P=()
-for n in A B; do node tools/p4/bundle-player.mjs --net devnet --name $n --role bettor --run "$RUN" > ".m1-logs/$RUN-$n.log" 2>&1 & P+=($!); done
+for n in A B; do node tools/p4/bundle-player.mjs --net devnet --name $n --role bettor --run "$RUN" > ".m1-logs/$RUN-$n.log" 2>&1 & P+=($!); sleep 9; done
 node tools/p4/bundle-player.mjs --net devnet --name C --role spectator --drops "${DROPS:-1,3,4}" --run "$RUN" > ".m1-logs/$RUN-C.log" 2>&1 & P+=($!)
 node tools/p3/chain-relay.mjs --net devnet --fund-from ~/.config/solana/id.json --fund-lamports 20000000 > ".m1-logs/$RUN-relay.log" 2>&1 &
 RELAY=$!
 cleanup() { kill $RELAY 2>/dev/null; [[ -n "${KEEPER:-}" ]] && kill $KEEPER 2>/dev/null; for p in "${P[@]}"; do kill $p 2>/dev/null; done; bash scripts/m1-macserver.sh stop >/dev/null 2>&1; }
 trap cleanup EXIT
-sleep 35   # players + relay: fund, session, chips
+sleep 60   # players + relay: fund, session, chips (staggered: devnet RPC rate limits)
 W="$(cat .m1-logs/$RUN-[ABC].log | grep -o "burner [1-9A-HJ-NP-Za-km-z]*" | awk '{print $2}' | sort -u | tr '\n' ' ') $(grep -o "burner [1-9A-HJ-NP-Za-km-z]*" .m1-logs/$RUN-relay.log | head -1 | awk '{print $2}') $(solana-keygen pubkey tools/keeper/.keys/devnet-mm.json 2>/dev/null)"
 P2_NET=devnet ARENA=2 $TSX tools/p4/econ-check.ts snapshot "$RUN" $W
 bash scripts/m1-macserver.sh start -fallrushBots 12 -fallrushMatchSize 12 -fallrushMatchLogDir "$LOGDIR" \

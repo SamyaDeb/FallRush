@@ -479,9 +479,29 @@ export class RollupTransport implements Transport {
         const target = resolvePubkey(cfg.session.targetProgram, this.refs());
         const topUp = (args.topUp as boolean | undefined) ?? cfg.session.topUp ?? true;
         const lamports = (args.lamports as number | undefined) ?? cfg.session.topUpLamports ?? null;
-        const { ix, token } = createSessionV2Ix({ programId, targetProgram: target, sessionSigner: w.session.publicKey, feePayer: authority, authority, topUp, validUntil, lamports });
+        let { ix, token } = createSessionV2Ix({ programId, targetProgram: target, sessionSigner: w.session.publicKey, feePayer: authority, authority, topUp, validUntil, lamports });
+        void token;
         this.ctx.events.push({ type: 'session', state: 'creating' });
-        const r = await this.sendBase([ix], 'session.create', [w.session], phantom);
+        let r: { ok: boolean; err?: unknown; sig?: string };
+        try { r = await this.sendBase([ix], 'session.create', [w.session], phantom); } catch (e) { r = { ok: false, err: errMsg(e) }; }
+        if (!r.ok) {
+          // P4: a create that landed although its confirmation timed out left the token on-chain unsaved ("already in
+          // use" on the next try): adopt it when still valid for this signer + authority, else retry with a fresh signer
+          try {
+            const ex = await this.base.getAccountInfo(token, 'confirmed');
+            const t = ex ? decodeSessionTokenV2(toU8(ex.data)) : null;
+            if (t && t.sessionSigner.equals(w.session.publicKey) && t.authority.equals(authority) && !isExpired(t, nowSec + 300)) {
+              w.saveSessionMeta({ authority: authority.toBase58(), feePayer: t.feePayer.toBase58(), validUntil: Number(t.validUntil), token: token.toBase58() });
+              this.ctx.events.push({ type: 'session', state: 'adopted', validUntil: Number(t.validUntil) });
+              return { ok: true, note: 'adopted the existing token', ...this.sessionInfo(nowSec) };
+            }
+            if (t) {
+              w.rotateSession(this.clock.wallMs());
+              ({ ix, token } = createSessionV2Ix({ programId, targetProgram: target, sessionSigner: w.session.publicKey, feePayer: authority, authority, topUp, validUntil, lamports }));
+              try { r = await this.sendBase([ix], 'session.create', [w.session], phantom); } catch (e) { r = { ok: false, err: errMsg(e) }; }
+            }
+          } catch { /* report the first error */ }
+        }
         if (!r.ok) { this.ctx.events.push({ type: 'session', state: 'error', why: safeJson(r.err) }); return { ok: false, error: safeJson(r.err), sig: r.sig }; }
         w.saveSessionMeta({ authority: authority.toBase58(), feePayer: authority.toBase58(), validUntil, token: token.toBase58() });
         this.ctx.events.push({ type: 'session', state: 'active', validUntil });

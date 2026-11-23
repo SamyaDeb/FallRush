@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using FallRush.Client;
 using FallRush.Net;
 using FallRush.Shared;
 using UnityEngine;
@@ -31,8 +32,39 @@ namespace FallRush.OnChain
             return float.TryParse(NetTargets.GetQueryParam(Application.absoluteURL, "onchainauto"), out var q) ? q : 0f;
         }
 
+        /// <summary>P4 feel: a screenshot of each Chaos Drop's telegraph (10 ticks after it appears), next to the probe's shot.</summary>
+        private static void HookDropShots(OnChainSession s)
+        {
+            var shot = ShotArg();
+            if (string.IsNullOrEmpty(shot))
+                return;
+            var n = 0;
+            s.DropSeen += (kind, trigger) =>
+            {
+                var path = System.IO.Path.ChangeExtension(shot, null) + $"-drop{++n}-{ChaosDropFx.Names[kind].Replace(' ', '_')}.png";
+                s.StartCoroutine(ShotLater(path, 0.33f));
+            };
+        }
+
+        private static System.Collections.IEnumerator ShotLater(string path, float secs)
+        {
+            yield return new WaitForSecondsRealtime(secs);
+            ScreenCapture.CaptureScreenshot(path);
+            Debug.Log($"[onchain] drop telegraph shot {path}");
+        }
+
+        private static string ShotArg()
+        {
+            var a = Environment.GetCommandLineArgs();
+            for (var i = 0; i < a.Length - 1; i++)
+                if (a[i] == "-fallrushOnchainShot")
+                    return a[i + 1];
+            return null;
+        }
+
         public static void Attach(OnChainSession s, float seconds)
         {
+            HookDropShots(s);
             var a = s.gameObject.AddComponent<OnChainAutoPlay>();
             a._seconds = seconds;
             var args = Environment.GetCommandLineArgs();
@@ -83,9 +115,28 @@ namespace FallRush.OnChain
         private readonly bool[] _bet = new bool[5];
         private float _betAt;
 
+        // P4 (auto-play probe, opt-in: -fallrushOnchainAutoDrop / ?autodrop=1): buys up to 2 Chaos Drops through the
+        // in-game economy (the drop bar's path) once the Final's RUSH is on
+        private static readonly bool AutoDropOn = Array.Exists(Environment.GetCommandLineArgs(), a => a == "-fallrushOnchainAutoDrop") || NetTargets.GetQueryParam(Application.absoluteURL, "autodrop") == "1";
+        private int _drops;
+        private float _dropAt;
+
+        private void AutoDrop(ChainEconomy e)
+        {
+            if (!AutoDropOn || _drops >= 2 || _t < _dropAt || !e.DropOpen(out _))
+                return;
+            _dropAt = _t + 7f;
+            var kind = _drops == 0 ? 1 : 3;
+            _drops++;
+            Debug.Log($"[onchain] auto-drop {ChaosDropFx.Names[kind]}");
+            e.Drop(kind, ok => Debug.Log($"[onchain] auto-drop {kind}: {(ok ? "ok" : e.LastError)} {(e.LastSession ? "session key" : "")} {e.LastSig}"));
+        }
+
         private void AutoBet(OnChainSession s)
         {
             var e = ChainEconomy.Instance;
+            if (e != null && e.State != null)
+                AutoDrop(e);
             if (e?.State?.match == null || _t < _betAt)
                 return;
             _betAt = _t + 1.5f;

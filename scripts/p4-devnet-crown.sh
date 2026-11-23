@@ -11,10 +11,10 @@ bal() { echo "$(date -u +%T) admin $(solana balance -u devnet -k ~/.config/solan
 bal | tee "$OUT/balances.txt"
 TSX=node_modules/.bin/tsx
 P=()
-for n in S1 S2 S3; do node tools/p4/bundle-player.mjs --net devnet --name $n --role stand --run "$RUN" > ".m1-logs/$RUN-$n.log" 2>&1 & P+=($!); done
-node tools/p4/bundle-player.mjs --net devnet --name A --role bettor --run "$RUN" > ".m1-logs/$RUN-A.log" 2>&1 & P+=($!)
+for n in S1 S2 S3; do node tools/p4/bundle-player.mjs --net devnet --name $n --role stand --run "$RUN" > ".m1-logs/$RUN-$n.log" 2>&1 & P+=($!); sleep 9; done
+sleep 9; node tools/p4/bundle-player.mjs --net devnet --name A --role bettor --run "$RUN" > ".m1-logs/$RUN-A.log" 2>&1 & P+=($!); sleep 9
 node tools/p4/bundle-player.mjs --net devnet --name C --role spectator --drops "${DROPS:-1,2,3}" --run "$RUN" > ".m1-logs/$RUN-C.log" 2>&1 & P+=($!)
-sleep 40   # players: fund, session, chips
+sleep 60   # players: fund, session, chips (staggered: devnet RPC rate limits)
 W=$(cat .m1-logs/$RUN-*.log | grep -o "burner [1-9A-HJ-NP-Za-km-z]*" | awk '{print $2}' | sort -u | tr '\n' ' ')
 MM=$(solana-keygen pubkey tools/keeper/.keys/devnet-mm.json 2>/dev/null)
 P2_NET=devnet ARENA=2 $TSX tools/p4/econ-check.ts snapshot "$RUN" $W $MM
