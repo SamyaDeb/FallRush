@@ -14,6 +14,8 @@
 //   rc_vectors(kind, seed, n, map_ptr, map_len) -> u64
 //   rc_set_player(h, slot, ptr) / rc_set_rate(h, rate) / rc_respawn(h, slot) / rc_clock(h)
 //   rc_free(h)
+//   rc_lids(h, out_ptr, cap) -> n                P5 views: every lid of every LID_FLIP grid at the World's tick, 9 B each {x i32, z i32, state u8}
+//   rc_sweepers(h, out_ptr, cap) -> n            P5 views: 20 B each {pivot_x, pivot_z, arm, cos_q15, sin_q15} i32
 use rush_core::codec::{Codec, Enc};
 use rush_core::config::MovementParams;
 use rush_core::input::InputCmd;
@@ -306,4 +308,78 @@ pub unsafe extern "C" fn rc_dealloc(p: *mut u8, len: u32) {
     if !p.is_null() {
         drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(p, len as usize)));
     }
+}
+
+/// P5 views (/live, /replay): lid centres + states at the World's current tick (the same states the step uses).
+///
+/// # Safety
+/// `out_ptr` → `cap` writable bytes.
+#[no_mangle]
+pub unsafe extern "C" fn rc_lids(h: i32, out_ptr: *mut u8, cap: u32) -> u32 {
+    use rush_core::hazards::{defs::HazardType, lid};
+    if out_ptr.is_null() {
+        return 0;
+    }
+    let out = std::slice::from_raw_parts_mut(out_ptr, cap as usize);
+    with(h, |c| {
+        let map = MapView::new(&c.map).unwrap();
+        let cfg = c.w.motor_config(&c.params);
+        let sc = world::pose_scene(&c.w, &map, &cfg, c.w.tick);
+        let mut hz = c.w.hazards(&map);
+        hz.ph = Some(&sc.phases);
+        let t30 = rush_core::hazards::t30(c.w.t60(c.w.tick));
+        let mut n = 0usize;
+        let mut st = [lid::LidState::Idle; lid::MAX_LIDS_PER_GRID];
+        for g in 0..hz.count(HazardType::LidFlip) {
+            let d = hz.lid_grid(g);
+            sc.lid_states(g, &d, t30, &mut st);
+            for k in 0..(d.count() as usize).min(lid::MAX_LIDS_PER_GRID) {
+                if (n + 1) * 9 > out.len() {
+                    return n as u32;
+                }
+                let (x, _, z) = d.lid_center(k as i32);
+                out[n * 9..n * 9 + 4].copy_from_slice(&x.to_le_bytes());
+                out[n * 9 + 4..n * 9 + 8].copy_from_slice(&z.to_le_bytes());
+                out[n * 9 + 8] = st[k] as u8;
+                n += 1;
+            }
+        }
+        n as u32
+    })
+    .unwrap_or(0)
+}
+
+/// P5 views: every spinner bar (sweeper) at the World's current tick.
+///
+/// # Safety
+/// `out_ptr` → `cap` writable bytes.
+#[no_mangle]
+pub unsafe extern "C" fn rc_sweepers(h: i32, out_ptr: *mut u8, cap: u32) -> u32 {
+    use rush_core::hazards::defs::HazardType;
+    if out_ptr.is_null() {
+        return 0;
+    }
+    let out = std::slice::from_raw_parts_mut(out_ptr, cap as usize);
+    with(h, |c| {
+        let map = MapView::new(&c.map).unwrap();
+        let cfg = c.w.motor_config(&c.params);
+        let sc = world::pose_scene(&c.w, &map, &cfg, c.w.tick);
+        let mut hz = c.w.hazards(&map);
+        hz.ph = Some(&sc.phases);
+        let t60 = c.w.t60(c.w.tick);
+        let mut n = 0usize;
+        for i in 0..hz.count(HazardType::SpinnerBar) {
+            if (n + 1) * 20 > out.len() {
+                break;
+            }
+            let d = hz.sweeper(i);
+            let (co, si) = rush_core::hazards::sweeper_dir(&d, t60);
+            for (j, v) in [d.pivot_x, d.pivot_z, d.arm, co, si].iter().enumerate() {
+                out[n * 20 + j * 4..n * 20 + j * 4 + 4].copy_from_slice(&v.to_le_bytes());
+            }
+            n += 1;
+        }
+        n as u32
+    })
+    .unwrap_or(0)
 }
