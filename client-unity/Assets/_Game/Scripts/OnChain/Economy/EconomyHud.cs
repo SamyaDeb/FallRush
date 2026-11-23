@@ -162,9 +162,9 @@ namespace FallRush.OnChain
             }
 
             var head = UiKit.Row(body, 30f, 6f);
-            _betTitle = UiKit.Cell(head, string.Empty, 190f, 22, UiKit.Ink, TextAlignmentOptions.Left, true);
+            _betTitle = UiKit.Cell(head, string.Empty, 170f, 22, UiKit.Ink, TextAlignmentOptions.Left, true);
             _betTitle.font = UiKit.Display;
-            _sealedChip = UiKit.Chip(head, "sealed · revealed at close", UiKit.CardRim(UiKit.CardHue.Grape), Color.white, UiIcon.Lock, 12, 24f);
+            _sealedChip = UiKit.Chip(head, "sealed", UiKit.CardRim(UiKit.CardHue.Grape), Color.white, UiIcon.Lock, 12, 24f);
             _betState = UiKit.Cell(head, string.Empty, 90f, 13, UiKit.Grape, TextAlignmentOptions.Right, true);
             var prow = UiKit.Row(body, 22f, 6f);
             _pool = UiKit.Cell(prow, string.Empty, 410f, 15, UiKit.Ink, TextAlignmentOptions.Left, true);
@@ -308,7 +308,7 @@ namespace FallRush.OnChain
 
         private void BuildReceipt()
         {
-            _receiptCard = UiKit.MakeCard(_canvas, UiKit.CardSize.M, UiKit.CardHue.Tangerine, "MATCH RECEIPT", new Vector2(480f, 600f), UiIcon.Check);
+            _receiptCard = UiKit.MakeCard(_canvas, UiKit.CardSize.M, UiKit.CardHue.Tangerine, "MATCH RECEIPT", new Vector2(480f, 540f), UiIcon.Check);
             _receipt = _receiptCard.Root;
             _receipt.anchorMin = _receipt.anchorMax = _receipt.pivot = new Vector2(0f, 0.5f);
             _receipt.anchoredPosition = new Vector2(14f, -24f);
@@ -619,7 +619,7 @@ namespace FallRush.OnChain
             if (_betMarket == 0 && e.Sealed?.escrow != null && e.Sealed.escrow.n + (e.Sealed.open ? 1 : 0) > 0)
             {
                 var es = e.Sealed.escrow;
-                _sb.Append("Sealed: picks stay hidden in MagicBlock's private rollup (TEE) until the market closes · ").Append(es.n).Append(" sealed bet(s), ")
+                _sb.Append("Sealed: picks stay hidden in MagicBlock's private rollup (TEE) and are revealed at close · ").Append(es.n).Append(" sealed bet(s), ")
                     .Append(ChainEconomy.Rush(ChainEconomy.Parse(es.pool))).Append(" RUSH");
                 if (es.state >= 2)
                     _sb.Append(" · revealed ").Append(es.nRevealed).Append('/').Append(es.n).Append(es.nForfeit > 0 ? $", {es.nForfeit} forfeited" : string.Empty);
@@ -739,8 +739,11 @@ namespace FallRush.OnChain
                 e.FetchReceipt(mpda);
             if (e.Receipt != null && e.Receipt.match == mpda && e.Receipt.onSolana)
                 _receiptFor = mpda;
-            if (_closed)
+            // P7: the next match's rounds 1–3 have started (deal or a round): the old receipt steps aside
+            var nextMatch = cs?.Match != null && cs.Match.Phase >= MatchPhase.RosterLocked && cs.Match.Phase <= MatchPhase.Intermission && cs.Match.Round < cs.Match.RoundCount;
+            if (_closed || nextMatch)
             {
+                UiMotion.SetVisible(_receipt, false);
                 MatchHud.ExternalReceipt = false;
                 return;
             }
@@ -766,7 +769,8 @@ namespace FallRush.OnChain
                 if (r.receipt.wallets[i] == r.me)
                     me = i;
             var champ = r.champion;
-            _rChamp.text = $"♛ {(champ < 12 ? SlotName(champ) : "-")}{(champ == me && me >= 0 ? " (you)" : string.Empty)}";
+            var champName = champ < 12 ? SlotName(champ) : cs?.Match != null && cs.Match.Champion < 12 ? SlotName(cs.Match.Champion) : "…";
+            _rChamp.text = $"♛ {champName}{(champ == me && me >= 0 ? " (you)" : string.Empty)}";
             if (e.MatchStartBalance >= 0 && e.Balance >= 0)
             {
                 var d = (e.Balance - e.MatchStartBalance) / (double)ChainEconomy.One;

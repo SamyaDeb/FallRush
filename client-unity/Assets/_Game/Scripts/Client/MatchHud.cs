@@ -402,8 +402,8 @@ namespace FallRush.Client
         {
             _champCard = UiKit.MakeCard(canvas, UiKit.CardSize.L, UiKit.CardHue.Lemon, "CHAMPION", new Vector2(460f, 300f), UiIcon.Crown);
             _champ = _champCard.Root;
-            _champ.anchorMin = _champ.anchorMax = _champ.pivot = new Vector2(0f, 0.5f);
-            _champ.anchoredPosition = new Vector2(28f, -20f);
+            _champ.anchorMin = _champ.anchorMax = _champ.pivot = new Vector2(1f, 0.5f); // right: the on-chain receipt opens on the left
+            _champ.anchoredPosition = new Vector2(-28f, -20f);
             var b = _champCard.Body;
             _champName = UiKit.Label(b, string.Empty, 40, UiKit.Ink, FontStyle.Bold, 50);
             _champName.font = UiKit.Display;
@@ -877,7 +877,7 @@ namespace FallRush.Client
 
         /// <summary>A practice match: the server's practice flag and no on-chain recording (the public Classic server runs
         /// its matches with the practice flag; the arena keeper records them, so those are not practice).</summary>
-        private static bool IsPracticeMatch(MatchStateMessage m) => (m.Flags & MatchStateMessage.FlagPractice) != 0 && !RecordedMatch;
+        private static bool IsPracticeMatch(MatchStateMessage m) => (m.Flags & MatchStateMessage.FlagPractice) != 0 && !RecordedMatch && DevMenu.Enabled;
 
         private static int AliveCount(MatchStateMessage m)
         {
