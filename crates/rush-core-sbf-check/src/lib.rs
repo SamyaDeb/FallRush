@@ -51,6 +51,19 @@ pub fn process(_program: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> Prog
                     set_return_data(&h.0.to_le_bytes());
                     return Ok(());
                 }
+                if kind == rush_core::vectors::KIND_DROPS {
+                    let mut sc = new_scene(v);
+                    let mut h = rush_core::vectors::Fnv(state);
+                    let mut buf = [0u8; rush_core::vectors::MAX_CASE];
+                    let mut i = start;
+                    while i < start + n {
+                        let len = rush_core::world::drops_case_with(&mut world, &mut sc, &v, seed, i, &mut buf);
+                        h.bytes(&buf[..len]);
+                        i += 1;
+                    }
+                    set_return_data(&h.0.to_le_bytes());
+                    return Ok(());
+                }
                 if kind == rush_core::vectors::KIND_WORLD {
                     // world cases on a heap Scene (sBPF frames are 4 KB; a Scene is ≈ 3.5 KB)
                     let mut sc = new_scene(v);

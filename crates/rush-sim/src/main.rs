@@ -52,6 +52,7 @@ fn main() {
         ["soak", ..] => qa::soak(&args),
         ["replay", ..] => replay::cmd(&args),
         ["final-qa", ..] => qa::final_qa(&args),
+        ["final-qa-drops", ..] => qa::final_qa_drops(&args),
         ["split-check", ..] => qa::split_check(&args),
         ["vectors", "gen", ..] => vectors_cmd::gen(&args),
         ["vectors", "check", ..] => vectors_cmd::check(&args),

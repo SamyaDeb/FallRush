@@ -249,6 +249,14 @@ impl Ctx<'_, '_> {
     pub fn t60(&self, ahead: i64) -> i64 {
         self.w.t60(self.tick) + ahead * self.cfg.t60_per_tick as i64
     }
+    /// P4 Sweeper Rush: the extra sweeper time `ahead` ticks from now (0 with no drop queued), so bots read the bar
+    /// where it really is.
+    pub fn sweep_warp(&self, ahead: i64) -> i64 {
+        if self.w.drop_queue[0].kind == crate::drops::kind::NONE {
+            return 0;
+        }
+        crate::drops::sweeper_warp60(&self.w.drop_queue, (self.tick as i64 + ahead.max(0)) as u32, self.cfg.t60_per_tick as i64)
+    }
     /// Run speed in mm per tick.
     #[inline]
     pub fn run_per_tick(&self) -> i64 {

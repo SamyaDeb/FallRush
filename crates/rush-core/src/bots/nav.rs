@@ -533,7 +533,7 @@ fn hazard_at(c: &Ctx, x: i32, y: i32, z: i32, ahead: i64, r: i32, ball_margin: i
         let n = hz.count(HazardType::SpinnerBar);
         let mut i = 0;
         while i < n {
-            if hazards::sweeper_contact(&hz.sweeper(i), t60, f, r, h).is_some() {
+            if hazards::sweeper_contact(&hz.sweeper(i), t60 + c.sweep_warp(ahead), f, r, h).is_some() {
                 return true;
             }
             i += 1;
@@ -704,7 +704,7 @@ pub(crate) fn react_to_bars(c: &Ctx, _cmd: &mut InputCmd, jump: &mut bool, dive:
         let mut i = 0;
         while i < n {
             let d = hz.sweeper(i);
-            if hazards::sweeper_contact(&d, t60, f, c.cfg.radius, c.cfg.height).is_some() {
+            if hazards::sweeper_contact(&d, t60 + c.sweep_warp(k30), f, c.cfg.radius, c.cfg.height).is_some() {
                 let bottom = d.pivot_y + d.bar_height - d.bar_radius - s.pos.y;
                 if bottom >= 650 {
                     if k30 >= 4 && s.dive_cooldown == 0 {

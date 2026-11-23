@@ -223,7 +223,7 @@ impl Codec for Reactive {
     }
 }
 
-/// A queued Chaos Drop (P4). Empty in P1.
+/// A queued Chaos Drop (P4, `drops`): effect from `tick` (the trigger), `kind` (`drops::kind`), `arg` (seeded).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct QueuedDrop {
     pub tick: u32,
@@ -556,6 +556,11 @@ pub fn pose_scene<'m>(w: &World, map: &MapView<'m>, cfg: &MotorConfig, tick: u32
 #[inline(never)]
 pub fn pose_scene_into<'m>(sc: &mut Scene<'m>, w: &World, map: &MapView<'m>, cfg: &MotorConfig, tick: u32) {
     sc.reset(*map);
+    // P4 Chaos Drops: Lid Frenzy overlays the top grid's lid states (before any lid state is asked for)
+    let (fs, fa, fnn) = crate::drops::frenzies(&w.drop_queue, w.round_start, w.rate);
+    sc.frenzy_t30 = fs;
+    sc.frenzy_arg = fa;
+    sc.frenzy_n = fnn;
     sc.phases.build(&w.hazards(map));
     let tab = sc.phases;
     let mut hz = w.hazards(map);
@@ -702,6 +707,11 @@ pub fn hit_height(s: &MotorState, cfg: &MotorConfig) -> i32 {
 
 /// `HazardSet.ApplyKnocks`: spinners (from `SweeperStartT`), mallets, rolling balls, bumpers; at most one hit.
 pub fn apply_knocks(s: &mut MotorState, hz: &Hazards, t60: i64, cfg: &MotorConfig) -> bool {
+    apply_knocks_at(s, hz, t60, t60, cfg)
+}
+
+/// [`apply_knocks`] with the spinner bars posed at `t60_sweep` (P4 Sweeper Rush: hazard time + the drop's warp).
+pub fn apply_knocks_at(s: &mut MotorState, hz: &Hazards, t60: i64, t60_sweep: i64, cfg: &MotorConfig) -> bool {
     if s.immunity > 0 || s.has(flag::RESPAWNING) {
         return false;
     }
@@ -713,7 +723,7 @@ pub fn apply_knocks(s: &mut MotorState, hz: &Hazards, t60: i64, cfg: &MotorConfi
         let mut i = 0;
         while i < n {
             let d = hz.sweeper(i);
-            if let Some(p) = hazards::sweeper_contact(&d, t60, s.pos, r, h) {
+            if let Some(p) = hazards::sweeper_contact(&d, t60_sweep, s.pos, r, h) {
                 knock(s, p, d.knockback_cms, d.knock_up_cms, d.stun_ticks, d.immunity_ticks, cfg);
                 return true;
             }
@@ -817,6 +827,26 @@ pub fn apply_doors(s: &mut MotorState, hz: &Hazards, t60: i64, cfg: &MotorConfig
     pushed
 }
 
+/// P4 Bumper Rain: a bumper landing this tick knocks a player near it outward (once; immunity / respawn respected).
+fn bumper_rain(s: &mut MotorState, w: &World, hz: &Hazards, tick: u32, cfg: &MotorConfig) -> bool {
+    let m = crate::drops::bumpers_at(&w.drop_queue, tick);
+    if m == 0 || s.immunity > 0 || s.has(flag::RESPAWNING) || hz.count(HazardType::LidFlip) < crate::drops::TOP_GRID + 1 {
+        return false;
+    }
+    let d = hz.lid_grid(crate::drops::TOP_GRID);
+    let mut i = 0;
+    while i < DROP_QUEUE {
+        if m >> i & 1 == 1 {
+            if let Some(n) = crate::drops::bumper_hit(&d, w.drop_queue[i].arg, w.hazard_seed, s.pos) {
+                knock(s, n, crate::drops::BUMPER_PUSH_CMS, crate::drops::BUMPER_UP_CMS, crate::drops::BUMPER_STUN30, crate::drops::BUMPER_IMM30, cfg);
+                return true;
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
 /// `PlayerStep.Run`: doors → motor → knocks (else springs) → fall volume / goo. Returns `step_result` bits.
 pub fn player_step(cfg: &MotorConfig, s: &mut MotorState, cmd: &InputCmd, w: &World, map: &MapView, sc: &Scene, tick: u32) -> u8 {
     if s.has(flag::RESPAWNING) {
@@ -828,8 +858,16 @@ pub fn player_step(cfg: &MotorConfig, s: &mut MotorState, cmd: &InputCmd, w: &Wo
     if apply_doors(s, &hz, t60, cfg) {
         r |= step_result::DOOR_PUSHED;
     }
+    // P4 Chaos Drops (map-wide; empty queue = no change): Wind Gust pushes before the motor step
+    let any_drop = w.drop_queue[0].kind != crate::drops::kind::NONE;
+    if any_drop {
+        let (wx, wz) = crate::drops::wind_at(&w.drop_queue, tick);
+        s.vel.x += wx;
+        s.vel.z += wz;
+    }
     motor::step(cfg, s, cmd, sc);
-    if apply_knocks(s, &hz, t60, cfg) {
+    let t60_sweep = if any_drop { t60 + crate::drops::sweeper_warp60(&w.drop_queue, tick, cfg.t60_per_tick as i64) } else { t60 };
+    if apply_knocks_at(s, &hz, t60, t60_sweep, cfg) || (any_drop && bumper_rain(s, w, &hz, tick, cfg)) {
         r |= step_result::HAZARD_HIT;
     } else if apply_springs(s, &hz) {
         r |= step_result::LAUNCHED;
@@ -1210,6 +1248,67 @@ pub fn vector_case_with<'m>(w: &mut World, sc: &mut Scene<'m>, map: &MapView<'m>
     wr.u8(rate as u8);
     wr.i64(w.hash() as i64);
     wr.n
+}
+
+/// Chaos Drops vector case `i` (`drops_v1.bin`, P4) on a Lid Flip map: 12 players (half bots) at 30 Hz from hazard
+/// time 700 ticks (sweeper sweeping, lid waves on), 1–3 random drops of random kinds queued to trigger inside the
+/// window, 60 ticks of random inputs; writes the drop queue + the World hash.
+pub fn drops_case_with<'m>(w: &mut World, sc: &mut Scene<'m>, map: &MapView<'m>, seed: u64, i: u32, out: &mut [u8]) -> usize {
+    let mut r = crate::vectors::Rng(seed ^ 0xD20F_0000 ^ (i as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15));
+    r.next();
+    w.reset(map, 30);
+    w.hazard_seed = r.next();
+    w.variant = (r.range(0, 1)) as u8;
+    w.tick = 700 + r.range(0, 200) as u32;
+    w.round_start = 0;
+    let mut s = 0;
+    while s < MAX_PLAYERS {
+        w.add_player(map, s, s % 2 == 1);
+        s += 1;
+    }
+    let n = r.range(1, 3);
+    let mut k = 0;
+    while k < n {
+        let kind = r.range(1, crate::drops::kind::COUNT as i64) as u8;
+        let trigger = w.tick + 1 + r.range(0, 30) as u32;
+        let arg = crate::drops::arg_for(w.hazard_seed, k as u8, kind);
+        crate::drops::enqueue(&mut w.drop_queue, kind, arg, trigger);
+        k += 1;
+    }
+    let params = MovementParams::default();
+    let mut ev = StepEvents::default();
+    let mut t = 0;
+    while t < 60 {
+        let mut inputs = [None; MAX_PLAYERS];
+        let mut s = 0;
+        while s < MAX_PLAYERS {
+            if r.range(0, 9) != 0 {
+                inputs[s] = Some(InputCmd { move_x: r.range(-127, 127) as i8, move_y: r.range(-127, 127) as i8, buttons: (r.next() as u8) & 0x0F, cam_yaw: r.next() as u16 });
+            }
+            s += 1;
+        }
+        ev.n = 0;
+        step_with(w, &inputs, map, &params, &mut NoHasher, &mut ev, sc);
+        t += 1;
+    }
+    let mut wr = crate::vectors::W { b: out, n: 0 };
+    let mut q = 0;
+    while q < DROP_QUEUE {
+        wr.u8(w.drop_queue[q].kind);
+        wr.u8(w.drop_queue[q].arg);
+        q += 1;
+    }
+    wr.i64(w.hash() as i64);
+    wr.n
+}
+
+pub fn drops_case(w: &mut World, map_bytes: &[u8], seed: u64, i: u32, out: &mut [u8]) -> usize {
+    let map = match MapView::new(map_bytes) {
+        Ok(m) => m,
+        Err(_) => return 0,
+    };
+    let mut sc = Scene::new(map);
+    drops_case_with(w, &mut sc, &map, seed, i, out)
 }
 
 pub fn vector_case(w: &mut World, map_bytes: &[u8], seed: u64, i: u32, out: &mut [u8]) -> usize {

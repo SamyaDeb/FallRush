@@ -10,7 +10,7 @@ use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
 
-const CHUNK: [(u8, u32); 5] = [(1, 1000), (2, 200), (3, 50), (4, 1000), (5, 4)];
+const CHUNK: [(u8, u32); 6] = [(1, 1000), (2, 200), (3, 50), (4, 1000), (5, 4), (6, 2)];
 
 #[test]
 fn sbf_matches_native() {
@@ -27,7 +27,7 @@ fn sbf_matches_native() {
     svm.airdrop(&payer.pubkey(), 1_000_000_000_000).unwrap();
     let dir = root.join("crates/rush-core/tests/vectors");
     let mut report = String::new();
-    for name in ["fx_v1", "collide_v1", "motor_v1", "hazard_v2", "world_v1"] {
+    for name in ["fx_v1", "collide_v1", "motor_v1", "hazard_v2", "world_v1", "drops_v1"] {
         let f = std::fs::read(dir.join(format!("{name}.bin"))).unwrap();
         let kind = f[4];
         let seed = u64::from_le_bytes(f[5..13].try_into().unwrap());

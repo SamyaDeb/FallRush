@@ -193,6 +193,12 @@ pub struct Scene<'m> {
     pub work_cap: core::cell::Cell<u32>,
     /// Inscribed circles of the last prisms queried: (collider + 1, centroid x, z, r_in²), sub-mm (P2 0.2).
     pub prism_in: core::cell::Cell<[(u32, i64, i64, i64); 2]>,
+    /// P4 Chaos Drops: this tick's Lid Frenzy starts (hazard t30) and args, `frenzy_n` of them (filled by
+    /// `world::pose_scene` from `World::drop_queue`); applied over grid `drops::TOP_GRID` in [`Scene::lid_states`], so
+    /// the collision pose and every bot see the same lids.
+    pub frenzy_t30: [i64; 4],
+    pub frenzy_arg: [u8; 4],
+    pub frenzy_n: u8,
 }
 
 /// Balls whose kinematics a `Scene` keeps.
@@ -271,6 +277,9 @@ impl<'m> Scene<'m> {
             work: core::cell::Cell::new(0),
             work_cap: core::cell::Cell::new(u32::MAX),
             prism_in: core::cell::Cell::new([(0, 0, 0, 0); 2]),
+            frenzy_t30: [0; 4],
+            frenzy_arg: [0; 4],
+            frenzy_n: 0,
         }
     }
 
@@ -357,6 +366,7 @@ impl<'m> Scene<'m> {
         self.work.set(0);
         self.work_cap.set(u32::MAX);
         self.prism_in.set([(0, 0, 0, 0); 2]);
+        self.frenzy_n = 0;
     }
 
     /// `lid::states(d, t)` for lid grid `g` of this tick's hazards, memoised (same values, computed once per key).
@@ -378,6 +388,9 @@ impl<'m> Scene<'m> {
         }
         let mut scratch = [0u8; crate::hazards::lid::MAX_LIDS_PER_GRID];
         crate::hazards::lid::states(d, t, out, &mut scratch);
+        if g == crate::drops::TOP_GRID && self.frenzy_n > 0 {
+            self.apply_frenzy(d, t, out);
+        }
         let slot = c.next as usize % LID_CACHE;
         c.key[slot] = key;
         let mut i = 0;
@@ -387,6 +400,25 @@ impl<'m> Scene<'m> {
             i += 1;
         }
         c.next = c.next.wrapping_add(1);
+    }
+
+    /// Lid Frenzy over the schedule's states (P4; part of the memo: the frenzy set is fixed for this tick's scene).
+    fn apply_frenzy(&self, d: &crate::hazards::defs::LidGridDef, t: i64, out: &mut [crate::hazards::lid::LidState; crate::hazards::lid::MAX_LIDS_PER_GRID]) {
+        let n = (d.count() as usize).min(crate::hazards::lid::MAX_LIDS_PER_GRID);
+        let mut f = 0;
+        while f < self.frenzy_n as usize && f < 4 {
+            let s0 = self.frenzy_t30[f];
+            if t >= s0 && t < s0 + crate::drops::duration(crate::drops::kind::LID_FRENZY) as i64 {
+                let mut lid = 0;
+                while lid < n {
+                    if let Some(st) = crate::drops::frenzy_state(d, lid as i32, s0, self.frenzy_arg[f], t) {
+                        out[lid] = crate::drops::overlay(out[lid], st);
+                    }
+                    lid += 1;
+                }
+            }
+            f += 1;
+        }
     }
 
     /// Collider `i` posed for this tick and its pose offset, or `None` when it is switched off.

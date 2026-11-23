@@ -117,6 +117,7 @@ fn cu_per_tick_real_maps() {
         let ranked = m.mode() != mode::SANDBOX as i32 && m.mode() != mode::LOBBY as i32;
         let mut cus = Vec::new();
         let (mut max_cu, mut max_tick) = (0u64, 0u32);
+        let (mut drop_max, mut drop_ticks, mut drop_cus) = (0u64, 0u32, Vec::new());
         let mut parity = true;
         let mut ev = StepEvents::default();
         let mut guard = 0u32;
@@ -207,10 +208,42 @@ fn cu_per_tick_real_maps() {
                 eprintln!("{stem}: sBPF World differs from native at tick {}", w.tick);
                 break;
             }
+            // P4 ⛳ CU with Chaos Drops (BENCH_DROPS=1): a stress schedule above the program's caps (upper bound):
+            // Lid Frenzy + Bumper Rain + Wind Gust on one trigger 2 s into RUSH, then Sweeper Rush + Lid Frenzy + Wind
+            // once the sweeper runs; queued as `tick()` does (trigger = next tick + TELEGRAPH) and written back into
+            // the account so native and sBPF stay identical
+            if std::env::var("BENCH_DROPS").is_ok() && ranked && w.round.phase == rush_core::rules::phase::RUSH {
+                use rush_core::drops::{self, kind};
+                let t30 = w.tick as i64 - w.round_start as i64;
+                let plan: &[(i64, u8)] = &[(60, kind::LID_FRENZY), (60, kind::BUMPER_RAIN), (60, kind::WIND_GUST), (640, kind::SWEEPER_RUSH), (640, kind::LID_FRENZY), (640, kind::WIND_GUST), (900, kind::BUMPER_RAIN)];
+                let mut changed = false;
+                for (k, &(at, kd)) in plan.iter().enumerate() {
+                    if t30 == at {
+                        let trig = w.tick + 1 + drops::TELEGRAPH;
+                        let arg = drops::arg_for(w.hazard_seed, k as u8, kd);
+                        changed |= drops::enqueue(&mut w.drop_queue, kd, arg, trig);
+                    }
+                }
+                if changed {
+                    let mut wb = vec![0u8; 4096];
+                    let n = w.to_bytes(&mut wb);
+                    wb.truncate(n);
+                    svm.set_account(world_key, Account { lamports: 1_000_000_000, data: wb, owner: pid, executable: false, rent_epoch: 0 }).unwrap();
+                }
+            }
             let in_rush = !ranked || w.round.phase == rush_core::rules::phase::RUSH;
             if in_rush || scenario == "pileup" {
                 let cu = meta.compute_units_consumed;
                 cus.push(cu);
+                let active = (0..rush_core::world::DROP_QUEUE).any(|i| {
+                    let q = w.drop_queue[i];
+                    q.kind != 0 && w.tick >= q.tick && w.tick < q.tick + rush_core::drops::duration(q.kind).max(1)
+                });
+                if active {
+                    drop_max = drop_max.max(cu);
+                    drop_ticks += 1;
+                    drop_cus.push(cu);
+                }
                 if cu > max_cu {
                     max_cu = cu;
                     max_tick = w.tick;
@@ -227,6 +260,11 @@ fn cu_per_tick_real_maps() {
         let line = format!("| {stem} | {n} | {} | {} | {} | {max_tick} | {codec_cu} | {} | {:.2} |\n", pct(&mut cus.clone(), 0.5), pct(&mut cus.clone(), 0.95), max_cu, if parity { "OK" } else { "MISMATCH" }, slices_total as f64 / guard.max(1) as f64);
         print!("{line}");
         report += &line;
+        if drop_ticks > 0 {
+            let l2 = format!("  with a Chaos Drop active: {drop_ticks} ticks, CU p50 {} p95 {} max {drop_max}\n", pct(&mut drop_cus.clone(), 0.5), pct(&mut drop_cus.clone(), 0.95));
+            print!("{l2}");
+            report += &l2;
+        }
         all_max = all_max.max(max_cu);
         if !max_prof.is_empty() {
             report += &format!("  profile of the max tick ({stem}): {max_prof}\n");

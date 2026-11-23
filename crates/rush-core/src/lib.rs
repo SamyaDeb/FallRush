@@ -22,6 +22,7 @@ pub mod collide;
 pub mod config;
 pub mod config_data;
 pub mod deal;
+pub mod drops;
 pub mod fx;
 pub mod hazards;
 pub mod input;
@@ -36,5 +37,7 @@ pub mod vec;
 pub mod vectors;
 pub mod world;
 
-/// rush-core version (goes into the ruleset with the movement_v4 hash, doc 19 §3).
-pub const VERSION: u32 = 1;
+/// rush-core version (goes into the ruleset with the movement_v4 hash, doc 19 §3). Bumped on every behaviour change
+/// (P4 0.1); the program writes it into `WorldAcc` and clients refuse an arena with another one.
+/// 1 = P1/P2 (TOI 6); 2 = P4 Chaos Drops.
+pub const VERSION: u32 = 2;
