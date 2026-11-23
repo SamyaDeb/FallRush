@@ -20,3 +20,4 @@ Balance: 5.6217566 SOL
 
 Buffer Address                               | Authority                                    | Balance
 
+| 2026-11-23T02:16:55Z | P4 end (after hybrid 6) | 5.261827928 SOL | 3.06582928 SOL |

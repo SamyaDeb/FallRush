@@ -53,13 +53,13 @@ ws.onmessage = (ev) => {
 await send("Runtime.enable"); await send("Page.enable"); await send("Performance.enable");
 await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 await send("Page.navigate", { url });
-let n = 0, lastShot = 0, lastHeap = 0, hidden = false, played = false;
+let n = 0, lastShot = 0, lastHeap = 0, hidden = false, played = 0;
 const [hideAt, hideFor] = hide ? hide.split(":").map(Number) : [0, 0];
 while (!done && (Date.now() - t0) / 1000 < Number(maxS)) {
   await sleep(1000);
   const s = (Date.now() - t0) / 1000;
-  if (play && !played && s > 14) {
-    played = true;
+  if (play && played < 3 && s > [14, 32, 52][played]) {
+    played++; // P4: up to 3 clicks (a menu not interactive yet at the first one)
     const [x, y] = play.split(",").map(Number);
     for (const type of ["mouseMoved", "mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 });
     appendFileSync(log, `${T()}\tclick\tPLAY at ${x},${y}\n`);

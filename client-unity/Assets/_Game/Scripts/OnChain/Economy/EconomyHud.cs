@@ -370,6 +370,7 @@ namespace FallRush.OnChain
             _sb.Append("<size=24><b>MATCH RECEIPT</b></size>\n");
             if (r?.receipt == null)
             {
+                _claim.gameObject.SetActive(false);
                 _sb.Append("writing the receipt on the rollup…");
                 _receiptText.text = _sb.ToString();
                 return;

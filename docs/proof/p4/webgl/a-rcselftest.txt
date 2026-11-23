@@ -1,0 +1,7 @@
+16.3	log	[rcselftest] FAIL 6/5 files, 200 cases, core 0x10002, 91 ms
+[rcselftest] collide_v1.bin 40 cases ecef555686f146c6 PASS
+[rcselftest] drops_v1.bin 40 cases b43c263924ef28be PASS
+[rcselftest] fx_v1.bin 40 cases 555d7eee5afcb7e0 PASS
+[rcselftest] hazard_v2.bin 40 cases 458142349d352041 PASS
+[rcselftest] motor_v1.bin 40 cases b7d0b50a7a70fa3d PASS
+[rcselftest] world_v1.bin 40 cases 1639735e9708f0dc PASS

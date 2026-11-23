@@ -1,0 +1,18 @@
+[gs] fonc prejoin → 1 clients: {"t":"final_prejoin","net":"devnet","arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","match":"d8bac27596527168c381f5faca2be318","slot_map":[{"slot":0,"name":"P4Hybrid","kind":"human"}]}
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=B modifier=TurboToys seed=0x3898fad2cfdff4d1 start=1094 qualify=8/12 intro=60 countdown=90 timer=4500 rush@1094 participants=12
+[gs] mevt #1 START_ROUND r1 slot=- arg=- tick=943 transcript=7a3867bec2d616e6
+[gs] mevt #14 COMPLETE_ROUND r1 slot=- arg=8 tick=5594 transcript=59098bac33f584ea
+[gs] round 2/4 GooTower (Survival) start: map=1 variant=B modifier=None seed=0x8edd96047e82c5ce start=6166 qualify=5/8 intro=60 countdown=90 timer=4500 rush@6166 participants=8
+[gs] mevt #15 START_ROUND r2 slot=- arg=- tick=6015 transcript=40c681d709dcbe91
+[gs] mevt #24 COMPLETE_ROUND r2 slot=- arg=5 tick=7750 transcript=0fdd73abf58fa639
+[gs] round 3/4 StarScramble (Skill) start: map=2 variant=A modifier=TurboToys seed=0x6323add393b27d63 start=8322 qualify=3/5 intro=60 countdown=90 timer=1800 rush@8322 participants=5
+[gs] mevt #25 START_ROUND r3 slot=- arg=- tick=8171 transcript=6ac54ad2a5478acc
+[gs] mevt #31 COMPLETE_ROUND r3 slot=- arg=3 tick=10122 transcript=60ae1fac7647d36f
+[gs] on-chain Final: handing round 4 (CrumbleShelf) to http://127.0.0.1:8797 with 3 players
+[gs] on-chain Final live on devnet: arena HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt tick 381
+[gs] fonc → 1 clients: {"t":"final_onchain","net":"devnet","arena":"HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt","match":"d8bac27596527168c381f5faca2be318","url":"","slot_map":[{"slot":1,"name":"Sprocket","kind":"bot"},{"slot":2,"name":"Pip","kind":"bot"},{"slot":5,"name":"Tinker","kind":"bot"}]}
+[gs] round 4/4 CrumbleShelf (Final) start: map=3 variant=A modifier=None seed=0xf612c69df85ff184 start=10750 qualify=1/3 intro=60 countdown=90 timer=3600 rush@10750 participants=3
+[gs] mevt #32 START_ROUND r4 slot=- arg=- tick=10599 transcript=770ce6a8d45df2fd
+[gs] on-chain Final result from the arena World: order 1,5,2 (champion 1)
+[gs] mevt #36 COMPLETE_ROUND r4 slot=- arg=1 tick=13524 transcript=b09df9f70c2a9979
+[gs] mevt #37 COMPLETE_MATCH r4 slot=1 arg=- tick=13704 transcript=91089d51a4694b5b

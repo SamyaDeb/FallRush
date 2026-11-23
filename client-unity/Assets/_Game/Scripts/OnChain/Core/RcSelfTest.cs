@@ -16,6 +16,9 @@ namespace FallRush.OnChain
     /// </summary>
     public sealed class RcSelfTest : MonoBehaviour
     {
+        /// <summary>Golden vector files in StreamingAssets/rcvectors (P4: + drops_v1).</summary>
+        private const int Files = 6;
+
         private string _report = "[rcselftest] loading rush-core …";
         private bool _pass;
 
@@ -79,8 +82,8 @@ namespace FallRush.OnChain
 
             var t1 = Time.realtimeSinceStartup;
             var n = Run(core, k => files[k], expected, out var rep);
-            _pass = n == 5 && !rep.Contains("FAIL");
-            _report = $"[rcselftest] {(_pass ? "PASS" : "FAIL")} {n}/5 files, 200 cases, core 0x{core.Version:x}, {(Time.realtimeSinceStartup - t1) * 1000f:F0} ms\n{rep}";
+            _pass = n == Files && !rep.Contains("FAIL");
+            _report = $"[rcselftest] {(_pass ? "PASS" : "FAIL")} {n}/{Files} files, {n * 40} cases, core 0x{core.Version:x}, {(Time.realtimeSinceStartup - t1) * 1000f:F0} ms\n{rep}";
             Debug.Log(_report);
         }
 
