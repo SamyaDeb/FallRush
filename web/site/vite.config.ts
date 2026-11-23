@@ -42,6 +42,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), preload3d()],
     server: { port: 5173, strictPort: true, proxy },
     preview: { port: 4173, proxy },
-    build: { target: 'es2022', chunkSizeWarningLimit: 1200 },
+    // site-assets/: the game URL serves this landing next to web/app (which owns /assets/), see infra/prod/nginx-web.conf
+    build: { target: 'es2022', chunkSizeWarningLimit: 2400, assetsDir: 'site-assets' },
   };
 });

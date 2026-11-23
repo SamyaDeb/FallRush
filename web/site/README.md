@@ -1,6 +1,22 @@
 # Fall Rush landing site
 
-The public site: the final 3D hero (from the "Fall Rush — 3D Hero" design) with the waitlist live.
+The public site: the final 3D hero (from the "Fall Rush — 3D Hero" design) with the waitlist live, now also the front
+door of the game URL (`/` on the VPS; the game app keeps `/play`, `/live`, `/replay`, `/receipt`, `/me`, `/arenas`).
+
+**The landing (2026-11-23):** capsule loader (the screen cracks open like a capsule toy) → hero race (click a Rushling
+to bonk it; **▶ Play the beta** and **Join waitlist** are separate doors) → a 1000vh **scroll story** on one sticky canvas
+(`three/StoryCanvas.tsx`, chapters in `three/story/chapters.ts`, shared timeline in `three/story/timeline.ts`): the sky
+drop → Capsule Run 12→8 → Goo Tower 8→5 → Star Fountain 5→3 → the on-chain Final, Lid Flip 3→1 (ER / VRF / session keys
+/ Metaplex cards, live Final tick) → the crown; GSAP ScrollTrigger scrubs the copy (`pages/Story.tsx`) → the **Rushling
+pit** (Rapier physics toy box, `three/PitScene.tsx`, loaded only near it) → finale with live arenas + recent matches
+(`/api/status`, `/api/matches` via `lib/live.ts`). Everything story-telling is a pure function of scroll progress, so
+scrolling up rewinds it. Props are the game's own kit as .glb (`tools/blender/props.py --glb web/site/public/models`);
+sound is the game's synthesised SFX + race loop (`public/sfx`, off until the visitor turns it on). Reduced motion: no
+loader, fades instead of pops, a calmer camera; no WebGL: the chapters stack as cards.
+
+**Builds:** the VPS build (`scripts/p5-deploy.sh` web step) goes to `web/app/dist/site` with `assetsDir: site-assets`,
+waitlist API on `https://waitlist.fallrush.fun` (worker `ALLOWED_ORIGINS` includes the game URL). The Cloudflare copy:
+`bash scripts/landing-deploy-cf.sh` (Play / live data point at the game URL).
 
 **Flow:** hero → **Join waitlist** → `/join`: **1 Pick** (3D turntable + colour carousel, ← → / Enter) →
 **2 Join** (email → `POST /api/join`, real place in line; everyone on the turntable jumps) → **3 Poster** (their
