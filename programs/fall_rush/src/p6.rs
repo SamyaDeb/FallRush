@@ -386,8 +386,8 @@ pub mod op {
     /// Solana, permissionless; a = board (0 champions, 1 predictors, 2 drop MVPs): `[season (w), asset (w), owner,
     /// treasury (w), assets, mpl_core, system]`.
     pub const MINT_TROPHY: u8 = 15;
-    /// devnet-as, any payer: `[market 0..4 (w), drop queue (w), magic_context (w), magic_program]`; commits them to
-    /// Solana (the copies `RECORD` reads).
+    /// devnet-as, any payer: `[markets / drop queue of the arena (w)…, magic_context (w), magic_program]`; commits them
+    /// to Solana (the copies `RECORD` reads); a few per transaction (validator intent size limit).
     pub const COMMIT_ECON: u8 = 16;
 }
 
@@ -549,7 +549,8 @@ fn op_book<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'info>], ope
     keq!(k, book.key(), FallRushError::Unauthorized);
     let bb = [bump];
     let seeds: [&[u8]; 3] = [BOOK_SEED, arena.as_ref(), &bb];
-    let create = open && permission.lamports() == 0;
+    // an existing ephemeral permission has 0 lamports (its rent sits in the vault): check owner + data instead
+    let create = open && (permission.owner != &PERMISSION_PROGRAM || permission.data_is_empty());
     permission_cpi(create, open, book, permission, vault, magic, perm_prog, &seeds)?;
     if create {
         // created public: make it private right away (no members: nobody can read the book)
@@ -954,17 +955,28 @@ fn op_mint_trophy<'info>(accs: &'info [AccountInfo<'info>], kind: u64) -> Result
 
 #[inline(never)]
 fn op_commit_econ<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'info>]) -> Result<()> {
-    require!(accs.len() >= MARKETS + 3, FallRushError::InvalidSlot);
-    let dq = AccountLoader::<DropQueue>::try_from(&accs[MARKETS])?;
-    let arena = dq.load()?.arena;
-    keq!(econ::pda(&[econ::DROPQ_SEED, arena.as_ref()]).0, accs[MARKETS].key(), FallRushError::Unauthorized);
-    for k in 0..MARKETS {
-        let l = AccountLoader::<Market>::try_from(&accs[k])?;
-        let x = l.load()?;
-        keq!(x.arena, arena, FallRushError::BadArenaState);
-        keq!(econ::pda(&[econ::MARKET_SEED, &[x.id], &[k as u8]]).0, accs[k].key(), FallRushError::InvalidSlot);
+    // `[market k / drop queue (w)…, magic_context (w), magic_program]`: one intent per transaction must fit a base
+    // transaction (validator limit), so the keeper commits the 5 markets + drop queue a few at a time
+    let n = accs.len();
+    require!(n >= 3 && n <= 2 + MARKETS + 1, FallRushError::InvalidSlot);
+    for info in &accs[..n - 2] {
+        let d = info.try_borrow_data()?;
+        require!(d.len() >= 8, FallRushError::InvalidSlot);
+        if d[..8] == *Market::DISCRIMINATOR {
+            drop(d);
+            let l = AccountLoader::<Market>::try_from(info)?;
+            let x = l.load()?;
+            let k = match x.kind { mkind::CHAMPION => 0u8, mkind::FINAL_WINNER => 1, _ => x.round + 1 };
+            keq!(econ::pda(&[econ::MARKET_SEED, &[x.id], &[k]]).0, info.key(), FallRushError::InvalidSlot);
+        } else {
+            require!(d[..8] == *DropQueue::DISCRIMINATOR, FallRushError::InvalidSlot);
+            drop(d);
+            let l = AccountLoader::<DropQueue>::try_from(info)?;
+            let arena = l.load()?.arena;
+            keq!(econ::pda(&[econ::DROPQ_SEED, arena.as_ref()]).0, info.key(), FallRushError::InvalidSlot);
+        }
     }
-    crate::magic::commit(&signer.to_account_info(), &accs[MARKETS + 1], &accs[MARKETS + 2], &accs[..MARKETS + 1], false)
+    crate::magic::commit(&signer.to_account_info(), &accs[n - 2], &accs[n - 1], &accs[..n - 2], false)
 }
 
 fn dec_u32(v: u32, out: &mut [u8; 16]) -> &str {

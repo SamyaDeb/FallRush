@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { header, bridgeRounds13, readLines } from "../chain-worker/worker.ts";
 import { NET, EP, base, er, wallet, pb, pe, pda, key, sendBase, sendEr, PROGRAM_ID, MAGIC_CONTEXT, N, sleep, decodeWorld, tickAccounts, log as logTo, cu, pct, BN } from "./lib.ts";
 import * as E from "./econ.ts";
+import * as S from "./p6.ts";
 import { sampleCu } from "./cusample.ts";
 
 const ARENA = Number(process.env.ARENA ?? 2);
@@ -29,6 +30,8 @@ const WAIT_HUMANS_S = Number(process.env.WAIT_HUMANS_S ?? 4);
 const MM = process.env.MM !== "0";
 const ACTION = process.env.ACTION === "1"; // P5 0.3: finalize with the post-undelegate Magic Action (mint_rewards)
 const ACTION_WAIT_S = Number(process.env.ACTION_WAIT_S ?? 60);
+const SEALED = process.env.SEALED !== "0"; // P6: sealed Champion bets (escrow + private book on the TEE)
+const SEASONS = process.env.SEASONS !== "0"; // P6: record finalized matches into the seasons
 const KILL_AT = process.env.KILL_AT ?? ""; // test hook (P5 0.5): exit(9) right after this stage
 const DONE = 11;
 const BOOT = Date.now();
@@ -121,6 +124,62 @@ async function ensureMm() {
   if (!c || c.balance < 200n * E.ONE) await E.ensureChips(mm);
 }
 
+// ------------------------------------------------------------------ P6 sealed Champion bets
+/** Close (program decides: the Champion window) → the book public (TEE) → reveal every commit from it → finish once
+ * all are revealed. Idempotent; called by the watcher (fast path, at the Final's RUSH tick) and again before settle. */
+async function sealedStep(matchPda: PublicKey, mlog: string, out: any, force = false): Promise<boolean> {
+  const e = await S.escrow(ARENA);
+  if (!e || !e.match.equals(matchPda)) return true;
+  out.sealed ??= {};
+  if (e.state === 1) {
+    const r = await S.sealedClose(ARENA, matchPda);
+    if (r.err) return false; // window still open
+    out.sealed.closedAt = Date.now(); out.sigs.sealedClose = r.sig;
+    logTo(mlog, { act: "sealed_close", sig: r.sig, n: e.n });
+    stage("sealed_reveal", { n: e.n });
+  }
+  const e2 = (await S.escrow(ARENA))!;
+  if (e2.state === 2) {
+    if (!out.sealed.bookClosed) {
+      const b = await S.bookClose(ARENA).catch((x) => ({ sig: "", ms: 0, err: String(x) }));
+      logTo(mlog, { act: "book_close", sig: b.sig, ms: b.ms, err: b.err });
+      if (!b.err) { out.sealed.bookClosed = Date.now(); out.sigs.bookClose = b.sig; }
+    }
+    if (e2.nRevealed < e2.n) {
+      const rv = await S.revealFromBook(ARENA, matchPda, mlog).catch((x) => ({ revealed: 0, sigs: [], unmatched: -1, err: String(x) }));
+      out.sealed.reveals = [...(out.sealed.reveals ?? []), ...rv.sigs];
+      logTo(mlog, { act: "reveal", ...rv });
+    }
+    const e3 = (await S.escrow(ARENA))!;
+    if (e3.nRevealed === e3.n && !out.sealed.revealedAt) out.sealed.revealedAt = Date.now();
+    if (e3.nRevealed === e3.n || force) {
+      const f = await S.sealedFinish(ARENA, matchPda);
+      logTo(mlog, { act: "sealed_finish", sig: f.sig, err: f.err });
+      if (!f.err) out.sigs.sealedFinish = f.sig;
+      return !f.err;
+    }
+    return false;
+  }
+  return e2.state === 3;
+}
+function sealedWatcher(matchPda: PublicKey, mlog: string, out: any) {
+  let stopped = false;
+  const loop = (async () => {
+    while (!stopped) {
+      try {
+        const m: any = await erMatch(matchPda);
+        const wi = await er.getAccountInfo(world, "processed");
+        const final = m && (m.flags & 0x40) !== 0 && wi && wi.data[139] === 4 && wi.data[199] >= 3;
+        if (m && (final || m.currentRound >= 4 || ["completed", "aborted"].includes(statusName(m)))) {
+          if (await sealedStep(matchPda, mlog, out)) break;
+        }
+      } catch {}
+      await sleep(300);
+    }
+  })();
+  return { stop: async () => { stopped = true; await loop; } };
+}
+
 // ------------------------------------------------------------------ the Final: timed task + watch (+ resume)
 async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog: string) {
   const tickMetas = tickAccounts(arena, matchPda, maps);
@@ -193,6 +252,20 @@ async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, ml
 async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog: string, out: any) {
   let m: any = await erMatch(matchPda);
   if (m && ["completed", "aborted"].includes(statusName(m))) {
+    if (SEALED) {
+      // P6: close → reveal → finish (unrevealed commits wait the 20 s reveal window, then forfeit / refund)
+      stage("sealed_finish");
+      for (const ts = Date.now(); Date.now() - ts < (S.REVEAL_WINDOW_S + 40) * 1000;) {
+        const e = await S.escrow(ARENA).catch(() => null);
+        const late = e && e.closedAt > 0 && Date.now() / 1000 > e.closedAt + S.REVEAL_WINDOW_S + 1;
+        if (await sealedStep(matchPda, mlog, out, !!late).catch(() => false)) break;
+        await sleep(1000);
+      }
+      const e = await S.escrow(ARENA).catch(() => null);
+      if (e && e.match.equals(matchPda)) out.sealed = { ...(out.sealed ?? {}), n: e.n, revealed: e.nRevealed, forfeits: e.nForfeit, state: e.state, pool: e.pool.toString(), forfeit: e.forfeit.toString(), entries: e.entries.map((x) => ({ wallet: x.wallet.toBase58(), amount: x.amount.toString(), hash: x.hash, outcome: x.outcome, state: x.state })) };
+      const bk = await S.readBook(ARENA).catch(() => null);
+      if (bk && bk.match.equals(matchPda) && bk.closed) out.sealed.book = bk.entries.map((x) => ({ wallet: x.wallet.toBase58(), amount: x.amount.toString(), outcome: x.outcome, salt: x.salt.toString("hex") }));
+    }
     stage("settle", { match: matchPda.toBase58() });
     out.settle = {};
     for (let k = 0; k < E.MARKETS; k++) {
@@ -204,6 +277,11 @@ async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog
     if (dq) { const d = E.decodeDrops(dq.data as Buffer); if (d.match.equals(matchPda)) out.drops = { count: d.count, pot: d.pot.toString(), buys: d.buys.map((b) => ({ by: b.by.toBase58(), tick: b.tick, kind: b.kind })) }; }
     let rc = await E.matchReceipt(er, matchPda);
     if (rc && !(rc.flags & 1)) { stage("receipt"); out.sigs.writeReceipt = (await act("write_receipt", async () => E.writeReceipt(ARENA, matchPda, maps), mlog)).sig; }
+    if (SEASONS && rc && !(out.sigs.commitEcon)) {
+      // P6: the 5 markets + drop queue to Solana (the copies record_season checks against the receipt's bets hash)
+      const c = await S.commitEcon(ARENA).catch((x) => ({ sig: "", err: String(x) }));
+      logTo(mlog, { act: "commit_econ", sig: c.sig, err: c.err }); if (!c.err) out.sigs.commitEcon = c.sig;
+    }
     rc = await E.matchReceipt(er, matchPda);
     m = await erMatch(matchPda);
     if (rc && statusName(m) === "completed" && rc.humanMask && !(rc.flags & (2 | 32))) {
@@ -256,6 +334,35 @@ async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog
     out.assets = r2 ? [...(r2.flags & 4 ? [E.epda.crown(matchPda).toBase58()] : []), ...[...Array(12).keys()].filter((s) => (r2.mintedMask >> s) & 1).map((s) => E.epda.capsule(matchPda, s).toBase58())] : [];
   }
   out.receipt = JSON.parse(JSON.stringify(await E.matchReceipt(base, matchPda), (_k, v) => (typeof v === "bigint" ? v.toString() : v instanceof PublicKey ? v.toBase58() : v)));
+  if (SEASONS) await seasons(matchPda, mlog, out).catch((e) => { out.seasonError = String(e?.message ?? e).slice(0, 300); log({ ev: "season_failed", err: out.seasonError }); });
+}
+
+/** P6: record a finalized, completed match into its seasons (weekly + the active test season), permissionless. */
+async function seasons(matchPda: PublicKey, mlog: string, out: any) {
+  const rc: any = await E.matchReceipt(base, matchPda);
+  if (!rc || rc.status !== 5 || !(rc.flags & 1) || /^0+$/.test(rc.betsHash)) return;
+  stage("season");
+  // wait until the committed market copies on Solana show this match (commit_econ landed)
+  const mk0 = E.epda.market(ARENA, 0);
+  for (const t = Date.now(); Date.now() - t < 60_000;) {
+    const i = await base.getAccountInfo(mk0).catch(() => null);
+    if (i && E.decodeMarket(i.data as Buffer).match.equals(matchPda) && E.decodeMarket(i.data as Buffer).status === 3) break;
+    await sleep(2000);
+  }
+  const mmKey = MM ? key("mm").publicKey.toBase58() : "";
+  const ws = new Set<string>();
+  for (let s = 0; s < 12; s++) if ((rc.humanMask >> s) & 1) ws.add(rc.wallets[s].toBase58());
+  for (let k = 0; k < E.MARKETS; k++) for (const b of out[`market${k}`]?.bets ?? []) ws.add(b.wallet);
+  for (const b of out.drops?.buys ?? []) ws.add(b.by);
+  ws.delete(mmKey); ws.delete(ZERO);
+  const wallets = [...ws].map((x) => new PublicKey(x));
+  const champion = rc.champion < 12 && (rc.humanMask >> rc.champion) & 1 ? rc.wallets[rc.champion] : null;
+  out.seasons = {};
+  for (const id of S.seasonsFor(rc.completedAt)) {
+    if (id < S.TEST_SEASON_BASE) await S.ensureSeason(id).catch(() => {});
+    const sigs = await S.recordSeason(ARENA, matchPda, id, wallets, champion, mlog);
+    out.seasons[id] = { wallets: wallets.length, sigs };
+  }
 }
 
 
@@ -308,9 +415,24 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
       catch (e: any) { if (i >= 12 || !/InvalidWritableAccount|AccountNotFound|cloner|timeout|Blockhash/i.test(String(e?.message ?? e))) throw e; await sleep(1000 + 500 * i); }
     }
   }
+  let sw: { stop: () => Promise<void> } | null = null;
+  if (SEALED && ["created", "dealing", "dealt", "roundActive", "roundResolved"].includes(statusName(m))) {
+    // P6: the sealed escrow (devnet-as) + the private book (TEE) for this match
+    const e = await S.escrow(ARENA).catch(() => null);
+    if (e && !e.match.equals(matchPda) && m.currentRound === 0) {
+      const r = await S.escrowOpen(ARENA, matchPda).catch((x) => ({ sig: "", err: String(x) }));
+      logTo(mlog, { act: "escrow_open", sig: r.sig, err: r.err }); if (!r.err) out.sigs.escrowOpen = r.sig;
+      const b = await S.bookOpen(ARENA, matchPda).catch((x) => ({ sig: "", ms: 0, err: String(x) }));
+      logTo(mlog, { act: "book_open", sig: b.sig, ms: b.ms, err: b.err }); if (!b.err) out.sigs.bookOpen = b.sig;
+    }
+    sw = sealedWatcher(matchPda, mlog, out);
+  }
   let mmw: { stop: () => Promise<void> } | null = null;
   const mmLog: any[] = [];
-  if (MM && !["completed", "aborted"].includes(statusName(m))) {
+  // P6 (D-OTHER): the market maker seeds only when a human is seated (no seeded pools on bot-only matches)
+  const humansInRoster = (h?.roster ?? []).filter((r: any) => r.bot === false).length;
+  out.humansInRoster = humansInRoster;
+  if (MM && !["completed", "aborted"].includes(statusName(m)) && (humansInRoster > 0 || !h)) {
     const tiers = (h?.roster ?? []).map((r: any) => (r.bot ? r.tier : undefined));
     mmw = mmWatcher(matchPda, tiers, mmLog);
   }
@@ -372,6 +494,7 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
   } finally {
     if (mmw) await mmw.stop();
     out.mm = mmLog;
+    if (sw) await sw.stop();
   }
   // 5. settle → receipt → capsules → end_sim → finalize → rewards
   await finish(matchPda, maps, mdir, mlog, out);
@@ -405,6 +528,7 @@ function jsonlFor(matchHex: string): string | null {
 // idempotent economy setup for this arena (markets, drop queue, treasury, RUSH mint): P4 setupEcon
 for (let i = 0; ; i++) { try { const o = await E.setupEcon(ARENA); log({ act: "econ_setup", ...o }); break; } catch (e) { log({ ev: "econ_setup_failed", err: String(e).slice(0, 200) }); if (i >= 5) throw e; await sleep(5000); } }
 if (MM) await ensureMm().catch((e) => log({ ev: "mm_setup_failed", err: String(e).slice(0, 200) }));
+if (SEALED) await S.setupSealed(ARENA).then((o) => log({ act: "sealed_setup", ...o })).catch((e) => log({ ev: "sealed_setup_failed", err: String(e).slice(0, 200) }));
 // resume from on-chain state: the arena's current Match, unless it is finished (on Solana, nothing owed)
 {
   const a: any = await arenaAcc();

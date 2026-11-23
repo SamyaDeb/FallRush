@@ -1,6 +1,8 @@
 // Rollup transport: web3.js Connection to the MagicBlock ER (devnet-as) + a base-layer Connection.
 import { ComputeBudgetProgram, Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import * as Econ from './econ.ts';
+import * as Sealed from './sealed.ts';
+import { browserKV } from './storage.ts';
 import type { TransactionInstruction } from '@solana/web3.js';
 import type { Ctx, JoinArgs, JoinResult, Transport } from './transport.ts';
 import { Backoff, errMsg } from './transport.ts';
@@ -842,6 +844,60 @@ export class RollupTransport implements Transport {
         const r = await this.econEr(ix, signer, action);
         this.ctx.events.push({ type: 'econ', what: action, ok: r.ok, sig: r.sig, args, err: r.ok ? undefined : safeJson(r.err) });
         return { ok: r.ok, sig: r.sig, ms: r.ms, session: !!token, error: r.ok ? undefined : safeJson(r.err) };
+      }
+      if (action === 'sealedState' || action === 'sealedBet' || action === 'sealedReveal') {
+        // P6: sealed Champion bets (pick → the private book on the TEE rollup; stake + commitment → devnet-as)
+        const teeUrl = String(this.rc.teeUrl ?? Sealed.DEFAULT_TEE);
+        const S = Sealed.sealedPdas(E.program, E.arena);
+        const kv = browserKV().kv;
+        const ad = await this.readEr(E.arena);
+        if (!ad) return { ok: false, error: 'arena not readable' };
+        const matchPk = new PublicKey(ad.subarray(40, 72));
+        const ed = await this.readEr(S.escrow);
+        const esc = ed ? Sealed.decodeEscrow(ed) : null;
+        const mine = Sealed.savedPicks(kv, me.toBase58());
+        if (action === 'sealedState') {
+          const cur = esc && esc.match === matchPk.toBase58() ? esc : null;
+          const myEntries = cur ? cur.entries.filter((x) => x.wallet === me.toBase58()).map((x) => ({ ...x, saved: mine.find((p) => p.hash === x.hash) ?? null })) : [];
+          return big({ ok: true, match: matchPk.toBase58(), open: !!cur && cur.state === 1, escrow: cur && { n: cur.n, pool: cur.pool, state: cur.state, nRevealed: cur.nRevealed, nForfeit: cur.nForfeit, forfeit: cur.forfeit, closedAt: cur.closedAt }, mine: myEntries, tee: teeUrl, book: S.book.toBase58(), escrowKey: S.escrow.toBase58() });
+        }
+        const { signer, token } = this.econSigner();
+        if (action === 'sealedBet') {
+          if (!esc || esc.match !== matchPk.toBase58() || esc.state !== 1) return { ok: false, error: 'sealed betting is not open for this match' };
+          const outcome = Number(args.outcome), amount = BigInt(Math.round(Number(args.amount))) * Econ.ONE;
+          const salt = crypto.getRandomValues(new Uint8Array(16));
+          const hash = Sealed.commitment(outcome, amount, salt, me);
+          const rec: Sealed.SavedPick = { match: matchPk.toBase58(), outcome, amount: amount.toString(), salt: Array.from(salt, (x) => x.toString(16).padStart(2, '0')).join(''), hash: Array.from(hash, (x) => x.toString(16).padStart(2, '0')).join(''), at: Date.now() };
+          Sealed.savePick(kv, me.toBase58(), rec); // before sending: the salt must survive a crash (self-reveal)
+          const pad = new Uint8Array(32); pad.set(salt, 0);
+          const pickIx = Sealed.p6Ix(E.program, signer.publicKey, Sealed.OP6.PICK, outcome, amount, pad, [acc(S.book, true), acc(me, false), ...(token ? [acc(token, false)] : [])]);
+          const p = await Sealed.sendTee(teeUrl, signer, pickIx).catch((e) => ({ ok: false, sig: '', ms: 0, err: errMsg(e) }));
+          rec.pick = p.sig;
+          // the pick is optional for safety (the bettor can always reveal with the saved salt), so commit anyway
+          const cIx = Sealed.p6Ix(E.program, signer.publicKey, Sealed.OP6.COMMIT, amount, 0, hash, [acc(E.P.chips(me), true), acc(S.escrow, true), acc(E.P.market(0), true), acc(matchPk, false), acc(E.arena, false), acc(E.world, false), ...(token ? [acc(token, false)] : [])]);
+          const c = await this.econEr(cIx, signer, 'sealed_commit');
+          rec.commit = c.sig;
+          Sealed.savePick(kv, me.toBase58(), rec);
+          this.ctx.events.push({ type: 'econ', what: 'sealedBet', ok: c.ok, sig: c.sig, args, err: c.ok ? undefined : safeJson(c.err) });
+          return { ok: c.ok, sig: c.sig, ms: c.ms, pick: { ok: p.ok, sig: p.sig, ms: p.ms, err: p.ok ? undefined : safeJson(p.err) }, session: !!token, hash: rec.hash, error: c.ok ? undefined : safeJson(c.err) };
+        }
+        // sealedReveal: the fallback path (commit-reveal) — reveal my own committed entries with the saved salts
+        if (!esc || esc.state !== 2) return { ok: false, error: 'not in the reveal window' };
+        const out: unknown[] = [];
+        for (const x of esc.entries) {
+          if (x.wallet !== me.toBase58() || x.state !== 0) continue;
+          const p = mine.find((q) => q.hash === x.hash);
+          if (!p) continue;
+          const pad = new Uint8Array(32); for (let i = 0; i < 16; i++) pad[i] = parseInt(p.salt.slice(2 * i, 2 * i + 2), 16);
+          const ix = Sealed.p6Ix(E.program, signer.publicKey, Sealed.OP6.REVEAL, x.i, p.outcome, pad, [acc(S.escrow, true), acc(E.P.market(0), true), acc(new PublicKey(esc.match), false)]);
+          const r = await this.econEr(ix, signer, 'sealed_reveal');
+          out.push({ i: x.i, ok: r.ok, sig: r.sig, err: r.ok ? undefined : safeJson(r.err) });
+        }
+        return { ok: true, revealed: out };
+      }
+      if (action === 'teeAttest') {
+        const teeUrl = String(this.rc.teeUrl ?? Sealed.DEFAULT_TEE);
+        return await Sealed.attest(teeUrl, String(args.base ?? ''));
       }
       if (action === 'receipt') {
         const pk = new PublicKey(String(args.match));
