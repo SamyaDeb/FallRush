@@ -7,7 +7,15 @@ export default function Finale({ live }: { live: Live }) {
   const matches = live.matches.slice(0, 10);
   return (
     <section className="finale" aria-label="Play Fall Rush">
+      <div className="cloud-edge" aria-hidden="true" />
       <div className="fin-inner">
+        <header className="fin-head">
+          <span className="st-eyebrow light">THE NEXT SHOW STARTS WHEN YOU DO</span>
+          <h2 className="fin-title">
+            <span className="word">Your</span> <span className="word yellow">move.</span>
+          </h2>
+          <p>Two doors. Play the live private beta right now, or save your spot for launch. Or both.</p>
+        </header>
         <div className="fin-doors">
           <div className="door play">
             <span className="st-eyebrow">PRIVATE BETA · LIVE NOW</span>
@@ -81,6 +89,15 @@ export default function Finale({ live }: { live: Live }) {
             <Link to="/privacy">Privacy</Link>
             <a href={ARENAS_URL}>Arenas</a>
             <a href={LIVE_URL}>Live</a>
+            <a
+              href="#top"
+              onClick={(e) => {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              Back to top ↑
+            </a>
           </nav>
         </footer>
       </div>

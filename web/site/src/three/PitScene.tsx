@@ -37,6 +37,7 @@ const PitScene = forwardRef<PitHandle, { onReady?: () => void }>(function PitSce
         gl={{ antialias: true, alpha: true }}
       >
         <FirstFrames onShown={() => onReady?.()} />
+        <PitCamera />
         <AdaptiveDpr min={1} max={QUALITY.dpr[1]} />
         <Daylight shadowExtent={10} sunPos={[6, 16, 8]} shadows={QUALITY.shadows} shadowMap={QUALITY.shadowMap} />
         <Physics gravity={[0, -22, 0]} paused={!active}>
@@ -47,6 +48,31 @@ const PitScene = forwardRef<PitHandle, { onReady?: () => void }>(function PitSce
   );
 });
 export default PitScene;
+
+/** Wide: frame the box to the right of the copy card. Tall: pull back so the whole box fits under it. */
+function PitCamera() {
+  const { camera, size } = useThree();
+  useEffect(() => {
+    const cam = camera as THREE.PerspectiveCamera;
+    const aspect = size.width / size.height;
+    if (aspect > 1.2) {
+      cam.fov = 38;
+      cam.position.set(-2.6, 15.5, 16);
+      cam.lookAt(-1.6, 0, 0.6);
+    } else if (aspect > 0.8) {
+      cam.fov = 44;
+      cam.position.set(0, 20, 16);
+      cam.lookAt(0, 0, 1.6);
+    } else {
+      // portrait: look down the box's long side so it fills the screen top to bottom, under the copy card
+      cam.fov = 54;
+      cam.position.set(15.5, 21, 0);
+      cam.lookAt(-2.2, 0, 0);
+    }
+    cam.updateProjectionMatrix();
+  }, [camera, size.width, size.height]);
+  return null;
+}
 
 interface Body {
   rb: React.RefObject<RapierRigidBody | null>;

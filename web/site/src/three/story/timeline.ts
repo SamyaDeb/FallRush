@@ -19,8 +19,8 @@ export const CHAPTERS: ChapterSpan[] = [
   { id: 'crown', a: 0.85, b: 1.0 },
 ];
 
-/** Half-width of the camera fly-over between two chapters (in story progress). */
-export const ZONE = 0.022;
+/** Half-width of the round-card wipe between two chapters (in story progress); the camera cuts at its middle. */
+export const ZONE = 0.03;
 
 /** Chapter-local progress 0..1 (0 and 1 are held through the fly-over zones). */
 export function localP(p: number, c: ChapterSpan) {
@@ -78,4 +78,13 @@ export const ROUND_LABEL: Record<ChapterId, string> = {
   star: 'Round 3 · Skill',
   lid: 'The Final · on-chain',
   crown: 'Champion',
+};
+
+/** The round cards that wipe across between chapters (index = the chapter being entered). */
+export const ROUND_CARD: Partial<Record<ChapterId, { eyebrow: string; title: string; line: string; theme: 'pink' | 'sun' | 'night' | 'gold' }>> = {
+  run: { eyebrow: 'ROUND 1 · RACE', title: 'Capsule Run', line: '12 start · 8 go through', theme: 'pink' },
+  goo: { eyebrow: 'ROUND 2 · SURVIVAL', title: 'Goo Tower', line: '8 climb · 5 make the summit', theme: 'sun' },
+  star: { eyebrow: 'ROUND 3 · SKILL', title: 'Star Fountain', line: '5 scramble · 3 reach the Final', theme: 'pink' },
+  lid: { eyebrow: 'THE FINAL · ON-CHAIN', title: 'Lid Flip', line: '3 left · 1 crown · computed on-chain, tick by tick', theme: 'night' },
+  crown: { eyebrow: 'AND THE CROWN GOES TO…', title: 'Bolt!', line: 'champion of show #1', theme: 'gold' },
 };

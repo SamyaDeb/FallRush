@@ -224,13 +224,20 @@ function StoryWorld({ prog, onDigital, fx }: StoryCanvasProps & { fx: React.RefO
     } else {
       const first = other < ci ? other : ci;
       const second = other < ci ? ci : other;
-      W.chapters[first].cam(1, poseA);
-      W.chapters[second].cam(0, poseB);
-      const e = ease(Math.max(0, Math.min(1, u)));
-      cam.position.lerpVectors(poseA.pos, poseB.pos, e);
-      cam.position.y += Math.sin(Math.PI * e) * 14;
-      look.lerpVectors(poseA.look, poseB.look, e);
-      look.y += Math.sin(Math.PI * e) * 6;
+      // the round card covers the screen mid-zone: hold the outgoing end shot, cut behind the card, then a short
+      // settle-in drift on the incoming opening shot
+      if (u < 0.5) {
+        W.chapters[first].cam(1, poseA);
+        cam.position.copy(poseA.pos);
+        look.copy(poseA.look);
+      } else {
+        W.chapters[second].cam(0, poseB);
+        const k = 1 - ease(Math.min(1, (u - 0.5) * 2));
+        cam.position.copy(poseB.pos);
+        cam.position.y += k * 2.5;
+        cam.position.lerp(poseB.look, -k * 0.12);
+        look.copy(poseB.look);
+      }
     }
     cam.lookAt(look);
 

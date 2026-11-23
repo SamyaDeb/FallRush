@@ -838,18 +838,20 @@ export function lidChapter(props: Record<PropName, THREE.BufferGeometry>): Chapt
   group.add(low);
   // claw-machine frame + glass (the Ephemeral Rollup: the arena under glass)
   const mg = new Merge();
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) mg.block(0.8, 17, 0.8, [sx * 9.9, 10, sz * 9.9], C.grape, C.lemon);
+  // a tall frame: the header ring sits above the camera so it never cuts across the shot
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) mg.block(0.8, 24.5, 0.8, [sx * 9.9, 17.5, sz * 9.9], C.grape, C.lemon);
   for (const s of [-1, 1]) {
-    mg.block(20.6, 0.9, 0.9, [0, 10.4, s * 9.9], C.grape, C.lemon);
-    mg.block(0.9, 0.9, 20.6, [s * 9.9, 10.4, 0], C.grape, C.lemon);
+    mg.block(20.6, 0.9, 0.9, [0, 17.9, s * 9.9], C.grape, C.lemon);
+    mg.block(0.9, 0.9, 20.6, [s * 9.9, 17.9, 0], C.grape, C.lemon);
+    mg.block(0.9, 0.9, 20.6, [0, 17.9, 0], C.grape, C.lemon);
   }
-  mg.add(paintSplit(new THREE.CylinderGeometry(0.06, 0.06, 4, 6), '#CFC7EE', '#CFC7EE', 99), [0, 8.4, 0]);
+  mg.add(paintSplit(new THREE.CylinderGeometry(0.06, 0.06, 11, 6), '#CFC7EE', '#CFC7EE', 99), [0, 12.4, 0]);
   group.add(mg.build(mat, SHADOWS));
   const glassMat = new THREE.MeshStandardMaterial({ color: '#CDEBFF', roughness: 0.05, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide });
   for (let k = 0; k < 4; k++) {
-    const g = new THREE.Mesh(new THREE.PlaneGeometry(19.8, 16), glassMat);
+    const g = new THREE.Mesh(new THREE.PlaneGeometry(19.8, 24), glassMat);
     const a = (k * Math.PI) / 2;
-    g.position.set(Math.sin(a) * 9.9, 2, Math.cos(a) * 9.9);
+    g.position.set(Math.sin(a) * 9.9, 6, Math.cos(a) * 9.9);
     g.rotation.y = a;
     group.add(g);
   }
@@ -1030,7 +1032,7 @@ export function lidChapter(props: Record<PropName, THREE.BufferGeometry>): Chapt
       const phi = -0.4 + lp * Math.PI * 0.9;
       const r = 23 - lp * 4;
       const end = ease(span(lp, 0.74, 0.92));
-      out.pos.set(A.x + Math.sin(phi) * r, 17.5 - lp * 3, A.z + Math.cos(phi) * r);
+      out.pos.set(A.x + Math.sin(phi) * r, 15 - lp * 2, A.z + Math.cos(phi) * r);
       out.pos.lerp(tmpV.set(A.x + 2.5, 9.5, A.z - 27), end);
       out.look.set(A.x, 0.6, A.z).lerp(tmpV2.set(A.x, 6.2, A.z - 15), end);
     },

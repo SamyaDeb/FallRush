@@ -7,6 +7,7 @@ import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState, type R
 import { Link } from 'react-router-dom';
 import { CapsuleLoader } from '../components/CapsuleLoader';
 import { Juice, type JuiceHandle } from '../components/Juice';
+import { TopBar } from '../components/TopBar';
 import { LIVE_URL, PLAY_URL } from '../lib/links';
 import { useLive } from '../lib/live';
 import { play, restoreSound, useSound } from '../lib/sfx';
@@ -128,7 +129,8 @@ export default function Home() {
     <div className={'landing' + (playing ? ' is-playing' : '')}>
     <CapsuleLoader ready={heroReady || failed} />
     <Juice ref={juice} />
-    <div className={'page' + (playing ? ' playing' : '')}>
+    <TopBar sound={sound} setSound={setSound} hidden={playing} />
+    <div id="top" className={'page' + (playing ? ' playing' : '')}>
       {showScene && !failed && (
         <SceneBoundary onError={() => setFailed(true)}>
           <Suspense fallback={null}>

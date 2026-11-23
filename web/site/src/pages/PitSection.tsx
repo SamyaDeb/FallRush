@@ -19,6 +19,7 @@ export default function PitSection({ webgl }: { webgl: boolean }) {
   }, [webgl]);
   return (
     <section ref={sec} className={'pit' + (ready ? ' ready' : '')} aria-label="The Rushling pit (a toy)">
+      <div className="cloud-edge" aria-hidden="true" />
       {webgl && near && (
         <Suspense fallback={null}>
           <PitScene ref={pit} onReady={() => setReady(true)} />

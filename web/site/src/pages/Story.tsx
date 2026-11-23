@@ -5,7 +5,8 @@
  */
 import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { gsap, SplitText, useStoryProgress } from '../lib/scroll';
-import { CHAPTERS, ROUND_LABEL, ZONE, aliveAt, chapterAt, localP, type ChapterId } from '../three/story/timeline';
+import { CHAPTERS, ROUND_CARD, ZONE, aliveAt, localP, type ChapterId } from '../three/story/timeline';
+import { play } from '../lib/sfx';
 import { PLAY_URL, PROGRAM, RUSH_MINT, VALIDATOR, explorer } from '../lib/links';
 import { prefersReducedMotion } from '../three/common';
 import type { Live } from '../lib/live';
@@ -94,9 +95,8 @@ export default function Story({ webgl, live }: { webgl: boolean; live: Live }) {
   const [dig, setDig] = useState(0);
   const reduced = useMemo(prefersReducedMotion, []);
   const aliveRef = useRef<HTMLSpanElement>(null);
-  const labelRef = useRef<HTMLSpanElement>(null);
   const tickRef = useRef<HTMLSpanElement>(null);
-  const dotsRef = useRef<HTMLDivElement>(null);
+  const wipeRefs = useRef<(HTMLDivElement | null)[]>([]);
   const liveTick = useRef<number | null>(null);
   liveTick.current = live.finalTick;
 
@@ -120,8 +120,9 @@ export default function Story({ webgl, live }: { webgl: boolean; live: Live }) {
         const ch = CHAPTERS[i];
         const card = el.querySelector<HTMLElement>(`[data-ch="${c.id}"]`)!;
         const title = card.querySelector<HTMLElement>('.st-title')!;
-        const inAt = ch.a === 0 ? 0 : ch.a + ZONE * 0.6;
-        const outAt = ch.b - ZONE - 0.025;
+        // copy lands after the round card has wiped off, and leaves before the next one arrives
+        const inAt = ch.a === 0 ? 0 : ch.a + ZONE * 0.75;
+        const outAt = ch.b - ZONE - 0.022;
         if (i === 0) gsap.set(card, { autoAlpha: 1 });
         else tl.fromTo(card, { autoAlpha: 0, y: 70, rotate: c.side === 'left' ? -3 : 3 }, { autoAlpha: 1, y: 0, rotate: 0, duration: 0.025, ease: 'back.out(2)' }, inAt);
         if (!reduced) {
@@ -151,11 +152,12 @@ export default function Story({ webgl, live }: { webgl: boolean; live: Live }) {
     return () => ctx.revert();
   }, [webgl, reduced]);
 
-  // counters: Rushlings left, round label, Final tick, chapter dots
+  // counters (Rushlings left, Final tick) and the round-card wipes, all from the same eased progress as the 3D
   useEffect(() => {
     if (!webgl) return;
     let raf = 0;
-    let lastAlive = -1, lastCh = -1;
+    let lastAlive = -1;
+    let lastP = 0;
     const loop = () => {
       const pr = prog.current;
       const p = near ? pr.p : pr.raw;
@@ -165,12 +167,31 @@ export default function Story({ webgl, live }: { webgl: boolean; live: Live }) {
         if (lastAlive !== -1 && !reduced) gsap.fromTo(aliveRef.current, { scale: 1.7, rotate: -12 }, { scale: 1, rotate: 0, duration: 0.5, ease: 'elastic.out(1, 0.4)' });
         lastAlive = alive;
       }
-      const ch = chapterAt(p);
-      if (ch !== lastCh) {
-        if (labelRef.current) labelRef.current.textContent = ROUND_LABEL[CHAPTERS[ch].id];
-        dotsRef.current?.querySelectorAll('i').forEach((d, k) => d.classList.toggle('on', k <= ch));
-        lastCh = ch;
+      // round cards: slide in from the right, cover the screen while the camera cuts, slide off to the left
+      for (let i = 1; i < CHAPTERS.length; i++) {
+        const el = wipeRefs.current[i];
+        if (!el) continue;
+        const d = (p - CHAPTERS[i].a) / ZONE;
+        if (d <= -1 || d >= 1) {
+          if (el.style.visibility !== 'hidden') el.style.visibility = 'hidden';
+          continue;
+        }
+        el.style.visibility = 'visible';
+        const HOLD = 0.32;
+        const x = d < -HOLD ? (-HOLD - d) / (1 - HOLD) : d > HOLD ? -(d - HOLD) / (1 - HOLD) : 0;
+        const e = Math.sign(x) * (1 - Math.pow(1 - Math.abs(x), 2.2));
+        if (reduced) {
+          el.style.opacity = String(1 - Math.abs(e));
+          el.style.transform = 'none';
+        } else {
+          el.style.opacity = '1';
+          el.style.transform = `translate3d(${e * 118}%, 0, 0) skewX(${-8 * e}deg)`;
+          (el.firstElementChild as HTMLElement).style.transform = `translate3d(${e * 40}%, 0, 0)`;
+        }
+        const b = CHAPTERS[i].a;
+        if (lastP < b - ZONE * HOLD && p >= b - ZONE * HOLD) play('count', { vol: 0.5 });
       }
+      lastP = p;
       if (tickRef.current) {
         const lp = localP(p, CHAPTERS[4]);
         const t = liveTick.current ?? Math.floor(lp * 3600);
@@ -183,10 +204,11 @@ export default function Story({ webgl, live }: { webgl: boolean; live: Live }) {
   }, [webgl, near, prog, reduced]);
 
   // decorative: tick numbers drifting up out of the rollup (illustration, not real transactions)
-  const chips = useMemo(() => Array.from({ length: 9 }, (_, i) => ({ s: String(1200 + i * 233).padStart(6, '0'), x: (i * 37) % 92, d: (i % 5) * 1.3, dur: 7 + (i % 4) * 1.6 })), []);
+  const chips = useMemo(() => Array.from({ length: 6 }, (_, i) => ({ s: String(1200 + i * 233).padStart(6, '0'), x: (i * 37) % 92, d: (i % 5) * 1.3, dur: 7 + (i % 4) * 1.6 })), []);
 
   return (
-    <section ref={sec} className={'story' + (webgl ? '' : ' flat')} style={{ ['--dig' as string]: dig }} aria-label="How a Fall Rush show plays out">
+    <section ref={sec} id="story" className={'story' + (webgl ? '' : ' flat')} style={{ ['--dig' as string]: dig }} aria-label="How a Fall Rush show plays out">
+      <div className="cloud-edge" aria-hidden="true" />
       <div className="st-sticky">
         {webgl && near && (
           <Suspense fallback={null}>
@@ -200,16 +222,22 @@ export default function Story({ webgl, live }: { webgl: boolean; live: Live }) {
               <span className="l">Rushlings
                 <br />left</span>
             </div>
-            <div className="st-round">
-              <span ref={labelRef}>Drop in</span>
-              <div ref={dotsRef} className="dots">
-                {CHAPTERS.map((c) => (
-                  <i key={c.id} />
-                ))}
-              </div>
-            </div>
           </div>
         )}
+        {webgl &&
+          CHAPTERS.map((c, i) => {
+            const rc = ROUND_CARD[c.id];
+            if (!rc || i === 0) return null;
+            return (
+              <div key={c.id} ref={(n) => void (wipeRefs.current[i] = n)} className={'st-wipe ' + rc.theme} aria-hidden="true" style={{ visibility: 'hidden' }}>
+                <div className="wipe-in">
+                  <span className="wipe-eyebrow">{rc.eyebrow}</span>
+                  <span className="wipe-title">{rc.title}</span>
+                  <span className="wipe-line">{rc.line}</span>
+                </div>
+              </div>
+            );
+          })}
         <div className="st-copy">
           {COPY.map((c) => (
             <article key={c.id} data-ch={c.id} className={'st-card ' + c.side}>
