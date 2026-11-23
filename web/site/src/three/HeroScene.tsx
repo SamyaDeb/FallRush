@@ -11,6 +11,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { QUALITY } from './quality';
 import { AdaptiveDpr, Confetti, Daylight, FirstFrames, cloudMaterial, disposeTree, makeCloud, prefersReducedMotion, useActive } from './common';
 import { bandTexture, checkerTexture, stripeTexture, trackTexture } from './textures';
+import { play } from '../lib/sfx';
 
 export interface HeroSceneProps {
   /** The visitor's own Rushling. `reveal` = it drops in a capsule and pops out (right after joining). */
@@ -19,6 +20,8 @@ export interface HeroSceneProps {
   /** Play mode (the Play free button): WASD / arrows / tap drive Bolt, Space jumps. Off = the race plays by itself. */
   playing: boolean;
   onReady?: () => void;
+  /** A Rushling was bonked (clicked outside play mode): screen position for the DOM "BONK!" burst. */
+  onBonk?: (x: number, y: number) => void;
 }
 
 export default function HeroScene(props: HeroSceneProps) {
@@ -72,6 +75,8 @@ type Actor = {
   wt: { x: number; z: number } | null;
   wait: number;
   marker?: THREE.Group;
+  /** bonk fling (ballistic; lands, flops over, gets up and runs back to its slot) */
+  fly?: { v: THREE.Vector3; spin: THREE.Vector3; bounces: number } | null;
 };
 
 const angLerp = (a: number, b: number, f: number) => {
@@ -254,6 +259,44 @@ function paintGroups(g: THREE.BufferGeometry, cols: THREE.Color[]) {
   return g;
 }
 
+/** Ballistic bonk flight: tumble through the air, one bounce, flop over (rig.hit), then back to normal. */
+function flyStep(a: Actor, dt: number) {
+  const f = a.fly;
+  if (!f) return;
+  const g = a.rig.group;
+  g.position.addScaledVector(f.v, dt);
+  f.v.y -= 22 * dt;
+  g.rotation.x += f.spin.x * dt;
+  g.rotation.z += f.spin.z * dt;
+  a.yaw += f.spin.y * dt;
+  if (g.position.y < -14) {
+    // fell off the course: drop back in from the sky
+    g.position.set(Math.max(-1.6, Math.min(1.6, g.position.x * 0.3)), 10, g.position.z);
+    g.rotation.x = g.rotation.z = 0;
+    f.v.set(0, -3, 0);
+    f.spin.set(0, 0, 0);
+    f.bounces = 1;
+    return;
+  }
+  if (g.position.y <= 0 && f.v.y < 0 && Math.abs(g.position.x) < 2.3 && g.position.y > -0.6) {
+    g.position.y = 0;
+    if (f.bounces === 0 && f.v.y < -5) {
+      f.bounces = 1;
+      f.v.y = -f.v.y * 0.32;
+      f.v.x *= 0.5;
+      f.v.z *= 0.5;
+      f.spin.multiplyScalar(0.4);
+      play('land', { vol: 0.6 });
+    } else {
+      g.rotation.x = 0;
+      g.rotation.z = 0;
+      a.fly = null;
+      a.rig.hit(1.1);
+      play('land', { vol: 0.7 });
+    }
+  }
+}
+
 function makeMarker() {
   const m = new THREE.Group();
   const yellow = new THREE.MeshStandardMaterial({ color: 0xffd21f, roughness: 0.25, emissive: 0x5a4300 });
@@ -268,7 +311,7 @@ function makeMarker() {
   return m;
 }
 
-function HeroWorld({ you, playing, onRevealed }: HeroSceneProps) {
+function HeroWorld({ you, playing, onRevealed, onBonk }: HeroSceneProps) {
   const { camera, gl, scene, size } = useThree();
   const cam = camera as THREE.PerspectiveCamera;
   const reduce = useMemo(prefersReducedMotion, []);
@@ -276,6 +319,8 @@ function HeroWorld({ you, playing, onRevealed }: HeroSceneProps) {
   playingRef.current = playing;
   const onRev = useRef(onRevealed);
   onRev.current = onRevealed;
+  const onBonkRef = useRef(onBonk);
+  onBonkRef.current = onBonk;
   const capRef = useRef<Capsule | null>(null);
   const popRef = useRef(1);
 
@@ -387,11 +432,26 @@ function HeroWorld({ you, playing, onRevealed }: HeroSceneProps) {
     const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const hitP = new THREE.Vector3();
     const onDown = (e: PointerEvent) => {
-      if (!playingRef.current) return;
       const b = gl.domElement.getBoundingClientRect();
       ndc.set(((e.clientX - b.left) / b.width) * 2 - 1, -((e.clientY - b.top) / b.height) * 2 + 1);
       ray.setFromCamera(ndc, cam);
       const actors = [cast.hero, ...cast.runners, ...(youRef.current ? [youRef.current] : [])];
+      if (!playingRef.current) {
+        // the race: click a Rushling to BONK it into the air
+        const hit = ray.intersectObjects(actors.map((a) => a.rig.group), true)[0];
+        if (!hit) return;
+        const a = actors.find((q) => q.rig.id === hit.object.userData.rushling);
+        if (!a || a.fly) return;
+        const side = a.rig.group.position.x < -0.2 ? -1 : a.rig.group.position.x > 0.2 ? 1 : Math.random() < 0.5 ? -1 : 1;
+        a.fly = {
+          v: new THREE.Vector3(side * (1.5 + Math.random() * 2.5), reduce ? 5 : 8.5 + Math.random() * 3, -(1 + Math.random() * 3)),
+          spin: new THREE.Vector3(-(6 + Math.random() * 6), (Math.random() - 0.5) * 8, side * (4 + Math.random() * 5)),
+          bounces: 0,
+        };
+        confetti.burst(hit.point.clone(), 40);
+        onBonkRef.current?.(e.clientX, e.clientY);
+        return;
+      }
       const hits = ray.intersectObjects(actors.map((a) => a.rig.group), true);
       if (hits.length) {
         const id = hits[0].object.userData.rushling;
@@ -444,7 +504,7 @@ function HeroWorld({ you, playing, onRevealed }: HeroSceneProps) {
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
     };
-  }, [gl, cam, cast, confetti]);
+  }, [gl, cam, cast, confetti, reduce]);
 
   // Play free on / off
   useEffect(() => {
@@ -573,7 +633,9 @@ function HeroWorld({ you, playing, onRevealed }: HeroSceneProps) {
     vel.x += (ix * SPD - vel.x) * Math.min(1, dt * 10);
     vel.z += (iz * SPD - vel.z) * Math.min(1, dt * 10);
     if (hero.rig.knocked) vel.set(0, 0, 0);
-    if (s.play.on) {
+    if (hero.fly) {
+      vel.set(0, 0, 0);
+    } else if (s.play.on) {
       hp.x += vel.x * dt;
       hp.z += vel.z * dt;
       clampP(hp);
@@ -586,7 +648,8 @@ function HeroWorld({ you, playing, onRevealed }: HeroSceneProps) {
     if (spd > 0.3) hero.yaw = angLerp(hero.yaw, Math.atan2(vel.x, vel.z), Math.min(1, dt * 12));
     else if (!s.play.on) hero.yaw = angLerp(hero.yaw, s.mouse.sx * 0.5 - 0.12, Math.min(1, dt * 4));
     hero.rig.group.rotation.y = hero.yaw;
-    hero.rig.update(dt, { run: s.play.on ? spd / SPD : k });
+    flyStep(hero, dt);
+    hero.rig.update(dt, { run: hero.fly ? 0 : s.play.on ? spd / SPD : k });
 
     // the others
     const npcs = [...cast.runners, ...(yourActor ? [yourActor] : [])];
@@ -599,7 +662,9 @@ function HeroWorld({ you, playing, onRevealed }: HeroSceneProps) {
         if (r.push.lengthSq() < 0.01) r.push = null;
       }
       let run = k;
-      if (mix > 0.02) {
+      if (r.fly) {
+        run = 0;
+      } else if (mix > 0.02) {
         if (!r.wt) {
           r.wt = { x: (Math.random() * 2 - 1) * BOUNDS.x, z: -12 + Math.random() * 14 };
           r.wait = 0.4 + Math.random() * 1.6;
@@ -647,6 +712,7 @@ function HeroWorld({ you, playing, onRevealed }: HeroSceneProps) {
         r.marker.rotation.y += dt * 2;
       }
       r.rig.group.rotation.y = r.yaw;
+      flyStep(r, dt);
       r.rig.update(dt, { run });
     }
 

@@ -1,9 +1,18 @@
 /**
- * `/` — the final hero design (Desktop "Fall Rush — 3D Hero" export), with the waitlist live:
- * Join waitlist → email → capsule reveal in the 3D race → card with the personal poster + Share on X.
+ * `/` — the landing: capsule loader → 3D hero race (click a Rushling to bonk it) → the scroll story through all four
+ * rounds and the on-chain Final → the Rushling pit → the finale. Play (the live private beta, /play) and the waitlist
+ * (/join → email → capsule reveal in the race → poster + Share on X) stay two separate paths.
  */
-import { Component, Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { CapsuleLoader } from '../components/CapsuleLoader';
+import { Juice, type JuiceHandle } from '../components/Juice';
+import { LIVE_URL, PLAY_URL } from '../lib/links';
+import { useLive } from '../lib/live';
+import { play, restoreSound, useSound } from '../lib/sfx';
+import Story from './Story';
+import PitSection from './PitSection';
+import Finale from './Finale';
 import { loadHeroScene } from '../lib/preload';
 import { PLAYABLE, TOPPER_NAME, presetByName, type Preset } from '../lib/presets';
 import { usePoster, type PosterState } from '../lib/usePoster';
@@ -55,7 +64,12 @@ export default function Home() {
   const [failed, setFailed] = useState(() => typeof document !== 'undefined' && !webglOk());
   const [showScene, setShowScene] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [heroReady, setHeroReady] = useState(false);
   const { poster, make: makePoster, fromSaved } = usePoster((s) => setSpot(s));
+  const juice = useRef<JuiceHandle>(null);
+  const live = useLive(true);
+  const [sound, setSound] = useSound();
+  useEffect(restoreSound, []);
 
   useEffect(() => {
     document.title = 'Fall Rush — the provably fair knockout party game';
@@ -111,15 +125,23 @@ export default function Home() {
   const sceneYou = useMemo(() => (spot && preset ? { preset, frac: frac(spot), reveal } : null), [spot, preset, reveal]);
 
   return (
+    <div className={'landing' + (playing ? ' is-playing' : '')}>
+    <CapsuleLoader ready={heroReady || failed} />
+    <Juice ref={juice} />
     <div className={'page' + (playing ? ' playing' : '')}>
       {showScene && !failed && (
         <SceneBoundary onError={() => setFailed(true)}>
           <Suspense fallback={null}>
             <HeroScene
               you={sceneYou}
-             
               playing={playing}
               onRevealed={() => setStage('card')}
+              onReady={() => setHeroReady(true)}
+              onBonk={(x, y) => {
+                play('bonk');
+                play('chirp', { vol: 0.6 });
+                juice.current?.bonk(x, y);
+              }}
             />
           </Suspense>
         </SceneBoundary>
@@ -132,9 +154,17 @@ export default function Home() {
               FALL <span className="yellow">RUSH</span>
             </span>
           </a>
-          <button type="button" className="playfree btn" aria-pressed={playing} onClick={() => setPlaying((p) => !p)} disabled={failed}>
-            {playing ? 'Exit' : 'Play free'}
-          </button>
+          <nav className="topnav" aria-label="Main">
+            <button type="button" className="iconbtn btn" aria-pressed={sound} aria-label={sound ? 'Sound off' : 'Sound on'} onClick={() => setSound(!sound)}>
+              {sound ? <SoundOn /> : <SoundOff />}
+            </button>
+            <a className="navlink btn" href={LIVE_URL}>
+              Watch live
+            </a>
+            <a className="playfree btn mag" href={PLAY_URL}>
+              ▶ Play the beta
+            </a>
+          </nav>
         </header>
 
         <main className={'hero' + (playing ? ' away' : '') + (stage !== 'button' ? ' has-card' : '')} aria-hidden={playing}>
@@ -145,8 +175,14 @@ export default function Home() {
                   <path d="M3 18h18l-2-11-5 5-2-7-2 7-5-5z" />
                 </svg>
               </span>
-              <span>12 players · 4 rounds · 1 crown</span>
+              <span>Private beta · live on devnet · open to everyone</span>
             </div>
+            {live.ok && (
+              <a className="livepill" href={LIVE_URL}>
+                <span className="pulse" />
+                {live.humans > 0 ? `${live.humans} playing now` : 'Arenas open'} · {live.arenasUp} {live.arenasUp === 1 ? 'arena' : 'arenas'} up
+              </a>
+            )}
 
             <div className="logo">
               <h1>
@@ -162,13 +198,31 @@ export default function Home() {
               </div>
             </div>
 
+            <p className="tagline">
+              The knockout party game whose Final runs <b>on-chain</b>. 12 players, 4 rounds, 1 crown. No wallet, no popups.
+            </p>
             {stage === 'button' && (
               <div className="cta">
-                <Link to="/join" className="btn btn-join">
+                <a href={PLAY_URL} className="btn btn-play mag">
+                  ▶ Play the beta
+                </a>
+                <Link to="/join" className="btn btn-join mag">
                   Join waitlist
                   <Arrow />
                 </Link>
               </div>
+            )}
+            {stage !== 'button' && (
+              <div className="cta">
+                <a href={PLAY_URL} className="btn btn-play small mag">
+                  ▶ Play the beta
+                </a>
+              </div>
+            )}
+            {!failed && (
+              <button type="button" className="linkbtn drive" aria-pressed={playing} onClick={() => setPlaying((p) => !p)}>
+                {playing ? 'Exit (Esc)' : 'or take Bolt for a spin here (WASD / tap) · click a Rushling to bonk it'}
+              </button>
             )}
             {stage === 'opening' && (
               <div role="status" aria-live="polite" className="status">
@@ -178,11 +232,38 @@ export default function Home() {
             {stage === 'card' && spot && preset && <SpotCard spot={spot} preset={preset} poster={poster} onRetryPoster={() => makePoster(spot)} />}
           </div>
         </main>
-
+        {playing && (
+          <button type="button" className="exitplay btn" onClick={() => setPlaying(false)}>
+            Exit
+          </button>
+        )}
+        {!playing && (
+          <div className="scrollhint" aria-hidden="true">
+            <span>Scroll to drop in</span>
+            <i />
+          </div>
+        )}
       </div>
+    </div>
+    <Story webgl={!failed} live={live} />
+    <PitSection webgl={!failed} />
+    <Finale live={live} />
     </div>
   );
 }
+
+const SoundOn = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor" />
+    <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" />
+  </svg>
+);
+const SoundOff = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor" />
+    <path d="M17 9l5 6M22 9l-5 6" />
+  </svg>
+);
 
 const Arrow = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A1250" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

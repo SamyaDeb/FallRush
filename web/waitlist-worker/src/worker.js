@@ -20,17 +20,17 @@ export default {
     const url = new URL(req.url);
     const path = url.pathname;
     try {
-      if (req.method === 'OPTIONS' && path.startsWith('/api/')) return cors(env, new Response(null, { status: 204 }));
-      if (req.method === 'POST' && path === '/api/join') return cors(env, await join(req, env));
+      if (req.method === 'OPTIONS' && path.startsWith('/api/')) return cors(env, req, new Response(null, { status: 204 }));
+      if (req.method === 'POST' && path === '/api/join') return cors(env, req, await join(req, env));
       let m;
-      if (req.method === 'PUT' && (m = path.match(/^\/api\/poster\/([A-Z0-9-]+)$/))) return cors(env, await uploadPoster(req, env, m[1]));
-      if (req.method === 'GET' && (m = path.match(/^\/api\/me\/([A-Z0-9-]+)$/))) return cors(env, await me(env, m[1]));
+      if (req.method === 'PUT' && (m = path.match(/^\/api\/poster\/([A-Z0-9-]+)$/))) return cors(env, req, await uploadPoster(req, env, m[1]));
+      if (req.method === 'GET' && (m = path.match(/^\/api\/me\/([A-Z0-9-]+)$/))) return cors(env, req, await me(env, m[1]));
       if (req.method === 'GET' && (m = path.match(/^\/p\/([A-Z0-9-]+)\.png$/))) return await poster(env, m[1]);
       if (req.method === 'GET' && (m = path.match(/^\/r\/([A-Za-z0-9-]+)\/?$/))) return await sharePage(env, m[1].toUpperCase());
       return json({ error: 'not_found' }, 404);
     } catch (err) {
       console.error(err);
-      return cors(env, json({ error: 'server_error' }, 500));
+      return cors(env, req, json({ error: 'server_error' }, 500));
     }
   },
 
@@ -215,14 +215,24 @@ async function publicView(env, row, token) {
 
 function site(env) { return String(env.SITE_URL || '').replace(/\/$/, ''); }
 
-function sameOrigin(req, env) {
-  const origin = req.headers.get('Origin');
-  return !origin || origin === env.ALLOWED_ORIGIN || origin === site(env);
+/** Origins allowed to call /api: the site itself, ALLOWED_ORIGIN, and a comma-separated ALLOWED_ORIGINS (e.g. the game
+ *  host, which serves the same landing as its front door and calls this worker cross-origin). */
+function origins(env) {
+  return [site(env), env.ALLOWED_ORIGIN, ...String(env.ALLOWED_ORIGINS || '').split(',')]
+    .map((o) => String(o || '').trim().replace(/\/$/, ''))
+    .filter(Boolean);
 }
 
-function cors(env, res) {
+function sameOrigin(req, env) {
+  const origin = req.headers.get('Origin');
+  return !origin || origins(env).includes(origin);
+}
+
+function cors(env, req, res) {
   const h = new Headers(res.headers);
-  h.set('Access-Control-Allow-Origin', env.ALLOWED_ORIGIN || site(env));
+  const origin = req.headers.get('Origin');
+  const list = origins(env);
+  h.set('Access-Control-Allow-Origin', origin && list.includes(origin) ? origin : list[0] || '');
   h.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
   h.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   h.set('Vary', 'Origin');
