@@ -1,0 +1,39 @@
+[load] 34 bettors on arenas 3 for 600 s; admin 2.841708678 SOL
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 1000ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+[load] setup ok 34/34; funded 0.14659448 SOL; 429s so far 6
+{
+ "n": 34,
+ "arenas": [
+  3
+ ],
+ "fill": true,
+ "seconds": 607,
+ "rpc429": 1686,
+ "fundedSol": 0.14659448,
+ "setupOk": 34,
+ "actions": {
+  "sealedBet": {
+   "ok": 64,
+   "fail": 4,
+   "p50": 1231,
+   "p95": 1893,
+   "max": 2446,
+   "errs": {
+    "{\"InstructionError\":[0,{\"Custom\":6043}]}": 4
+   }
+  },
+  "state": {
+   "ok": 2847,
+   "fail": 0,
+   "p50": 0,
+   "p95": 0,
+   "max": 0,
+   "errs": {}
+  }
+ },
+ "adminLamportsEnd": 2695064198
+}

@@ -63,6 +63,8 @@ try {
   }
   if (FLOW === 'player') {
     await size(Number(opt('w', '1440')), Number(opt('h', '900')), false);
+    // P7 chaos: Chrome's "Slow 4G" preset (562.5 ms, 1.6 / 0.75 Mbps) + 150 ms (HTTP; DevTools does not throttle WebSocket frames)
+    if (process.argv.includes('--throttle')) { await send('Network.enable'); await send('Network.emulateNetworkConditions', { offline: false, latency: 712.5, downloadThroughput: 1.6e6 / 8, uploadThroughput: 0.75e6 / 8 }); }
     const before = await (await fetch(`${BASE}/api/matches?n=1`)).json().catch(() => ({ matches: [] }));
     const last = before.matches?.[0]?.match;
     const sv = opt('server', '');
