@@ -107,7 +107,10 @@ async function season(id: number) {
   const i = await BASE.getAccountInfo(k).catch(() => null);
   const onChain = i && i.owner.equals(PROGRAM) ? decodeSeason(i.data as Buffer) : null;
   const rb = rebuild(id);
-  const same = (a: any[], b: any[]) => a.length === b.length && a.every((x, j) => x.wallet === b[j].wallet && x.score === b[j].score);
+  // P7: the same entries with the same scores; the order of equal scores is a tie-break detail (the program keeps
+  // insertion order, the rebuild sorts), so compare as sets of (wallet, score)
+  const key = (xs: any[]) => xs.map((x) => `${x.wallet}:${x.score}`).sort().join(",");
+  const same = (a: any[], b: any[]) => a.length === b.length && key(a) === key(b);
   const check = onChain ? { champions: same(onChain.champions, rb.champions), predictors: same(onChain.predictors, rb.predictors), dropMvps: same(onChain.dropMvps, rb.dropMvps) } : null;
   const body = { ok: true, id, account: k.toBase58(), onChain, rebuild: rb, matches: check ? check.champions && check.predictors && check.dropMvps : null, check };
   seasonCache.set(id, { at: Date.now(), body });

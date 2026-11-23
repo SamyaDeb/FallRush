@@ -15,6 +15,7 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
+html { background: #ddeffb; }
 body { background: linear-gradient(180deg, #4fa6ec 0%, #66b5f2 30%, #9cd2f5 70%, #ddeffb 100%) fixed; color: var(--ink); font: 16px/1.45 var(--body); -webkit-font-smoothing: antialiased; }
 a { color: var(--grape-deep); }
 a:hover { color: var(--grape); }

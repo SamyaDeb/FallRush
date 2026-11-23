@@ -68,7 +68,7 @@ export function receipt(root: HTMLElement, params: string[]) {
       return `<tr><td><b>${MARKET_NAMES[k]}</b>${k === 0 && rc.sealedN ? ` <span class="chip sealed">${icon('lock')} sealed</span>` : ''}</td><td>${rush(mk.pool)} RUSH</td><td>${winners.map((x) => '#' + (x + 1)).join(' ') || '—'}</td><td>${pay}</td><td><span class="chip ${mk.label === 1 ? 'grape' : ''}">${LABELS[mk.label] ?? ''}</span></td></tr>`;
     }).join('');
     const sealedLine = rc.sealedN
-      ? `${rc.sealedN} sealed bet(s) · ${rush(rc.sealedPool)} RUSH · ${rc.sealedRevealed} revealed from the private book${rc.sealedForfeits ? ` · <b>${rc.sealedForfeits} forfeited</b> (${rush(rc.sealedForfeit)} RUSH to the pool)` : ''} · ◆ settled by the program with the Champion market`
+      ? `${rc.sealedN} sealed bet(s) · ${rush(rc.sealedPool)} RUSH · ${rc.sealedRevealed} revealed ${(s?.sealed?.reveals ?? []).length ? 'from the private book' : s?.sealed ? 'by the bettors themselves (commit-reveal fallback: the private book was not read)' : ''}${rc.sealedForfeits ? ` · <b>${rc.sealedForfeits} forfeited</b> (${rush(rc.sealedForfeit)} RUSH to the pool)` : ''} · ◆ settled by the program with the Champion market`
       : '<span class="muted">no sealed bets in this match</span>';
     const pools = rc.markets.filter((mk) => mk.status).map((mk) => rush(mk.pool)).join(' / ');
     $('#ab').innerHTML = aborted ? ' <span class="chip pink">aborted · every stake refunded</span>' : '';
