@@ -37,7 +37,8 @@ export function season(root: HTMLElement, params: string[]) {
     const tick = async () => {
       const r = await api(`/season?id=${id}${me ? `&wallet=${me}` : ''}`).catch(() => null);
       if (stop) return;
-      if (!r?.ok) { $('#meta').innerHTML = '<span class="bad">season unavailable</span>'; return; }
+      // beta audit: keep polling after a failed fetch (one error used to stop the board for good)
+      if (!r?.ok) { $('#meta').innerHTML = '<span class="bad">season unavailable: retrying…</span>'; if (!stop) setTimeout(tick, 10_000); return; }
       const s = r.onChain;
       $('#t').textContent = `SEASON · ${seasonName(id).toUpperCase()}`;
       if (!s) { $('#meta').innerHTML = `no Season account yet (it opens with the first match of the week) · <a target="_blank" href="${explorer('address', r.account)}">account</a>`; }

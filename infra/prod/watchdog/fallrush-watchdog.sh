@@ -5,7 +5,7 @@
 # (self-rotated at 1 MB, one old copy). State: /opt/fallrush/logs/watchdog.state (consecutive failures per service).
 set -uo pipefail
 LOG=/opt/fallrush/logs/watchdog.log; STATE=/opt/fallrush/logs/watchdog.state
-SERVICES="fallrush-web fallrush-indexer fallrush-gs1 fallrush-gs2 fallrush-keeper-1 fallrush-keeper-2"
+SERVICES="fallrush-web fallrush-indexer fallrush-gs1 fallrush-gs2 fallrush-gs3 fallrush-keeper-1 fallrush-keeper-2"
 MAX_FAILS=3
 mkdir -p /opt/fallrush/logs
 [ -f "$LOG" ] && [ "$(stat -c %s "$LOG")" -gt 1048576 ] && mv -f "$LOG" "$LOG.1"
@@ -22,7 +22,7 @@ check() { # $1 = service → exit 0 when healthy
     fallrush-indexer) echo "$STATUS" | grep -q '"ok":true' ;;
     # the game servers write their own heartbeat (status.json, every few s): independent of the indexer (P7 fix: with
     # the indexer down, /api/status failed and the old check restarted both game servers mid-match)
-    fallrush-gs1|fallrush-gs2) python3 -c 'import json,sys,time; s=json.load(open(sys.argv[1])); sys.exit(0 if time.time()*1000 - s.get("t",0) < 30000 else 1)' "/opt/fallrush/logs/${s#fallrush-}/status.json" 2>/dev/null ;;
+    fallrush-gs1|fallrush-gs2|fallrush-gs3) python3 -c 'import json,sys,time; s=json.load(open(sys.argv[1])); sys.exit(0 if time.time()*1000 - s.get("t",0) < 30000 else 1)' "/opt/fallrush/logs/${s#fallrush-}/status.json" 2>/dev/null ;;
     fallrush-keeper-1) curl -sf --max-time 5 http://127.0.0.1:3111/health | grep -q '"ok":true' ;;
     fallrush-keeper-2) curl -sf --max-time 5 http://127.0.0.1:3113/health | grep -q '"ok":true' ;;
   esac

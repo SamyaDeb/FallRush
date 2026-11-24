@@ -37,6 +37,7 @@ namespace FallRush.Net
         private bool _loaded;
         private bool _loadingScene;
         private readonly HashSet<ulong> _viewers = new HashSet<ulong>();
+        private readonly Dictionary<ulong, float> _rxAt = new Dictionary<ulong, float>();
         private readonly Dictionary<ulong, (string name, byte[] token, byte preset, byte tier)> _viewerHello = new Dictionary<ulong, (string, byte[], byte, byte)>();
         private uint _evtSeq;
         private bool _matchDirty, _stateDirty;
@@ -194,7 +195,7 @@ namespace FallRush.Net
             {
                 var d = Director;
                 var id = d.MatchId != null ? Sha256.Hex(d.MatchId) : "";
-                var json = $"{{\"t\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()},\"phase\":\"{d.Phase}\",\"inMatch\":{(d.InMatch ? "true" : "false")},\"round\":{d.Round},\"humans\":{d.HumansConnected()},\"size\":{d.MatchSize},\"serial\":{d.MatchSerial},\"completed\":{d.MatchesCompleted},\"match\":\"{id}\",\"onchainFinal\":{(Handoff != null ? "true" : "false")},\"room\":{(d.PrivateRoom ? "true" : "false")},\"lobbyTier\":\"{TierNames[d.LobbyTier]}\"}}";
+                var json = $"{{\"t\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()},\"phase\":\"{d.Phase}\",\"inMatch\":{(d.InMatch ? "true" : "false")},\"round\":{d.Round},\"humans\":{d.HumansConnected()},\"size\":{d.MatchSize},\"serial\":{d.MatchSerial},\"completed\":{d.MatchesCompleted},\"match\":\"{id}\",\"onchainFinal\":{(Handoff != null ? "true" : "false")},\"room\":{(d.PrivateRoom ? "true" : "false")},\"lobbyTier\":\"{TierNames[d.LobbyTier]}\",\"conns\":{NetBootstrap.Instance?.ServerConnectedCount ?? 0},\"maxConns\":{NetBootstrap.MaxConnections},\"viewers\":{_viewers.Count}}}";
                 Directory.CreateDirectory(LogDir);
                 var tmp = Path.Combine(LogDir, "status.json.tmp");
                 File.WriteAllText(tmp, json);
@@ -248,6 +249,9 @@ namespace FallRush.Net
 
             if (_quitting)
                 return false;
+            // beta audit: an on-chain Final that never reports a result must not hold the arena forever
+            if (Director.Rules is ChainFinalRules cf && cf.TimedOut && Director.InMatch && Director.Phase != MatchPhase.Aborted && Director.Phase < MatchPhase.Finalizing)
+                Director.Abort(AbortReason.ServerStop);
             Director.PreStep();
             return !_loadingScene;
         }
@@ -274,7 +278,9 @@ namespace FallRush.Net
                 BroadcastState();
             }
 
-            if (Director.Phase == MatchPhase.LobbyOpen && _viewers.Count > 0 && _loaded)
+            // beta audit: also during the countdown: a lobby that already has humans goes LobbyOpen → Countdown on the
+            // same tick, so watchers of the last match were never seated and watched match after match
+            if ((Director.Phase == MatchPhase.LobbyOpen || Director.Phase == MatchPhase.Countdown) && _viewers.Count > 0 && _loaded && !_loadingScene)
                 SeatViewers();
             WriteStatus();
             while (ShellCheck.Results.TryDequeue(out var sc))
@@ -470,6 +476,20 @@ namespace FallRush.Net
         {
             var hello = NetBootstrap.TakeHello(clientId);
             var core = _sim.Core;
+            // beta audit: the same player connected again (phone switched network, tab reloaded) while the server still
+            // holds the old connection: drop the stale one first, so the new one resumes the seat instead of watching
+            if (hello.Token != null)
+            {
+                var ghost = Director.FindConnectedSlot(hello.Token);
+                if (ghost >= 0 && core.Slots[ghost].ClientId != clientId)
+                {
+                    var old = core.Slots[ghost].ClientId;
+                    Debug.Log($"[gs] slot {ghost}: client={clientId} replaces the stale client={old}");
+                    OnClientDisconnected(old, ghost);
+                    try { _nm.DisconnectClient(old, "You joined again from another tab or network."); } catch (Exception e) { Debug.LogWarning("[gs] drop stale: " + e.Message); }
+                }
+            }
+
             if (Director.InMatch)
             {
                 var slot = hello.Token != null ? Director.FindResumeSlot(hello.Token) : -1;
@@ -490,7 +510,11 @@ namespace FallRush.Net
             else
             {
                 if (!Seat(clientId, hello.Name, hello.Token, hello.CosmeticPreset, hello.SkillTier))
+                {
+                    if (_viewers.Contains(clientId))
+                        SendFullState(clientId);
                     return;
+                }
                 if (!string.IsNullOrEmpty(hello.ShellAsset))
                     ShellCheck.Begin(clientId, hello.ShellAsset, hello.ShellWallet);
             }
@@ -501,11 +525,18 @@ namespace FallRush.Net
         private bool Seat(ulong clientId, string name, byte[] token, byte preset = 0, byte tier = 1)
         {
             var core = _sim.Core;
-            var slot = core.AddHuman(clientId);
+            var slot = core.HumanCount < Protocol.MaxPlayers ? core.AddHuman(clientId) : -1;
             if (slot < 0)
             {
-                Debug.LogWarning($"[gs] no slot for client={clientId}; disconnecting");
-                _nm.DisconnectClient(clientId, $"Server full ({Protocol.MaxPlayers}/{Protocol.MaxPlayers}).");
+                // beta audit: every seat has a human: watch this match and take a seat in the next lobby (the server
+                // admits a few more connections than seats for this) instead of being kicked
+                if (!_viewers.Contains(clientId))
+                {
+                    _viewers.Add(clientId);
+                    _viewerHello[clientId] = (name, token, preset, tier);
+                    Debug.Log($"[gs] client={clientId}: lobby full, watches (viewers={_viewers.Count})");
+                }
+
                 return false;
             }
 
@@ -524,6 +555,8 @@ namespace FallRush.Net
             {
                 _viewers.Remove(id);
                 _viewerHello.TryGetValue(id, out var h);
+                if (_sim.Core.HumanCount >= Protocol.MaxPlayers)
+                    break; // the rest keep watching (lobby full)
                 _viewerHello.Remove(id);
                 if (Seat(id, h.name, h.token, h.preset, h.tier))
                     SendFullState(id);
@@ -548,6 +581,7 @@ namespace FallRush.Net
         /// <summary>Returns true if the slot was freed (lobby), false if it was detached (in a match: 20 s grace).</summary>
         public void OnClientDisconnected(ulong clientId, int slot)
         {
+            _rxAt.Remove(clientId);
             if (_viewers.Remove(clientId))
             {
                 _viewerHello.Remove(clientId);
@@ -623,6 +657,11 @@ namespace FallRush.Net
                     Director.Back(slot);
                     break;
                 case ControlCmd.RxResend:
+                    // beta audit: at most one full reactive resend per client per second
+                    var nowRx = Time.realtimeSinceStartup;
+                    if (_rxAt.TryGetValue(sender, out var lastRx) && nowRx - lastRx < 1f)
+                        break;
+                    _rxAt[sender] = nowRx;
                     _sim.SendReactiveFull(sender);
                     break;
                 case ControlCmd.Emote:

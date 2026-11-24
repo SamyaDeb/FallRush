@@ -3,7 +3,7 @@
 // match (cosmetic only; the game server checks ownership), claim to Phantom, move RUSH to Phantom, back up the key.
 import { rpc, api, BASE_HTTP, CORE, ASSETS_AUTH, explorer, short, rush, b64 } from '../lib/net';
 import { coreAttrs, badges, seasonName } from '../lib/decode';
-import { chainFor, ensureGuest, J } from '../lib/chain';
+import { chainFor, ensureGuest, J, esc } from '../lib/chain';
 import { icon, capsuleArt, RARITY_COLOUR } from '../lib/icons';
 import { countUp } from '../lib/motion';
 
@@ -34,7 +34,7 @@ export function me(root: HTMLElement) {
     const w = JSON.parse(c.wallet());
     const refresh = async () => {
       const [st, rs, bal] = await Promise.all([J(c.econ('state', '{}')), J(c.econ('rush', '{}')), J(c.devBalances()).catch(() => ({}))]);
-      $('#w').innerHTML = `Guest wallet <a target="_blank" class="mono" href="${explorer('address', w.burner)}">${w.burner}</a><br><span class="muted">${bal.ok ? (bal.burner / 1e9).toFixed(4) + ' SOL (devnet) · ' : ''}session key ${w.session?.token ? 'active until ' + new Date(w.session.validUntil * 1000).toLocaleString() : 'none'}${g.error ? ' · ' + g.error : ''}</span>`;
+      $('#w').innerHTML = `Guest wallet <a target="_blank" class="mono" href="${explorer('address', w.burner)}">${w.burner}</a><br><span class="muted">${bal.ok ? (bal.burner / 1e9).toFixed(4) + ' SOL (devnet) · ' : ''}session key ${w.session?.token ? 'active until ' + new Date(w.session.validUntil * 1000).toLocaleString() : 'none'}${g.error ? ' · ' + esc(g.error) : ''}</span>`;
       $('#chips').innerHTML = st.chips ? `${rush(st.chips.balance)} RUSH chips available · won ${rush(st.chips.won ?? st.chips.wonTotal ?? 0)} · cashed out ${rush(st.chips.cashedOut)} · <a target="_blank" href="${explorer('address', rs.ata)}">your RUSH token account</a>` : 'no chips yet';
       countUp($('#s-chips'), st.chips ? Number(BigInt(st.chips.balance) / 1000000n) : 0);
       countUp($('#s-rush'), Number(BigInt(rs.amount ?? 0) / 1000000n));
@@ -51,7 +51,7 @@ export function me(root: HTMLElement) {
       ($('#cash') as HTMLButtonElement).disabled = true;
       $('#cashst').textContent = 'cashing out: rollup → commit → mint on Solana…';
       const r = await J(c.econ('cashout', JSON.stringify({ amount })));
-      $('#cashst').innerHTML = r.ok ? `<span class="ok">✓ ${amount} RUSH minted</span> · <a target="_blank" href="${explorer('tx', r.cashoutSig, true)}">cashout (rollup)</a> · <a target="_blank" href="${explorer('tx', r.mintSig)}">mint_cashout (Solana)</a> · commit ${r.commitMs} ms` : `<span class="bad">${r.stage ?? ''} ${String(r.error).slice(0, 160)}</span>`;
+      $('#cashst').innerHTML = r.ok ? `<span class="ok">✓ ${amount} RUSH minted</span> · <a target="_blank" href="${explorer('tx', r.cashoutSig, true)}">cashout (rollup)</a> · <a target="_blank" href="${explorer('tx', r.mintSig)}">mint_cashout (Solana)</a> · commit ${r.commitMs} ms` : `<span class="bad">${esc(r.stage ?? '')} ${esc(String(r.error).slice(0, 160))}</span>`;
       ($('#cash') as HTMLButtonElement).disabled = false;
       refresh();
     };
@@ -63,7 +63,7 @@ export function me(root: HTMLElement) {
       $('#caps').innerHTML = res.length ? res.map((a, i) => {
         const at = coreAttrs(b64(a.account.data[0])); const isCrown = !at.shell;
         const col = isCrown ? '#ffd21f' : RARITY_COLOUR[Math.max(0, ['Common', 'Rare', 'Epic', 'Legendary'].indexOf(at.rarity ?? 'Common'))];
-        return `<div class="tile asset enter ${isCrown ? 'crown' : ''}" style="--i:${i};${isCrown ? '' : `--rim:${col};--pastel:#fff`}">${capsuleArt(col, isCrown)}<div style="min-width:0"><a class="nm" style="color:inherit;text-decoration:none" target="_blank" href="${explorer('address', a.pubkey)}">${at.name ?? 'asset'}</a>
+        return `<div class="tile asset enter ${isCrown ? 'crown' : ''}" style="--i:${i};${isCrown ? '' : `--rim:${col};--pastel:#fff`}">${capsuleArt(col, isCrown)}<div style="min-width:0"><a class="nm" style="color:inherit;text-decoration:none" target="_blank" href="${explorer('address', a.pubkey)}">${esc(at.name ?? 'asset')}</a>
           <div class="muted">${isCrown ? 'Crown Capsule' : at.rarity ?? ''}${at.shell ? ' · shell ' + at.shell : ''}</div>
           <div class="row" style="margin-top:6px">${at.shell ? `<button class="btn small mint" data-equip="${a.pubkey}" data-shell="${at.shell}">${eq?.asset === a.pubkey ? '✓ equipped' : 'Equip'}</button>` : ''}<button class="btn small grape" data-claim="${a.pubkey}" ${phantom ? '' : 'disabled'} title="${phantom ? '' : 'connect Phantom first'}">Claim to Phantom</button></div></div></div>`; }).join('') : '<div class="muted">no capsules yet: finish a match as a human to get one (and win the Final for the Crown).</div>';
     };
@@ -76,7 +76,7 @@ export function me(root: HTMLElement) {
       if (cl && phantom) {
         cl.disabled = true;
         const r = await J(c.econ('claim', JSON.stringify({ asset: cl.dataset.claim, to: phantom })));
-        cl.outerHTML = r.ok ? `<span class="ok">✓ claimed</span> <a target="_blank" href="${explorer('tx', r.sig)}">tx</a>` : `<span class="bad">${String(r.error).slice(0, 120)}</span>`;
+        cl.outerHTML = r.ok ? `<span class="ok">✓ claimed</span> <a target="_blank" href="${explorer('tx', r.sig)}">tx</a>` : `<span class="bad">${esc(String(r.error).slice(0, 120))}</span>`;
       }
     };
     $('#ph').onclick = async () => {
@@ -89,7 +89,7 @@ export function me(root: HTMLElement) {
     $('#mv').onclick = async () => {
       if (!phantom) return;
       const r = await J(c.econ('sendRush', JSON.stringify({ to: phantom, amount: Number(($('#ramt') as HTMLInputElement).value) })));
-      $('#mvst').innerHTML = r.ok ? `<span class="ok">✓ sent</span> <a target="_blank" href="${explorer('tx', r.sig)}">tx</a>` : `<span class="bad">${String(r.error).slice(0, 120)}</span>`;
+      $('#mvst').innerHTML = r.ok ? `<span class="ok">✓ sent</span> <a target="_blank" href="${explorer('tx', r.sig)}">tx</a>` : `<span class="bad">${esc(String(r.error).slice(0, 120))}</span>`;
       refresh();
     };
     $('#reveal').onclick = () => {

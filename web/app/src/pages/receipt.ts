@@ -7,6 +7,7 @@ import { decodeMatch, MARKET_NAMES, LABELS, RARITY, DROPS, MATCH_STATUS, coreAtt
 import { icon, capsuleArt, RARITY_COLOUR } from '../lib/icons';
 import { verifyMatch } from '../lib/verify';
 import { drawCard } from '../lib/card';
+import { esc } from '../lib/chain';
 
 const MAPS = ['Capsule Run', 'Goo Tower', 'Star Fountain', 'Lid Flip'];
 const MODES = ['Race', 'Survival', 'Skill', 'Final'];
@@ -56,7 +57,7 @@ export function receipt(root: HTMLElement, params: string[]) {
       const isCrown = !a.at.shell;
       const rIx = Math.max(0, RARITY.indexOf(a.at.rarity ?? 'Common'));
       return `<a class="tile asset enter ${isCrown ? 'crown' : ''}" style="--i:${i};${isCrown ? '' : `--rim:${RARITY_COLOUR[rIx]};--pastel:#fff;`}text-decoration:none;color:inherit" target="_blank" href="${explorer('address', a.id)}">
-        ${capsuleArt(isCrown ? '#ffd21f' : RARITY_COLOUR[rIx], isCrown)}<div><div class="nm">${a.at.name ?? 'asset'}</div><div class="muted">${isCrown ? 'the Crown' : (a.at.rarity ?? '') + (a.at.shell ? ' · shell ' + a.at.shell : '')}</div><div class="muted">Metaplex Core · <span class="mono">${short(a.id)}</span></div></div></a>`;
+        ${capsuleArt(isCrown ? '#ffd21f' : RARITY_COLOUR[rIx], isCrown)}<div><div class="nm">${esc(a.at.name ?? 'asset')}</div><div class="muted">${isCrown ? 'the Crown' : esc((a.at.rarity ?? '') + (a.at.shell ? ' · shell ' + a.at.shell : ''))}</div><div class="muted">Metaplex Core · <span class="mono">${short(a.id)}</span></div></div></a>`;
     }).join('');
     // market results with payouts (pari-mutuel: the winning stake shares the pool)
     const marketRows = rc.markets.map((mk, k) => {
@@ -168,7 +169,7 @@ export function receipt(root: HTMLElement, params: string[]) {
           if (stop) return;
           replayOk = v.error ? null : v.pass;
           if (!v.error) { $('#rp').classList.add(v.pass ? 'done' : 'fail'); if (v.pass && onSolana) $('#l2').classList.add('done'); }
-          $('#rpst').innerHTML = v.error ? `<span class="muted">${v.error}</span>` : `${v.pass ? '<span class="ok">replay = on-chain ✓</span>' : '<span class="bad">replay ≠ on-chain</span>'} · ${v.ok}/${v.pairs} ticks re-simulated byte-exact${v.transcript ? ' · Final transcript ✓' : ''}`;
+          $('#rpst').innerHTML = v.error ? `<span class="muted">${esc(v.error)}</span>` : `${v.pass ? '<span class="ok">replay = on-chain ✓</span>' : '<span class="bad">replay ≠ on-chain</span>'} · ${v.ok}/${v.pairs} ticks re-simulated byte-exact${v.transcript ? ' · Final transcript ✓' : ''}`;
           (window as any).__receiptReplay = { pass: v.pass, ok: v.ok, pairs: v.pairs };
         } catch (err) { $('#rpst').textContent = 'replay unavailable: ' + err; }
       };

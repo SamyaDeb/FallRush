@@ -53,10 +53,14 @@ const stage = (s: string, extra: object = {}) => {
 };
 
 // ------------------------------------------------------------------ status / health
+const STAGE_REST = new Set(["idle", "boot", "match_failed", "resume_failed"]);
 const serverStatus = () => { try { return JSON.parse(readFileSync(join(LOG_DIR, "status.json"), "utf8")); } catch { return null; } };
 createServer((req, res) => {
   const body = req.url?.startsWith("/health")
-    ? { ok: Date.now() - (status.heartbeat ?? BOOT) < 30_000, stage: status.stage, heartbeat: status.heartbeat }
+    // beta audit: the heartbeat is a timer, so it ticks while the main loop is stuck on a hung RPC: a match stage
+    // (a whole match is ~8 min) that has not moved for 25 min is unhealthy too (the watchdog then restarts the keeper,
+    // which resumes or aborts + refunds the match)
+    ? { ok: Date.now() - (status.heartbeat ?? BOOT) < 30_000 && (STAGE_REST.has(status.stage) || Date.now() - status.since < 25 * 60_000), stage: status.stage, since: status.since, heartbeat: status.heartbeat }
     : { ...status, server: serverStatus(), now: Date.now() };
   res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
   res.end(JSON.stringify(body));

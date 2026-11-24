@@ -42,3 +42,18 @@
 2026-11-24T17:28:15Z gs3: host available memory 5719 MB
 2026-11-24T17:28:25Z gs3: up (Classic-only room server, 127.0.0.1:7779)
 2026-11-24T17:28:27Z web: switched to the P7 build (web.p6bak kept)
+2026-11-24T17:52:20Z gsimage: fallrush-gameserver:p7ux built, rooms dir + gs3 logs ready, GS_PUBLIC has gs3 (not live)
+2026-11-24T17:52:27Z gs3: host available memory 5701 MB
+2026-11-24T17:52:40Z gs3: up (Classic-only room server, 127.0.0.1:7779)
+2026-11-24T17:52:50Z arena3: gs2 on fallrush-gameserver:p7ux (healthy)
+2026-11-24T17:53:03Z arena2: gs1 on fallrush-gameserver:p7ux (healthy)
+2026-11-24T17:50:06Z beta-audit: Hostinger snapshot 472001 retaken (expires 2026-11-25 17:50 UTC)
+2026-11-24T17:52:20Z beta-audit: gameserver image (stale-seat takeover, overflow viewers, 16 conns, Final result timeout, name cleaning, no public host start) → gs3, gs2, gs1 healthy
+2026-11-24T17:54:40Z beta-audit: host nginx /api/ limit_req 20 r/s burst 60 per client (nginx -t ok, reload); 150-request burst → 31× 429
+2026-11-24T17:56:52Z build: node image fallrush-node:p7 + web.p7 staged (not live)
+2026-11-24T17:57:55Z indexer: up on fallrush-node:p7 (healthy)
+2026-11-24T17:58:39Z keeper-1: up on fallrush-node:p7 (healthy)
+2026-11-24T17:59:27Z arena3: gs2 + keeper-2 up (keeper on :p7)
+2026-11-24T17:59:29Z web: switched to the P7 build (web.p6bak kept)
+2026-11-24T17:59:41Z watchdog: fallrush-watchdog.timer active
+2026-11-24T18:00:12Z beta-audit: landing web/site rebuilt (StoryCanvas fog null guard, og:url fallrush.fun); previous kept as web.site-prebeta

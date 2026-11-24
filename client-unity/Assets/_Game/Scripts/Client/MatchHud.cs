@@ -1195,7 +1195,7 @@ namespace FallRush.Client
             }
 
             _lobbyStatus.text = _sb.ToString();
-            _start.gameObject.SetActive(host);
+            _start.gameObject.SetActive(host && priv); // beta audit: public lobbies count down (no host start)
             var sl = priv ? "START MATCH" : "Start now (host)";
             if (_startLabel.text != sl)
                 _startLabel.text = sl;

@@ -16,6 +16,15 @@ namespace FallRush.Net
         private readonly IRoundRules _inner;
         private readonly ChainFinalHandoff _h;
         private bool _endedSent;
+        private uint _innerEndedAt;
+
+        /// <summary>
+        /// Beta audit: the arena never produced a result <see cref="ResultGraceTicks"/> after the Final's own timer ran out
+        /// (rollup task died, keeper down). The server aborts the match (refunds) instead of waiting forever.
+        /// </summary>
+        public bool TimedOut { get; private set; }
+
+        public const uint ResultGraceTicks = 120 * 30;
 
         public ChainFinalRules(IRoundRules inner, ChainFinalHandoff handoff)
         {
@@ -72,6 +81,16 @@ namespace FallRush.Net
             _h.Poll();
             if (_inner.Phase != RoundPhase.Ended)
                 _inner.EndTick(sim, tick); // phases + timer; nobody moves, so nobody falls
+            else if (_h.ResultOrder == null)
+            {
+                if (_innerEndedAt == 0)
+                    _innerEndedAt = Math.Max(1, tick);
+                else if (!TimedOut && tick - _innerEndedAt > ResultGraceTicks)
+                {
+                    TimedOut = true;
+                    UnityEngine.Debug.LogWarning($"[gs] on-chain Final: no result {ResultGraceTicks / 30} s after the timer; aborting the match");
+                }
+            }
             if (_h.ResultOrder != null && !_endedSent)
             {
                 _endedSent = true;

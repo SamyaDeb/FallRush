@@ -5,6 +5,7 @@ import { api, short, explorer } from '../lib/net';
 import { draw } from '../lib/view2d';
 import { verifyMatch } from '../lib/verify';
 import { icon } from '../lib/icons';
+import { esc } from '../lib/chain';
 
 export function replay(root: HTMLElement, params: string[]) {
   const id = params[0];
@@ -19,11 +20,14 @@ export function replay(root: HTMLElement, params: string[]) {
       <p class="muted" style="margin-top:12px">Do it yourself offline: <code>node tools/p7/replay-check.mjs ${id}</code> (see the README).</p></div></div></div>`;
   const $ = (q: string) => root.querySelector(q) as HTMLElement;
   (async () => {
-    const m = await api(`/match/${id}`);
-    if (!m.ok) { $('#st').innerHTML = `<span class="bad">${m.error}</span>`; return; }
+    // beta audit: any failure says so (it stayed on "loading the archive…"); an aborted match has nothing to replay
+    const m = await api(`/match/${id}`).catch((e: any) => ({ ok: false, error: 'archive unavailable: ' + (e?.message ?? e) }));
+    if (!m.ok) { $('#st').innerHTML = `<span class="bad">${esc(m.error)}</span>`; return; }
+    if (m.summary?.receipt?.status === 6) { $('#st').innerHTML = 'This match was <b>aborted</b> (every bet refunded): there is no on-chain Final to replay.'; return; }
+    if (!m.summary?.final) { $('#st').innerHTML = 'This match has no on-chain Final recording (rounds 1–3 run on the Classic server).'; return; }
     const v = await verifyMatch(id, m.summary, (i, n) => { if (!stop) $('#st').textContent = `checking ${i}/${n} ticks…`; });
     if (stop) return;
-    if (v.error) { $('#st').innerHTML = `<span class="bad">${v.error}</span>`; return; }
+    if (v.error) { $('#st').innerHTML = `<span class="bad">${esc(v.error)}</span>`; return; }
     const frames = v.frames, last = frames[frames.length - 1];
     $('#vs').classList.add(v.pass ? 'done' : 'fail');
     $('#st').innerHTML = `${v.pass ? '<span class="ok">replay = on-chain ✓</span>' : '<span class="bad">replay ≠ on-chain ✗</span>'} · ${v.ok}/${v.pairs} consecutive ticks re-simulated byte-exact with rush_core.wasm${v.gaps ? ` (${v.gaps} gaps in the recording skipped)` : ''}${v.mapLoad ? ' · starts after the map-load tick (0 → 1)' : ''}${v.dropsIngested ? ` · ${v.dropsIngested} Chaos Drop(s) ingested from the archived DropQueue` : ''}${v.first >= 0 ? ` · first mismatch at tick ${v.first}` : ''} · receipt Final transcript ${v.transcript == null ? 'n/a' : v.transcript ? 'found in the final World ✓' : 'NOT found ✗'} · ${frames.length} snapshots, ticks ${frames[0].tick}–${last.tick}`;
@@ -45,6 +49,6 @@ export function replay(root: HTMLElement, params: string[]) {
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
-  })();
+  })().catch((e: any) => { if (!stop) $("#st").innerHTML = `<span class="bad">replay failed: ${esc(e?.message ?? e)}</span>`; });
   return () => { stop = true; };
 }

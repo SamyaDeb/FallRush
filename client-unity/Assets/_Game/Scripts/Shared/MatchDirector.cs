@@ -45,6 +45,7 @@ namespace FallRush.Shared
     public sealed class MatchDirector
     {
         // ---- timings (ticks at 30 Hz; M4-10) ----
+        public const uint JoinGraceTicks = 240, CountdownMaxTicks = 1350; // beta audit: 8 s after a join, ≤ 45 s total
         public const int CountdownTicks = 600, DealingTicks = 90, DealtTicks = 90, LoadTimeoutTicks = 300;
         public const int RoundIntroTicks = 60, RoundCountdownTicks = 90; // 5 s: 2 s intro (fly-through starts) + 3-2-1-RUSH
         public const int ResultTicks = 180, IntermissionTicks = 240, ChampionTicks = 240, DoneTicks = 600, AbortTicks = 150;
@@ -164,9 +165,48 @@ namespace FallRush.Shared
             Tokens[slot] = token;
             SkillTiers[slot] = (byte)Math.Min(2, (int)tier);
             Presets[slot] = CosmeticPresets.Clamp(preset);
-            Names[slot] = string.IsNullOrEmpty(name) ? $"Player {slot + 1}" : name;
+            Names[slot] = CleanName(name, slot);
+            // beta audit: a public countdown keeps at least JoinGraceTicks after each arrival (capped at
+            // CountdownMaxTicks from its start), so a crowd arriving over half a minute lands in one match instead of
+            // the first few locking the roster and the rest watching
+            if (Phase == MatchPhase.Countdown && !PrivateRoom && !Soak)
+            {
+                var want = Math.Min(Tick + JoinGraceTicks, PhaseStartTick + CountdownMaxTicks);
+                if (want > PhaseEndTick)
+                    PhaseEndTick = want;
+            }
+
             UpdateHost();
             _host.OnMatchChanged();
+        }
+
+        /// <summary>
+        /// Beta audit: names are shown with rich text (nameplates) and written into JSON / jsonl lines: drop control
+        /// characters, tag brackets, quotes and backslashes; an empty result becomes "Player N".
+        /// </summary>
+        public static string CleanName(string name, int slot)
+        {
+            if (!string.IsNullOrEmpty(name))
+            {
+                var sb = new System.Text.StringBuilder(name.Length);
+                foreach (var ch in name)
+                    if (ch >= 0x20 && ch != 0x7F && ch != '<' && ch != '>' && ch != '\\' && ch != '"' && !(ch >= 0x2028 && ch <= 0x202E) && !(ch >= 0x200B && ch <= 0x200F))
+                        sb.Append(ch);
+                name = sb.ToString().Trim();
+            }
+
+            return string.IsNullOrEmpty(name) ? $"Player {slot + 1}" : name;
+        }
+
+        /// <summary>Beta audit: a slot that is still connected under this token (a stale connection after a network change).</summary>
+        public int FindConnectedSlot(ReadOnlySpan<byte> token)
+        {
+            if (token.Length != 16 || IsZero(token))
+                return -1;
+            for (var i = 0; i < MaxSlots; i++)
+                if (Tokens[i] != null && _sim.Slots[i].Active && !_sim.Slots[i].Bot && !_sim.Slots[i].Detached && token.SequenceEqual(Tokens[i]))
+                    return i;
+            return -1;
         }
 
         /// <summary>True if the slot is in the current match roster (a disconnect then keeps it for the grace period).</summary>
@@ -241,6 +281,9 @@ namespace FallRush.Shared
         public bool HostStart(int slot)
         {
             if (slot != HostSlot || (Phase != MatchPhase.Countdown && Phase != MatchPhase.LobbyOpen))
+                return false;
+            // beta audit: in a public lobby the first arrival could start alone while others were still joining
+            if (!PrivateRoom && !Soak)
                 return false;
             _hostStart = true;
             return true;
@@ -317,6 +360,13 @@ namespace FallRush.Shared
                     break;
 
                 case MatchPhase.Countdown:
+                    // beta audit: the server became a private room during a public countdown: wait for the host's Start
+                    if (PrivateRoom && !Soak && !_hostStart)
+                    {
+                        SetPhase(MatchPhase.LobbyOpen, tick, 0);
+                        break;
+                    }
+
                     if (HumansConnected() == 0 && !Soak)
                     {
                         SetPhase(MatchPhase.LobbyOpen, tick, 0);

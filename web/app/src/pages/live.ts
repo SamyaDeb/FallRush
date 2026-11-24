@@ -5,7 +5,7 @@ import { api, ARENAS, ER_HTTP, accounts, subscribe, explorer, short, rush, PROGR
 import { decodeWorldAcc, decodeArena, decodeMatch, MARKET_NAMES, LABELS, odds, DROPS, DROP_PRICE } from '../lib/decode';
 import { CoreWorld } from '../lib/core';
 import { draw } from '../lib/view2d';
-import { chainFor, ensureGuest, J } from '../lib/chain';
+import { chainFor, ensureGuest, J, esc } from '../lib/chain';
 import { icon, type IconName } from '../lib/icons';
 import { countUp, restart } from '../lib/motion';
 
@@ -20,11 +20,12 @@ export function live(root: HTMLElement, params: string[]) {
   root.innerHTML = `<div class="card hue-grape enter"><div class="ribbon">${icon('eye')} LIVE <span class="sub">watch, bet and drop chaos from your phone</span></div><div id="pick" class="row muted">loading arenas…</div></div>`;
   (async () => {
     const s = await api('/status').catch(() => ({ servers: [] }));
-    const servers = s.servers ?? [];
+    // beta audit: only arenas (the Classic room server gs3 has no on-chain arena: it showed as a dead "arena 0" pill)
+    const servers = (s.servers ?? []).filter((x: any) => x.arena != null && !x.classic);
     const id = params[0] != null ? Number(params[0]) : servers.find((x: any) => x.keeper?.stage === 'final')?.arena ?? servers[0]?.arena ?? 2;
-    root.querySelector('#pick')!.innerHTML = servers.map((x: any) => `<a class="btn small ${x.arena === id ? 'grape' : 'ghost'}" href="/live/${x.arena}" data-link>${x.id.toUpperCase()} · arena ${x.arena}</a>`).join(' ') || 'no arena online';
+    root.querySelector('#pick')!.innerHTML = servers.map((x: any) => `<a class="btn small ${x.arena === id ? 'grape' : 'ghost'}" href="/live/${Number(x.arena)}" data-link>${esc(String(x.id).toUpperCase())} · arena ${Number(x.arena)}</a>`).join(' ') || 'no arena online';
     const A = ARENAS[id];
-    if (!A) return;
+    if (!A || stop) return;
     root.insertAdjacentHTML('beforeend', `
       <div class="two">
         <div><div class="card hue-soda" style="margin-top:0"><div class="ribbon">${icon('tiles')} <span id="phase">…</span></div><canvas class="view" id="cv"></canvas><div id="chip" class="muted mono" style="margin-top:8px;min-height:36px"></div></div></div>
@@ -49,11 +50,25 @@ export function live(root: HTMLElement, params: string[]) {
     const lobby = await CoreWorld.create('Lobby');
     let wa: ReturnType<typeof decodeWorldAcc> | null = null, humans = 0, lastPhase = '', bannerUntil = 0, banner = '';
     let state: any = null, arena: ReturnType<typeof decodeArena> | null = null, match: ReturnType<typeof decodeMatch> | null = null;
+    if (stop) return; // beta audit: left the page during the awaits: never open the World socket (it reconnected forever)
     unsub.push(subscribe(A.world, (d) => { wa = decodeWorldAcc(d); }, (st) => { $('#chip').dataset.ws = st; }));
     // guest wallet for betting (no popup); spectating works without it
-    let ready = false;
-    ensureGuest((m) => { $('#me').textContent = m; }, id).then((g) => { ready = !g.error; $('#me').textContent = g.error ? 'betting unavailable: ' + g.error : `you: ${short(g.burner)} · ${g.chips ? rush(g.chips) : '?'} RUSH chips`; }).catch((e) => { $('#me').textContent = 'betting unavailable: ' + e; });
-    const c: any = await chainFor(id);
+    let ready = false, setupFailed = false;
+    // beta audit: a failed setup (RPC busy, gas limit) gets a Retry button instead of a spinner that never ends
+    const setup = () => {
+      setupFailed = false;
+      ensureGuest((m) => { $('#me').textContent = m; }, id)
+        .then((g) => { ready = !g.error; if (g.error) fail(g.error); else $('#me').textContent = `you: ${short(g.burner)} · ${g.chips ? rush(g.chips) : '?'} RUSH chips${g.note ? ' · ' + g.note : ''}`; })
+        .catch((e) => fail(String(e?.message ?? e)));
+    };
+    const fail = (why: string) => {
+      setupFailed = true;
+      $('#me').innerHTML = `betting unavailable: ${esc(why.slice(0, 140))} <button class="btn small" id="retry">Retry</button>`;
+      ($('#retry') as HTMLButtonElement).onclick = () => setup();
+    };
+    setup();
+    let c: any;
+    try { c = await chainFor(id); } catch (e: any) { fail(String(e?.message ?? e)); return; }
     // drop buttons
     $('#drops').innerHTML = [1, 2, 3, 4].map((k) => `<button class="drop ${DROP_HUE[k]}" data-drop="${k}"><span class="ring" style="--p:1"><span>${icon(DROP_ICON[k])}</span></span><span><span class="nm">${DROPS[k]}</span><span class="pr">${icon('chip').replace('<svg', '<svg style="width:13px;height:13px;vertical-align:-2px"')} ${DROP_PRICE[k]} RUSH</span></span></button>`).join('');
     $('#drops').onclick = async (e) => {
@@ -61,7 +76,7 @@ export function live(root: HTMLElement, params: string[]) {
       if (!b) return;
       b.disabled = true;
       const r = await J(c.econ('drop', JSON.stringify({ kind: Number(b.dataset.drop) })));
-      feed(r.ok ? `<b>you</b> bought <b>${DROPS[Number(b.dataset.drop)]}</b> ${r.session ? '(session key)' : ''} · <a target="_blank" href="${explorer('tx', r.sig, true)}">tx</a>` : `<span class="bad">drop refused</span> ${String(r.error).slice(0, 120)}`);
+      feed(r.ok ? `<b>you</b> bought <b>${DROPS[Number(b.dataset.drop)]}</b> ${r.session ? '(session key)' : ''} · <a target="_blank" href="${explorer('tx', r.sig, true)}">tx</a>` : `<span class="bad">drop refused</span> ${esc(String(r.error).slice(0, 120))}`);
       if (r.ok) { restart(b.querySelector('.ring'), 'flash'); yourBet(`you dropped <b>${DROPS[Number(b.dataset.drop)]}</b> · <a target="_blank" href="${explorer('tx', r.sig, true)}">tx</a>`); } else restart(b, 'shake');
       setTimeout(() => (b.disabled = false), 1500);
     };
@@ -75,13 +90,17 @@ export function live(root: HTMLElement, params: string[]) {
         // to the public rollup; nobody (not even us) can read the pick until the market closes
         if (!attested) { attested = true; J(c.econ('teeAttest', JSON.stringify({ base: '/chain/' }))).then((a) => { teeOk = a.ok; feed(a.ok ? `TEE attested in this browser (Intel TDX quote, ${a.ms} ms)` : `<span class="muted">TEE attestation not verified: ${String(a.error).slice(0, 80)}</span>`); }); }
         const r = await J(c.econ('sealedBet', JSON.stringify({ outcome: Number(b.dataset.o), amount: amt })));
-        feed(r.ok ? `<b>you</b> sealed ${amt} RUSH on a Champion pick (pick ${r.pick?.ok ? 'in the private book' : '<span class="bad">not in the book: you will reveal it yourself</span>'}, ${r.ms + (r.pick?.ms ?? 0)} ms) · <a target="_blank" href="${explorer('tx', r.sig, true)}">commit tx</a>` : `<span class="bad">sealed bet refused</span> ${String(r.error).slice(0, 120)}`);
+        feed(r.ok ? `<b>you</b> sealed ${amt} RUSH on a Champion pick (pick ${r.pick?.ok ? 'in the private book' : '<span class="bad">not in the book: you will reveal it yourself</span>'}, ${r.ms + (r.pick?.ms ?? 0)} ms) · <a target="_blank" href="${explorer('tx', r.sig, true)}">commit tx</a>` : `<span class="bad">sealed bet refused</span> ${esc(String(r.error).slice(0, 120))}`);
         if (r.ok) yourBet(`you bet <b>${amt} RUSH on #${Number(b.dataset.o) + 1}</b> to be Champion · sealed ${icon('lock').replace('<svg', '<svg style="width:16px;height:16px;vertical-align:-3px"')} until the market closes`); else restart(b, 'shake');
         setTimeout(() => (b.disabled = false), 1200);
         return;
       }
       const r = await J(c.econ('bet', JSON.stringify({ k: Number(b.dataset.k), outcome: Number(b.dataset.o), amount: amt })));
-      feed(r.ok ? `<b>you</b> bet ${amt} RUSH on slot ${Number(b.dataset.o) + 1} · ${MARKET_NAMES[Number(b.dataset.k)]} ${r.session ? '(session key)' : ''} · <a target="_blank" href="${explorer('tx', r.sig, true)}">tx</a>` : `<span class="bad">bet refused</span> ${String(r.error).slice(0, 120)}`);
+      // beta audit: a confirmation timeout is not a refusal (the bet may have landed): say so and hold the button,
+      // so nobody bets twice by accident
+      const unconfirmed = !r.ok && /unconfirmed/i.test(String(r.error));
+      feed(r.ok ? `<b>you</b> bet ${amt} RUSH on slot ${Number(b.dataset.o) + 1} · ${MARKET_NAMES[Number(b.dataset.k)]} ${r.session ? '(session key)' : ''} · <a target="_blank" href="${explorer('tx', r.sig, true)}">tx</a>` : unconfirmed ? `<span class="muted">bet sent, not confirmed yet: watch the pool before betting again</span>` : `<span class="bad">bet refused</span> ${esc(String(r.error).slice(0, 120))}`);
+      if (unconfirmed) { setTimeout(() => (b.disabled = false), 6000); return; }
       if (r.ok) { yourBet(`you bet <b>${amt} RUSH on #${Number(b.dataset.o) + 1}</b> · ${MARKET_NAMES[Number(b.dataset.k)]} · <a target="_blank" href="${explorer('tx', r.sig, true)}">tx</a>`); restart(b, 'bump'); } else restart(b, 'shake');
       setTimeout(() => (b.disabled = false), 1200);
     };
@@ -146,7 +165,7 @@ export function live(root: HTMLElement, params: string[]) {
         match = md ? decodeMatch(md) : null;
         const finalOn = wa && wa.round === 4 && arena?.status === 2;
         $('#phase').textContent = finalOn ? `On-chain Final · ${wa!.roundPhase < 3 ? 'get ready' : wa!.roundPhase === 3 ? 'RUSH!' : 'ended'}` : sv?.inMatch ? `Classic round ${sv.round}/3 on ${sv.id.toUpperCase()}` : sv?.up ? 'Lobby open — join from /play' : 'arena idle';
-        $('#classic').innerHTML = `${sv?.up ? `${sv.humans} human(s) on ${sv.id.toUpperCase()} · server phase ${sv.phase}` : ''}${match ? ` · match <a target="_blank" href="${explorer('address', arena!.match, true)}">${short(arena!.match)}</a> ${['Created', 'Dealing', 'Dealt', 'Round active', 'Round resolved', 'Completed', 'Aborted'][match.status]}` : ''}`;
+        $('#classic').innerHTML = `${sv?.up ? `${Number(sv.humans)} human(s) on ${esc(String(sv.id).toUpperCase())} · server phase ${esc(sv.phase)}` : ''}${match ? ` · match <a target="_blank" href="${explorer('address', arena!.match, true)}">${short(arena!.match)}</a> ${['Created', 'Dealing', 'Dealt', 'Round active', 'Round resolved', 'Completed', 'Aborted'][match.status]}` : ''}`;
         const ph = `${finalOn}-${wa?.roundPhase}-${sv?.round}`;
         if (ph !== lastPhase) { lastPhase = ph; feed($('#phase').textContent!); }
         // markets
@@ -155,7 +174,7 @@ export function live(root: HTMLElement, params: string[]) {
         if (prevBets >= 0 && nb > prevBets) feed(`${nb - prevBets} new bet(s) on-chain`);
         prevBets = nb;
         const slots: number[] = match ? match.slots.map((x, i) => (x === 1 || x === 2) && i < match!.players ? i : -1).filter((i) => i >= 0) : [];
-        $('#ready').textContent = ready ? '' : '(setting up your guest wallet…)';
+        $('#ready').textContent = ready ? '' : setupFailed ? '' : '(setting up your guest wallet…)';
         renderMarkets(ms.filter((m) => m.status >= 1), slots);
         const dq = state.drops;
         if (dq && prevDrops >= 0 && dq.count > prevDrops) { const b = dq.buys[dq.count - 1]; banner = `${DROPS[b.kind]}!`; bannerUntil = Date.now() + 2500; feed(`Chaos Drop <b>${DROPS[b.kind]}</b> by ${short(b.by)}`); toast(`${b.by === state.wallet ? 'You' : short(b.by)} dropped ${DROPS[b.kind]}!`, DROP_ICON[b.kind] ?? 'bolt'); restart(root.querySelector(`button[data-drop="${b.kind}"] .ring`), 'flash'); }
@@ -165,16 +184,19 @@ export function live(root: HTMLElement, params: string[]) {
         root.querySelectorAll<HTMLButtonElement>('button[data-drop]').forEach((b) => { b.disabled = !!why || !ready || (Number(b.dataset.drop) === 4 && !sweeperOnSale(state)); (b.querySelector('.ring') as HTMLElement).style.setProperty('--p', (1 - cdLeft).toFixed(3)); });
         $('#dropinfo').textContent = why ? `drops: ${why}` : `drops open · ${3 - (state.drops?.count ?? 0)} left this round · map-wide, telegraphed 0.77 s`;
       } catch (e) { /* transient */ }
-      if (!stop) setTimeout(poll, 1500);
+      // beta audit: ~14 rollup reads per poll: 2.5 s while visible, 10 s in a background tab (20 tabs hit the public RPC)
+      if (!stop) setTimeout(poll, document.hidden ? 10_000 : 2500);
     };
     poll();
+    let chipAt = 0;
     const frame = () => {
       if (stop) return;
       const cv = root.querySelector('#cv') as HTMLCanvasElement | null;
       if (cv && wa) {
         const w = wa.round === 4 ? cw : lobby;
         if (w.set(wa.world)) draw(cv, w, { humans, banner: Date.now() < bannerUntil ? banner : undefined, label: `tick ${wa.tick} · ${wa.round === 4 ? 'Final (Lid Flip)' : 'lobby'}` });
-        $('#chip').innerHTML = `ER devnet-as · World <a target="_blank" href="${explorer('address', A.world, true)}">${short(A.world)}</a> · tick ${wa.tick} · core v${wa.coreVersion & 0xff} · ws ${$('#chip').dataset.ws ?? ''} · <a target="_blank" href="${explorer('address', PROGRAM)}">program</a>`;
+        // beta audit: rebuilt at most twice a second (every frame made its links unclickable and cost battery)
+        if (Date.now() - chipAt > 500) chipAt = Date.now(), $('#chip').innerHTML = `ER devnet-as · World <a target="_blank" href="${explorer('address', A.world, true)}">${short(A.world)}</a> · tick ${wa.tick} · core v${wa.coreVersion & 0xff} · ws ${$('#chip').dataset.ws ?? ''} · <a target="_blank" href="${explorer('address', PROGRAM)}">program</a>`;
       }
       requestAnimationFrame(frame);
     };

@@ -17,6 +17,13 @@ export function play(root: HTMLElement) {
   const mark = (k: string) => { (window as any).__fr.marks[k] = Math.round(performance.now() - t0); };
   // guest wallet in parallel with the download (Unity's own bundle instance reuses it: same localStorage)
   const guest = chainFor().then(() => ensureGuest(msg)).then((g) => { mark('guest'); msg(g.error ? `guest wallet: ${g.error} (you can still play)` : `guest wallet ready · ${g.chips ? Number(BigInt(g.chips) / 1000000n) + ' RUSH chips' : ''}`); return g; }).catch((e) => { msg('guest wallet: ' + e); });
+  // beta audit: no WebGL 2 → say so up front instead of a 21 MB download that cannot start
+  const gl2 = (() => { try { return !!document.createElement('canvas').getContext('webgl2'); } catch { return false; } })();
+  if (!gl2) {
+    (root.querySelector('#msg') as HTMLElement).innerHTML = 'This browser has no WebGL 2, which Fall Rush needs.<br>Try desktop Chrome, Edge, Firefox or Safari 15+. You can still <a href="/live">watch and bet on /live</a>.';
+    return () => { document.getElementById('top')!.style.display = ''; document.getElementById('foot')!.style.display = ''; };
+  }
+  const phone = /iPhone|iPad|Android/i.test(navigator.userAgent);
   (async () => {
     // P7-UX (OC-48): the game's own front end (title → character ring → play hub) picks the mode and the server
     // (skill-tier matchmaking, rooms, ?room= invite links). The old one-click Quick Play stays for scripts and old
@@ -78,15 +85,17 @@ export function play(root: HTMLElement) {
     };
     const [dataUrl, codeUrl] = await Promise.all([pfetch(bj.data).catch(() => '/unity/Build/' + bj.data), pfetch(bj.code).catch(() => '/unity/Build/' + bj.code)]);
     mark('download');
-    msgEl.textContent = 'unpacking…';
+    msgEl.textContent = phone ? 'unpacking… (phones: experimental, a desktop browser plays best)' : 'unpacking…';
     const s = document.createElement('script');
+    const failed = (why: string) => { msgEl.innerHTML = `could not start the game: ${String(why).replace(/[&<>"']/g, '')}<br><a href="#" onclick="location.reload();return false">Reload</a>`; };
+    s.onerror = () => failed('the game loader did not download (network?)');
     s.src = '/unity/Build/' + bj.loader;
     s.onload = () => createUnityInstance(root.querySelector('#unity-canvas'), {
       dataUrl, frameworkUrl: '/unity/Build/' + bj.framework, codeUrl,
       streamingAssetsUrl: '/unity/StreamingAssets', companyName: 'Fall Rush', productName: 'Fall Rush', productVersion: '0.5',
     }, (p: number) => { show(0.9 + p * 0.1); if (p > 0.05) msgEl.textContent = 'starting the game…'; })
       .then((inst: any) => { mark('unity'); (window as any).__fr.unity = inst; cap.classList.add('open'); show(1); setTimeout(() => { (root.querySelector('#unity-load') as HTMLElement).style.display = 'none'; }, 450); })
-      .catch((e: any) => { msgEl.textContent = 'could not start the game: ' + e; });
+      .catch((e: any) => failed(String(e?.message ?? e)));
     document.body.appendChild(s);
   })();
   return () => { document.getElementById('top')!.style.display = ''; document.getElementById('foot')!.style.display = ''; location.reload(); };

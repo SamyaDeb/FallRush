@@ -121,6 +121,67 @@ namespace FallRush.Tests
             Assert.That(h.D.PlayerCount, Is.EqualTo(12), "a room fills to 12 with bots (same roster shape as public)");
         }
 
+        // ------------------------------------------------------------------ beta audit
+
+        [Test]
+        public void BetaAudit_CleanName_DropsTagsControlsAndQuotes()
+        {
+            Assert.That(MatchDirector.CleanName("<size=200>Bob</size>", 0), Is.EqualTo("size=200Bob/size"));
+            Assert.That(MatchDirector.CleanName("a\\b\"c\nd", 0), Is.EqualTo("abcd"));
+            Assert.That(MatchDirector.CleanName("  ", 4), Is.EqualTo("Player 5"));
+            Assert.That(MatchDirector.CleanName("<>", 2), Is.EqualTo("Player 3"));
+            Assert.That(MatchDirector.CleanName("Ünï 🙂", 0), Is.EqualTo("Ünï 🙂"));
+            Assert.That(MatchDirector.CleanName(null, 0), Is.EqualTo("Player 1"));
+        }
+
+        [Test]
+        public void BetaAudit_PublicLobby_NoHostStart_RoomStill()
+        {
+            var h = new MatchDirectorTests.Harness(new byte[32], new[] { 0 });
+            h.RunUntil(() => h.D.Phase == MatchPhase.Countdown);
+            Assert.That(h.D.HostStart(0), Is.False, "public: the countdown runs (nobody starts alone while others join)");
+            h.D.PrivateRoom = true;
+            h.Tick();
+            Assert.That(h.D.Phase, Is.EqualTo(MatchPhase.LobbyOpen), "became a room mid-countdown: waits for the host");
+            Assert.That(h.D.HostStart(0), Is.True);
+        }
+
+        [Test]
+        public void BetaAudit_PublicCountdown_ExtendsOnJoin_Capped()
+        {
+            var h = new MatchDirectorTests.Harness(new byte[32], new[] { 0 });
+            h.RunUntil(() => h.D.Phase == MatchPhase.Countdown);
+            var start = h.D.PhaseStartTick;
+            Assert.That(h.D.PhaseEndTick, Is.EqualTo(start + (uint)MatchDirector.CountdownTicks));
+            for (var i = 0; i < 560; i++)
+                h.Tick(); // ~1.3 s left
+            Assert.That(h.Sim.AddHumanAt(5, 105UL), Is.True);
+            h.D.OnHumanJoined(5, MatchDirectorTests.Harness.Token(5), "Late");
+            Assert.That(h.D.PhaseEndTick, Is.EqualTo(h.D.Tick + MatchDirector.JoinGraceTicks), "a join leaves 8 s");
+            for (var k = 0; k < 6; k++)
+            {
+                for (var i = 0; i < 200; i++)
+                    h.Tick();
+                if (h.D.Phase != MatchPhase.Countdown)
+                    break;
+                var slot = 6 + k;
+                Assert.That(h.Sim.AddHumanAt(slot, (ulong)(100 + slot)), Is.True);
+                h.D.OnHumanJoined(slot, MatchDirectorTests.Harness.Token(slot), "More");
+                Assert.That(h.D.PhaseEndTick, Is.LessThanOrEqualTo(start + MatchDirector.CountdownMaxTicks), "never past 45 s");
+            }
+
+            h.RunUntil(() => h.D.Phase == MatchPhase.Dealing);
+        }
+
+        [Test]
+        public void BetaAudit_FindConnectedSlot_MatchesTheLiveTokenOnly()
+        {
+            var h = new MatchDirectorTests.Harness(new byte[32], new[] { 0, 3 });
+            Assert.That(h.D.FindConnectedSlot(MatchDirectorTests.Harness.Token(3)), Is.EqualTo(3));
+            Assert.That(h.D.FindConnectedSlot(MatchDirectorTests.Harness.Token(7)), Is.EqualTo(-1));
+            Assert.That(h.D.FindConnectedSlot(new byte[16]), Is.EqualTo(-1), "an all-zero token never matches");
+        }
+
         [Test]
         public void PublicLobby_StillCountsDown()
         {

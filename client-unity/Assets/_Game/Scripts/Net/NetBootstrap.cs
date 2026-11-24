@@ -201,6 +201,9 @@ namespace FallRush.Net
         // ---- server-side ----
         private readonly HashSet<ulong> _serverClients = new HashSet<ulong>();
         public int ServerConnectedCount => _serverClients.Count;
+
+        /// <summary>Beta audit: connections a server admits: the 12 seats plus a few watchers (the next lobby seats them).</summary>
+        public const int MaxConnections = Protocol.MaxPlayers + 4;
         public ushort ListenPort { get; private set; }
 
         private string _pendingDisconnectReason;
@@ -501,9 +504,9 @@ namespace FallRush.Net
                 return;
             }
 
-            if (_serverClients.Count >= Protocol.MaxPlayers)
+            if (_serverClients.Count >= MaxConnections)
             {
-                Reject(response, request.ClientNetworkId, $"Server full ({Protocol.MaxPlayers}/{Protocol.MaxPlayers}).");
+                Reject(response, request.ClientNetworkId, "Server full: try Quick Match again in a minute.");
                 return;
             }
 

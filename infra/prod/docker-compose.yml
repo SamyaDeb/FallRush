@@ -107,7 +107,7 @@ services:
     container_name: fallrush-indexer
     command: ["node", "--experimental-strip-types", "--no-warnings", "tools/indexer/server.ts"]
     # P7: a playtest venue shares one IP; P7-UX: rooms (ROOMS dir shared with the game servers) + gs3's status file
-    environment: { PORT: "3112", ARCHIVE: /archive, GAS_PER_IP_DAY: "40", FAUCET_PER_IP_DAY: "40", ROOMS: /rooms, STATUS_FILES: "gs3=/gs3logs/status.json" }
+    environment: { PORT: "3112", ARCHIVE: /archive, GAS_PER_IP_DAY: "60", GAS_PER_HOUR: "40", FAUCET_PER_IP_DAY: "60", ROOMS: /rooms, STATUS_FILES: "gs3=/gs3logs/status.json" }
     ports: ["127.0.0.1:3112:3112"]
     volumes: ["./archive:/archive", "./secrets/funder.json:/secrets/funder.json:ro", "./rooms:/rooms", "./logs/gs3:/gs3logs:ro"]
     cpus: 0.25

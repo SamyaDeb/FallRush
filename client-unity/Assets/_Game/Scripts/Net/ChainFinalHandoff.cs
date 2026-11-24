@@ -253,6 +253,9 @@ namespace FallRush.Net
             var n = w[rs + 52];
             if (n == 0 || n > 12)
                 return;
+            for (var k = 0; k < n; k++)
+                if (w[rs + 53 + k] >= 12)
+                    return; // beta audit: a slot out of range would throw in the director on every tick
             ResultOrder = new int[n];
             ResultReasons = new ElimReason[n];
             for (var k = 0; k < n; k++)
@@ -337,6 +340,9 @@ namespace FallRush.Net
             var p = st?.result?.placements;
             if (st == null || st.arena != Arena || st.state != "ended" || p == null || p.Length == 0)
                 return;
+            foreach (var x in p)
+                if (x.slot < 0 || x.slot >= 12)
+                    return;
             ResultOrder = new int[p.Length];
             ResultReasons = new ElimReason[p.Length];
             for (var k = 0; k < p.Length; k++)
