@@ -65,3 +65,19 @@
 2026-11-24T18:37:02Z gs3: host available memory 5719 MB
 2026-11-24T18:37:12Z gs3: up (Classic-only room server, 127.0.0.1:7779)
 2026-11-24T18:37:14Z web: switched to the P7 build (web.p6bak kept)
+2026-11-24T19:34:19Z build: node image fallrush-node:p7 + web.p7 staged (not live)
+2026-11-24T19:34:26Z a human is in a match: waiting
+2026-11-24T19:34:41Z a human is in a match: waiting
+2026-11-24T19:34:56Z a human is in a match: waiting
+2026-11-24T19:35:11Z a human is in a match: waiting
+2026-11-24T19:35:27Z a human is in a match: waiting
+2026-11-24T19:35:42Z a human is in a match: waiting
+2026-11-24T19:35:57Z a human is in a match: waiting
+2026-11-24T19:36:12Z a human is in a match: waiting
+2026-11-24T19:36:28Z a human is in a match: waiting
+2026-11-24T19:36:43Z a human is in a match: waiting
+2026-11-24T19:36:58Z a human is in a match: waiting
+2026-11-24T19:37:13Z a human is in a match: waiting
+2026-11-24T19:37:28Z a human is in a match: waiting
+2026-11-24T19:37:45Z web: switched to the P7 build (web.p6bak kept)
+2026-11-24T19:37:45Z beta-audit: web #16 (stun flicker = one hit, 6-char room code on one line; 00f339f) after snapshot 19:34 UTC; neighbours OK
