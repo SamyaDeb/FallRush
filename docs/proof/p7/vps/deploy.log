@@ -81,3 +81,6 @@
 2026-11-24T19:37:28Z a human is in a match: waiting
 2026-11-24T19:37:45Z web: switched to the P7 build (web.p6bak kept)
 2026-11-24T19:37:45Z beta-audit: web #16 (stun flicker = one hit, 6-char room code on one line; 00f339f) after snapshot 19:34 UTC; neighbours OK
+2026-11-24T20:01:59Z build: node image fallrush-node:p7 + web.p7 staged (not live)
+2026-11-24T20:02:01Z web: switched to the P7 build (web.p6bak kept)
+2026-11-24T20:02:01Z beta-audit: web #17 (no stars on hits, stagger instead of flop, pinned re-stuns = one hit) after snapshot 20:01 UTC; neighbours OK
