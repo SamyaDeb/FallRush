@@ -405,10 +405,11 @@ namespace FallRush.OnChain
 
         private void BuildReceipt()
         {
-            _receiptCard = UiKit.MakeCard(_canvas, UiKit.CardSize.M, UiKit.CardHue.Tangerine, "MATCH RECEIPT", new Vector2(480f, 540f), UiIcon.Check);
+            // P7-UX2: the on-chain receipt (Rollup ✓ → Solana ✓ → assets), top-left, top-aligned with the standings card
+            _receiptCard = UiKit.MakeCard(_canvas, UiKit.CardSize.M, UiKit.CardHue.Tangerine, "ON-CHAIN RECEIPT", new Vector2(480f, 540f), UiIcon.Check);
             _receipt = _receiptCard.Root;
-            _receipt.anchorMin = _receipt.anchorMax = _receipt.pivot = new Vector2(0f, 0.5f);
-            _receipt.anchoredPosition = new Vector2(14f, -24f);
+            _receipt.anchorMin = _receipt.anchorMax = _receipt.pivot = new Vector2(0f, 1f);
+            _receipt.anchoredPosition = new Vector2(16f, -72f);
             var body = _receiptCard.Body;
             body.GetComponent<VerticalLayoutGroup>().spacing = 3;
             _close = Small(_receiptCard.Ribbon, "✕", UiKit.CardPastel(UiKit.CardHue.Tangerine), 32f, () => { _closed = true; UiMotion.Hide(_receipt); }, 18, 28f);

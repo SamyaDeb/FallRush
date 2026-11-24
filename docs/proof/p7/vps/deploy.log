@@ -28,3 +28,5 @@
 2026-11-24T08:54:21Z web: switched to the P7 build (web.p6bak kept)
 2026-11-24T10:07:09Z build: node image fallrush-node:p7 + web.p7 staged (not live)
 2026-11-24T10:07:10Z web: switched to the P7 build (web.p6bak kept)
+2026-11-24T10:33:12Z build: node image fallrush-node:p7 + web.p7 staged (not live)
+2026-11-24T10:33:14Z web: switched to the P7 build (web.p6bak kept)

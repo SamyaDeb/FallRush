@@ -724,11 +724,37 @@ namespace FallRush.Client
             {
                 var s = ((from < 0 ? -1 : from) + k + Protocol.MaxPlayers) % Protocol.MaxPlayers;
                 for (var i = 0; i < n.Count; i++)
-                    if (n.Players[i].Slot == s && s != cs.OwnSlot && (n.Players[i].Flags & MotorState.Respawning) == 0 && (n.Players[i].Race & PlayerState.RaceFinished) == 0)
+                    if (n.Players[i].Slot == s && s != cs.OwnSlot && (n.Players[i].Flags & MotorState.Respawning) == 0 && (n.Players[i].Race & PlayerState.RaceFinished) == 0 && !Fallen(cs, s))
                         return s;
             }
 
             return -1;
+        }
+
+        private float _lowestSpawnY = float.NaN;
+
+        /// <summary>
+        /// P7-UX2: a watched player who dropped well below the map (9 m under the lowest spawn: under Lid Flip's lower
+        /// shelf) has fallen out; the spectate camera moves on instead of following them down and looking at the sky.
+        /// </summary>
+        private bool Fallen(ClientSim cs, int slot)
+        {
+            if (float.IsNaN(_lowestSpawnY))
+            {
+                _lowestSpawnY = 0f;
+                if (_map != null)
+                {
+                    var sp = _map.SpawnPoints();
+                    if (sp != null && sp.Length > 0)
+                    {
+                        _lowestSpawnY = float.MaxValue;
+                        foreach (var p in sp)
+                            _lowestSpawnY = Mathf.Min(_lowestSpawnY, p.Y);
+                    }
+                }
+            }
+
+            return cs.TrySample(slot, out var feet, out _, out _, out _, out _) && feet.y < _lowestSpawnY - 9f;
         }
 
         private int PrevAlive(int from)
@@ -741,7 +767,7 @@ namespace FallRush.Client
             {
                 var s = ((from < 0 ? 0 : from) - k + 2 * Protocol.MaxPlayers) % Protocol.MaxPlayers;
                 for (var i = 0; i < n.Count; i++)
-                    if (n.Players[i].Slot == s && s != cs.OwnSlot && (n.Players[i].Flags & MotorState.Respawning) == 0 && (n.Players[i].Race & PlayerState.RaceFinished) == 0)
+                    if (n.Players[i].Slot == s && s != cs.OwnSlot && (n.Players[i].Flags & MotorState.Respawning) == 0 && (n.Players[i].Race & PlayerState.RaceFinished) == 0 && !Fallen(cs, s))
                         return s;
             }
 
@@ -786,7 +812,7 @@ namespace FallRush.Client
             View.FocusPoint = null;
             if (Spectating(cs) && cs.MatchSlot != 255 || cs.MatchSlot == 255)
             {
-                if (_spectateSlot < 0 || !SlotAliveInSnapshot(cs, _spectateSlot))
+                if (_spectateSlot < 0 || !SlotAliveInSnapshot(cs, _spectateSlot) || Fallen(cs, _spectateSlot))
                     _spectateSlot = NextAlive(_spectateSlot);
                 View.FollowSlot = _spectateSlot;
             }
@@ -1568,12 +1594,15 @@ namespace FallRush.Client
         {
             _want = _receipt;
             var ext = ExternalReceipt;
-            var pivot = ext ? new Vector2(1f, 0.5f) : new Vector2(0.5f, 0.5f);
+            // P7-UX2: with the on-chain receipt open (left), this card is the standings table: its own title, top-aligned
+            // with the receipt on the right (two "MATCH RECEIPT" cards side by side read as a duplicate)
+            var pivot = ext ? new Vector2(1f, 1f) : new Vector2(0.5f, 0.5f);
             if (_receipt.pivot != pivot)
             {
                 _receipt.anchorMin = _receipt.anchorMax = _receipt.pivot = pivot;
-                _receipt.anchoredPosition = ext ? new Vector2(-14f, -10f) : Vector2.zero;
-                _receipt.sizeDelta = ext ? new Vector2(760f, 640f) : new Vector2(820f, 690f);
+                _receipt.anchoredPosition = ext ? new Vector2(-16f, -72f) : Vector2.zero;
+                _receipt.sizeDelta = ext ? new Vector2(730f, 600f) : new Vector2(820f, 690f);
+                _receiptCard.Title.text = ext ? "FINAL STANDINGS" : "MATCH RECEIPT";
             }
 
             _practiceReceipt.gameObject.SetActive(!ext);

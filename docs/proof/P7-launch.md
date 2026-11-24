@@ -106,3 +106,4 @@ See [`p7/secret-scan.md`](p7/secret-scan.md): history clean of keys and of the s
 - Audit: `p7/ux2/audit.md` (13 rows, before/after shots from the live site and from build #10 served locally against the live API). EditMode 453 (452 passed, 0 failed).
 - The Final spectator floor bug (OC-49) is fixed and verified on a live hybrid Final; the HUD has no pills (OC-50).
 - Two recorded matches for the audit (bots + 2 guests each). Neighbours before / after the web switch unchanged.
+- 10:33 UTC: web #13 (22,843,334 B; EditMode 452/453, 0 failed) closes the three open UX2 items: the spectator camera skips a watched player who fell out of the Final (A14), the end screen shows "ON-CHAIN RECEIPT" (left) and "FINAL STANDINGS" (right) top-aligned instead of two "MATCH RECEIPT" cards (A15, `p7/ux2/after/v12-S-102517-Done4.jpg`), the spectator camera sits closer and looks down from ≥ 32° except on Goo Tower (A11). One more recorded check match. Neighbours unchanged.

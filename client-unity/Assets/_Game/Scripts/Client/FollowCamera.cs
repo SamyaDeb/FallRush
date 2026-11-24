@@ -1,5 +1,6 @@
 using Unity.Cinemachine;
 using Unity.Cinemachine.TargetTracking;
+using FallRush.Net;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -157,6 +158,23 @@ namespace FallRush.Client
             }
 
             var dt = Time.unscaledDeltaTime;
+            // P7-UX2: a spectator's camera eases up to a higher look-down angle (≥ 32°) unless they are orbiting with the
+            // right button: moving hazard boards and Goo Tower's walls have no colliders for the deoccluder (visual only),
+            // so from the default low angle they could hide the watched player
+            // (not on Goo Tower, mode Survival: its laps overhead put a high camera into the tower: there the closer
+            // distance alone keeps the watched player in view)
+            var overheadLaps = MapInfo.Current != null && MapInfo.Current.definition != null && MapInfo.Current.definition.mode == "Survival";
+            if (_orbit != null && CursorPolicy.Spectating && !overheadLaps && !(mouse != null && mouse.rightButton.isPressed) && Cursor.lockState != CursorLockMode.Locked)
+            {
+                var va = _orbit.VerticalAxis;
+                var want = Mathf.Max(_rig.Elevation, 32f);
+                if (va.Value < want - 0.1f)
+                {
+                    va.Value = Mathf.MoveTowards(va.Value, want, dt * 40f);
+                    _orbit.VerticalAxis = va;
+                }
+            }
+
             _kick = Mathf.MoveTowards(_kick, 0f, dt / 0.6f);
             if (GameSettings.ReducedMotion)
             {
