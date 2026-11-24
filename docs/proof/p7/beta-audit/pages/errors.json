@@ -1,0 +1,32 @@
+{
+ "landing-390": [],
+ "arenas-390": [],
+ "live-390": [],
+ "live3-390": [],
+ "receipt-390": [],
+ "replay-390": [
+  "[network] Failed to load resource: the server responded with a status of 404 () https://fallrush.fun/api/replay/2oMxZUq5DnpFJkkNHspyDfkR2DzHCzYXXMK6uGtqVX8e/world2.bin"
+ ],
+ "me-390": [],
+ "season-390": [],
+ "play-390": [],
+ "bad-receipt-390": [],
+ "404-390": [],
+ "live9-390": [],
+ "landing-1440": [
+  "Uncaught TypeError: Cannot read properties of null (reading 'color')\n    at Object.current (https://fallrush.fun/site-assets/StoryCanvas-o62etzTg.js:210:20201)\n    at Rv (https://fallrush.fun/site-assets/common-BB2pTQZU.js:4236:13690)\n    at Wv (https://fallrush.fun/site-assets/common-BB2pTQZU.js:42"
+ ],
+ "arenas-1440": [],
+ "live-1440": [],
+ "live3-1440": [],
+ "receipt-1440": [],
+ "replay-1440": [
+  "[network] Failed to load resource: the server responded with a status of 404 () https://fallrush.fun/api/replay/2oMxZUq5DnpFJkkNHspyDfkR2DzHCzYXXMK6uGtqVX8e/world2.bin"
+ ],
+ "me-1440": [],
+ "season-1440": [],
+ "play-1440": [],
+ "bad-receipt-1440": [],
+ "404-1440": [],
+ "live9-1440": []
+}

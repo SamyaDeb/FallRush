@@ -1,0 +1,120 @@
+[
+ {
+  "match": "9KG5r5hxVvyVwHZLST68R1tMkBdwBFTa9YEehDPB6J24",
+  "arena": 3,
+  "doneAt": 1795544215490,
+  "startedAt": 1795544132604,
+  "champion": 255,
+  "humanMask": 0,
+  "flags": 9,
+  "mintedMask": 0,
+  "finalOnChain": false,
+  "drops": 0,
+  "pools": [
+   "106000000",
+   "0",
+   "0",
+   "0",
+   "0"
+  ],
+  "finalizeMode": "action",
+  "replay": false,
+  "status": 6,
+  "aborted": true,
+  "hidden": true,
+  "sealed": {
+   "n": 5,
+   "revealed": 5,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "FwCczW85h14afRZt576D17XTcRgXBcGCoeBWzwAjHpbW",
+  "arena": 2,
+  "doneAt": 1795544213831,
+  "startedAt": 1795544028259,
+  "champion": 255,
+  "humanMask": 0,
+  "flags": 9,
+  "mintedMask": 0,
+  "finalOnChain": false,
+  "drops": 0,
+  "pools": [
+   "107000000",
+   "0",
+   "0",
+   "120000000",
+   "96000000"
+  ],
+  "finalizeMode": "action",
+  "replay": false,
+  "status": 6,
+  "aborted": true,
+  "hidden": true,
+  "sealed": {
+   "n": 5,
+   "revealed": 5,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "DNVrSfk9ofcm6CnqoYdTjSqswV4nMu8i4Khasizshm4V",
+  "arena": 3,
+  "doneAt": 1795544132601,
+  "startedAt": 1795543595548,
+  "champion": 10,
+  "humanMask": 0,
+  "flags": 25,
+  "mintedMask": 0,
+  "finalOnChain": true,
+  "realTime": 0.9999928006277852,
+  "drops": 3,
+  "pools": [
+   "121000000",
+   "103000000",
+   "0",
+   "94000000",
+   "64000000"
+  ],
+  "finalizeMode": "action",
+  "replay": true,
+  "status": 5,
+  "aborted": false,
+  "hidden": false,
+  "sealed": {
+   "n": 5,
+   "revealed": 5,
+   "forfeits": 0
+  }
+ },
+ {
+  "match": "9jdf2gvYv5MwpqPcGK1zJZB8oXjoGacXfrrbZ8MAMWww",
+  "arena": 2,
+  "doneAt": 1795544028256,
+  "startedAt": 1795543579194,
+  "champion": 11,
+  "humanMask": 0,
+  "flags": 25,
+  "mintedMask": 0,
+  "finalOnChain": true,
+  "realTime": 1,
+  "drops": 2,
+  "pools": [
+   "121000000",
+   "69000000",
+   "0",
+   "163000000",
+   "149000000"
+  ],
+  "finalizeMode": "action",
+  "replay": true,
+  "status": 5,
+  "aborted": false,
+  "hidden": false,
+  "sealed": {
+   "n": 5,
+   "revealed": 5,
+   "forfeits": 0
+  }
+ }
+]

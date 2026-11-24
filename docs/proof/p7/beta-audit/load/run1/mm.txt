@@ -1,0 +1,20 @@
+18:05:50 p1 Contender → gs1 | new lobby | humans 0
+18:05:54 p2 Champion → gs1 | new lobby | humans 0
+18:05:58 p3 Rookie → gs1 | new lobby | humans 0
+18:06:02 p4 Contender → gs1 | same-tier lobby | humans 1
+18:06:06 p5 Champion → gs2 | new lobby | humans 0
+18:06:09 p6 Rookie → gs2 | new lobby | humans 0
+18:06:14 p7 Contender → gs1 | same-tier lobby | humans 4
+18:06:17 p8 Champion → gs1 | nearest-tier lobby | humans 4
+18:06:21 p9 Rookie → gs2 | nearest-tier lobby | humans 2
+18:06:25 p10 Contender → gs2 | same-tier lobby | humans 2
+18:06:29 p11 Champion → gs2 | nearest-tier lobby | humans 2
+18:06:34 p12 Rookie → gs2 | nearest-tier lobby | humans 2
+18:06:38 p13 Contender → gs3 | overflow lobby (Classic: the Final runs on the server) | humans 0
+18:06:42 p14 Champion → gs3 | overflow lobby (Classic: the Final runs on the server) | humans 0
+18:06:46 p15 Rookie → gs3 | overflow lobby (Classic: the Final runs on the server) | humans 0
+18:06:51 p16 Contender → gs3 | overflow lobby (Classic: the Final runs on the server) | humans 1
+18:06:54 p17 Champion → gs3 | overflow lobby (Classic: the Final runs on the server) | humans 2
+18:06:58 p18 Rookie → gs3 | overflow lobby (Classic: the Final runs on the server) | humans 3
+18:07:03 p19 Contender → gs3 | overflow lobby (Classic: the Final runs on the server) | humans 4
+18:07:08 p20 Champion → gs2 | all lobbies busy: watch, then join the next one | humans 2
