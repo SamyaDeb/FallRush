@@ -1,0 +1,5 @@
+start 2026-11-24T18:05:49Z n=20 dur=900 bettors=10 stagger=3
+launched 20 players
+players RSS total 494 MB
+4 matches archived during the run
+end 2026-11-24T18:22:32Z

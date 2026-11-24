@@ -186,7 +186,7 @@ namespace FallRush.Client
         }
 
         /// <summary>Sparks per bonk: 5 at full motion, 3 with reduced motion (within the 3–5 rule).</summary>
-        public static int BonkSparks(bool reduced) => reduced ? 3 : 5;
+        public static int BonkSparks(bool reduced) => 0; // 2026-11-25 (user): no stars at all on a hit — the hit is the dizzy, tired look
 
         /// <summary>Puffs per bonk: none.</summary>
         public static int BonkPuffs(bool reduced) => 0; // no white puff (it hid the hit Rushling)

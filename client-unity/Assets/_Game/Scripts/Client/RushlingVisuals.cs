@@ -437,6 +437,39 @@ namespace FallRush.Client
         public int Emote => _emote;
 
         /// <summary>Crowd bump (pushes stay server-only; this is the wobble you see). <paramref name="worldDir"/> points away from the other player.</summary>
+        /// <summary>Seconds a stun stays "on" for the visuals after its last non-zero frame.</summary>
+        public const float StunHoldSeconds = 0.15f;
+
+        /// <summary>A new stun this soon after the last one is the same hit (a hazard that keeps pushing).</summary>
+        public const float RehitSeconds = 1.0f;
+
+        /// <summary>How far a hit leans the Rushling (was a 90° flop that hid it inside the hazard).</summary>
+        public const float StaggerDeg = 25f;
+
+        private float _lastHitAt = -10f;
+        private float _stunHold;
+
+        /// <summary>
+        /// Beta audit (2026-11-25, user: "why still showing stars?"): the own Rushling's stun comes from prediction, which
+        /// does not know a hit by another player until the next snapshot, so during one hit the value flickers
+        /// on/off at the snapshot rate. Each 0 → stun edge restarted the hit (5 bonk stars, the flop pose, the sound): one
+        /// hit became a spray of 30–40 stars with the body face-down out of sight. Holding the stun for a few frames makes
+        /// one hit one hit. Visual only: the sim and the server never see this.
+        /// </summary>
+        private byte HoldStun(byte stun, float dt)
+        {
+            if (stun > 0)
+            {
+                _stunHold = StunHoldSeconds;
+                return stun;
+            }
+
+            if (_stunHold <= 0f)
+                return 0;
+            _stunHold -= dt;
+            return _lastStun > 0 ? (byte)1 : (byte)0;
+        }
+
         public void Bump(Vector3 worldDir, float strength)
         {
             if (!_hasPose)
@@ -450,6 +483,7 @@ namespace FallRush.Client
         /// <param name="vel">Velocity (m/s).</param>
         public void Drive(Vector3 feet, Vector3 vel, byte flags, byte yaw256, byte stun, float dt)
         {
+            stun = HoldStun(stun, dt);
             StunStartedThisFrame = DiveStartedThisFrame = LandedThisFrame = StumbleStartedThisFrame = GetUpThisFrame = StepThisFrame = JumpedThisFrame = false;
             EmoteStartedThisFrame = _emoteStarted;
             _emoteStarted = false;
@@ -473,6 +507,7 @@ namespace FallRush.Client
                 _wasGrounded = grounded;
                 _hasPose = true;
                 _tumbleT = _stumbleT = _scrambleT = _getUpT = -1f;
+                _stunHold = 0f;
                 _lookNext = _time + 2f;
                 _fidgetNext = _time + 6f;
             }
@@ -537,8 +572,25 @@ namespace FallRush.Client
             if (_wasSliding && !sliding && grounded && stun == 0)
                 _scrambleT = 0f; // scramble back up after the belly slide
 
+            // A hazard that keeps pushing (a wall pinning you, the fountain drum) re-stuns every few ticks: within
+            // RehitSeconds of the last hit it is the same hit (no new hit effect / sound / pose restart).
+            if (stun > 0 && _lastStun == 0 && _time - _lastHitAt < RehitSeconds)
+            {
+                _lastHitAt = _time;
+                if (_tumbleT < 0f)
+                {
+                    _tumbleT = 0.12f; // already leaning: keep the stagger going (no new hit effect)
+                    _getUpT = -1f;
+                    _tumbleDur = Mathf.Max(0.25f, stun / 30f) + 0.12f;
+                }
+                else
+                    _tumbleDur = Mathf.Max(_tumbleDur, _tumbleT + stun / 30f);
+                _lastStun = stun;
+            }
+
             if (stun > 0 && _lastStun == 0)
             {
+                _lastHitAt = _time;
                 StunStartedThisFrame = true;
                 _lidV += 600f;
                 _starsLeft = 0.6f;
@@ -549,7 +601,7 @@ namespace FallRush.Client
                 away.Normalize();
                 _tumbleAxis = Vector3.Cross(Vector3.up, away).normalized;
                 _tumbleDur = Mathf.Max(0.25f, stun / 30f);
-                _tumbleRoll = reduced || _tumbleDur < 0.45f ? 0f : 360f;
+                _tumbleRoll = 0f; // no roll / flop: lying down put the body inside the wall or drum that hit it
                 _tumbleT = 0f;
                 _getUpT = -1f;
             }
@@ -707,7 +759,8 @@ namespace FallRush.Client
             {
                 // Flop over (0 → 90° in 0.12 s), roll once on a long knock, rest on the side, bounce on the first contact.
                 var u = Mathf.Clamp01(_tumbleT / _tumbleDur);
-                tumbleAngle = Mathf.Min(1f, _tumbleT / 0.12f) * 90f + _tumbleRoll * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((u - 0.15f) / 0.6f));
+                // A stagger, not a flop (2026-11-25): lean StaggerDeg away in 0.12 s, wobble, stay upright and visible.
+                tumbleAngle = Mathf.Min(1f, _tumbleT / 0.12f) * StaggerDeg + (reduced ? 0f : Mathf.Sin(_tumbleT * 14f) * 6f * (1f - u));
                 rot = Quaternion.AngleAxis(tumbleAngle, _tumbleAxis) * rot;
                 lie = Mathf.Max(lie, Mathf.Abs(Mathf.Sin(tumbleAngle * Mathf.Deg2Rad)));
                 _hop += Mathf.Abs(Mathf.Sin(u * Mathf.PI * 2f)) * 0.12f * (1f - u);
@@ -716,7 +769,7 @@ namespace FallRush.Client
             {
                 // Get-up pop: from lying on the side back to upright with an overshoot.
                 var u = Mathf.Clamp01(_getUpT / 0.45f);
-                var a = 90f * (1f - u) * (1f - u) - Mathf.Sin(u * Mathf.PI) * 12f;
+                var a = StaggerDeg * (1f - u) * (1f - u) - Mathf.Sin(u * Mathf.PI) * 6f;
                 rot = Quaternion.AngleAxis(a, _tumbleAxis) * rot;
                 lie = Mathf.Max(lie, Mathf.Abs(Mathf.Sin(a * Mathf.Deg2Rad)));
                 _hop += Mathf.Sin(u * Mathf.PI) * 0.18f;
@@ -736,7 +789,9 @@ namespace FallRush.Client
             ApplyBody();
 
             // ---- dizzy swirls ----
-            var starsOn = _starsLeft > 0f || stun > 0;
+            // 2026-11-25 (user: "remove that entirely … they should feel dizzy and tired, not vanish and floating stars"):
+            // no stars over the head any more; the hit reads from the stagger + the tired look (eyes, lid, slump, sway)
+            const bool starsOn = false;
             if (_starsRoot.gameObject.activeSelf != starsOn)
                 _starsRoot.gameObject.SetActive(starsOn);
             if (starsOn)

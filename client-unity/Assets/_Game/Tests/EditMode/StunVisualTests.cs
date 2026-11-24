@@ -29,8 +29,8 @@ namespace FallRush.Tests
             Assert.That(RushlingParts.StarRim.grayscale, Is.LessThan(RushlingParts.StarYellow.grayscale - 0.1f), "the rim is darker than the star");
             Assert.That(m.GetIndexCount(0) / 3, Is.LessThanOrEqualTo(800), "star ring tris");
             Assert.That(Mathf.Max(m.bounds.extents.x, m.bounds.extents.z), Is.InRange(0.25f, 0.6f), "orbits the head (ring radius)");
-            Assert.That(FxDirector.BonkSparks(false), Is.InRange(3, 5));
-            Assert.That(FxDirector.BonkSparks(true), Is.InRange(3, 5));
+            Assert.That(FxDirector.BonkSparks(false), Is.EqualTo(0), "2026-11-25: no stars on a hit");
+            Assert.That(FxDirector.BonkSparks(true), Is.EqualTo(0));
             Assert.That(FxDirector.BonkPuffs(false), Is.LessThanOrEqualTo(2), "small puff: never covers the Rushling");
         }
 
@@ -68,6 +68,86 @@ namespace FallRush.Tests
         }
 
         [Test]
+        public void BetaAudit_FlickeringPredictedStun_IsOneHit()
+        {
+            // The own Rushling's predicted stun flickers at the snapshot rate during a hit by another player
+            // (15 Hz: 2 frames stunned, 2 frames 0 at 60 fps). It must start ONE hit (one bonk, one flop), not one per edge.
+            var go = new GameObject("RushlingFlickerTest");
+            try
+            {
+                var v = go.AddComponent<RushlingVisuals>();
+                v.Build(0, 0, null, null);
+                v.SetVisible(true);
+                const float dt = 1f / 60f;
+                var starts = 0;
+                var getUps = 0;
+                for (var f = 0; f < 30; f++) // 0.5 s hit
+                {
+                    var stun = (byte)(f % 4 < 2 ? 15 - f / 2 : 0);
+                    v.Drive(Vector3.zero, Vector3.zero, MotorState.Grounded, 0, stun, dt);
+                    starts += v.StunStartedThisFrame ? 1 : 0;
+                    getUps += v.GetUpThisFrame ? 1 : 0;
+                }
+
+                for (var f = 0; f < 60; f++) // the hit is over
+                {
+                    v.Drive(Vector3.zero, Vector3.zero, MotorState.Grounded, 0, 0, dt);
+                    starts += v.StunStartedThisFrame ? 1 : 0;
+                    getUps += v.GetUpThisFrame ? 1 : 0;
+                }
+
+                Assert.That(starts, Is.EqualTo(1), "one hit start, not one per flicker");
+                Assert.That(getUps, Is.EqualTo(1), "one get-up");
+
+                // a real second hit later (after RehitSeconds) is a new hit
+                for (var f = 0; f < 60; f++)
+                    v.Drive(Vector3.zero, Vector3.zero, MotorState.Grounded, 0, 0, dt);
+                var second = 0;
+                for (var f = 0; f < 10; f++)
+                {
+                    v.Drive(Vector3.zero, Vector3.zero, MotorState.Grounded, 0, 12, dt);
+                    second += v.StunStartedThisFrame ? 1 : 0;
+                }
+
+                Assert.That(second, Is.EqualTo(1), "a later hit still starts");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void PinnedByAHazard_RepeatedStuns_AreOneHit()
+        {
+            // A wall / the fountain drum keeps pushing: stun 10 ticks, 0 for 0.3 s, again … for 3 s → ONE hit effect.
+            var go = new GameObject("RushlingPinnedTest");
+            try
+            {
+                var v = go.AddComponent<RushlingVisuals>();
+                v.Build(0, 0, null, null);
+                v.SetVisible(true);
+                const float dt = 1f / 60f;
+                var starts = 0;
+                for (var f = 0; f < 180; f++)
+                {
+                    var stun = (byte)(f % 30 < 10 ? 10 : 0);
+                    v.Drive(Vector3.zero, new Vector3(0f, 0f, 2f), MotorState.Grounded, 0, stun, dt);
+                    starts += v.StunStartedThisFrame ? 1 : 0;
+                }
+
+                Assert.That(starts, Is.EqualTo(1), "a pinning hazard is one hit (no repeated hit effect / sound)");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                var limbs = GameObject.Find("Limbs");
+                if (limbs != null)
+                    Object.DestroyImmediate(limbs);
+            }
+        }
+
+        [Test]
         public void DizzyStars_OutlastTheStun_ThenWindDown()
         {
             var go = new GameObject("RushlingDizzyTest");
@@ -97,13 +177,12 @@ namespace FallRush.Tests
                         on += KnockPreview.Dt;
                 }
 
-                Assert.That(on, Is.GreaterThan(RushlingVisuals.DizzyTail * 0.7f), "stars after the get-up");
-                Assert.That(stars.gameObject.activeSelf, Is.False, "and then they stop");
-
-                // A respawn after a knock-off fall: Dizzy() alone turns them on.
+                // 2026-11-25 (user): no floating stars at all, not during the stun, not after, not after a respawn
+                Assert.That(on, Is.EqualTo(0f), "no stars after the get-up");
+                Assert.That(stars.gameObject.activeSelf, Is.False);
                 v.Dizzy(1f);
                 v.Drive(last.Feet, Vector3.zero, MotorState.Grounded, 0, 0, KnockPreview.Dt);
-                Assert.That(stars.gameObject.activeSelf, Is.True);
+                Assert.That(stars.gameObject.activeSelf, Is.False, "a respawn is tired, without stars");
             }
             finally
             {
@@ -149,14 +228,14 @@ namespace FallRush.Tests
                     var b = squash.TransformPoint(new Vector3(0f, ProcMesh.UpperCenter, 0f));
                     var lowest = Mathf.Min(a.y, b.y) - ProcMesh.R * Mathf.Min(sc.x, sc.z);
                     Assert.That(lowest, Is.GreaterThan(-0.06f), $"frame {i}: body clips into the ground by {-lowest:F3} m");
-                    if (f.Stun > 0)
-                    {
-                        Assert.That(swirls.gameObject.activeInHierarchy, Is.True, $"frame {i}: stars during the stun");
-                        sawSwirls = true;
-                    }
+                    // 2026-11-25: no stars; a stagger (≤ ~35° lean), never lying down inside the hazard that hit it
+                    Assert.That(swirls.gameObject.activeInHierarchy, Is.False, $"frame {i}: no stars");
+                    var up = squash.up;
+                    Assert.That(Vector3.Angle(up, Vector3.up), Is.LessThan(40f), $"frame {i}: upright-ish ({Vector3.Angle(up, Vector3.up):F0}°)");
+                    sawSwirls |= f.Stun > 0;
                 }
 
-                Assert.That(sawSwirls, Is.True);
+                Assert.That(sawSwirls, Is.True, "the path has a stun");
                 Assert.That(sawGetUp, Is.True, "a get-up pop after the stun");
             }
             finally

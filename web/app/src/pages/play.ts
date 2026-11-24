@@ -49,14 +49,16 @@ export function play(root: HTMLElement) {
     // the build files (scripts/p5-deploy.sh writes build.json); the two big ones come in 4 parallel Range requests
     // (one TCP stream measured 0.1–0.5 MB/s from the VPS, 4 streams ~2.2 MB/s) as plain bytes; Unity's loader
     // decodes the Brotli itself (Decompression Fallback, doc 15 OC-14)
-    const bj = await fetch('/unity/Build/build.json').then((r) => r.json()).catch(() => ({ loader: 'WebGL.loader.js', data: 'WebGL.data.br', framework: 'WebGL.framework.js.br', code: 'WebGL.wasm.br', parallel: false }));
+    const bj = await fetch('/unity/Build/build.json', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({ loader: 'WebGL.loader.js', data: 'WebGL.data.br', framework: 'WebGL.framework.js.br', code: 'WebGL.wasm.br', parallel: false }));
+    // beta audit: ?v=<build version> on every build file: a deploy is never served from a cached old copy
+    const V = bj.v ? `?v=${bj.v}` : '';
     const got: Record<string, number> = {}, tot: Record<string, number> = {};
     const cap = root.querySelector('#cap') as HTMLElement, pct = root.querySelector('#pct') as HTMLElement, msgEl = root.querySelector('#msg') as HTMLElement;
     const MB = (n: number) => (n / 1048576).toFixed(1);
     const show = (p: number) => { const v = Math.max(0, Math.min(1, p)); cap.style.setProperty('--p', v.toFixed(3)); pct.textContent = Math.round(v * 100) + '%'; };
     const prog = () => { const a = Object.values(got).reduce((x, y) => x + y, 0), b = Object.values(tot).reduce((x, y) => x + y, 0); if (b) { show((0.9 * a) / b); msgEl.textContent = `downloading ${MB(a)} / ${MB(b)} MB`; } };
     const pfetch = async (name: string, parts = 5): Promise<string> => {
-      const url = '/unity/Build/' + name;
+      const url = '/unity/Build/' + name + V;
       const n = Number((await fetch(url, { method: 'HEAD' })).headers.get('content-length') ?? 0);
       if (!n || !bj.parallel) return url;
       tot[name] = n; got[name] = 0;
@@ -83,15 +85,15 @@ export function play(root: HTMLElement) {
       await Promise.all(Array.from({ length: parts }, (_, i) => range(i)));
       return URL.createObjectURL(new Blob(bufs as BlobPart[], { type: 'application/octet-stream' }));
     };
-    const [dataUrl, codeUrl] = await Promise.all([pfetch(bj.data).catch(() => '/unity/Build/' + bj.data), pfetch(bj.code).catch(() => '/unity/Build/' + bj.code)]);
+    const [dataUrl, codeUrl] = await Promise.all([pfetch(bj.data).catch(() => '/unity/Build/' + bj.data + V), pfetch(bj.code).catch(() => '/unity/Build/' + bj.code + V)]);
     mark('download');
     msgEl.textContent = phone ? 'unpacking… (phones: experimental, a desktop browser plays best)' : 'unpacking…';
     const s = document.createElement('script');
     const failed = (why: string) => { msgEl.innerHTML = `could not start the game: ${String(why).replace(/[&<>"']/g, '')}<br><a href="#" onclick="location.reload();return false">Reload</a>`; };
     s.onerror = () => failed('the game loader did not download (network?)');
-    s.src = '/unity/Build/' + bj.loader;
+    s.src = '/unity/Build/' + bj.loader + V;
     s.onload = () => createUnityInstance(root.querySelector('#unity-canvas'), {
-      dataUrl, frameworkUrl: '/unity/Build/' + bj.framework, codeUrl,
+      dataUrl, frameworkUrl: '/unity/Build/' + bj.framework + V, codeUrl,
       streamingAssetsUrl: '/unity/StreamingAssets', companyName: 'Fall Rush', productName: 'Fall Rush', productVersion: '0.5',
     }, (p: number) => { show(0.9 + p * 0.1); if (p > 0.05) msgEl.textContent = 'starting the game…'; })
       .then((inst: any) => { mark('unity'); (window as any).__fr.unity = inst; cap.classList.add('open'); show(1); setTimeout(() => { (root.querySelector('#unity-load') as HTMLElement).style.display = 'none'; }, 450); })

@@ -9,3 +9,4 @@
 
 **P7 so far: 6.3009 (P6 end: admin 3.4419 + authority 2.2891 + funder 0.5699) → 5.261 = 1.04 SOL used** (keeper matches ≈ 0.016 SOL each on the authority × ~35 matches; bettor onboarding ≈ 0.0111 each × 34; guest gas). Admin ≥ 1.0 ✓.
 | 2026-11-24T17:43:47Z | beta audit: funder top-up +0.50 for the 20-person private beta (≈ 80 guests at 0.0111) | 2.344 | 1.334 | 0.909775 |
+| 2026-11-24T18:23:34Z | beta audit: load run1 (4 arena matches, 10 bettors swept back 0.166); authority top-up +0.80 for the beta (≈ 80 more matches) | 1.510475318 | 2.032968992 | 0.89777 |

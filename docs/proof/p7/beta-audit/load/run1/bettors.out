@@ -1,0 +1,54 @@
+[load] 10 bettors on arenas 2,3 for 900 s; admin 2.344497918 SOL
+[load] setup ok 10/10; funded 0.2 SOL; 429s so far 1
+{
+ "n": 10,
+ "arenas": [
+  2,
+  3
+ ],
+ "fill": false,
+ "seconds": 906,
+ "rpc429": 1,
+ "fundedSol": 0.2,
+ "setupOk": 10,
+ "actions": {
+  "state": {
+   "ok": 1156,
+   "fail": 0,
+   "p50": 0,
+   "p95": 0,
+   "max": 0,
+   "errs": {}
+  },
+  "sealedBet": {
+   "ok": 20,
+   "fail": 0,
+   "p50": 1672,
+   "p95": 6765,
+   "max": 6765,
+   "errs": {}
+  },
+  "bet": {
+   "ok": 23,
+   "fail": 1,
+   "p50": 455,
+   "p95": 1928,
+   "max": 2246,
+   "errs": {
+    "{\"InstructionError\":[0,{\"Custom\":6030}]}": 1
+   }
+  },
+  "drop": {
+   "ok": 5,
+   "fail": 2,
+   "p50": 523,
+   "p95": 2688,
+   "max": 2688,
+   "errs": {
+    "{\"InstructionError\":[0,{\"Custom\":6035}]}": 1,
+    "{\"InstructionError\":[0,{\"Custom\":6036}]}": 1
+   }
+  }
+ },
+ "adminLamportsEnd": 2144447918
+}
