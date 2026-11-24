@@ -226,8 +226,13 @@ namespace FallRush.Client
             rl.GetComponent<LayoutElement>().preferredWidth = 46f;
             _roomCode = UiKit.Label(_roomRow, string.Empty, 34, UiKit.Ink, FontStyle.Bold, 44);
             _roomCode.font = UiKit.Display;
-            _roomCode.characterSpacing = 6f;
-            _roomCode.GetComponent<LayoutElement>().preferredWidth = 140f;
+            // beta audit: codes are 6 characters now (were 4): one line, shrink to fit (the 6th wrapped onto "2 / 12")
+            _roomCode.characterSpacing = 2f;
+            _roomCode.textWrappingMode = TextWrappingModes.NoWrap;
+            _roomCode.enableAutoSizing = true;
+            _roomCode.fontSizeMin = 20f;
+            _roomCode.fontSizeMax = 34f;
+            _roomCode.GetComponent<LayoutElement>().preferredWidth = 150f;
             _copy = UiKit.Button(_roomRow, "Copy invite", UiKit.Mint, CopyInvite);
             var cle = _copy.GetComponent<LayoutElement>();
             cle.preferredWidth = cle.minWidth = 150f;

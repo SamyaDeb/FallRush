@@ -437,6 +437,31 @@ namespace FallRush.Client
         public int Emote => _emote;
 
         /// <summary>Crowd bump (pushes stay server-only; this is the wobble you see). <paramref name="worldDir"/> points away from the other player.</summary>
+        /// <summary>Seconds a stun stays "on" for the visuals after its last non-zero frame.</summary>
+        public const float StunHoldSeconds = 0.15f;
+        private float _stunHold;
+
+        /// <summary>
+        /// Beta audit (2026-11-25, user: "why still showing stars?"): the own Rushling's stun comes from prediction, which
+        /// does not know a hit by another player until the next snapshot, so during one hit the value flickers
+        /// on/off at the snapshot rate. Each 0 → stun edge restarted the hit (5 bonk stars, the flop pose, the sound): one
+        /// hit became a spray of 30–40 stars with the body face-down out of sight. Holding the stun for a few frames makes
+        /// one hit one hit. Visual only: the sim and the server never see this.
+        /// </summary>
+        private byte HoldStun(byte stun, float dt)
+        {
+            if (stun > 0)
+            {
+                _stunHold = StunHoldSeconds;
+                return stun;
+            }
+
+            if (_stunHold <= 0f)
+                return 0;
+            _stunHold -= dt;
+            return _lastStun > 0 ? (byte)1 : (byte)0;
+        }
+
         public void Bump(Vector3 worldDir, float strength)
         {
             if (!_hasPose)
@@ -450,6 +475,7 @@ namespace FallRush.Client
         /// <param name="vel">Velocity (m/s).</param>
         public void Drive(Vector3 feet, Vector3 vel, byte flags, byte yaw256, byte stun, float dt)
         {
+            stun = HoldStun(stun, dt);
             StunStartedThisFrame = DiveStartedThisFrame = LandedThisFrame = StumbleStartedThisFrame = GetUpThisFrame = StepThisFrame = JumpedThisFrame = false;
             EmoteStartedThisFrame = _emoteStarted;
             _emoteStarted = false;
@@ -473,6 +499,7 @@ namespace FallRush.Client
                 _wasGrounded = grounded;
                 _hasPose = true;
                 _tumbleT = _stumbleT = _scrambleT = _getUpT = -1f;
+                _stunHold = 0f;
                 _lookNext = _time + 2f;
                 _fidgetNext = _time + 6f;
             }

@@ -68,6 +68,54 @@ namespace FallRush.Tests
         }
 
         [Test]
+        public void BetaAudit_FlickeringPredictedStun_IsOneHit()
+        {
+            // The own Rushling's predicted stun flickers at the snapshot rate during a hit by another player
+            // (15 Hz: 2 frames stunned, 2 frames 0 at 60 fps). It must start ONE hit (one bonk, one flop), not one per edge.
+            var go = new GameObject("RushlingFlickerTest");
+            try
+            {
+                var v = go.AddComponent<RushlingVisuals>();
+                v.Build(0, 0, null, null);
+                v.SetVisible(true);
+                const float dt = 1f / 60f;
+                var starts = 0;
+                var getUps = 0;
+                for (var f = 0; f < 30; f++) // 0.5 s hit
+                {
+                    var stun = (byte)(f % 4 < 2 ? 15 - f / 2 : 0);
+                    v.Drive(Vector3.zero, Vector3.zero, MotorState.Grounded, 0, stun, dt);
+                    starts += v.StunStartedThisFrame ? 1 : 0;
+                    getUps += v.GetUpThisFrame ? 1 : 0;
+                }
+
+                for (var f = 0; f < 60; f++) // the hit is over
+                {
+                    v.Drive(Vector3.zero, Vector3.zero, MotorState.Grounded, 0, 0, dt);
+                    starts += v.StunStartedThisFrame ? 1 : 0;
+                    getUps += v.GetUpThisFrame ? 1 : 0;
+                }
+
+                Assert.That(starts, Is.EqualTo(1), "one hit start (one bonk), not one per flicker");
+                Assert.That(getUps, Is.EqualTo(1), "one get-up");
+
+                // a real second hit later is a new hit
+                var second = 0;
+                for (var f = 0; f < 10; f++)
+                {
+                    v.Drive(Vector3.zero, Vector3.zero, MotorState.Grounded, 0, 12, dt);
+                    second += v.StunStartedThisFrame ? 1 : 0;
+                }
+
+                Assert.That(second, Is.EqualTo(1), "a later hit still starts");
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void DizzyStars_OutlastTheStun_ThenWindDown()
         {
             var go = new GameObject("RushlingDizzyTest");
