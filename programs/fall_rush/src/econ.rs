@@ -103,6 +103,8 @@ pub mod trust {
     pub const ROUNDS_AUTHORITY: u8 = 1;
     /// The Final computed by the program (rush-core on the rollup).
     pub const FINAL_PROGRAM: u8 = 2;
+    /// fullchain: every round computed by the program (`start_sim`); no round recorded by the game authority.
+    pub const ALL_PROGRAM: u8 = 4;
 }
 
 /// Capsule rarity (Common 70 / Rare 22 / Epic 7 / Legendary 1).
@@ -290,14 +292,15 @@ pub fn bet_window(mk: &Market, m: &Match, f: FinalView, outcome: u8) -> Result<(
     // P6: outcome 255 = a sealed commit (the pick is hidden): only the market's window is checked
     let sealed = outcome == 255;
     require!(sealed || (outcome as usize) < (m.player_count as usize).min(MAX_SLOTS_E), FallRushError::InvalidSlot);
-    let final_mode = m.flags & sim::MATCH_FINAL_MODE != 0;
+    let final_mode = sim::chain_final(m);
     let over = matches!(m.status, MatchStatus::Completed | MatchStatus::Aborted);
     require!(!over, FallRushError::MarketClosed);
     let st = if sealed { SLOT_ALIVE } else { m.slots[outcome as usize].state };
     match mk.kind {
         mkind::CHAMPION => {
             // open from create_match; closes at the Final's RUSH tick (on-chain Final) or when round 4 starts
-            if m.current_round >= 4 || final_mode {
+            // (fullchain: `f.live` = the arena's World is in round 4, so all on-chain rounds 1–3 stay open)
+            if m.current_round >= 4 || f.live {
                 require!(final_mode && f.live && !f.rushed, FallRushError::MarketClosed);
             }
             require!(st == SLOT_ALIVE || st == SLOT_QUALIFIED, FallRushError::SlotNotAlive);
@@ -351,7 +354,7 @@ pub fn settle(mk: &mut Market, m: &Match) -> Result<bool> {
     }
     // P6: sealed commits still pending (not revealed / finished into this market)
     require!(mk._pad[SEALED_PAD] != sealed_state::PENDING, FallRushError::SealedPending);
-    let final_mode = m.flags & sim::MATCH_FINAL_MODE != 0;
+    let final_mode = sim::chain_final(m);
     let mut winners = 0u16;
     let mut lab;
     if m.status == MatchStatus::Aborted {
@@ -1034,7 +1037,11 @@ fn write_receipt<'info>(accs: &'info [AccountInfo<'info>]) -> Result<()> {
             i += 1;
         }
     }
-    m.receipt.trust = trust::ROUNDS_AUTHORITY | if m.flags & sim::MATCH_FINAL_MODE != 0 { trust::FINAL_PROGRAM } else { 0 };
+    m.receipt.trust = if sim::chain_all(&m) {
+        trust::FINAL_PROGRAM | trust::ALL_PROGRAM
+    } else {
+        trust::ROUNDS_AUTHORITY | if sim::chain_final(&m) { trust::FINAL_PROGRAM } else { 0 }
+    };
     m.receipt.flags |= rflag::WRITTEN | rflag::MARKETS;
     if (m.champion_slot as usize) < 12 && ar.human_mask >> m.champion_slot & 1 == 0 {
         m.receipt.flags |= rflag::NO_CROWN;
@@ -1133,7 +1140,7 @@ fn mint_one<'info>(accs: &'info [AccountInfo<'info>], what: u8) -> Result<()> {
     let cap_seeds: [&[u8]; 4] = [CAPSULE_SEED, mk.as_ref(), &sb, &abs];
     let tre_seeds: [&[u8]; 2] = [TREASURY_SEED, &tbs];
     if what == 0 {
-        let on = if m.flags & sim::MATCH_FINAL_MODE != 0 { "true" } else { "false" };
+        let on = if sim::chain_final(&m) { "true" } else { "false" };
         core_create(asset, treasury, owner, assets_auth, system, core, "Fall Rush Crown Capsule", "data:application/json,{\"name\":\"Fall Rush Crown Capsule\"}",
             &[("match", id8), ("matchPda", mpda), ("season", "0"), ("rounds", rounds), ("players", players), ("finalOnChain", on)], &[&crown_seeds, &tre_seeds])?;
         m.receipt.flags |= rflag::CROWN;

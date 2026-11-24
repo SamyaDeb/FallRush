@@ -35,9 +35,20 @@ for (let s = 0; s < N; s++) {
     out.sigs[`input${s}`] = await sendBase([await pb.methods.initInput(ARENA, s).accountsPartial({ authority: wallet.publicKey, arena, input: pda.input(arena, s) }).instruction()], [wallet], `init_input ${s}`);
   }
 }
-// 3. maps
+// 3. maps (FROM_ARENA=n: reuse the sealed map accounts that arena n already points at, read-only; no upload)
 const maps: PublicKey[] = [];
-for (const stem of MAP_STEMS) {
+const FROM_ARENA = process.env.FROM_ARENA != null ? Number(process.env.FROM_ARENA) : null;
+if (FROM_ARENA != null) {
+  const src = pda.arena(FROM_ARENA);
+  const a: any = await pe.account.arena.fetch(src).catch(() => pb.account.arena.fetch(src));
+  for (const k of a.maps as PublicKey[]) {
+    const info = await base.getAccountInfo(k);
+    if (!info || !info.owner.equals(PROGRAM_ID) || info.data[44] !== 1) throw new Error(`arena ${FROM_ARENA} map ${k.toBase58()} is not a sealed map blob`);
+    maps.push(k);
+  }
+  console.log(`maps from arena ${FROM_ARENA}: ${maps.map((m) => m.toBase58()).join(" ")}`);
+}
+for (const stem of FROM_ARENA != null ? [] : MAP_STEMS) {
   const blob = readFileSync(join(ROOT, `maps/${stem}.mapblob`));
   const want = hashes[stem];
   if (sha256(blob).toString("hex") !== want) throw new Error(`${stem}: blob hash differs from map_blob_hashes_v1.txt`);

@@ -613,6 +613,12 @@ pub mod fall_rush {
         sim::tick(ctx.remaining_accounts)
     }
 
+    /// ER (fullchain). `tick()` with a slice of up to `budget` work units, for a keeper transaction with more CU
+    /// (Capsule Run: one player's step can exceed a timed task's 400k). Permissionless; never fails.
+    pub fn crank<'info>(ctx: Context<'info, Tick>, budget: u32) -> Result<()> {
+        sim::crank(ctx.remaining_accounts, budget)
+    }
+
     /// ER. 3 inputs for ticks `start .. start + 3`, signed by the slot's owner.
     pub fn submit_input(ctx: Context<SubmitInput>, slot: u8, start: u32, batch: [u8; 12]) -> Result<()> {
         let w = ctx.accounts.world.load()?;

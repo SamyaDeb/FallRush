@@ -196,6 +196,8 @@ pub fn start_match<H: Hasher>(w: &mut World, lobby: &MapView, seed: &[u8; 32], s
     d.deal = deal::derive(h, seed);
     d.round_count = deal::ROUNDS as u8;
     w.dir = d;
+    // a full match through the director is a version 2 world (idle slots are not stepped, world.rs)
+    w.version = crate::world::WORLD_VERSION_CHAIN;
     set_phase(w, phase::ROSTER_LOCKED, now, 1);
 }
 
