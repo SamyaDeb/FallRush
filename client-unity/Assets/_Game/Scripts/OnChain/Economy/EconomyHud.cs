@@ -83,15 +83,17 @@ namespace FallRush.OnChain
             Instance = this;
             _canvas = UiKit.CreateCanvas("EconomyCanvas", 40);
             DontDestroyOnLoad(_canvas.gameObject); // the on-chain session loads the map scene after this HUD exists
-            _chipsPill = Pill(_canvas, new Vector2(1f, 1f), new Vector2(-150f, -10f), new Vector2(230f, 40f), UiKit.Ink, out _chips, 18, UiKit.SunYellow);
+            // P7-UX2 (OC-50): the chips as outlined Sun type left of the timer ring (no pill)
+            _chipsPill = Bare(_canvas, new Vector2(1f, 1f), new Vector2(-112f, -16f), new Vector2(260f, 34f), out _chips, 24, UiKit.SunYellow);
             // P7-UX: alive players see a small "[B] Bets" keycap under the chips (the drawer never opens by itself)
-            _betHint = Pill(_canvas, new Vector2(1f, 1f), new Vector2(-150f, -56f), new Vector2(110f, 30f), UiKit.Cream, out _betHintText, 14, UiKit.Ink);
-            _betHintText.text = "Bets";
-            ((RectTransform)_betHintText.transform).offsetMin = new Vector2(36f, 0f);
-            var cap = UiKit.Keycap(_betHint, "B", 12, 20f);
+            _betHint = Bare(_canvas, new Vector2(1f, 1f), new Vector2(-112f, -54f), new Vector2(110f, 26f), out _betHintText, 17, Color.white);
+            _betHintText.text = "BETS";
+            _betHintText.alignment = TextAlignmentOptions.Left;
+            ((RectTransform)_betHintText.transform).offsetMin = new Vector2(52f, 0f);
+            var cap = UiKit.Keycap(_betHint, "B", 12, 22f);
             cap.GetComponent<LayoutElement>().ignoreLayout = true;
             cap.anchorMin = cap.anchorMax = cap.pivot = new Vector2(0f, 0.5f);
-            cap.anchoredPosition = new Vector2(10f, 1f);
+            cap.anchoredPosition = new Vector2(24f, 1f);
             _betHint.gameObject.SetActive(false);
             MatchHud.BetClicked = ToggleBet;
             BuildBet();
@@ -112,6 +114,22 @@ namespace FallRush.OnChain
                 Instance = null;
             if (_canvas != null)
                 Destroy(_canvas.gameObject);
+        }
+
+        /// <summary>P7-UX2: outlined game type, right-aligned, no background (HUD chips / hints).</summary>
+        private static RectTransform Bare(Transform canvas, Vector2 anchor, Vector2 pos, Vector2 size, out TMP_Text text, int fontSize, Color face)
+        {
+            var go = new GameObject("Hud", typeof(RectTransform));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(canvas, false);
+            rt.anchorMin = rt.anchorMax = rt.pivot = anchor;
+            rt.anchoredPosition = pos;
+            rt.sizeDelta = size;
+            text = UiKit.HudText(rt, fontSize, face);
+            text.alignment = TextAlignmentOptions.Right;
+            text.richText = true;
+            UiKit.Stretch((RectTransform)text.transform);
+            return rt;
         }
 
         private static RectTransform Pill(Transform canvas, Vector2 anchor, Vector2 pos, Vector2 size, Color fill, out TMP_Text text, int fontSize, Color textColor)
@@ -154,7 +172,7 @@ namespace FallRush.OnChain
         // ------------------------------------------------------------------ build
 
         /// <summary>Bottom-sheet height (reference units): the spectate bar rides on top of it when it is open.</summary>
-        public const float SheetHeight = 252f;
+        public const float SheetHeight = 284f;
 
         /// <summary>
         /// P7-UX (OC-44): the bet drawer. A full-width sheet that slides up from the bottom (it was a 470 × 660 card forced open
@@ -182,27 +200,28 @@ namespace FallRush.OnChain
             v.spacing = 6;
             v.padding = new RectOffset(14, 14, 6, 6);
 
-            // row 1: tabs | market name + state | pool + sealed chip
-            var head = UiKit.Row(body, 32f, 6f);
+            // P7-UX2 (OC-50): row 1 the market tabs; row 2 the market name + state on the left, pool + sealed chip on the
+            // right (they ran into each other on one row)
+            var head = UiKit.Row(body, 32f, 8f);
             for (var k = 0; k < 5; k++)
             {
                 var kk = k;
-                _tabs[k] = Small(head, TabNames[k], UiKit.SkyLight, 66f, () => { _betMarket = kk; _pick = -1; GameAudio.Ui(GameAudio.UiCue.Tick); }, 14, 30f);
+                _tabs[k] = Small(head, TabNames[k], UiKit.SkyLight, 84f, () => { _betMarket = kk; _pick = -1; GameAudio.Ui(GameAudio.UiCue.Tick); }, 15, 30f);
             }
 
-            UiKit.Cell(head, string.Empty, 12f, 12, UiKit.Ink);
-            _betTitle = UiKit.Cell(head, string.Empty, 150f, 20, UiKit.Ink, TextAlignmentOptions.Left, true);
+            var head2 = UiKit.Row(body, 28f, 10f);
+            _betTitle = UiKit.Cell(head2, string.Empty, 240f, 21, UiKit.Ink, TextAlignmentOptions.Left, true);
             _betTitle.font = UiKit.Display;
-            _betState = UiKit.Cell(head, string.Empty, 70f, 13, UiKit.Grape, TextAlignmentOptions.Left, true);
-            _pool = UiKit.Cell(head, string.Empty, 250f, 14, UiKit.Ink, TextAlignmentOptions.Right, true);
-            _sealedChip = UiKit.Chip(head, "sealed", UiKit.CardRim(UiKit.CardHue.Grape), Color.white, UiIcon.Lock, 12, 24f);
+            _betState = UiKit.Cell(head2, string.Empty, 110f, 15, UiKit.Grape, TextAlignmentOptions.Left, true);
+            _pool = UiKit.Cell(head2, string.Empty, 470f, 15, UiKit.Ink, TextAlignmentOptions.Right, true);
+            _sealedChip = UiKit.Chip(head2, "sealed", UiKit.CardRim(UiKit.CardHue.Grape), Color.white, UiIcon.Lock, 13, 26f);
 
             // row 2: the players, 6 per row
             var gridGo = new GameObject("Players", typeof(RectTransform), typeof(GridLayoutGroup), typeof(LayoutElement));
             var grid = (RectTransform)gridGo.transform;
             grid.SetParent(body, false);
             var gl = gridGo.GetComponent<GridLayoutGroup>();
-            gl.cellSize = new Vector2(160f, 40f);
+            gl.cellSize = new Vector2(162f, 40f); // dot 14 + name 72 + odds 42 + padding/spacing 34 = 162: nothing overflows
             gl.spacing = new Vector2(6f, 6f);
             gl.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             gl.constraintCount = 6;
@@ -217,8 +236,8 @@ namespace FallRush.OnChain
                 face.SetParent(slot, false);
                 UiKit.Stretch(face);
                 var hl = face.GetComponent<HorizontalLayoutGroup>();
-                hl.padding = new RectOffset(10, 8, 2, 8);
-                hl.spacing = 6;
+                hl.padding = new RectOffset(8, 8, 2, 8);
+                hl.spacing = 4;
                 hl.childAlignment = TextAnchor.MiddleLeft;
                 hl.childControlWidth = hl.childControlHeight = true;
                 hl.childForceExpandWidth = hl.childForceExpandHeight = false;
@@ -234,9 +253,9 @@ namespace FallRush.OnChain
                 btn.targetGraphic = hi;
                 btn.transition = Selectable.Transition.None;
                 btn.onClick.AddListener(() => { _pick = ii; GameAudio.Ui(GameAudio.UiCue.Tick); UiMotion.Bump(face); });
-                var dot = UiKit.Dot(face, UiKit.Grape, 14f);
-                var name = UiKit.Cell(face, string.Empty, 78f, 14, UiKit.Ink, TextAlignmentOptions.Left, true);
-                var odds = UiKit.Cell(face, string.Empty, 44f, 14, UiKit.Grape, TextAlignmentOptions.Right, true);
+                var dot = UiKit.Dot(face, UiKit.Grape, 12f);
+                var name = UiKit.Cell(face, string.Empty, 72f, 15, UiKit.Ink, TextAlignmentOptions.Left, true);
+                var odds = UiKit.Cell(face, string.Empty, 42f, 15, UiKit.Grape, TextAlignmentOptions.Right, true);
                 // the odds bar runs along the chip's foot: its width eases to the outcome's share of the pool
                 var track = UiKit.Shape(face, "Track", new Color(UiKit.Ink.r, UiKit.Ink.g, UiKit.Ink.b, 0.1f));
                 track.rectTransform.anchorMin = new Vector2(0f, 0f);
@@ -261,7 +280,7 @@ namespace FallRush.OnChain
             }
 
             // row 3: sealed / qualify note (one line)
-            _sealedLine = UiKit.Label(body, string.Empty, 12, UiKit.Grape, FontStyle.Bold, 16);
+            _sealedLine = UiKit.Label(body, string.Empty, 14, UiKit.Grape, FontStyle.Bold, 18);
             _sealedLine.alignment = TextAlignmentOptions.Left;
             _sealedLine.textWrappingMode = TextWrappingModes.NoWrap;
             _sealedLine.overflowMode = TextOverflowModes.Ellipsis;
@@ -272,18 +291,19 @@ namespace FallRush.OnChain
             _stakeText = UiKit.Cell(step, string.Empty, 110f, 20, UiKit.Ink, TextAlignmentOptions.Center, true);
             _stakeText.font = UiKit.Display;
             Small(step, "+", UiKit.Magenta, 40f, () => StepStake(1), 22, 38f);
-            _payout = UiKit.Cell(step, string.Empty, 250f, 14, UiKit.Grape, TextAlignmentOptions.Left, true);
+            _payout = UiKit.Cell(step, string.Empty, 270f, 15, UiKit.Grape, TextAlignmentOptions.Left, true);
             _confirm = Small(step, "Pick a player", UiKit.SunYellow, 300f, Confirm, 18, 42f);
             _confirmRt = (RectTransform)_confirm.transform;
-            _betNote = UiKit.Cell(step, string.Empty, 210f, 12, UiKit.Ink, TextAlignmentOptions.Left, true);
+            _betNote = UiKit.Cell(step, string.Empty, 190f, 13, UiKit.Ink, TextAlignmentOptions.Left, true);
             _betNote.textWrappingMode = TextWrappingModes.Normal;
-            _betFoot = UiKit.Label(_bet, "devnet test chips · no real-money value", 10, UiKit.Grey, FontStyle.Normal, 12);
+            // the devnet note rides in the ribbon (it sat under the confirm button)
+            _betFoot = UiKit.Label(_betCard.Ribbon, "DEVNET TEST CHIPS · NO REAL MONEY", 11, Color.white, FontStyle.Bold, 14);
             _betFoot.GetComponent<LayoutElement>().ignoreLayout = true;
             var frt = (RectTransform)_betFoot.transform;
-            frt.anchorMin = frt.anchorMax = frt.pivot = new Vector2(1f, 0f);
-            frt.anchoredPosition = new Vector2(-16f, 8f);
-            frt.sizeDelta = new Vector2(300f, 12f);
-            _betFoot.alignment = TextAlignmentOptions.BottomRight;
+            frt.anchorMin = frt.anchorMax = frt.pivot = new Vector2(1f, 0.5f);
+            frt.anchoredPosition = new Vector2(-80f, 0f);
+            frt.sizeDelta = new Vector2(320f, 16f);
+            _betFoot.alignment = TextAlignmentOptions.Right;
             _bet.gameObject.SetActive(false);
         }
 
@@ -401,7 +421,7 @@ namespace FallRush.OnChain
             _rChamp.font = UiKit.Display;
             _rChips = UiKit.Label(body, string.Empty, 16, UiKit.Grape, FontStyle.Bold, 22);
             _steps = ReceiptCard.Create(body, 440f, 150f);
-            _rLines = UiKit.Label(body, string.Empty, 12, UiKit.Ink, FontStyle.Normal, 96);
+            _rLines = UiKit.Label(body, string.Empty, 13, UiKit.Ink, FontStyle.Normal, 20); // P7-UX2: grows with its lines (was a fixed 96 px)
             _rLines.alignment = TextAlignmentOptions.TopLeft;
             _rWarnRow = UiKit.Row(body, 44f, 6f);
             UiKit.IconImage(_rWarnRow, UiIcon.Warning, UiKit.Magenta, 26f);
@@ -708,7 +728,8 @@ namespace FallRush.OnChain
                 var mine = o < m.mine.Length ? ChainEconomy.Parse(m.mine[o]) : 0;
                 var win = m.status >= 2 && (m.winners >> o & 1) == 1;
                 row.Name.text = (win ? "<color=#1FA36A>★ " : string.Empty) + SlotName(o) + (win ? "</color>" : string.Empty);
-                row.Odds.text = st > 0 ? $"x{pool / (double)st:0.0}" : "new";
+                var ox = st > 0 ? pool / (double)st : 0;
+                row.Odds.text = st <= 0 ? "new" : ox >= 10 ? $"x{ox:0}" : $"x{ox:0.0}"; // P7-UX2: fits the chip ("x18." was cut)
                 row.Stake.text = mine > 0 ? $"you {ChainEconomy.Rush(mine)}" : string.Empty;
                 row.Dot.color = SlotColour(o);
                 var target = pool > 0 ? Mathf.Clamp01((float)(st / (double)pool)) : 0f;
@@ -870,6 +891,7 @@ namespace FallRush.OnChain
                 _rChips.text = string.Empty;
                 _rLines.text = "The program writes the receipt on the rollup, then commits it to Solana.";
                 _steps.ShowSteps(false, false, null, null);
+                UiKit.FitHeight(_receiptCard, 200f, 560f); // P7-UX2: the card fits its content (no empty half)
                 return;
             }
 
@@ -937,6 +959,8 @@ namespace FallRush.OnChain
             if (_backup.gameObject.activeSelf != backup)
                 _backup.gameObject.SetActive(backup);
             UiKit.SetButtonText(_claim, string.IsNullOrEmpty(ChainWallet.PhantomPubkey) ? "Claim with Phantom" : "Claim to " + Short(ChainWallet.PhantomPubkey));
+            if (Time.frameCount % 15 == 0)
+                UiKit.FitHeight(_receiptCard, 200f, 560f);
         }
 
         private void DrawDebug(ChainEconomy e, EState s)

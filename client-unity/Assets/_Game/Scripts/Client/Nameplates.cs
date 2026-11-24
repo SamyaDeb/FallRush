@@ -124,22 +124,35 @@ namespace FallRush.Client
 
                 _order[b + 1] = v;
             }
+            // P7-UX2: the overlap box is in screen pixels, so scale it with the canvas (a 2× display let labels stack), and
+            // show at most the 4 nearest labels besides your own marker
+            var px = _canvas.lossyScale.x > 0f ? _canvas.lossyScale.x : 1f;
+            var shown = 0;
             for (var k = 0; k < _order.Length; k++)
             {
                 var i = _order[k];
                 if (_alpha[i] <= 0f || i == ownSlot)
                     continue;
+                if (shown >= 4)
+                {
+                    _alpha[i] = 0f;
+                    continue;
+                }
+
                 for (var m = 0; m < k; m++)
                 {
                     var j = _order[m];
                     if (_alpha[j] <= 0f)
                         continue;
-                    if (Mathf.Abs(_screen[j].x - _screen[i].x) < 110f && Mathf.Abs(_screen[j].y - _screen[i].y) < 24f)
+                    if (Mathf.Abs(_screen[j].x - _screen[i].x) < 170f * px && Mathf.Abs(_screen[j].y - _screen[i].y) < 30f * px)
                     {
                         _alpha[i] = 0f;
                         break;
                     }
                 }
+
+                if (_alpha[i] > 0f)
+                    shown++;
             }
 
             for (var i = 0; i < _labels.Length; i++)

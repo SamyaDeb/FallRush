@@ -93,7 +93,7 @@ namespace FallRush.Client
             f = f.sqrMagnitude > 1e-4f ? f.normalized : Vector3.forward;
             var right = Vector3.Cross(Vector3.up, f);
             var basePos = _cam.transform.position + f * 8.6f + Vector3.down * 2.3f;
-            _centreTarget = solo ? basePos + right * 3.1f + f * 0.4f + Vector3.up * 0.9f : pick ? basePos + Vector3.up * 1.05f - f * 1.6f : basePos;
+            _centreTarget = solo ? basePos + right * 3.1f + f * 0.4f + Vector3.up * 0.9f : pick ? basePos + Vector3.up * 1.45f - f * 1.6f : basePos;
             if (instant)
                 _centre = _centreTarget;
         }

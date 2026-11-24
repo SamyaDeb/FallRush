@@ -167,7 +167,7 @@ namespace FallRush.Client
             var lens = _vcam.Lens;
             lens.FieldOfView = _rig.Fov + FovOffset + GameSettings.FovOffset + DiveFovKick * Mathf.SmoothStep(0f, 1f, _kick);
             _vcam.Lens = lens;
-            _orbit.Radius = _rig.Distance * GameSettings.CameraDistance;
+            _orbit.Radius = _rig.Distance * GameSettings.CameraDistance * (CursorPolicy.Spectating ? 0.82f : 1f); // P7-UX2: a spectator's camera sits closer (walls hid the watched player)
 
             if (_shake > 0f)
             {

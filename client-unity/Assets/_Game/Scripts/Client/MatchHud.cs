@@ -37,6 +37,8 @@ namespace FallRush.Client
         private float _spectateSince = -1f, _nextPulse;
         private TMP_Text _spectateName, _spectateWhy, _spectateLeft;
         private Image _chainFill;
+        private bool _chainDotFollow;
+        private uint _roundTicks;
         private ResultBanner _banner;
         private CapsuleMachineWidget _countdown;
         // panels
@@ -105,21 +107,35 @@ namespace FallRush.Client
             canvas.SetParent(transform, false);
 
             // ---- corners
-            _roundPill = Pill(canvas, new Vector2(0f, 1f), new Vector2(14f, -12f), new Vector2(470f, 40f), Color.white, out _round, 19, UiKit.Grape, TextAlignmentOptions.Left);
-            _modPill = Pill(canvas, new Vector2(0f, 1f), new Vector2(14f, -58f), new Vector2(300f, 30f), UiKit.Magenta, out _modifier, 15, Color.white, TextAlignmentOptions.Left);
-            _timerBadge = Pill(canvas, new Vector2(1f, 1f), new Vector2(-14f, -10f), new Vector2(120f, 64f), Color.white, out _timer, 44, UiKit.Ink, TextAlignmentOptions.Center);
-            _timer.font = UiKit.Body; // tabular figures: the timer does not jitter
-            _timer.fontStyle = FontStyles.Bold;
-            _counterPill = Pill(canvas, new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(420f, 50f), Color.white, out _counter, 26, UiKit.Magenta, TextAlignmentOptions.Center);
-            _counter.font = UiKit.Display;
-            _connPill = Pill(canvas, new Vector2(0f, 0f), new Vector2(14f, 44f), new Vector2(240f, 32f), Color.white, out _conn, 15, UiKit.Ink, TextAlignmentOptions.Left);
-            _chainPill = Pill(canvas, new Vector2(1f, 0f), new Vector2(-14f, 44f), new Vector2(170f, 34f), UiKit.Grey, out _chainText, 16, Color.white, TextAlignmentOptions.Center);
-            _chainText.font = UiKit.Display;
+            // P7-UX2 (OC-50): the corners are outlined type over the world (no pills): top-left the round label over the map
+            // title, the modifier as a magenta accent; top-centre the counter; top-right the timer in a draining ring;
+            // bottom-left the ping, bottom-right the chain state with its coloured dot
+            _roundPill = Pill(canvas, new Vector2(0f, 1f), new Vector2(18f, -10f), new Vector2(560f, 66f), Color.white, out _round, 30, Color.white, TextAlignmentOptions.TopLeft);
+            _round.lineSpacing = -18f;
+            _modPill = Pill(canvas, new Vector2(0f, 1f), new Vector2(18f, -78f), new Vector2(400f, 26f), UiKit.Magenta, out _modifier, 19, UiKit.Magenta, TextAlignmentOptions.Left);
+            _timerBadge = Pill(canvas, new Vector2(1f, 1f), new Vector2(-16f, -10f), new Vector2(82f, 82f), Color.white, out _timer, 34, Color.white, TextAlignmentOptions.Center);
+            _counterPill = Pill(canvas, new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(520f, 56f), Color.white, out _counter, 34, UiKit.SunYellow, TextAlignmentOptions.Center);
+            _connPill = Pill(canvas, new Vector2(0f, 0f), new Vector2(18f, 16f), new Vector2(200f, 24f), Color.white, out _conn, 15, Color.white, TextAlignmentOptions.Left);
+            _chainPill = Pill(canvas, new Vector2(1f, 0f), new Vector2(-18f, 16f), new Vector2(200f, 28f), UiKit.Grey, out _chainText, 18, Color.white, TextAlignmentOptions.Right);
             _chainFill = _chainPill.Find("Fill").GetComponent<Image>();
-            // P7-UX (OC-45): the callout sits under the top-centre counter (it was a bottom caption bar): short lines only
-            _subPill = Pill(canvas, new Vector2(0.5f, 1f), new Vector2(0f, -70f), new Vector2(420f, 44f), UiKit.Cream, out _sub, 20, UiKit.Ink, TextAlignmentOptions.Center);
-            _sub.font = UiKit.Display;
+            var cf = _chainFill.rectTransform; // the state dot sits left of the right-aligned text
+            cf.anchorMin = cf.anchorMax = cf.pivot = new Vector2(1f, 0.5f);
+            _chainDotFollow = true;
+            // P7-UX (OC-45): the callout under the counter: outlined type, no box
+            _subPill = Pill(canvas, new Vector2(0.5f, 1f), new Vector2(0f, -66f), new Vector2(620f, 52f), UiKit.Cream, out _sub, 22, Color.white, TextAlignmentOptions.Top);
+            // the timer: a ring that drains (white → amber at 10 s → magenta at 5 s) behind outlined digits
             _timerFill = _timerBadge.Find("Fill").GetComponent<Image>();
+            _timerFill.sprite = UiIcons.Get(UiIcon.Ring);
+            _timerFill.type = Image.Type.Filled;
+            _timerFill.fillMethod = Image.FillMethod.Radial360;
+            _timerFill.fillOrigin = (int)Image.Origin360.Top;
+            _timerFill.fillClockwise = false;
+            _timerFill.color = Color.white;
+            UiKit.Stretch(_timerFill.rectTransform);
+            var tback = UiKit.Shape(_timerBadge, "RingBack", new Color(UiKit.Ink.r, UiKit.Ink.g, UiKit.Ink.b, 0.35f), UiIcons.Get(UiIcon.Ring));
+            tback.type = Image.Type.Simple;
+            UiKit.Stretch(tback.rectTransform);
+            tback.transform.SetAsFirstSibling();
             BuildSpectate(canvas);
 
             _center = UiKit.Shout(canvas, string.Empty, 96, UiKit.Magenta);
@@ -127,12 +143,12 @@ namespace FallRush.Client
             crt.anchorMin = crt.anchorMax = crt.pivot = new Vector2(0.5f, 0.5f);
             crt.anchoredPosition = new Vector2(0f, 90f);
             crt.sizeDelta = new Vector2(1100f, 200f);
-            _banner = ResultBanner.Create(canvas, new Vector2(110f, 205f));
-            _banner.transform.localScale = Vector3.one * 0.85f;
+            _banner = ResultBanner.Create(canvas, new Vector2(250f, 160f)); // P7-UX2: right of the result card (it hid the stamp)
             _countdown = CapsuleMachineWidget.Create(canvas, new Vector2(150f, 170f));
             var cdr = (RectTransform)_countdown.transform;
             cdr.anchorMin = cdr.anchorMax = new Vector2(0.5f, 0.5f);
-            cdr.anchoredPosition = new Vector2(0f, 150f);
+            cdr.anchoredPosition = new Vector2(0f, 180f); // P7-UX2: above the heads (it sat on the YOU marker), under the callout
+            cdr.localScale = Vector3.one * 0.75f;
             _countdown.gameObject.SetActive(false);
 
             BuildLobby(canvas);
@@ -155,26 +171,35 @@ namespace FallRush.Client
                 cs.RaceEventReceived -= OnEvent;
         }
 
+        /// <summary>
+        /// P7-UX2 (OC-50) "Arcade HUD": a HUD element is outlined game type straight over the world (Lilita, ink outline +
+        /// soft underlay), no pill behind it. <paramref name="fill"/> is unused for the look; the "Fill" child the callers
+        /// tint (timer ring, chain state) is a small marker: a dot on the text's leading side, hidden until tinted.
+        /// </summary>
         private static RectTransform Pill(Transform canvas, Vector2 anchor, Vector2 pos, Vector2 size, Color fill, out TMP_Text text, int fontSize, Color textColor, TextAlignmentOptions align)
         {
-            var go = new GameObject("Pill", typeof(RectTransform));
+            var go = new GameObject("Hud", typeof(RectTransform));
             var rt = (RectTransform)go.transform;
             rt.SetParent(canvas, false);
             rt.anchorMin = rt.anchorMax = rt.pivot = anchor;
             rt.anchoredPosition = pos;
             rt.sizeDelta = size;
-            UiKit.Pill(rt, fill);
-            text = UiKit.Label(rt, string.Empty, fontSize, textColor, FontStyle.Bold);
+            var marker = UiKit.Shape(rt, "Fill", new Color(1f, 1f, 1f, 0f), UiKit.Circle);
+            marker.type = Image.Type.Simple;
+            var mrt = marker.rectTransform;
+            mrt.anchorMin = mrt.anchorMax = mrt.pivot = new Vector2(0f, 0.5f);
+            mrt.sizeDelta = new Vector2(12f, 12f);
+            mrt.anchoredPosition = new Vector2(-16f, 0f);
+            text = UiKit.HudText(rt, fontSize, ArcadeFace(textColor));
             text.alignment = align;
-            text.textWrappingMode = TextWrappingModes.NoWrap;
             var trt = (RectTransform)text.transform;
             UiKit.Stretch(trt);
-            trt.offsetMin = new Vector2(14f, 2f);
-            trt.offsetMax = new Vector2(-14f, -2f);
-            text.GetComponent<LayoutElement>().ignoreLayout = true;
             go.SetActive(false);
             return rt;
         }
+
+        /// <summary>Ink / grape text that sat on a white pill becomes white type with the ink outline; accents stay.</summary>
+        private static Color ArcadeFace(Color c) => c == UiKit.Ink || c == UiKit.Grape ? Color.white : c;
 
         private static void SetPill(RectTransform pill, TMP_Text t, string s)
         {
@@ -373,10 +398,12 @@ namespace FallRush.Client
             Table(_interCard.Body, _interRows);
             // next round: a mini card of the next map + a working link for spectators (/live)
             var foot = UiKit.Row(_interCard.Body, 74f, 12f, TextAnchor.MiddleCenter);
+            foot.GetComponent<HorizontalLayoutGroup>().childForceExpandHeight = false; // P7-UX2: the /live button kept its 46 px (it stretched to a block)
             var slot = new GameObject("NextSlot", typeof(RectTransform), typeof(LayoutElement)).GetComponent<RectTransform>();
             slot.SetParent(foot, false);
             var le = slot.GetComponent<LayoutElement>();
             le.minWidth = le.preferredWidth = 470f;
+            le.minHeight = le.preferredHeight = 72f; // P7-UX2: the row no longer force-expands, so the slot keeps its height
             _nextCard = UiKit.MakeCard(slot, UiKit.CardSize.S, UiKit.CardHue.Soda, "NEXT ROUND", new Vector2(470f, 72f));
             UiKit.Stretch(_nextCard.Root);
             _nextRt = _nextCard.Root;
@@ -448,20 +475,27 @@ namespace FallRush.Client
             var go = new GameObject("SpectateBar", typeof(RectTransform));
             _spectateBar = (RectTransform)go.transform;
             _spectateBar.SetParent(canvas, false);
-            _spectateBar.anchorMin = _spectateBar.anchorMax = _spectateBar.pivot = new Vector2(0.5f, 0f);
-            _spectateBar.anchoredPosition = new Vector2(0f, 18f);
-            _spectateBar.sizeDelta = new Vector2(600f, 60f);
-            UiKit.SoftChunk(_spectateBar, UiKit.Cream, UiKit.CardRim(UiKit.CardHue.Grape), 3f);
+            // P7-UX2 (OC-50): a full-width strip that darkens the bottom of the view (no pill), outlined type on it
+            _spectateBar.anchorMin = new Vector2(0f, 0f);
+            _spectateBar.anchorMax = new Vector2(1f, 0f);
+            _spectateBar.pivot = new Vector2(0.5f, 0f);
+            _spectateBar.anchoredPosition = new Vector2(0f, 0f);
+            _spectateBar.sizeDelta = new Vector2(0f, 84f);
+            var shade = UiKit.Shape(_spectateBar, "Shade", new Color(UiKit.Ink.r, UiKit.Ink.g, UiKit.Ink.b, 0.55f), UiKit.FadeUp);
+            shade.type = Image.Type.Simple;
+            UiKit.Stretch(shade.rectTransform);
             var row = new GameObject("Row", typeof(RectTransform), typeof(HorizontalLayoutGroup)).GetComponent<RectTransform>();
             row.SetParent(_spectateBar, false);
-            UiKit.Stretch(row);
+            row.anchorMin = row.anchorMax = row.pivot = new Vector2(0.5f, 0f);
+            row.anchoredPosition = new Vector2(0f, 10f);
+            row.sizeDelta = new Vector2(640f, 60f);
             var h = row.GetComponent<HorizontalLayoutGroup>();
             h.padding = new RectOffset(14, 10, 6, 6);
             h.spacing = 8;
             h.childAlignment = TextAnchor.MiddleLeft;
             h.childControlWidth = h.childControlHeight = true;
             h.childForceExpandWidth = h.childForceExpandHeight = false;
-            UiKit.IconImage(row, UiIcon.Eye, UiKit.Grape, 26f);
+            UiKit.IconImage(row, UiIcon.Eye, Color.white, 28f);
             var names = new GameObject("Names", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement)).GetComponent<RectTransform>();
             names.SetParent(row, false);
             var nle = names.GetComponent<LayoutElement>();
@@ -472,17 +506,24 @@ namespace FallRush.Client
             v.childForceExpandHeight = false;
             v.spacing = -2;
             v.childAlignment = TextAnchor.MiddleLeft;
-            _spectateWhy = UiKit.Label(names, "WATCHING", 12, UiKit.Grape, FontStyle.Bold, 14);
+            _spectateWhy = UiKit.HudText(names, 13, UiKit.SunYellow);
+            _spectateWhy.GetComponent<LayoutElement>().ignoreLayout = false;
+            _spectateWhy.GetComponent<LayoutElement>().minHeight = 16f;
+            _spectateWhy.text = "WATCHING";
             _spectateWhy.alignment = TextAlignmentOptions.Left;
-            _spectateWhy.characterSpacing = 6f;
-            _spectateName = UiKit.Label(names, string.Empty, 22, UiKit.Ink, FontStyle.Bold, 26);
-            _spectateName.font = UiKit.Display;
+            _spectateWhy.characterSpacing = 4f;
+            _spectateName = UiKit.HudText(names, 28, Color.white);
+            _spectateName.GetComponent<LayoutElement>().ignoreLayout = false;
+            _spectateName.GetComponent<LayoutElement>().minHeight = 30f;
             _spectateName.alignment = TextAlignmentOptions.Left;
             _spectateName.textWrappingMode = TextWrappingModes.NoWrap;
             _spectateName.overflowMode = TextOverflowModes.Ellipsis;
             UiKit.RoundButton(row, UiIcon.None, "◀", UiKit.SkyLight, 38f, () => _spectateSlot = PrevAlive(_spectateSlot));
             UiKit.RoundButton(row, UiIcon.None, "▶", UiKit.SkyLight, 38f, () => _spectateSlot = NextAlive(_spectateSlot));
-            _spectateLeft = UiKit.Chip(row, "12 left", UiKit.Ink, Color.white, UiIcon.None, 13, 26f).GetComponentInChildren<TMP_Text>();
+            _spectateLeft = UiKit.HudText(row, 18, UiKit.Mint);
+            _spectateLeft.GetComponent<LayoutElement>().ignoreLayout = false;
+            _spectateLeft.GetComponent<LayoutElement>().minWidth = 78f;
+            _spectateLeft.text = "12 LEFT";
             _betButton = UiKit.Button(row, "BET", UiKit.SunYellow, () => BetClicked?.Invoke());
             var ble = _betButton.GetComponent<LayoutElement>();
             ble.minWidth = ble.preferredWidth = 104f;
@@ -569,7 +610,7 @@ namespace FallRush.Client
             if (_spectateBar != null)
             {
                 var p = _spectateBar.anchoredPosition;
-                var y = 18f + BottomInset;
+                var y = BottomInset;
                 if (Mathf.Abs(p.y - y) > 0.5f)
                     _spectateBar.anchoredPosition = new Vector2(p.x, GameSettings.ReducedMotion ? y : Mathf.Lerp(p.y, y, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 14f)));
             }
@@ -594,16 +635,28 @@ namespace FallRush.Client
         /// <summary>Shows only the wanted panel; touches SetActive only on a change (no layout rebuild every refresh).</summary>
         private void ApplyPanels()
         {
+            // P7-UX2: one big panel at a time: while the bet drawer is open the centre cards (results, leaderboard, deal,
+            // receipt) step aside; the lobby card stays (it is on the right edge)
+            if (BottomInset > 0f && _want != _lobby)
+                _want = null;
             foreach (var p in _panels)
                 UiMotion.SetVisible(p, p == _want);
+            if (_want == _results)
+                UiKit.FitHeight(_resultsCard, 160f, 560f);
+            else if (_want == _inter)
+                UiKit.FitHeight(_interCard, 300f, 660f);
+            else if (_want == _receipt)
+                UiKit.FitHeight(_receiptCard, 300f, 680f);
         }
 
         private void Chain()
         {
             var st = _chain.State;
             SetPill(_chainPill, _chainText, ChipText[(int)st]); // cached strings: no per-frame allocation
-            _chainFill.color = ChainChipStyle.Color(st);
-            _chainText.color = st == ChainState.Server ? Color.white : UiKit.Ink;
+            // P7-UX2: the state colour is the type's face (outlined), no chip behind it
+            var sc = ChainChipStyle.Color(st);
+            _chainText.color = st == ChainState.Server ? Color.white : sc;
+            _chainFill.color = new Color(0f, 0f, 0f, 0f);
         }
 
         /// <summary>G3.4 #5: the countdown is a capsule machine cranking out 3, 2, 1, RUSH!</summary>
@@ -827,7 +880,7 @@ namespace FallRush.Client
             else
                 conn = $"<color=#5BE3B5>●</color> {(ping != null && ping.SampleCount > 0 ? ping.P50Ms.ToString("F0") : "…")} ms{(cs.Remote.Lagging && ChainAdapters.Override == null ? "  <color=#FFA51F>LAGGING</color>" : "")}";
             SetPill(_connPill, _conn, conn);
-            _connPill.sizeDelta = new Vector2(Mathf.Clamp(_conn.preferredWidth + 30f, 96f, 300f), _connPill.sizeDelta.y); // P7-UX: fits "● 45 ms"
+
 
             _panels ??= new[] { _lobby, _deal, _results, _inter, _receipt }; // the CHAMPION card has its own timing (Champion())
             _want = null;
@@ -855,12 +908,10 @@ namespace FallRush.Client
             var mode = Mode();
             var round = cs.Round;
             var inRound = m.Phase >= MatchPhase.RoundIntro && m.Phase <= MatchPhase.Intermission && round.HasValue;
-            SetPill(_roundPill, _round, inRound ? $"ROUND {m.Round}/{m.RoundCount} · {UiNames.Map(round.Value.MapId)} · {mode}" : m.Phase <= MatchPhase.Countdown ? (IsPracticeMatch(m) ? "PRACTICE LOBBY" : "LOBBY") : IsPracticeMatch(m) ? "PRACTICE MATCH" : "MATCH");
+            SetPill(_roundPill, _round, inRound ? $"<size=58%><color=#FFD21F>ROUND {m.Round}/{m.RoundCount}</color>  <color=#5BE3B5>{mode.ToUpperInvariant()}</color></size>\n{UiNames.Map(round.Value.MapId).ToUpperInvariant()}" : m.Phase <= MatchPhase.Countdown ? (IsPracticeMatch(m) ? "PRACTICE LOBBY" : (m.Flags & MatchStateMessage.FlagPrivate) != 0 ? "PRIVATE ROOM" : "LOBBY") : IsPracticeMatch(m) ? "PRACTICE MATCH" : "MATCH");
             // P7-UX: no "No modifier" pill; the round pill fits its text
             var modName = inRound ? UiNames.Modifier(round.Value.Modifier) : string.Empty;
-            SetPill(_modPill, _modifier, modName == "No modifier" ? string.Empty : modName);
-            _roundPill.sizeDelta = new Vector2(Mathf.Clamp(_round.preferredWidth + 36f, 160f, 470f), _roundPill.sizeDelta.y);
-            _modPill.sizeDelta = new Vector2(Mathf.Clamp(_modifier.preferredWidth + 36f, 120f, 300f), _modPill.sizeDelta.y);
+            SetPill(_modPill, _modifier, modName == "No modifier" ? string.Empty : "+ " + modName.ToUpperInvariant());
             if (inRound && m.Round == m.RoundCount && round.Value.RoundStartTick > 0)
                 _finalStartTick = round.Value.RoundStartTick;
 
@@ -948,7 +999,7 @@ namespace FallRush.Client
                         _spectateName.text = name;
                     if (_spectateWhy.text != why)
                         _spectateWhy.text = why;
-                    var left = $"{AliveCount(m)} left";
+                    var left = $"{AliveCount(m)} LEFT";
                     if (_spectateLeft.text != left)
                         _spectateLeft.text = left;
                 }
@@ -970,7 +1021,7 @@ namespace FallRush.Client
                 _nextPulse = Time.unscaledTime + 0.8f;
                 UiMotion.Bump((RectTransform)_betButton.transform);
             }
-            UiMotion.SetVisible(_mine, m.Phase == MatchPhase.RoundResult && _resultsAt >= 0f && Time.unscaledTime - _resultsAt > 1.1f && _mineHead.text.Length > 0);
+            UiMotion.SetVisible(_mine, false); // P7-UX2: your row in the result card says it (the separate card piled up)
             // counter bump on change (same phase)
             if (counter != _lastCounter)
             {
@@ -1250,8 +1301,11 @@ namespace FallRush.Client
                 var left = (long)rs.RushEndTick - now;
                 timer = Secs(left);
                 var sec = left <= 0 ? 0 : (int)((left + 29) / 30);
-                _timer.color = sec <= 5 ? Color.white : UiKit.Ink;
+                _timer.color = sec <= 5 ? UiKit.Magenta : sec <= 10 ? UiKit.Amber : Color.white;
                 _timerFill.color = sec <= 5 ? UiKit.Magenta : sec <= 10 ? UiKit.Amber : Color.white;
+                if (left > _roundTicks)
+                    _roundTicks = (uint)left;
+                _timerFill.fillAmount = _roundTicks > 0 ? Mathf.Clamp01(left / (float)_roundTicks) : 1f;
                 if (sec != _lastTimerSec)
                 {
                     if (sec <= 10 && sec > 0 && _lastTimerSec > 0)
@@ -1265,7 +1319,10 @@ namespace FallRush.Client
                 }
             }
             else
+            {
                 _lastTimerSec = -1;
+                _roundTicks = 0;
+            }
 
             // Top-centre counter per mode.
             switch (mode)
@@ -1280,14 +1337,15 @@ namespace FallRush.Client
                 {
                     var mine = 0;
                     var best = 0;
+                    var who = Spectating(cs) && _spectateSlot >= 0 ? _spectateSlot : cs.OwnSlot; // P7-UX2: a spectator sees the watched player's stars
                     for (var i = 0; i < rs.FinisherCount; i++)
                     {
-                        if (rs.FinisherSlots[i] == cs.OwnSlot)
+                        if (rs.FinisherSlots[i] == who)
                             mine = (int)rs.FinisherTicks[i];
                         best = Mathf.Max(best, (int)rs.FinisherTicks[i]);
                     }
 
-                    counter = $"★ {mine}  <size=16>(best {best} · top {rs.QualifyCount} qualify)</size>";
+                    counter = $"★ {mine}  <size=50%>BEST {best} · TOP {rs.QualifyCount} QUALIFY</size>";
                     break;
                 }
                 case "Final":
@@ -1311,14 +1369,15 @@ namespace FallRush.Client
         {
             var cp = cs.OwnRace & PlayerState.RaceCheckpointMask;
             var total = _course != null ? _course.Checkpoints.Length : 0;
-            return total > 0 && !cs.OwnOutOfSim ? $"\n<size=15><color=#2A1250>checkpoint {cp}/{total}</color></size>" : string.Empty;
+            return total > 0 && !cs.OwnOutOfSim ? $"\n<size=50%>CHECKPOINT {cp}/{total}</size>" : string.Empty;
         }
 
         private static string Ordinal(int n) => n + (n % 100 is 11 or 12 or 13 ? "th" : (n % 10) switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" });
 
         private void ShowResults(ClientSim cs, MatchStateMessage m)
         {
-            _want = _results;
+            // P7-UX2: the stamp (QUALIFIED / ELIMINATED) first, the result card 1.2 s later
+            _want = _resultsAt >= 0f && Time.unscaledTime - _resultsAt < 1.6f ? null : _results;
             var mode = Mode();
             var k = 0;
             var qualified = 0;
@@ -1569,6 +1628,7 @@ namespace FallRush.Client
                 _champBadgeBits = -1;
                 UiMotion.SlideIn(_champ, new Vector2(0f, 260f));
                 UiMotion.Bump(_champ);
+                UiKit.FitHeight(_champCard, 140f, 320f);
                 GameAudio.Ui(GameAudio.UiCue.Whoosh);
                 FollowCamera.Punch(0.1f);
                 if (_podium != null)

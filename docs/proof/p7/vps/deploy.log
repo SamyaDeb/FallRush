@@ -26,3 +26,5 @@
 2026-11-24T08:53:56Z gs3: up (Classic-only room server, 127.0.0.1:7779)
 2026-11-24T08:53:57Z nginx-gs3: /gs3 location on the gs1 name (nginx -t ok, reloaded)
 2026-11-24T08:54:21Z web: switched to the P7 build (web.p6bak kept)
+2026-11-24T10:07:09Z build: node image fallrush-node:p7 + web.p7 staged (not live)
+2026-11-24T10:07:10Z web: switched to the P7 build (web.p6bak kept)

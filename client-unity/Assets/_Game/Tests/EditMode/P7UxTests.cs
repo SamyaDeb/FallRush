@@ -1,4 +1,5 @@
 using FallRush.Client;
+using FallRush.Net;
 using FallRush.Shared;
 using NUnit.Framework;
 using UnityEngine;
@@ -185,6 +186,51 @@ namespace FallRush.Tests
             h.D.PrivateRoom = true;
             h.D.RoomBotMix = 0;
             Assert.That(h.D.BotMix, Is.EqualTo(0), "a room uses the host's bot mix");
+        }
+
+        // ------------------------------------------------------------------ OC-49 / OC-50
+
+        [Test]
+        public void Interpolation_AfterReset_AcceptsArenaTicksBelowTheClassicTick()
+        {
+            var ip = new Interpolation(1.0 / 30.0);
+            var players = new PlayerState[1];
+            Assert.That(ip.Add(305896, players, 10.0), Is.True);
+            Assert.That(ip.Add(12, players, 10.1), Is.False, "without the reset the arena World is refused (the bug)");
+            ip.Reset();
+            Assert.That(ip.Add(12, players, 10.2), Is.True, "the takeover reset lets arena ticks in");
+        }
+
+        [Test]
+        public void TakeoverResetsTheSnapshotBuffer_Source()
+        {
+            var src = System.IO.File.ReadAllText(System.IO.Path.Combine(Application.dataPath, "_Game/Scripts/OnChain/Session/OnChainSession.cs"));
+            StringAssert.Contains("cs.Remote.Reset();", src);
+        }
+
+        [Test]
+        public void RoundS_HasSmallCorners()
+        {
+            var b = UiKit.RoundS.border;
+            Assert.That(b.x, Is.EqualTo(10f).Within(0.01f));
+            Assert.That(UiKit.Round.border.x, Is.EqualTo(24f).Within(0.01f), "big cards keep their soft corners");
+        }
+
+        [Test]
+        public void Buttons_UseTheSmallCornerSprite()
+        {
+            var root = new GameObject("root", typeof(RectTransform));
+            try
+            {
+                var btn = UiKit.Button(root.transform, "PLAY", UiKit.SunYellow, () => { });
+                foreach (var img in btn.GetComponentsInChildren<UnityEngine.UI.Image>(true))
+                    if (img.name == "Fill" || img.name == "Border")
+                        Assert.That(img.sprite, Is.SameAs(UiKit.RoundS), img.name);
+            }
+            finally
+            {
+                Object.DestroyImmediate(root);
+            }
         }
     }
 }

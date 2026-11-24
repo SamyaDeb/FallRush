@@ -182,3 +182,19 @@ ovelo-app-1 Up 7 days (healthy)
 ovelo-cloudflared-1 Up 8 days
 sites-enabled: finity zz-fallrush-p5.conf 
  08:54:22 up 8 days,  3:31,  1 user,  load average: 0.16, 0.34, 0.29
+== 2026-11-24T10:06:40Z before web ux2
+finity https 200 0.442248s  http 301 0.100353s
+raw-ip http 404 0.151257s  https 200 0.263517s
+finity conf md5 c6a6cca80336d306df5e43da01cbb466
+ovelo-app-1 Up 7 days (healthy)
+ovelo-cloudflared-1 Up 8 days
+sites-enabled: finity zz-fallrush-p5.conf 
+ 10:06:42 up 8 days,  4:44,  1 user,  load average: 0.17, 0.35, 0.35
+== 2026-11-24T10:07:10Z after web ux2
+finity https 200 0.289786s  http 301 0.095529s
+raw-ip http 404 0.082274s  https 200 0.308302s
+finity conf md5 c6a6cca80336d306df5e43da01cbb466
+ovelo-app-1 Up 7 days (healthy)
+ovelo-cloudflared-1 Up 8 days
+sites-enabled: finity zz-fallrush-p5.conf 
+ 10:07:12 up 8 days,  4:44,  1 user,  load average: 0.25, 0.34, 0.35

@@ -155,13 +155,13 @@ namespace FallRush.Client
         /// The chunky look behind any rect: a 3D drop (Ink, offset down), the thick Grape border, the fill.
         /// Returns the fill image (tint it to recolour the panel).
         /// </summary>
-        public static Image Chunk(RectTransform rt, Color fill, Color? border = null, float outline = Outline, float drop = Drop)
+        public static Image Chunk(RectTransform rt, Color fill, Color? border = null, float outline = Outline, float drop = Drop, Sprite sprite = null)
         {
-            var dropImg = Shape(rt, "Drop", new Color(Ink.r, Ink.g, Ink.b, 0.45f));
+            var dropImg = Shape(rt, "Drop", new Color(Ink.r, Ink.g, Ink.b, 0.45f), sprite);
             Stretch(dropImg.rectTransform, 0f, new Vector2(0f, -drop));
-            var b = Shape(rt, "Border", border ?? Grape);
+            var b = Shape(rt, "Border", border ?? Grape, sprite);
             Stretch(b.rectTransform);
-            var f = Shape(rt, "Fill", fill);
+            var f = Shape(rt, "Fill", fill, sprite);
             Stretch(f.rectTransform, outline);
             dropImg.transform.SetAsFirstSibling();
             b.transform.SetSiblingIndex(1);
@@ -215,7 +215,7 @@ namespace FallRush.Client
         /// <summary>A pill (fully rounded) behind HUD text: readable on any background (G2/G3 step 0).</summary>
         public static Image Pill(RectTransform rt, Color fill, Color? border = null)
         {
-            var f = Chunk(rt, fill, border, 3f, 4f);
+            var f = Chunk(rt, fill, border, 3f, 4f, RoundS);
             return f;
         }
 
@@ -282,9 +282,9 @@ namespace FallRush.Client
             var frt = (RectTransform)face.transform;
             frt.SetParent(rt, false);
             Stretch(frt);
-            var img = Chunk(frt, fill, Grape, 4f, 6f);
+            var img = Chunk(frt, fill, Grape, 4f, 6f, RoundS); // P7-UX2: small corners, never an oval pill
             img.raycastTarget = true;
-            var shine = Shape(img.transform, "Shine", new Color(1f, 1f, 1f, 0.35f));
+            var shine = Shape(img.transform, "Shine", new Color(1f, 1f, 1f, 0.35f), RoundS);
             var srt = shine.rectTransform;
             srt.anchorMin = new Vector2(0f, 0.55f);
             srt.anchorMax = new Vector2(1f, 1f);
@@ -386,6 +386,35 @@ namespace FallRush.Client
                 Fill.color = CardPastel(h);
             }
         }
+
+        private static Sprite s_FadeUp, s_RoundS;
+
+        /// <summary>P7-UX2: a vertical fade (opaque at the bottom, clear at the top) for bottom strips over the world.</summary>
+        public static Sprite FadeUp
+        {
+            get
+            {
+                if (s_FadeUp != null)
+                    return s_FadeUp;
+                var tex = new Texture2D(4, 64, TextureFormat.RGBA32, false) { name = "UiFadeUp", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                var px = new Color32[4 * 64];
+                for (var y = 0; y < 64; y++)
+                {
+                    var a = 1f - y / 63f;
+                    a = a * a * (3f - 2f * a);
+                    for (var x = 0; x < 4; x++)
+                        px[y * 4 + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                }
+
+                tex.SetPixels32(px);
+                tex.Apply(false, true);
+                return s_FadeUp = Sprite.Create(tex, new Rect(0, 0, 4, 64), new Vector2(0.5f, 0.5f), 100f);
+            }
+        }
+
+        /// <summary>P7-UX2 (OC-50): a rounded rectangle with a small corner (10 px of 32): buttons, tabs, chips and keycaps
+        /// under 60 px tall use it, so nothing reads as an oval pill.</summary>
+        public static Sprite RoundS => s_RoundS != null ? s_RoundS : s_RoundS = MakeRound(32, 10, "UiRoundS");
 
         private static Sprite s_Soft;
 
@@ -518,14 +547,27 @@ namespace FallRush.Client
             return c;
         }
 
+        /// <summary>
+        /// P7-UX2: sizes a card to its content (the result, leaderboard, receipt and champion cards were twice their rows'
+        /// height with an empty bottom half). Only touches the height, and only when it changes.
+        /// </summary>
+        public static void FitHeight(Card c, float min = 120f, float max = 680f)
+        {
+            if (c == null || !c.Root.gameObject.activeInHierarchy)
+                return;
+            LayoutRebuilder.ForceRebuildLayoutImmediate(c.Body);
+            var h = Mathf.Clamp(LayoutUtility.GetPreferredHeight(c.Body) + c.Ribbon.rect.height + 14f, min, max);
+            if (Mathf.Abs(c.Root.sizeDelta.y - h) > 2f)
+                c.Root.sizeDelta = new Vector2(c.Root.sizeDelta.x, h);
+        }
+
         /// <summary>A small rounded chip (icon + label) for card footers, HUD tags and badges.</summary>
         public static RectTransform Chip(Transform parent, string text, Color fill, Color textColor, UiIcon icon = UiIcon.None, int fontSize = 13, float height = 24f)
         {
             var go = new GameObject("Chip", typeof(RectTransform), typeof(LayoutElement), typeof(HorizontalLayoutGroup));
             go.transform.SetParent(parent, false);
             var rt = (RectTransform)go.transform;
-            var bg = Shape(rt, "Bg", fill);
-            bg.pixelsPerUnitMultiplier = 2.4f;
+            var bg = Shape(rt, "Bg", fill, RoundS);
             Stretch(bg.rectTransform);
             var h = go.GetComponent<HorizontalLayoutGroup>();
             h.padding = new RectOffset(9, 10, 2, 2);
@@ -586,6 +628,23 @@ namespace FallRush.Client
 
         // ------------------------------------------------------------------ P7-UX (OC-45): keycaps, round buttons
 
+        /// <summary>
+        /// P7-UX2 (OC-50): game-style HUD type: the display face with the thick ink outline + soft underlay, in
+        /// <paramref name="face"/> (white, Sun, Magenta, Mint …), straight over the world: no pill behind it.
+        /// </summary>
+        public static TMP_Text HudText(Transform parent, int size, Color face)
+        {
+            var t = Label(parent, string.Empty, size, face, FontStyle.Bold);
+            t.font = Display;
+            if (DisplayOutlined != null)
+                t.fontSharedMaterial = DisplayOutlined;
+            t.fontStyle = FontStyles.Normal;
+            t.textWrappingMode = TextWrappingModes.NoWrap;
+            t.overflowMode = TextOverflowModes.Overflow;
+            t.GetComponent<LayoutElement>().ignoreLayout = true;
+            return t;
+        }
+
         /// <summary>A keyboard keycap (cream face, grape rim, a 3 px drop): instructions show keys, not sentences.</summary>
         public static RectTransform Keycap(Transform parent, string key, int fontSize = 13, float height = 24f)
         {
@@ -598,14 +657,14 @@ namespace FallRush.Client
             le.minHeight = le.preferredHeight = height;
             le.flexibleWidth = le.flexibleHeight = 0f;
             rt.sizeDelta = new Vector2(w, height);
-            var drop = Shape(rt, "Drop", new Color(Ink.r, Ink.g, Ink.b, 0.55f));
-            drop.pixelsPerUnitMultiplier = 3f;
+            var drop = Shape(rt, "Drop", new Color(Ink.r, Ink.g, Ink.b, 0.55f), RoundS);
+            drop.pixelsPerUnitMultiplier = 1.6f;
             Stretch(drop.rectTransform, 0f, new Vector2(0f, -3f));
-            var rim = Shape(rt, "Rim", Grape);
-            rim.pixelsPerUnitMultiplier = 3f;
+            var rim = Shape(rt, "Rim", Grape, RoundS);
+            rim.pixelsPerUnitMultiplier = 1.6f;
             Stretch(rim.rectTransform);
-            var face = Shape(rt, "Face", Cream);
-            face.pixelsPerUnitMultiplier = 3f;
+            var face = Shape(rt, "Face", Cream, RoundS);
+            face.pixelsPerUnitMultiplier = 1.6f;
             Stretch(face.rectTransform, 2f);
             var t = Label(rt, key, fontSize, Ink, FontStyle.Bold);
             t.textWrappingMode = TextWrappingModes.NoWrap;

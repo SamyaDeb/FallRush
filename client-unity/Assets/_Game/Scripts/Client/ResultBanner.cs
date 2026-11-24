@@ -5,8 +5,8 @@ using UnityEngine.UI;
 namespace FallRush.Client
 {
     /// <summary>
-    /// G3.5 our own result banner: a capsule split in two colours (white top, coloured bottom) with the word in the
-    /// display face across the seam; it pops in with an overshoot and a burst of little stars. Used for QUALIFIED!,
+    /// G3.5 our own result banner, P7-UX2: the word as a big outlined stamp in the result colour; it pops in with an
+    /// overshoot and a burst of little stars. Used for QUALIFIED!,
     /// ESCAPED!, ELIMINATED, GOOED!, OUT!, BONK!. Reduced motion: no pop, no star burst.
     /// </summary>
     public sealed class ResultBanner : MonoBehaviour
@@ -26,28 +26,10 @@ namespace FallRush.Client
             rt.sizeDelta = new Vector2(660f, 130f);
             var b = go.AddComponent<ResultBanner>();
             b._root = rt;
-            var drop = UiKit.Shape(rt, "Drop", new Color(UiKit.Ink.r, UiKit.Ink.g, UiKit.Ink.b, 0.45f));
-            drop.pixelsPerUnitMultiplier = 0.4f;
-            UiKit.Stretch(drop.rectTransform, 0f, new Vector2(0f, -9f));
-            var border = UiKit.Shape(rt, "Border", UiKit.Ink);
-            border.pixelsPerUnitMultiplier = 0.4f;
-            UiKit.Stretch(border.rectTransform);
-            var top = UiKit.Shape(rt, "Top", Color.white);
-            top.pixelsPerUnitMultiplier = 0.4f;
-            UiKit.Stretch(top.rectTransform, 6f);
-            b._bottom = UiKit.Shape(rt, "Bottom", UiKit.Mint);
-            b._bottom.pixelsPerUnitMultiplier = 0.4f;
-            var brt = b._bottom.rectTransform;
-            brt.anchorMin = Vector2.zero;
-            brt.anchorMax = new Vector2(1f, 0.5f);
-            brt.offsetMin = new Vector2(6f, 6f);
-            brt.offsetMax = new Vector2(-6f, 18f);
-            var seam = UiKit.Shape(rt, "Seam", UiKit.Ink);
-            var srt = seam.rectTransform;
-            srt.anchorMin = new Vector2(0f, 0.5f);
-            srt.anchorMax = new Vector2(1f, 0.5f);
-            srt.sizeDelta = new Vector2(-12f, 6f);
-            b._text = UiKit.Shout(rt, string.Empty, 72, Color.white);
+            // P7-UX2 (OC-50): a word stamp in outlined game type (it was a 660 px split-capsule slab over the round result)
+            b._bottom = UiKit.Shape(rt, "Tint", new Color(0f, 0f, 0f, 0f));
+            b._text = UiKit.Shout(rt, string.Empty, 84, Color.white);
+            b._text.characterSpacing = 4f;
             UiKit.Stretch((RectTransform)b._text.transform);
             for (var i = 0; i < b._stars.Length; i++)
             {
@@ -62,10 +44,10 @@ namespace FallRush.Client
             return b;
         }
 
-        public void Show(string text, Color color, float seconds = 2.4f)
+        public void Show(string text, Color color, float seconds = 1.5f)
         {
             _text.text = text;
-            _bottom.color = color;
+            _text.color = color;
             _t = 0f;
             _until = Time.unscaledTime + seconds;
             gameObject.SetActive(true);

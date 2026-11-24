@@ -610,16 +610,13 @@ namespace FallRush.Client
             var lrt = (RectTransform)_lagIcon.transform;
             lrt.SetParent(canvas, false);
             lrt.anchorMin = lrt.anchorMax = lrt.pivot = new Vector2(1f, 1f);
-            lrt.anchoredPosition = new Vector2(-16f, -16f);
-            lrt.sizeDelta = new Vector2(150f, 44f);
-            _lagIcon.GetComponent<Image>().color = UiKit.Amber;
-            _lagIcon.GetComponent<Image>().sprite = UiKit.Round;
-            _lagIcon.GetComponent<Image>().type = Image.Type.Sliced;
-            var lt = UiKit.Label(lrt, "! LAGGING", 22, UiKit.Ink, FontStyle.Bold);
-            var ltr = (RectTransform)lt.transform;
-            ltr.anchorMin = Vector2.zero;
-            ltr.anchorMax = Vector2.one;
-            ltr.offsetMin = ltr.offsetMax = Vector2.zero;
+            lrt.anchoredPosition = new Vector2(-18f, -98f); // P7-UX2: outlined amber type under the timer (no pill)
+            lrt.sizeDelta = new Vector2(160f, 26f);
+            _lagIcon.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0f);
+            var lt = UiKit.HudText(lrt, 18, UiKit.Amber);
+            lt.text = "! LAGGING";
+            lt.alignment = TextAlignmentOptions.Right;
+            UiKit.Stretch((RectTransform)lt.transform);
             _lagIcon.SetActive(false);
 
             // Nameplates on their own canvas, sorted under every HUD / match panel (they drew over the result panels).

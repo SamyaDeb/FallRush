@@ -111,11 +111,13 @@ namespace FallRush.Client
             _assetCount = 0;
             _badgeBits = -1;
             _rollupDot.color = _solanaDot.color = UiKit.Grey;
-            _rollupText.text = "Rollup …";
-            _solanaText.text = "Solana …";
+            _rollupText.text = "Rollup · writing";
+            _solanaText.text = "Solana · pending";
             _lineFill.anchorMax = new Vector2(0f, 0.5f);
             Clear(_assets);
             Clear(_badges);
+            _assets.gameObject.SetActive(false); // P7-UX2: empty rows take no space (the card fits its content)
+            _badges.gameObject.SetActive(false);
             _explorer.gameObject.SetActive(false);
             _open.gameObject.SetActive(false);
             _practice.gameObject.SetActive(false);
@@ -156,6 +158,7 @@ namespace FallRush.Client
         /// <summary>Adds a minted asset tile (pops in after Solana ✓).</summary>
         public void AddAsset(string name, string sub, Color rarity, bool crown)
         {
+            _assets.gameObject.SetActive(true);
             var c = UiKit.MakeCard(_assets, UiKit.CardSize.S, crown ? UiKit.CardHue.Lemon : UiKit.CardHue.Soda, name, new Vector2(196f, 60f), crown ? UiIcon.Crown : UiIcon.Capsule);
             var le = c.Root.gameObject.AddComponent<LayoutElement>();
             le.preferredWidth = le.minWidth = 196f;
@@ -177,6 +180,7 @@ namespace FallRush.Client
                 return;
             _badgeBits = bits;
             Clear(_badges);
+            _badges.gameObject.SetActive(bits != 0);
             string[] names = { "FIRST CROWN", "3-ROUND SURVIVOR", "PERFECT PREDICTOR", "CHAOS AGENT" };
             UiIcon[] icons = { UiIcon.Crown, UiIcon.Trophy, UiIcon.Eye, UiIcon.Bolt };
             for (var b = 0; b < names.Length; b++)
