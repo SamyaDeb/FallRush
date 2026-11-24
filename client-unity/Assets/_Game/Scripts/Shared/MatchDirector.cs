@@ -77,6 +77,10 @@ namespace FallRush.Shared
         /// </summary>
         public bool JudgeMode;
 
+        /// <summary>Judge mode: the room's first match started by itself; later ones wait for the host's Start (an idle tab
+        /// left open must not loop matches). The server clears it when the room changes.</summary>
+        public bool JudgeAutoStartUsed;
+
         /// <summary>Judge mode latched at the roster lock (the room file can change during the match).</summary>
         public bool JudgeMatch { get; private set; }
 
@@ -364,7 +368,7 @@ namespace FallRush.Shared
                     // P7-UX: a private room waits for its host's Start (friends arrive over minutes, not 20 s)
                     if (PrivateRoom && !Soak)
                     {
-                        if ((_hostStart || JudgeMode) && HumansConnected() > 0)
+                        if ((_hostStart || (JudgeMode && !JudgeAutoStartUsed)) && HumansConnected() > 0)
                             LockRoster(tick);
                         break;
                     }
@@ -560,6 +564,8 @@ namespace FallRush.Shared
         {
             MatchSerial++;
             JudgeMatch = JudgeMode && PrivateRoom && !Soak && PlanOverride == null;
+            if (JudgeMatch)
+                JudgeAutoStartUsed = true;
             var size = Math.Max(RoundTargets.MinPlayers, Math.Min(MaxSlots, MatchSize));
             var mix = BotMix;
             for (var i = 0; i < MaxSlots; i++)

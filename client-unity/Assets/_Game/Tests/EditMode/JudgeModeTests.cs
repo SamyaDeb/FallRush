@@ -47,6 +47,12 @@ namespace FallRush.Tests
             h.RunMatch();
             Assert.That(h.D.MatchesCompleted, Is.EqualTo(1));
             Assert.That(h.D.JudgeMatch, Is.False, "cleared for the next match");
+            for (var i = 0; i < 900; i++)
+                h.Tick();
+            Assert.That(h.D.Phase, Is.EqualTo(MatchPhase.LobbyOpen), "no second match by itself (an idle tab must not loop matches)");
+            Assert.That(h.D.HostStart(5), Is.True, "the judge starts the next one");
+            h.RunUntil(() => h.D.Phase == MatchPhase.Dealing);
+            Assert.That(h.D.JudgeMatch, Is.True, "the next match in the room is fast-forwarded too");
         }
 
         [Test]

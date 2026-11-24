@@ -125,7 +125,8 @@ function judgeCard(root: HTMLElement, j: { code: string; arena: number | null })
   el.innerHTML = `<button class="jc-x" title="hide">×</button><div class="jc-h">JUDGE MODE</div>
     <div class="jc-t">Rounds 1–3 are fast-forwarded (the receipt says so). You go straight to the <b>on-chain Final</b>.</div>
     <div class="jc-q">${qrSvg(live, 132)}</div>
-    <div class="jc-t">Scan with your phone to <b>bet</b> and <b>drop chaos</b> into this Final:<br><a href="${live}" target="_blank" class="mono">${live.replace(/^https?:\/\//, '')}</a></div>`;
+    <div class="jc-t">Scan with your phone to <b>bet</b> and <b>drop chaos</b> into this Final:<br><a href="${live}" target="_blank" class="mono">${live.replace(/^https?:\/\//, '')}</a></div>
+    <div class="jc-t muted">After the Final, press Start in the lobby for another one. The <a href="/play">full match</a> plays all 4 rounds.</div>`;
   root.appendChild(el);
   el.querySelector('.jc-x')!.addEventListener('click', () => el.classList.toggle('min'));
 }

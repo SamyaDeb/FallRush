@@ -167,6 +167,7 @@ namespace FallRush.Net
             {
                 Debug.Log($"[gs] room {(code == null ? "closed: public server" : "open (private, host starts)")} mix={mix}");
                 NetBootstrap.RoomCode = code;
+                Director.JudgeAutoStartUsed = false; // a new room (or none): its first judge match may start by itself
                 OnMatchChanged();
             }
 
