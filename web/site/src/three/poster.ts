@@ -286,7 +286,7 @@ export async function generatePoster({ preset, rank, siteHost }: PosterInput): P
   x.fillStyle = '#2A1250';
   x.textAlign = 'center';
   x.font = '400 38px "Lilita One", sans-serif';
-  x.fillText(rank == null ? 'THE PROVABLY FAIR' : 'IN LINE FOR THE CROWN', bx + bw / 2, by + 64);
+  x.fillText(rank == null ? 'THE ON-CHAIN FINAL' : 'IN LINE FOR THE CROWN', bx + bw / 2, by + 64);
   const big = rank == null ? 'KNOCKOUT PARTY' : `#${rank.toLocaleString('en-US')}`;
   let size = rank == null ? 84 : 150;
   x.font = `400 ${size}px "Lilita One", sans-serif`;

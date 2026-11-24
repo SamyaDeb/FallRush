@@ -1,6 +1,6 @@
 # 05 — Backend: Rush Relay + Game Server Orchestration
 
-**Status:** v2 (2026-11-18). Replaces `fall-rush-docs/05-MULTIPLAYER-BACKEND.md`.
+**Status:** v2 (2026-11-18). Replaces `archive/v1-spec/05-MULTIPLAYER-BACKEND.md`.
 
 **Shape:** one TypeScript service (**Rush Relay**), one PostgreSQL database, and N game-server processes.
 

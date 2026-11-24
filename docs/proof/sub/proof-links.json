@@ -1,0 +1,181 @@
+{
+ "match": "3JnhbrWGH2VV4c9Z9hwEgDwYg8QFQ2EeovFPA1vd3Uv9",
+ "at": "2026-11-24T21:36:41.651Z",
+ "links": [
+  {
+   "system": "Match create (Solana)",
+   "proves": "the Match account is created on Solana by the arena keeper",
+   "sig": "vWJw8j56JjfiqKYuDc3iztcMdbUhLpzEJVoji2YY115kxcy7X4QwWM21XwLLMLSRAGmiqUa3nGx6iUkvipWeznS",
+   "url": "https://explorer.solana.com/tx/vWJw8j56JjfiqKYuDc3iztcMdbUhLpzEJVoji2YY115kxcy7X4QwWM21XwLLMLSRAGmiqUa3nGx6iUkvipWeznS?cluster=devnet",
+   "rollup": false,
+   "live": true,
+   "err": null,
+   "cu": 29263,
+   "slot": 525923261
+  },
+  {
+   "system": "Delegate to the Ephemeral Rollup",
+   "proves": "the Match is delegated to MagicBlock's rollup validator",
+   "sig": "2JgPGbpWGzriV3EQqPJodvhaXAdzryob3a5ricHNpVVaHmiog8CBdCqPoRCr4hZFHwtDN6i7uBUPwBspQ6pnT81K",
+   "url": "https://explorer.solana.com/tx/2JgPGbpWGzriV3EQqPJodvhaXAdzryob3a5ricHNpVVaHmiog8CBdCqPoRCr4hZFHwtDN6i7uBUPwBspQ6pnT81K?cluster=devnet",
+   "rollup": false,
+   "live": true,
+   "err": null,
+   "cu": 61415,
+   "slot": 525923265
+  },
+  {
+   "system": "VRF deal request",
+   "proves": "the program asks MagicBlock VRF for the match seed",
+   "sig": "4dLj4igJ9sfho4TP4SYfzBRgYPXDVNeMxwbWWwJAuyrDb6gY5cFwu24zn23V1twciJPbFwYiqxNWSYexVDeH1FE1",
+   "url": "https://explorer.solana.com/tx/4dLj4igJ9sfho4TP4SYfzBRgYPXDVNeMxwbWWwJAuyrDb6gY5cFwu24zn23V1twciJPbFwYiqxNWSYexVDeH1FE1?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app",
+   "rollup": true,
+   "live": true,
+   "err": null,
+   "cu": 40329,
+   "slot": 1157937949
+  },
+  {
+   "system": "VRF deal callback",
+   "proves": "the VRF oracle's callback writes the seed into the Match (it seeds the on-chain Final)",
+   "sig": "4Fo4k672bEoW2KJS6Hcmo3J6E9smjL64SZu3cc2FPUew64RNVYwU1vfU53juCNQ9hJBm5rqeDZG3Gc81qdD6A4e7",
+   "url": "https://explorer.solana.com/tx/4Fo4k672bEoW2KJS6Hcmo3J6E9smjL64SZu3cc2FPUew64RNVYwU1vfU53juCNQ9hJBm5rqeDZG3Gc81qdD6A4e7?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app",
+   "rollup": true,
+   "live": true,
+   "cu": 53678
+  },
+  {
+   "system": "Start the on-chain Final",
+   "proves": "the finalists are handed from the Classic rounds to the program",
+   "sig": "26jrKipLapqzizAsykb1vCLMgtdgsrJQ8hgZSgL9PJRPRZGzemC4GbaeJzbbeiT5vFqxkmCRF86oE7LBEebVLZpq",
+   "url": "https://explorer.solana.com/tx/26jrKipLapqzizAsykb1vCLMgtdgsrJQ8hgZSgL9PJRPRZGzemC4GbaeJzbbeiT5vFqxkmCRF86oE7LBEebVLZpq?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app",
+   "rollup": true,
+   "live": true,
+   "err": null,
+   "cu": 39944,
+   "slot": 1157938812
+  },
+  {
+   "system": "tick() (timed task, 30 Hz)",
+   "proves": "one physics step of the Final, run as sBPF by the program (the costliest of the ticks sampled)",
+   "sig": "KT8U57NoxmHsiKYCPrQi6ihG2RoAF5Cx9cWVNW1rUFU6SFiBgTsNMNPh5KaBA8zP9iLudHxyAv1QsgBRZu8YLGq",
+   "url": "https://explorer.solana.com/tx/KT8U57NoxmHsiKYCPrQi6ihG2RoAF5Cx9cWVNW1rUFU6SFiBgTsNMNPh5KaBA8zP9iLudHxyAv1QsgBRZu8YLGq?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app",
+   "rollup": true,
+   "live": true,
+   "cu": 243232,
+   "sampled": 195
+  },
+  {
+   "system": "Bet (Rush Market)",
+   "proves": "a bet on this match's market, settled by the program (signer shown on the explorer)",
+   "sig": "5YybLLTQfYtvLhTCBRRSwEFwDLTfr1WpCVjYms78gYzUCeVcZz9TpvPNhBTPCK1pvrgQNajL891yAsb1hDgaUXKS",
+   "url": "https://explorer.solana.com/tx/5YybLLTQfYtvLhTCBRRSwEFwDLTfr1WpCVjYms78gYzUCeVcZz9TpvPNhBTPCK1pvrgQNajL891yAsb1hDgaUXKS?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app",
+   "rollup": true,
+   "live": true,
+   "err": null,
+   "cu": 14971,
+   "slot": 1157938900
+  },
+  {
+   "system": "Sealed market close (TEE book)",
+   "proves": "the sealed Champion book is closed on MagicBlock's Private ER",
+   "sig": "ujrTshKmxqWk7jCnS9w58sLGVzgtFU23facF62qk1bTx6RUyUFzqpKfcSsFfY2vwCU8vsGwXtVFA2rXibTtva8T",
+   "url": "https://explorer.solana.com/tx/ujrTshKmxqWk7jCnS9w58sLGVzgtFU23facF62qk1bTx6RUyUFzqpKfcSsFfY2vwCU8vsGwXtVFA2rXibTtva8T?cluster=devnet",
+   "rollup": false,
+   "live": false,
+   "err": null,
+   "cu": null,
+   "slot": null,
+   "note": "devnet-tee: the explorer cannot open the private rollup; the close is recorded here"
+  },
+  {
+   "system": "Sealed reveal",
+   "proves": "a sealed pick revealed and checked against its commitment",
+   "missing": true
+  },
+  {
+   "system": "Sealed settle",
+   "proves": "the program settles the sealed bets with the Champion market",
+   "sig": "2pvwtASM82QgPw4HrH21a7nfEkTNE89gAii6vZ9t837LpyMrSnegWXkYhXNSZ5DJKdiXipK9j6WxhPXRb8b4KLwa",
+   "url": "https://explorer.solana.com/tx/2pvwtASM82QgPw4HrH21a7nfEkTNE89gAii6vZ9t837LpyMrSnegWXkYhXNSZ5DJKdiXipK9j6WxhPXRb8b4KLwa?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app",
+   "rollup": true,
+   "live": true,
+   "err": null,
+   "cu": 12269,
+   "slot": 1157938947
+  },
+  {
+   "system": "Chaos Drop",
+   "proves": "a spectator's map-wide event bought on-chain with a session key, entering the Final's World",
+   "sig": "41doWr8RcpkT5VcKY9P4JrankJx5hucuG8wbgM6k7T7pwvAttN8bL9fo8hrjrBWAEnrF6WttMkr9q1E2rZuSjHWT",
+   "url": "https://explorer.solana.com/tx/41doWr8RcpkT5VcKY9P4JrankJx5hucuG8wbgM6k7T7pwvAttN8bL9fo8hrjrBWAEnrF6WttMkr9q1E2rZuSjHWT?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app",
+   "rollup": true,
+   "live": true,
+   "err": null,
+   "cu": 16724,
+   "slot": 1157940259
+  },
+  {
+   "system": "Receipt (rollup)",
+   "proves": "the program writes the match receipt",
+   "sig": "vRzCQ6mbthux8WRrsppKJaoFWjvbQQJHpfWQH6poAwbAgAvUMWhMMabBNrw3bbZSCcAXkJU47KShtHMucsHSupe",
+   "url": "https://explorer.solana.com/tx/vRzCQ6mbthux8WRrsppKJaoFWjvbQQJHpfWQH6poAwbAgAvUMWhMMabBNrw3bbZSCcAXkJU47KShtHMucsHSupe?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app",
+   "rollup": true,
+   "live": true,
+   "err": null,
+   "cu": 62206,
+   "slot": 1157948874
+  },
+  {
+   "system": "Finalize: commit + undelegate + Magic Action",
+   "proves": "the Match returns to Solana; a Magic Action mints the rewards",
+   "sig": "3ut8PWeYV4LPgbvS4uof9NKS4w2La4TUKYTsnSQ6PXJ4RraE5YZGoBNudoyGRixdw1DMh2BfVaTggYAtpSayEnu9",
+   "url": "https://explorer.solana.com/tx/3ut8PWeYV4LPgbvS4uof9NKS4w2La4TUKYTsnSQ6PXJ4RraE5YZGoBNudoyGRixdw1DMh2BfVaTggYAtpSayEnu9?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app",
+   "rollup": true,
+   "live": true,
+   "err": null,
+   "cu": 69033,
+   "slot": 1157949114
+  },
+  {
+   "system": "Undelegation on Solana (Magic Action inside)",
+   "proves": "commit + undelegate landed on Solana; the post-undelegate action created the Core assets",
+   "sig": "3izpnZGfh9Y5eiiqZcNbi4y3PcEFaFu4waTVCC3GXX2gFEvas4DCgXWE6UGv4owiqmKgEJh8pGmudvsmRsnJbbFL",
+   "url": "https://explorer.solana.com/tx/3izpnZGfh9Y5eiiqZcNbi4y3PcEFaFu4waTVCC3GXX2gFEvas4DCgXWE6UGv4owiqmKgEJh8pGmudvsmRsnJbbFL?cluster=devnet",
+   "rollup": false,
+   "live": true,
+   "feePayer": "MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57"
+  },
+  {
+   "system": "Capsule (Metaplex Core)",
+   "proves": "an asset the player owns, minted by the program",
+   "address": "7GtJ27ZQCP4Gwkqib7NjULEE1NkWa53n8VhfZAi43btn",
+   "url": "https://explorer.solana.com/address/7GtJ27ZQCP4Gwkqib7NjULEE1NkWa53n8VhfZAi43btn?cluster=devnet",
+   "live": true
+  },
+  {
+   "system": "Season record",
+   "proves": "the match recorded into the on-chain weekly Season",
+   "missing": true
+  },
+  {
+   "system": "Player input (session key)",
+   "proves": "a player's input batch for the Final, signed by a session key (no wallet popup)",
+   "sig": "3eSfdhp26qcGxgErQtdJw231wzZE1zYLFwGtFn9wbRFyjjRWnfvwmFQjeW7Byi8nwyKZv13osiVhUrKQmwYLzMAx",
+   "url": "https://explorer.solana.com/tx/3eSfdhp26qcGxgErQtdJw231wzZE1zYLFwGtFn9wbRFyjjRWnfvwmFQjeW7Byi8nwyKZv13osiVhUrKQmwYLzMAx?cluster=custom&customUrl=https%3A%2F%2Fdevnet-as.magicblock.app",
+   "rollup": true,
+   "live": true,
+   "signer": "4R2A797vHfQb1ZsUSVbbZujL88yNvFzAfYSKjNEjCR4V"
+  },
+  {
+   "system": "Match account",
+   "address": "3JnhbrWGH2VV4c9Z9hwEgDwYg8QFQ2EeovFPA1vd3Uv9",
+   "url": "https://explorer.solana.com/address/3JnhbrWGH2VV4c9Z9hwEgDwYg8QFQ2EeovFPA1vd3Uv9?cluster=devnet",
+   "live": true
+  }
+ ],
+ "judge": true,
+ "arena": 2,
+ "arenaKey": "HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt",
+ "world": "HYJRSXpSGZ3HdjmZr4oMy3x6VgTWLcarkgHav7L4hSTQ"
+}

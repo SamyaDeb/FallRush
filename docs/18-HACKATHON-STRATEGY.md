@@ -56,7 +56,9 @@
 > Play in your browser, no wallet needed.
 
 **Honest-trust line** (said in the demo and printed in the README):
-> "Physics runs on our authoritative game server; the chain proves the match setup was random, and that every result was recorded in order, by the authorised server, consistent with the rules. It doesn't prove the physics — that's our roadmap."
+> "Rounds 1–3 run on our server and are recorded on-chain. The Final's physics runs on Solana, in a MagicBlock Ephemeral Rollup, 30 times a second. Replay any match and compare it with the on-chain receipt."
+
+(Updated 2026-11-25. The earlier v2 line, "physics runs on our authoritative game server … it doesn't prove the physics", predates the on-chain Final of doc 19 and no longer applies.)
 
 ## 4. Integration proof checklist (submission)
 

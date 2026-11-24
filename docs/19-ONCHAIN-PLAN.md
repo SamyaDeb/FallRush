@@ -1,4 +1,6 @@
-# 19 — Fully On-Chain Fall Rush: Phase-wise Implementation Plan
+# 19 — On-Chain Final Plan: Phase-wise Implementation Plan
+
+> **As built (2026-11-25):** the shipped game runs **only the Final (Lid Flip) on-chain**, at **30 Hz**, with 3 finalists. Rounds 1–3 run on our game server and their results are recorded on-chain. The plan below is the original 2026-11-21 target ("whole game on-chain", 20 Hz) and is kept as written for the record; see the README for what ships.
 
 **Status:** v1 (2026-11-21). The user approved the direction (2026-11-21):
 1. Target = the whole game runs on a MagicBlock Ephemeral Rollup. **Classic mode** (today's Unity server) stays as the fallback until on-chain mode matches it.
@@ -133,7 +135,7 @@ Unity side: `Scripts/Chain/` holds the bridge file `FallRushChain.jslib`, `OnCha
 
 ## 5. Phase details
 
-Each phase lists **Build** (numbered tasks), **Verify** (the checks that close the phase), **Deliverables**, and **Risks / notes**. Write one prompt per phase, `docs/prompts/<phase>-PROMPT.md`, in the same style as the G4 prompts.
+Each phase lists **Build** (numbered tasks), **Verify** (the checks that close the phase), **Deliverables**, and **Risks / notes**. Write one prompt per phase, `docs/archive/prompts/<phase>-PROMPT.md`, in the same style as the G4 prompts.
 
 ---
 
@@ -598,10 +600,10 @@ Render only; no map, rules or hash change. Kept for last (user call). Nothing he
 
 | Time | Shot | Line |
 |---|---|---|
-| 0:00–0:10 | The capsule machine, logo | "Fall Rush: the first 3D party game whose physics runs on Solana." |
-| 0:10–0:25 | Click a URL → playing, no wallet popup | "No wallet, no popups. Session keys sign every move." |
+| 0:00–0:10 | The capsule machine, logo | "Fall Rush: a 3D party game whose Final runs on Solana." |
+| 0:10–0:25 | Click a URL → playing, no wallet popup | "No wallet, no popups. Session keys sign your Final moves, bets and drops." |
 | 0:25–0:40 | Deal screen + VRF transaction on the explorer | "MagicBlock VRF deals the match." |
-| 0:40–1:15 | Round 1 gameplay + the F3 tick health + a `tick()` transaction with its compute units | "Every tick of this race runs in a MagicBlock Ephemeral Rollup, 20 times a second." |
+| 0:40–1:15 | The Final (Lid Flip) + the F3 tick health + a `tick()` transaction with its compute units | "The Final's physics runs in a MagicBlock Ephemeral Rollup, 30 times a second." |
 | 1:15–1:40 | A phone spectator bets; odds move; buys **Goo Surge**; the banner in game | "Spectators bet and drop chaos in real time." |
 | 1:40–2:10 | The Final; a knockout settles the market on screen | "The program decides who's out, and settles the market itself." |
 | 2:10–2:35 | Crown Capsule + VRF capsule pop → wallet; receipt page Rollup ✓ → Solana ✓ | "The crown and your capsules are yours." |

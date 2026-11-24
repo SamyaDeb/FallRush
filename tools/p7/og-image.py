@@ -14,7 +14,7 @@ disp = ImageFont.truetype(os.path.join(root, "client-unity/Assets/_Game/Fonts/Li
 body = ImageFont.truetype(os.path.join(root, "client-unity/Assets/_Game/Fonts/VarelaRound-Regular.ttf"), 34)
 small = ImageFont.truetype(os.path.join(root, "client-unity/Assets/_Game/Fonts/VarelaRound-Regular.ttf"), 26)
 INK, GRAPE, SUN, PINK = (0x2A, 0x12, 0x50), (0x7B, 0x2F, 0xF7), (0xFF, 0xD2, 0x1F), (0xFF, 0x3E, 0xA5)
-logo = Image.open(os.path.join(root, "Fall Rush  Logo.png")).convert("RGBA")
+logo = Image.open(os.path.join(root, "docs", "media", "logo.png")).convert("RGBA")
 logo.thumbnail((440, 440))
 mask = Image.new("L", logo.size, 0)
 ImageDraw.Draw(mask).rounded_rectangle((0, 0, logo.size[0] - 1, logo.size[1] - 1), 40, fill=255)

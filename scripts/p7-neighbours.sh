@@ -2,7 +2,7 @@
 # P7 (copy of p6-neighbours.sh) §1.3.7: read-only neighbour check (finity site + Ovelo containers + raw-IP behaviour), redacted output.
 #   bash scripts/p5-neighbours.sh <label>  → docs/proof/p7/vps/neighbours.log (appends)
 source ~/.config/fall-rush/vps.env
-L="${1:-check}"; OUT="$(dirname "$0")/../docs/proof/p7/vps/neighbours.log"
+L="${1:-check}"; OUT="${NEIGHBOURS_OUT:-$(dirname "$0")/../docs/proof/p7/vps/neighbours.log}"
 F="${FINITY_URL:?set FINITY_URL in ~/.config/fall-rush/vps.env}"
 r() { curl -s -o /dev/null -w '%{http_code} %{time_total}s' --max-time 10 "$@"; }
 {

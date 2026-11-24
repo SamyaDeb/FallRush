@@ -1,13 +1,29 @@
 # Fall Rush — Project Status
 
+**Summary (2026-11-25)**
+- **What:** a 12-player, 4-round 3D knockout party game (Unity 6 WebGL) with spectator markets, for MagicBlock Solana Blitz V10 (Entertainment Finance).
+- **On-chain:** the Final (Lid Flip) runs in a MagicBlock Ephemeral Rollup: `tick()` 30×/s, `rush-core` as sBPF, worst case ~254–262k CU per tick, 3 finalists.
+- **Server:** rounds 1–3 run on our game server; every qualify/eliminate result is recorded on-chain.
+- **Economy (devnet test chips):** Rush Markets settled by the program, a sealed Champion market on a Private ER (TEE), Chaos Drops, Crown + capsules minted by a Magic Action, cash-out to the RUSH SPL token.
+- **Live:** https://fallrush.fun (web + 3 game servers + 2 arena keepers on one VPS). Program `4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4` (devnet).
+- **Proof:** [`PROOF.md`](PROOF.md) (explorer links), [`docs/proof/`](docs/proof/) (per-phase runs and numbers).
+- **Built:** 20–27 Nov 2026 during the Blitz. The design and planning docs (`docs/00`–`18`) were written earlier, on 18 Nov.
+- **Open:** real-phone + Phantom test, a recorded match with only humans, the demo video.
+
+The rest of this file is the phase-by-phase history (newest first).
+
+<details><summary>Older status line (2026-11-23)</summary>
+
 _Last updated: 2026-11-23 (**P6 done: sealed Champion bets on a MagicBlock Private ER (TEE), seasons + trophies, achievements, Crown via the Magic Action proven**; **P5 done and merged: public URL live (play.<VPS_IP-dashed>.sslip.io), web app, arena pool, Magic Action minting, cash-out to real RUSH**; **P4 economy done and merged: RUSH chips, Rush Markets, Chaos Drops, receipt + Crown/capsules on devnet**; **P2 done on branch `p2`: the Final runs on-chain in real time, 5/5 devnet** (OC-11); **P1 `rush-core` done and merged (422e5e6); tick rate set to 30 Hz** after your Feel Lab A/B (OC-3). Next: **P1b** CU work budget (≈ 493k → ≤ 300k per tick). Before: **⚑ New plan: fully on-chain Fall Rush on the MagicBlock ER, [doc 19](docs/19-ONCHAIN-PLAN.md)** (approved by you 2026-11-21: on-chain target with Classic fallback, RUSH devnet chips, motor retune with your A/B sign-off). Next: **PB0** (G4.13 A+B, ER SDK 0.18, `rush-core` skeleton) → **P0** feasibility spikes. Before: **G4-B art done — ⚑ Art freeze declared 2026-11-20 23:56 UTC** on WebGL build #4 (24.09 MB): G4.8z dizzy swirls + Lid Flip shadow fix, G4.9 Blender prop kit (22 props) + squash, G4.10 crowd / cloud sea / `close` camera, G4.11 rigged Bolt cut, G4.12 guard identical / soak 20/20 / probe 0 mismatches, and a **colour-grade bug in every player build since G4.6 found and fixed**; next **M5 / M6**; your calls under "For you (G4-B)". Before: **G4.8 soft look merged** (render only, F7 soft ↔ candy, WebGL build #2 21.79 MB; open: your look pick, browser measurements, worktree removal — see "For you (G4.8)"). Before: **⚑ Gameplay freeze declared 2026-11-20 18:54 UTC — G4-A done** (G4.6 candy palette + grade, G4.7 QA: PASS 79 / ACCEPTED 1 / FAIL 1 (Capsule Run 150 ms client 1, PASS on re-run), deterministic g1 = m4 on every map, soak 20/20, EditMode 375/375, WebGL release build #1 18.98 MB saved; browser FPS measurements deferred); next **G4-B (G4.8 bevelled geometry) alongside M5**. Before: **G4.5 Lid Flip done**: the Final rebuilt as two shelves of capsule lids (9 × 9 over 5 × 5) that light yellow for 1 s and swing open, rings retiring every 25 s, one sweeper from 20 s; Final QA PASS, normal tier every G4.5 target met in all 6 cells (median 79.5 s, timer 0–3 %, every lid fall after ≥ 1 s of yellow); the flip pattern is a pure function of the hazard seed (VRF in M6); tests 369/369; soak 20/20 (median match 6.6 min); **your call: the timer tiebreak on a lid map (G4.5-8)**; next G4.6 candy palette. Before: **G4.4 Star Fountain done**: Round 3 rebuilt round a capsule fountain that bursts 8 stars every 8 s onto a 9 m turntable; Skill QA PASS with every G4.4 target met in all 16 tier × variant × modifier cells (drops 0.0 → 0.9–1.8 per bot, 63–67 % of pickups on the table, golden 71–100 %, camper probe PASS); Round 2 target revised to 50–65 s (G4.4-0); tests 352/352; next G4.5 Lid Flip. Before: **G4.3 Goo Tower done**: 2 laps / 14 m core / 22 m, 0 free routes, all ratios ≤ 1.25, survival QA PASS (escapes 4.85–4.99, goo margins 8.6–9.5 s), tests 338/338; open: round median 57 s vs 90–110 (your call, proof §4); 150 ms probe fixed (R22); next G4.4 Star Fountain. Before: **G4.2 Capsule Run done**: 0 free routes, race QA PASS, tests 329/329. Before: **G4.0 + G4.1 done**: design rules, display names, route-cost QA, ROLLING_BALL + LID_FLIP + bump flag (off); 323/323 EditMode, vectors v3, guard QA + soak 20/20 PASS; next G4.2 Capsule Run. Earlier: G2/G3 game freeze, see below)_
+
+</details>
 
 **Hackathon:** MagicBlock Blitz V10, running Nov 20 to Nov 27, 2026.
 - **Submission deadline:** Nov 27, 14:00 UTC (19:30 IST).
 - **Our internal target:** submit by 12:00 UTC.
 
 ## Completed
-- **Engineering audit** of the v1 docs. See `ENGINEERING_REPORT.md`; it is now superseded by `docs/`.
+- **Engineering audit** of the v1 docs. See `docs/archive/ENGINEERING_REPORT.md`; it is now superseded by `docs/`.
 - **Research, verified against these sources:**
   - Blitz V10 rules and past winners
   - MagicBlock SDK 0.16.2 APIs and `magicblock-examples`
@@ -319,7 +335,7 @@ Proof: [`docs/proof/G1-polish.md`](docs/proof/G1-polish.md) · QA [`docs/proof/g
 - **WebGL font:** the built-in font has no "●", "▼", "–" glyphs in WebGL (M4's ping / lobby dots are invisible there): pick a real font in G3's UI kit.
 - Map signs kept: map titles (except BPD's, which sat on the start gate), CHECKPOINT n, FINISH, ESCAPE!. G2 makes them pretty.
 
-## G4 map redesign + candy look — in progress (plan https://claude.ai/artifact/HbkjmVdp4PBpv13GBVFrPw, prompt `docs/prompts/G4-PROMPT.md`)
+## G4 map redesign + candy look — in progress (plan https://claude.ai/artifact/HbkjmVdp4PBpv13GBVFrPw, prompt `docs/archive/prompts/G4-PROMPT.md`)
 The G2/G3 "game freeze" is reopened for G4 by your decision: **gameplay freeze Sun Nov 22 23:59 UTC, art freeze Mon Nov 23 23:59 UTC** (G4-4, doc 14).
 
 | Phase | State |
@@ -434,10 +450,10 @@ From here only bug fixes and integration changes in game code. Open items you ma
 ### Notes for M5 / M6 / M8 (from G2 / G3)
 - **M6 implements `IChainAdapter`** (`Client/ChainAdapter.cs`): `State` from `evt.chainStatus`, `Deal` = the VRF seed + callback signature + explorer URL (the Deal screen already shows "VRF ✓ …" when `Verified`), `Receipt` = Rollup tx / Solana tx / Match PDA + URLs (three slots on the receipt). Every slot is `TODO(M6)` in `PracticeChainAdapter.cs` and `MatchHud.cs`. No chain code in the client.
 - **Protocol v6:** `match` slot rows carry the cosmetic preset (format v2). The Relay / chain worker never needs it.
-- **Assets the web pages can reuse (M8):** the logo (`Fall Rush  Logo.png`), the palette (`PaletteTokens` / doc 17 §3.1 hex), the fonts (Lilita One + Varela Round, OFL; `client-unity/Assets/_Game/Fonts/`), Bolt renders (`docs/proof/g2g3/bolt-closeup.png`, `presets.png`), the chain-chip styles (doc 17 §5, `ChainChipStyle`).
+- **Assets the web pages can reuse (M8):** the logo (`docs/media/logo.png`), the palette (`PaletteTokens` / doc 17 §3.1 hex), the fonts (Lilita One + Varela Round, OFL; `client-unity/Assets/_Game/Fonts/`), Bolt renders (`docs/proof/g2g3/bolt-closeup.png`, `presets.png`), the chain-chip styles (doc 17 §5, `ChainChipStyle`).
 - **Build size headroom:** 19.03 / 25 MB.
 
-## Earlier plan: G2 look + G3 juice (Phase A, ends with the game freeze), prompt `docs/prompts/G2G3-PROMPT.md`
+## Earlier plan: G2 look + G3 juice (Phase A, ends with the game freeze), prompt `docs/archive/prompts/G2G3-PROMPT.md`
 - G1 verified independently 2026-11-19: EditMode **275/275** re-run, a G1 match log re-verified (`scripts/m4-verify-log.py`), git clean (no remote, no VPS identifiers).
 - Carried into G2+G3 step 0: HUD banner vs the in-world BPD title/start-gate sign overlap; leaderboard alignment and WebGL glyphs (font); the MagicBlock-ready UI (`IChainAdapter`, chain chip states, deal/receipt slots) that `docs/14` G1 listed but the G1 prompt left out.
 - Still yours: play G1 and judge the feel; the real hidden-tab / tab-reopen steps (G1 proof §I); the pre-kickoff code rule.

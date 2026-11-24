@@ -89,7 +89,7 @@ async function arenaAcc(): Promise<any> { for (;;) { try { return await pe.accou
 const ZERO = PublicKey.default.toBase58();
 
 /** The market maker (labelled "mm"): seeds each market once its window opens. */
-function mmWatcher(matchPda: PublicKey, tiers: (string | undefined)[], mlog: any[]) {
+function mmWatcher(matchPda: PublicKey, tiers: (string | undefined)[], mlog: any[], judge = false) {
   const mm = key("mm");
   let stopped = false;
   const done = new Set<string>();
@@ -106,9 +106,10 @@ function mmWatcher(matchPda: PublicKey, tiers: (string | undefined)[], mlog: any
         if (m) {
           const s = statusName(m);
           const alive = m.slots.map((x: any, i: number) => (x.state === 1 ? i : -1)).filter((i: number) => i >= 0 && i < m.playerCount);
-          if (m.currentRound === 0 && ["created", "dealing", "dealt"].includes(s)) { await seed("champion", 0, alive); await seed("q1", 2, alive); }
-          if (s === "roundResolved" && m.currentRound === 1) await seed("q2", 3, alive);
-          if (s === "roundResolved" && m.currentRound === 2) await seed("q3", 4, alive);
+          // judge mode: rounds 1–3 are fast-forwarded (not played), so the qualify markets get no seeded pools
+          if (m.currentRound === 0 && ["created", "dealing", "dealt"].includes(s)) { await seed("champion", 0, alive); if (!judge) await seed("q1", 2, alive); }
+          if (!judge && s === "roundResolved" && m.currentRound === 1) await seed("q2", 3, alive);
+          if (!judge && s === "roundResolved" && m.currentRound === 2) await seed("q3", 4, alive);
           if ((m.flags & 0x40) !== 0 && !done.has("final")) {
             const wi = await er.getAccountInfo(world, "processed");
             if (wi && wi.data[139] === 4 && wi.data[199] < 3) await seed("final", 1, alive);
@@ -338,7 +339,7 @@ async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog
     out.assets = r2 ? [...(r2.flags & 4 ? [E.epda.crown(matchPda).toBase58()] : []), ...[...Array(12).keys()].filter((s) => (r2.mintedMask >> s) & 1).map((s) => E.epda.capsule(matchPda, s).toBase58())] : [];
   }
   out.receipt = JSON.parse(JSON.stringify(await E.matchReceipt(base, matchPda), (_k, v) => (typeof v === "bigint" ? v.toString() : v instanceof PublicKey ? v.toBase58() : v)));
-  if (SEASONS) await seasons(matchPda, mlog, out).catch((e) => { out.seasonError = String(e?.message ?? e).slice(0, 300); log({ ev: "season_failed", err: out.seasonError }); });
+  if (SEASONS && !out.judge) await seasons(matchPda, mlog, out).catch((e) => { out.seasonError = String(e?.message ?? e).slice(0, 300); log({ ev: "season_failed", err: out.seasonError }); });
 }
 
 /** P6: record a finalized, completed match into its seasons (weekly + the active test season), permissionless. */
@@ -388,6 +389,9 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
   const maps: PublicKey[] = a0.maps;
   const lines = jsonl ? readLines(jsonl) : [];
   const h = lines.find((l) => l.type === "match");
+  // submission (judge mode): the Classic server fast-forwarded rounds 1–3 (labelled on the receipt; no Season record)
+  const judge = h?.judge === true;
+  if (judge) out.judge = true;
   if (jsonl) try { copyFileSync(jsonl, join(mdir, "classic.jsonl")); } catch {}
   // 1. Solana: create + delegate
   if (!(await erMatch(matchPda)) && !(await baseOwner(matchPda))) {
@@ -443,7 +447,7 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
   out.humansInRoster = humansInRoster;
   if (MM && !["completed", "aborted"].includes(statusName(m)) && (humansInRoster > 0 || !h)) {
     const tiers = (h?.roster ?? []).map((r: any) => (r.bot ? r.tier : undefined));
-    mmw = mmWatcher(matchPda, tiers, mmLog);
+    mmw = mmWatcher(matchPda, tiers, mmLog, judge);
   }
   try {
     if (statusName(m) === "created") {
@@ -486,7 +490,7 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
           for (;;) {
             const ar: any = await arenaAcc();
             let n = 0; for (let s = 0; s < N; s++) if ((Number(ar.humanMask) >> s) & 1) n++;
-            if (n >= want || Date.now() - t0 >= WAIT_HUMANS_S * 1000) { out.humans = { want, joined: n, ms: Date.now() - t0 }; break; }
+            if (n >= want || Date.now() - t0 >= (judge ? Math.max(WAIT_HUMANS_S, 8) : WAIT_HUMANS_S) * 1000) { out.humans = { want, joined: n, ms: Date.now() - t0 }; break; }
             await sleep(200);
           }
         }

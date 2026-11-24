@@ -12,7 +12,8 @@ export const ROOT = new URL("../../", import.meta.url).pathname;
 export const NET = (process.env.P2_NET as "local" | "devnet") || "local";
 export const EP = NET === "local"
   ? { base: "http://localhost:8899", er: "http://localhost:7799", erWs: "ws://localhost:7800", validator: new PublicKey("mAGicPQYBMvcYveUZA5F5UNNwyHvfYh5xkLS2Fr1mev"), vrfQueue: new PublicKey("Sc9MJUngNbQXSXGP3F67KvKwVnhaYn6kcioxXNVowYT") }
-  : { base: "https://api.devnet.solana.com", er: "https://devnet-as.magicblock.app", erWs: "wss://devnet-as.magicblock.app", validator: new PublicKey("MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57"), vrfQueue: new PublicKey("5hBR571xnXppuCPveTrctfTU7tJLSN94nq7kv7FRK5Tc") };
+  // submission: SOLANA_RPC_URL (e.g. a private devnet RPC) overrides the public base-layer endpoint; the rollup stays MagicBlock's
+  : { base: process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", er: "https://devnet-as.magicblock.app", erWs: "wss://devnet-as.magicblock.app", validator: new PublicKey("MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57"), vrfQueue: new PublicKey("5hBR571xnXppuCPveTrctfTU7tJLSN94nq7kv7FRK5Tc") };
 export const base = new Connection(EP.base, { commitment: "confirmed" });
 export const er = new Connection(EP.er, { commitment: "processed", wsEndpoint: EP.erWs });
 const loadKp = (p: string) => Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(p, "utf8"))));

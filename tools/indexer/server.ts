@@ -33,6 +33,9 @@ const STATUS_FILES: Record<string, string> = parseMap(process.env.STATUS_FILES);
 const ROOMS = process.env.ROOMS ?? "";
 const ROOMS_ON = process.env.ROOMS_ON !== "0" && !!ROOMS;
 const MM_ON = process.env.MM_ON !== "0";
+// submission: judge mode (POST /api/judge): a private room on an on-chain arena whose rounds 1–3 are fast-forwarded
+const JUDGE_ON = process.env.JUDGE_ON !== "0" && ROOMS_ON;
+const JUDGE_PER_IP_HOUR = Number(process.env.JUDGE_PER_IP_HOUR ?? 4);
 const GS_PUBLIC: Record<string, string> = parseMap(process.env.GS_PUBLIC);
 const ER = new Connection(process.env.ER_RPC_URL ?? "https://devnet-as.magicblock.app", "confirmed");
 const BASE = new Connection(process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com", "confirmed");
@@ -138,7 +141,7 @@ function brief(id: string) {
   return {
     match: id, arena: s.arena, doneAt: s.doneAt, startedAt: s.startedAt, champion: rc.champion, humanMask: rc.humanMask, flags: rc.flags, mintedMask: rc.mintedMask,
     finalOnChain: !!s.final, realTime: s.final?.realTime, drops: s.drops?.count ?? 0, pools: [0, 1, 2, 3, 4].map((k) => s[`market${k}`]?.pool ?? "0"),
-    finalizeMode: s.finalizeMode, replay: existsSync(join(ARCHIVE, id, "world2.bin")),
+    finalizeMode: s.finalizeMode, replay: existsSync(join(ARCHIVE, id, "world2.bin")), judge: !!s.judge,
     // P6: aborted (status 6) / no human and no on-chain Final (hidden from the default lists), sealed bets
     status: rc.status, aborted: rc.status === 6, hidden: !rc.humanMask && !s.final, sealed: s.sealed ? { n: s.sealed.n ?? 0, revealed: s.sealed.revealed ?? 0, forfeits: s.sealed.forfeits ?? 0 } : null,
   };
@@ -297,7 +300,7 @@ function faucetGate(ip: string, burner: string) {
 // A room reserves one idle game server for a code. The server reads ROOMS/<gs>.json every second: while it is there the
 // server admits only hellos carrying the code, starts on the host's Start (no auto countdown) and fills to 12 with bots
 // of the room's mix. Rule: a room may take an arena only if another arena stays public; else a Classic-only server.
-type Room = { code: string; gs: string; createdAt: number; expiresAt: number; botMix: number; seen: boolean; ip: string };
+type Room = { code: string; gs: string; createdAt: number; expiresAt: number; botMix: number; seen: boolean; ip: string; judge?: boolean };
 // beta audit: a room nobody ever joined is released after 3 min (was 10: one network could hold servers for free)
 const ROOM_UNJOINED_MS = 3 * 60_000;
 const ROOM_IDLE_MS = 10 * 60_000, ROOM_LIVE_MS = 5 * 60_000, ROOMS_PER_IP_HOUR = Number(process.env.ROOMS_PER_IP_HOUR ?? 6);
@@ -311,7 +314,7 @@ function writeRoom(r: Room | null, gs: string) {
   const f = join(ROOMS, `${gs}.json`);
   try {
     if (!r) { rmSync(f, { force: true }); return; }
-    writeFileSync(f + ".tmp", JSON.stringify({ code: r.code, expiresAt: r.expiresAt, botMix: r.botMix }));
+    writeFileSync(f + ".tmp", JSON.stringify({ code: r.code, expiresAt: r.expiresAt, botMix: r.botMix, ...(r.judge ? { judge: true } : {}) }));
     renameSync(f + ".tmp", f);
   } catch (e: any) { console.warn("[rooms] write", gs, e?.message ?? e); }
 }
@@ -373,6 +376,39 @@ async function createRoom0(ip: string, botMix: number) {
   statusCache.at = 0;
   console.log(`[rooms] ${r.code} on ${r.gs} (${pick.classic ? "classic" : "arena " + pick.arena}) mix ${r.botMix}`);
   return { code: 200, body: { ok: true, code: r.code, url: pick.url, gs: pick.id, onchainFinal: !pick.classic, expiresAt: r.expiresAt } };
+}
+/**
+ * Submission (judge mode): one click → a private room on an idle ON-CHAIN arena (never a Classic-only server), flagged
+ * `judge`: the game server starts as soon as the judge is in and fast-forwards rounds 1–3 (the receipt labels it), so the
+ * judge plays the on-chain Final within about a minute. An arena is taken only if another arena or the Classic overflow
+ * server stays open to the public.
+ */
+const judgeIp: Record<string, number[]> = {};
+function createJudge(ip: string) {
+  const run = roomLock.then(() => createJudge0(ip));
+  roomLock = run.catch(() => {});
+  return run;
+}
+async function createJudge0(ip: string) {
+  if (!JUDGE_ON) return { code: 503, body: { ok: false, error: "judge mode is off right now: use Play" } };
+  const mine = [...rooms.values()].find((r) => r.ip === ip && r.judge && !r.seen);
+  if (mine) { const st0 = await status(); const sv0: any = st0.servers.find((x: any) => x.id === mine.gs); return { code: 200, body: { ok: true, code: mine.code, url: sv0?.url ?? null, gs: mine.gs, arena: sv0?.arena ?? null, onchainFinal: true, expiresAt: mine.expiresAt, reused: true } }; }
+  judgeIp[ip] = recent(judgeIp[ip], 3_600_000);
+  if (judgeIp[ip].length >= JUDGE_PER_IP_HOUR) return { code: 429, body: { ok: false, error: "too many judge matches from this network: try again later, or use Play" } };
+  await sweepRooms();
+  statusCache.at = 0;
+  const st = await status();
+  const arenas = st.servers.filter((x: any) => x.arena != null && !x.classic);
+  const othersOpen = (except: string) => arenas.filter((x: any) => x.id !== except && x.up && !x.room).length + st.servers.filter((x: any) => x.classic && x.up && !x.room).length;
+  const pick = arenas.find((x: any) => idle(x) && !roomOf(x.id) && othersOpen(x.id) >= 1);
+  if (!pick) return { code: 409, body: { ok: false, error: "both on-chain arenas are busy: try again in a minute (a match takes about 6 minutes), or use Play" } };
+  const r: Room = { code: newCode(), gs: pick.id, createdAt: Date.now(), expiresAt: Date.now() + ROOM_IDLE_MS, botMix: 1, seen: false, ip, judge: true };
+  rooms.set(r.code, r);
+  writeRoom(r, r.gs);
+  judgeIp[ip].push(Date.now());
+  statusCache.at = 0;
+  console.log(`[rooms] judge ${r.code} on ${r.gs} (arena ${pick.arena})`);
+  return { code: 200, body: { ok: true, code: r.code, url: pick.url, gs: pick.id, arena: pick.arena, onchainFinal: true, expiresAt: r.expiresAt } };
 }
 const roomMiss: Record<string, number[]> = {};
 async function roomInfo(code: string, ip: string) {
@@ -465,7 +501,8 @@ createServer(async (req, res) => {
       // beta audit: a file pruned mid-stream used to throw an uncaught error and crash the indexer (rooms lost)
       return void createReadStream(f).on("error", () => res.destroy()).pipe(res);
     }
-    if (p === "/features") return send(res, 200, { ok: true, rooms: ROOMS_ON, mm: MM_ON });
+    if (p === "/features") return send(res, 200, { ok: true, rooms: ROOMS_ON, mm: MM_ON, judge: JUDGE_ON });
+    if (p === "/judge" && req.method === "POST") { const r = await createJudge(ipOf(req)); return send(res, r.code, r.body); }
     if (p === "/room" && req.method === "POST") { const b = await bodyOf(req); const r = await createRoom(ipOf(req), Number(b.botMix ?? 1)); return send(res, r.code, r.body); }
     m = p.match(/^\/room\/([A-Za-z0-9]{4,8})$/);
     if (m) { const r = await roomInfo(m[1], ipOf(req)); return send(res, r.code, r.body); }

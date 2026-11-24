@@ -164,7 +164,7 @@ Estimate: about 1 day of engine work and 1 day of capture. This is unverified an
 1. **A waitlist page + URL.** The M8 Next.js site was dropped (OC-8). We need a landing page with an email form (the Vite web app, or a simple hosted form) **before** the end card can be finalized.
 2. **Trailer Mode** in the client (§6).
 3. **A music track** (§7) and **an SFX pack**.
-4. **A logo animation**: currently a static PNG (`Fall Rush  Logo.png`).
+4. **A logo animation**: currently a static PNG (`docs/media/logo.png`).
 5. A **final decision on timing**: before the 2026-11-27 hackathon deadline, or after it as the public launch.
 
 ---

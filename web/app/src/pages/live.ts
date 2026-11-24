@@ -8,6 +8,7 @@ import { draw } from '../lib/view2d';
 import { chainFor, ensureGuest, J, esc } from '../lib/chain';
 import { icon, type IconName } from '../lib/icons';
 import { countUp, restart } from '../lib/motion';
+import { qrSvg } from '../lib/qr';
 
 const DROP_ICON: IconName[] = ['bolt', 'tiles', 'ball', 'wind', 'ring'];
 const DROP_HUE = ['', 'hue-lemon', 'hue-bubble', 'hue-soda', 'hue-tang'];
@@ -24,6 +25,8 @@ export function live(root: HTMLElement, params: string[]) {
     const servers = (s.servers ?? []).filter((x: any) => x.arena != null && !x.classic);
     const id = params[0] != null ? Number(params[0]) : servers.find((x: any) => x.keeper?.stage === 'final')?.arena ?? servers[0]?.arena ?? 2;
     root.querySelector('#pick')!.innerHTML = servers.map((x: any) => `<a class="btn small ${x.arena === id ? 'grape' : 'ghost'}" href="/live/${Number(x.arena)}" data-link>${esc(String(x.id).toUpperCase())} · arena ${Number(x.arena)}</a>`).join(' ') || 'no arena online';
+    // submission: on a desktop screen, a QR code opens this arena's /live on a phone (bet + drop from the couch)
+    root.querySelector('.card')!.insertAdjacentHTML('beforeend', `<div class="phone-qr"><div>${qrSvg(`${location.origin}/live/${id}`, 104)}</div><div class="muted">Open on your phone:<br>scan to bet and drop chaos<br>into arena ${id}'s Final</div></div>`);
     const A = ARENAS[id];
     if (!A || stop) return;
     root.insertAdjacentHTML('beforeend', `

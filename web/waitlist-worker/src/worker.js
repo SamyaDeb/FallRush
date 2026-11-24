@@ -143,7 +143,7 @@ async function sharePage(env, code) {
   const v = await publicView(env, row, null);
   const landing = `${site(env)}/?ref=${encodeURIComponent(code)}`;
   const title = `${row.rushling} joined the Fall Rush race: #${v.rank.toLocaleString('en-US')} in line`;
-  const desc = 'Pick your Rushling and join the waitlist for Fall Rush, the provably fair knockout party game.';
+  const desc = 'Pick your Rushling and join the waitlist for Fall Rush, the knockout party game whose Final runs on Solana.';
   const img = row.has_poster ? v.posterUrl : `${site(env)}/og-default.png`;
   const e = escapeHtml;
   // Crawlers (X, Discord, Telegram, iMessage…) read the tags; people are sent straight on to the waitlist.

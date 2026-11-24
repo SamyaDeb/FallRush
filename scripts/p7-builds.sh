@@ -5,7 +5,7 @@
 #   bash /Users/samya/Downloads/FallRush/scripts/heavy-lock.sh p7-builds -- bash scripts/p7-builds.sh [tests server mac webgl]
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$ROOT"
-OUT=docs/proof/p7/builds.txt; mkdir -p docs/proof/p7 .m1-logs
+OUT=${BUILDS_OUT:-docs/proof/p7/builds.txt}; mkdir -p "$(dirname "$OUT")" .m1-logs
 STEPS="${*:-tests server mac webgl}"
 free_gb() { df -g / | awk 'NR==2 {print $4}'; }
 for s in $STEPS; do

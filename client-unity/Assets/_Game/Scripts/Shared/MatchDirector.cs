@@ -69,6 +69,24 @@ namespace FallRush.Shared
         /// <summary>P7-UX: the room's bot mix (0 easy, 1 mixed = the public default, 2 hard).</summary>
         public int RoomBotMix = 1;
 
+        /// <summary>
+        /// Submission (judge mode): the private room is a judge room. The match starts as soon as a human is in, and rounds
+        /// 1–3 are fast-forwarded: no map is played, the humans are ranked first and the bots by a seed hash, and the
+        /// results go out as the usual transcript events (recorded on-chain by the keeper, labelled on the receipt).
+        /// The Final is played as normal. Off (the default) = every path below is unchanged.
+        /// </summary>
+        public bool JudgeMode;
+
+        /// <summary>Judge mode: the room's first match started by itself; later ones wait for the host's Start (an idle tab
+        /// left open must not loop matches). The server clears it when the room changes.</summary>
+        public bool JudgeAutoStartUsed;
+
+        /// <summary>Judge mode latched at the roster lock (the room file can change during the match).</summary>
+        public bool JudgeMatch { get; private set; }
+
+        /// <summary>Judge mode: the deal, result and intermission screens of the fast-forwarded rounds (1 s each).</summary>
+        public const int JudgeStepTicks = 30;
+
         /// <summary>P7-UX: each seated human's skill tier from their hello (0 Rookie, 1 Contender, 2 Champion).</summary>
         public readonly byte[] SkillTiers = new byte[MaxSlots];
 
@@ -350,7 +368,7 @@ namespace FallRush.Shared
                     // P7-UX: a private room waits for its host's Start (friends arrive over minutes, not 20 s)
                     if (PrivateRoom && !Soak)
                     {
-                        if (_hostStart && HumansConnected() > 0)
+                        if ((_hostStart || (JudgeMode && !JudgeAutoStartUsed)) && HumansConnected() > 0)
                             LockRoster(tick);
                         break;
                     }
@@ -378,13 +396,13 @@ namespace FallRush.Shared
                     break;
 
                 case MatchPhase.RosterLocked:
-                    SetPhase(MatchPhase.Dealing, tick, DealingTicks);
+                    SetPhase(MatchPhase.Dealing, tick, JudgeMatch ? JudgeStepTicks : DealingTicks);
                     break;
 
                 case MatchPhase.Dealing:
                     if (tick >= PhaseEndTick)
                     {
-                        SetPhase(MatchPhase.Dealt, tick, DealtTicks);
+                        SetPhase(MatchPhase.Dealt, tick, JudgeMatch ? JudgeStepTicks : DealtTicks);
                         Emit(Transcript.Deal, 0, Transcript.NoSlot, MatchSeed);
                     }
 
@@ -424,7 +442,7 @@ namespace FallRush.Shared
                         if (alive <= 1 || Round >= RoundCount)
                             EnterChampion(alive == 1 ? last : FirstQualified(), tick);
                         else
-                            SetPhase(MatchPhase.Intermission, tick, IntermissionTicks);
+                            SetPhase(MatchPhase.Intermission, tick, JudgeMatch ? JudgeStepTicks : IntermissionTicks);
                     }
 
                     break;
@@ -531,6 +549,7 @@ namespace FallRush.Shared
             _hostStart = false;
             _roundBegun = false;
             _lobbyLoaded = false;
+            JudgeMatch = false;
             _sim.BotInput = null;
             UpdateHost();
             LoadSerial++;
@@ -544,6 +563,9 @@ namespace FallRush.Shared
         private void LockRoster(uint tick)
         {
             MatchSerial++;
+            JudgeMatch = JudgeMode && PrivateRoom && !Soak && PlanOverride == null;
+            if (JudgeMatch)
+                JudgeAutoStartUsed = true;
             var size = Math.Max(RoundTargets.MinPlayers, Math.Min(MaxSlots, MatchSize));
             var mix = BotMix;
             for (var i = 0; i < MaxSlots; i++)
@@ -646,6 +668,12 @@ namespace FallRush.Shared
 
         private void EnterRoundIntro(int r, uint tick)
         {
+            if (JudgeMatch && r < RoundCount)
+            {
+                FastForwardRound(r, tick);
+                return;
+            }
+
             Round = r;
             _roundBegun = false;
             Array.Clear(_ready, 0, _ready.Length);
@@ -725,10 +753,62 @@ namespace FallRush.Shared
             _host.OnMatchChanged();
         }
 
-        private void EnterRoundResult(uint tick)
+        /// <summary>
+        /// Judge mode: round <paramref name="r"/> (1–3) without playing it. The lobby map and rules stay loaded; START_ROUND
+        /// then the ranking go out as for a played round. Ranking: connected humans first (by slot), then everyone else
+        /// by sha256("fallrush-judge", seed, round, slot), so it is a pure function of the match seed.
+        /// </summary>
+        private void FastForwardRound(int r, uint tick)
+        {
+            Round = r;
+            _roundBegun = false;
+            Loading = false;
+            CurrentParams = ParamsFor(r);
+            Emit(Transcript.StartRound, (byte)r, Transcript.NoSlot, Array.Empty<byte>());
+            var humans = new List<int>();
+            var rest = new List<(byte[] key, int slot)>();
+            for (var i = 0; i < MaxSlots; i++)
+            {
+                ref readonly var s = ref Roster[i];
+                if (!s.Occupied || !s.Alive)
+                    continue;
+                if (!s.Bot && s.Connected && !s.GraceExpired)
+                    humans.Add(i);
+                else
+                    rest.Add((Sha256Of(Encoding.ASCII.GetBytes("fallrush-judge"), MatchSeed, new[] { (byte)r, (byte)i }), i));
+            }
+
+            rest.Sort((a, b) =>
+            {
+                for (var k = 0; k < 32; k++)
+                    if (a.key[k] != b.key[k])
+                        return a.key[k].CompareTo(b.key[k]);
+                return a.slot.CompareTo(b.slot);
+            });
+            var order = new List<int>(humans);
+            foreach (var x in rest)
+                order.Add(x.slot);
+            var target = Targets[r - 1];
+            var qualified = new List<bool>();
+            var reasons = new List<ElimReason>();
+            var values = new List<int>();
+            for (var k = 0; k < order.Count; k++)
+            {
+                qualified.Add(k < target);
+                reasons.Add(ElimReason.NotQualified);
+                values.Add(0);
+            }
+
+            var mode = MapPoolV1.ModeOf(CurrentParams.MapId);
+            EnterRoundResult(tick, RoundResult.From(order, qualified, reasons, values, target, mode, tick, tick, false));
+        }
+
+        private void EnterRoundResult(uint tick) => EnterRoundResult(tick, null);
+
+        private void EnterRoundResult(uint tick, RoundResult judged)
         {
             var r = Round;
-            var res = Rules.RoundOutcome ?? new RoundResult { Mode = Rules.Mode };
+            var res = judged ?? Rules.RoundOutcome ?? new RoundResult { Mode = Rules.Mode };
             var order = new List<int>(res.Order);
             var qualified = new List<bool>(res.Qualified);
             var reasons = new List<ElimReason>(res.Reasons);
@@ -828,7 +908,7 @@ namespace FallRush.Shared
             }
 
             Emit(Transcript.CompleteRound, (byte)r, Transcript.NoSlot, new[] { (byte)count });
-            SetPhase(MatchPhase.RoundResult, tick, ResultTicks);
+            SetPhase(MatchPhase.RoundResult, tick, judged != null ? JudgeStepTicks : ResultTicks);
         }
 
         private int FirstQualified()

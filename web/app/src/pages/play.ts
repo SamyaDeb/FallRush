@@ -1,6 +1,7 @@
 // /play: the Unity WebGL build (Brotli) full screen. Meanwhile, silently: a guest burner, gas, session key, chips
 // (faucet on the first visit). The game's own hub picks the mode (P7-UX); ?quickplay=1 keeps the one-click flow. No popups.
 import { api } from '../lib/net';
+import { qrSvg } from '../lib/qr';
 import { ensureGuest, wallet, chainFor } from '../lib/chain';
 declare const createUnityInstance: any;
 export function play(root: HTMLElement) {
@@ -29,6 +30,19 @@ export function play(root: HTMLElement) {
     // (skill-tier matchmaking, rooms, ?room= invite links). The old one-click Quick Play stays for scripts and old
     // links: ?quickplay=1 or ?server= (the fullest open server, as before).
     const q0 = new URLSearchParams(location.search);
+    // submission: judge mode (?judge=1): a private room on an on-chain arena whose rounds 1–3 are fast-forwarded, joined
+    // at once; a QR code opens /live/<arena> on a phone to bet and drop chaos into the same Final
+    let judge: any = null;
+    if (q0.get('judge') === '1') {
+      (root.querySelector('#msg') as HTMLElement).textContent = 'judge mode: reserving an on-chain arena…';
+      judge = await api('/judge', {}).catch((e) => ({ ok: false, error: String(e) }));
+      if (!judge?.ok) {
+        (root.querySelector('#msg') as HTMLElement).innerHTML = `judge mode: ${String(judge?.error ?? 'unavailable').replace(/[&<>"']/g, '')}<br><a href="/play?judge=1">Try again</a> · <a href="/play">Play the full match</a> · <a href="/live">Watch on /live</a>`;
+        return;
+      }
+      q0.set('room', judge.code); q0.set('server', judge.url); q0.set('quickplay', '1');
+      judgeCard(root, judge);
+    }
     const legacy = q0.get('quickplay') === '1' || !!q0.get('server') || !!q0.get('autobet') || !!q0.get('bot');
     let server = q0.get('server');
     if (!server && legacy) {
@@ -40,7 +54,7 @@ export function play(root: HTMLElement) {
       } catch { /* fall through */ }
     }
     mark('quickplay');
-    const q = new URLSearchParams(location.search);
+    const q = new URLSearchParams(judge ? q0.toString() : location.search);
     if (server) q.set('server', server);
     if (legacy) q.set('quickplay', '1');
     try { const eq = JSON.parse(localStorage.getItem('fallrush.equip') ?? 'null'); const w = wallet(); if (eq?.asset && eq.wallet && (!w || w.burner === eq.wallet)) { q.set('shell', eq.asset); q.set('wallet', eq.wallet); } } catch { /* none */ }
@@ -101,4 +115,18 @@ export function play(root: HTMLElement) {
     document.body.appendChild(s);
   })();
   return () => { document.getElementById('top')!.style.display = ''; document.getElementById('foot')!.style.display = ''; location.reload(); };
+}
+
+/** Judge mode: the corner card (what is fast-forwarded, the phone QR for /live/<arena>). Collapsible; stays over the game. */
+function judgeCard(root: HTMLElement, j: { code: string; arena: number | null }) {
+  const live = `${location.origin}/live${j.arena != null ? '/' + j.arena : ''}`;
+  const el = document.createElement('div');
+  el.id = 'judge-card';
+  el.innerHTML = `<button class="jc-x" title="hide">×</button><div class="jc-h">JUDGE MODE</div>
+    <div class="jc-t">Rounds 1–3 are fast-forwarded (the receipt says so). You go straight to the <b>on-chain Final</b>.</div>
+    <div class="jc-q">${qrSvg(live, 132)}</div>
+    <div class="jc-t">Scan with your phone to <b>bet</b> and <b>drop chaos</b> into this Final:<br><a href="${live}" target="_blank" class="mono">${live.replace(/^https?:\/\//, '')}</a></div>
+    <div class="jc-t muted">After the Final, press Start in the lobby for another one. The <a href="/play">full match</a> plays all 4 rounds.</div>`;
+  root.appendChild(el);
+  el.querySelector('.jc-x')!.addEventListener('click', () => el.classList.toggle('min'));
 }

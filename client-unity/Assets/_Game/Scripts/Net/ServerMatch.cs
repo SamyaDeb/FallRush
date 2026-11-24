@@ -141,6 +141,7 @@ namespace FallRush.Net
             var f = RoomFile;
             string code = null;
             var mix = 1;
+            var judge = false;
             if (!string.IsNullOrEmpty(f))
             {
                 try
@@ -152,6 +153,7 @@ namespace FallRush.Net
                         {
                             code = Protocol.CleanRoom(j.code);
                             mix = Mathf.Clamp(j.botMix, 0, 2);
+                            judge = j.judge;
                         }
                     }
                 }
@@ -165,11 +167,13 @@ namespace FallRush.Net
             {
                 Debug.Log($"[gs] room {(code == null ? "closed: public server" : "open (private, host starts)")} mix={mix}");
                 NetBootstrap.RoomCode = code;
+                Director.JudgeAutoStartUsed = false; // a new room (or none): its first judge match may start by itself
                 OnMatchChanged();
             }
 
             Director.PrivateRoom = code != null;
             Director.RoomBotMix = mix;
+            Director.JudgeMode = code != null && judge;
         }
 
         [Serializable]
@@ -178,6 +182,7 @@ namespace FallRush.Net
             public string code;
             public long expiresAt;
             public int botMix = 1;
+            public bool judge;
         }
 
         private static string RoomFile => ServerSim.ArgStr("-fallrushRoomFile", "GAMESERVER_ROOM_FILE");
@@ -195,7 +200,7 @@ namespace FallRush.Net
             {
                 var d = Director;
                 var id = d.MatchId != null ? Sha256.Hex(d.MatchId) : "";
-                var json = $"{{\"t\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()},\"phase\":\"{d.Phase}\",\"inMatch\":{(d.InMatch ? "true" : "false")},\"round\":{d.Round},\"humans\":{d.HumansConnected()},\"size\":{d.MatchSize},\"serial\":{d.MatchSerial},\"completed\":{d.MatchesCompleted},\"match\":\"{id}\",\"onchainFinal\":{(Handoff != null ? "true" : "false")},\"room\":{(d.PrivateRoom ? "true" : "false")},\"lobbyTier\":\"{TierNames[d.LobbyTier]}\",\"conns\":{NetBootstrap.Instance?.ServerConnectedCount ?? 0},\"maxConns\":{NetBootstrap.MaxConnections},\"viewers\":{_viewers.Count}}}";
+                var json = $"{{\"t\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()},\"phase\":\"{d.Phase}\",\"inMatch\":{(d.InMatch ? "true" : "false")},\"round\":{d.Round},\"humans\":{d.HumansConnected()},\"size\":{d.MatchSize},\"serial\":{d.MatchSerial},\"completed\":{d.MatchesCompleted},\"match\":\"{id}\",\"onchainFinal\":{(Handoff != null ? "true" : "false")},\"room\":{(d.PrivateRoom ? "true" : "false")},\"judge\":{(d.JudgeMatch || d.JudgeMode ? "true" : "false")},\"lobbyTier\":\"{TierNames[d.LobbyTier]}\",\"conns\":{NetBootstrap.Instance?.ServerConnectedCount ?? 0},\"maxConns\":{NetBootstrap.MaxConnections},\"viewers\":{_viewers.Count}}}";
                 Directory.CreateDirectory(LogDir);
                 var tmp = Path.Combine(LogDir, "status.json.tmp");
                 File.WriteAllText(tmp, json);
@@ -378,6 +383,7 @@ namespace FallRush.Net
             }
 
             Debug.Log($"[gs] on-chain Final: handing round {Director.Round} ({MapPoolV1.KeyOf(mapId)}) to {Handoff.ControlUrl} with {roster.Count} players");
+            Handoff.TimeoutSeconds = Director.JudgeMatch ? ChainFinalHandoff.JudgeTimeoutSeconds : ChainFinalHandoff.LiveTimeoutSeconds;
             Handoff.Begin(Sha256.Hex(Director.MatchId), p.HazardSeed, roster.ToArray());
         }
 
@@ -839,7 +845,7 @@ namespace FallRush.Net
                 }
 
                 _log.WriteLine("{\"type\":\"match\",\"version\":1,\"matchId\":\"" + Sha256.Hex(d.MatchId) + "\",\"serial\":" + d.MatchSerial +
-                               ",\"practice\":true,\"seed\":\"" + Sha256.Hex(d.MatchSeed) + "\",\"seedSource\":\"local\",\"rosterHash\":\"" + Sha256.Hex(d.RosterHashBytes) +
+                               ",\"practice\":true," + (d.JudgeMatch ? "\"judge\":true," : "") + "\"seed\":\"" + Sha256.Hex(d.MatchSeed) + "\",\"seedSource\":\"local\",\"rosterHash\":\"" + Sha256.Hex(d.RosterHashBytes) +
                                "\",\"transcriptInit\":\"" + Sha256.Hex(d.TranscriptInit) + "\",\"players\":" + d.PlayerCount +
                                ",\"targets\":[" + string.Join(",", d.Targets) + "],\"deal\":{\"maps\":[" + string.Join(",", d.DealResult.Maps) + "],\"variants\":[" +
                                string.Join(",", d.DealResult.Variants) + "],\"modifiers\":[" + string.Join(",", d.DealResult.Modifiers) + "]},\"plan\":[" +

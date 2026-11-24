@@ -83,7 +83,7 @@
 | G3-5 | The claw plucks only Rushlings still visible at the round result (fell-out / gooed players already vanished: poof / goo splash instead) | ✅ | client-only presentation |
 | G3-6 | `IChainAdapter` + `PracticeChainAdapter`; chip states cycle with F9 (dev) or `?chain=cycle` | ✅ | contract in doc 04 §7.y |
 
-### G4 decisions (2026-11-19; from the approved G4 plan page and `docs/prompts/G4-PROMPT.md` §3 defaults — say if you want any changed)
+### G4 decisions (2026-11-19; from the approved G4 plan page and `docs/archive/prompts/G4-PROMPT.md` §3 defaults — say if you want any changed)
 
 | ID | Decision | Status | Notes |
 |---|---|---|---|

@@ -1,7 +1,7 @@
 # 17 — Art, Audio & Feel Direction
 
 **Status:** v2, approved direction (2026-11-18)
-**Canonical reference:** `Fall Rush  Logo.png` in the repo root (the hero character "Bolt" and the palette).
+**Canonical reference:** `docs/media/logo.png` (the hero character "Bolt" and the palette).
 **Style target:** chunky, bouncy, comedic knockout-party *feel*, in the spirit of the genre (Fall Guys-style energy), executed with **original** characters, shapes, world, UI and audio.
 
 ---

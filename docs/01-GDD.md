@@ -1,6 +1,6 @@
 # 01 — Game Design Document (GDD)
 
-**Status:** v2 (2026-11-18). Replaces `fall-rush-docs/01-GDD.md`.
+**Status:** v2 (2026-11-18). Replaces `archive/v1-spec/01-GDD.md`.
 **Related docs:**
 - 17-ART-DIRECTION
 - 08-MAP-DESIGN
