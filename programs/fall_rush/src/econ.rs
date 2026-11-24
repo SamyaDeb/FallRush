@@ -299,8 +299,9 @@ pub fn bet_window(mk: &Market, m: &Match, f: FinalView, outcome: u8) -> Result<(
     match mk.kind {
         mkind::CHAMPION => {
             // open from create_match; closes at the Final's RUSH tick (on-chain Final) or when round 4 starts
-            // (fullchain: `f.live` = the arena's World is in round 4, so all on-chain rounds 1–3 stay open)
-            if m.current_round >= 4 || f.live {
+            // (hybrid: exactly as before; fullchain `start_sim`: closes when the arena's World is in round 4, so the
+            // on-chain rounds 1–3 stay open)
+            if m.current_round >= 4 || m.flags & sim::MATCH_FINAL_MODE != 0 || (sim::chain_all(m) && f.live) {
                 require!(final_mode && f.live && !f.rushed, FallRushError::MarketClosed);
             }
             require!(st == SLOT_ALIVE || st == SLOT_QUALIFIED, FallRushError::SlotNotAlive);

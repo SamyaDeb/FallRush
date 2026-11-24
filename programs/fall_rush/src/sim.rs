@@ -57,7 +57,7 @@ pub const MATCH_FINAL_MODE: u8 = 0x40;
 /// fullchain: the program computes this match's Final (`start_final`, or `start_sim` where it computes every round).
 #[inline]
 pub fn chain_final(m: &crate::state::Match) -> bool {
-    m.flags & MATCH_SIM_STARTED != 0
+    m.flags & (MATCH_SIM_STARTED | MATCH_FINAL_MODE) != 0
 }
 
 /// fullchain: the program computes every round (`start_sim`; no Classic rounds).
