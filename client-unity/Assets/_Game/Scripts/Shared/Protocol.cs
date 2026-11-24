@@ -10,7 +10,7 @@ namespace FallRush.Shared
     public static class Protocol
     {
         /// <summary>Bump on any incompatible change to messages or approval payload.</summary>
-        public const ushort Version = 6; // v6 (G2.2): `match` slot rows carry the cosmetic preset (hello already sent it); v5 (G1): ctl Emote + `emo`, motor flag Stumbling (bit 4); v4 (M4): match / mevt / rx / ready / ctl, hello name + reconnect token; v3 (M3): snap race byte, round / rstate / evt
+        public const ushort Version = 7; // v7 (P7-UX): hello carries a private-room code + the player's skill tier (after the token, before the shell); v6 (G2.2): `match` slot rows carry the cosmetic preset (hello already sent it); v5 (G1): ctl Emote + `emo`, motor flag Stumbling (bit 4); v4 (M4): match / mevt / rx / ready / ctl, hello name + reconnect token; v3 (M3): snap race byte, round / rstate / evt
 
         /// <summary>Hard cap on players per game server (doc 01: 12-player matches).</summary>
         public const int MaxPlayers = 12;
@@ -84,6 +84,27 @@ namespace FallRush.Shared
             /// <summary>P5 task 4 (optional, after the token): an owned Core capsule to wear (base58 asset + the wallet that owns it).
             /// The server checks ownership with an RPC read before applying its shell; anything else keeps the preset.</summary>
             public string ShellAsset, ShellWallet;
+            /// <summary>v7 (P7-UX): a private room's code (≤ 8 ASCII; null / empty = a public lobby).</summary>
+            public string RoomCode;
+            /// <summary>v7 (P7-UX): the player's skill tier (0 Rookie, 1 Contender, 2 Champion): shapes bot difficulty only.</summary>
+            public byte SkillTier;
+        }
+
+        /// <summary>v7: longest room code.</summary>
+        public const int MaxRoomBytes = 8;
+
+        /// <summary>v7: a room code is 4–8 characters of A–Z / 0–9 (upper-cased); anything else is "no room".</summary>
+        public static string CleanRoom(string code)
+        {
+            if (string.IsNullOrEmpty(code))
+                return null;
+            var c = code.Trim().ToUpperInvariant();
+            if (c.Length < 4 || c.Length > MaxRoomBytes)
+                return null;
+            foreach (var ch in c)
+                if (!(ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9'))
+                    return null;
+            return c;
         }
 
         private static readonly UTF8Encoding StrictUtf8 = new UTF8Encoding(false, true);
@@ -100,10 +121,13 @@ namespace FallRush.Shared
                 throw new ArgumentException($"buildVersion is {len} UTF-8 bytes; max is {MaxBuildVersionBytes}.", nameof(hello));
 
             var shell = !string.IsNullOrEmpty(hello.ShellAsset) && !string.IsNullOrEmpty(hello.ShellWallet) && hello.ShellAsset.Length <= 44 && hello.ShellWallet.Length <= 44;
-            var ext = hello.Name != null || hello.Token != null || shell;
+            var v7 = hello.ProtocolVersion >= 7;
+            var room = v7 ? CleanRoom(hello.RoomCode) ?? string.Empty : string.Empty;
+            var ext = hello.Name != null || hello.Token != null || shell || v7;
             var name = ext ? MatchStateMessage.Utf8Clamp(hello.Name, MaxNameBytes) : Array.Empty<byte>();
             var shellBytes = shell ? 2 + hello.ShellAsset.Length + hello.ShellWallet.Length : 0;
-            var buffer = new byte[HelloMinBytes + len + (ext ? 1 + name.Length + TokenBytes + shellBytes : 0)];
+            var v7Bytes = v7 && ext ? 2 + room.Length : 0;
+            var buffer = new byte[HelloMinBytes + len + (ext ? 1 + name.Length + TokenBytes + v7Bytes + shellBytes : 0)];
             buffer[0] = (byte)(hello.ProtocolVersion & 0xFF);
             buffer[1] = (byte)(hello.ProtocolVersion >> 8);
             buffer[2] = (byte)len;
@@ -118,6 +142,13 @@ namespace FallRush.Shared
                 if (hello.Token != null)
                     Array.Copy(hello.Token, 0, buffer, o, Math.Min(TokenBytes, hello.Token.Length));
                 o += TokenBytes;
+                if (v7)
+                {
+                    buffer[o++] = (byte)room.Length;
+                    o += Encoding.ASCII.GetBytes(room, 0, room.Length, buffer, o);
+                    buffer[o++] = hello.SkillTier;
+                }
+
                 if (shell)
                 {
                     buffer[o++] = (byte)hello.ShellAsset.Length;
@@ -174,6 +205,21 @@ namespace FallRush.Shared
                 {
                     error = "hello has trailing bytes";
                     return false;
+                }
+
+                if (hello.ProtocolVersion >= 7)
+                {
+                    // v7: u8 roomLen | room ASCII (≤ 8) | u8 tier, then the optional shell extension
+                    if (data.Length < tokenEnd + 2 || data[tokenEnd] > MaxRoomBytes || data.Length < tokenEnd + 2 + data[tokenEnd])
+                    {
+                        error = "hello truncated (room)";
+                        return false;
+                    }
+
+                    var rl = data[tokenEnd];
+                    hello.RoomCode = rl > 0 ? CleanRoom(Encoding.ASCII.GetString(data.Slice(tokenEnd + 1, rl).ToArray())) : null;
+                    hello.SkillTier = (byte)Math.Min(2, (int)data[tokenEnd + 1 + rl]);
+                    tokenEnd += 2 + rl;
                 }
 
                 if (data.Length > tokenEnd)

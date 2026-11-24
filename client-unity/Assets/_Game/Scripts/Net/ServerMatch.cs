@@ -37,7 +37,7 @@ namespace FallRush.Net
         private bool _loaded;
         private bool _loadingScene;
         private readonly HashSet<ulong> _viewers = new HashSet<ulong>();
-        private readonly Dictionary<ulong, (string name, byte[] token, byte preset)> _viewerHello = new Dictionary<ulong, (string, byte[], byte)>();
+        private readonly Dictionary<ulong, (string name, byte[] token, byte preset, byte tier)> _viewerHello = new Dictionary<ulong, (string, byte[], byte, byte)>();
         private uint _evtSeq;
         private bool _matchDirty, _stateDirty;
         private readonly byte[] _buf = new byte[4096];
@@ -127,17 +127,73 @@ namespace FallRush.Net
         /// its match logs (atomic replace). The arena's keeper shares the log volume and publishes it through
         /// <c>/api/status</c> (players, phase, round, match id), which the landing page and Quick Play read.
         /// </summary>
+        private static readonly string[] TierNames = { "Rookie", "Contender", "Champion" };
+
+        /// <summary>
+        /// P7-UX (OC-46): the private room file (GAMESERVER_ROOM_FILE, written by the indexer's room service): while it holds
+        /// an unexpired code, the server admits only hellos with that code (NetBootstrap approval) and the director waits for
+        /// the host's Start. Polled once a second with the status write; a missing / bad / expired file = a public server.
+        /// </summary>
+        private void PollRoom()
+        {
+            var f = RoomFile;
+            string code = null;
+            var mix = 1;
+            if (!string.IsNullOrEmpty(f))
+            {
+                try
+                {
+                    if (File.Exists(f))
+                    {
+                        var j = JsonUtility.FromJson<RoomJson>(File.ReadAllText(f));
+                        if (j != null && j.expiresAt > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
+                        {
+                            code = Protocol.CleanRoom(j.code);
+                            mix = Mathf.Clamp(j.botMix, 0, 2);
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning("[gs] room file: " + e.Message);
+                }
+            }
+
+            if (code != NetBootstrap.RoomCode)
+            {
+                Debug.Log($"[gs] room {(code == null ? "closed: public server" : "open (private, host starts)")} mix={mix}");
+                NetBootstrap.RoomCode = code;
+                OnMatchChanged();
+            }
+
+            Director.PrivateRoom = code != null;
+            Director.RoomBotMix = mix;
+        }
+
+        [Serializable]
+        private sealed class RoomJson
+        {
+            public string code;
+            public long expiresAt;
+            public int botMix = 1;
+        }
+
+        private static string RoomFile => ServerSim.ArgStr("-fallrushRoomFile", "GAMESERVER_ROOM_FILE");
+
         private void WriteStatus()
         {
             var now = Time.realtimeSinceStartup;
-            if (now - _statusAt < 1f || string.IsNullOrEmpty(LogDir))
+            if (now - _statusAt < 1f)
                 return;
             _statusAt = now;
+            PollRoom();
+            if (string.IsNullOrEmpty(LogDir))
+                return;
             try
             {
                 var d = Director;
                 var id = d.MatchId != null ? Sha256.Hex(d.MatchId) : "";
-                var json = $"{{\"t\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()},\"phase\":\"{d.Phase}\",\"inMatch\":{(d.InMatch ? "true" : "false")},\"round\":{d.Round},\"humans\":{d.HumansConnected()},\"size\":{d.MatchSize},\"serial\":{d.MatchSerial},\"completed\":{d.MatchesCompleted},\"match\":\"{id}\",\"onchainFinal\":{(Handoff != null ? "true" : "false")}}}";
+                var json = $"{{\"t\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()},\"phase\":\"{d.Phase}\",\"inMatch\":{(d.InMatch ? "true" : "false")},\"round\":{d.Round},\"humans\":{d.HumansConnected()},\"size\":{d.MatchSize},\"serial\":{d.MatchSerial},\"completed\":{d.MatchesCompleted},\"match\":\"{id}\",\"onchainFinal\":{(Handoff != null ? "true" : "false")},\"room\":{(d.PrivateRoom ? "true" : "false")},\"lobbyTier\":\"{TierNames[d.LobbyTier]}\"}}";
                 Directory.CreateDirectory(LogDir);
                 var tmp = Path.Combine(LogDir, "status.json.tmp");
                 File.WriteAllText(tmp, json);
@@ -426,13 +482,13 @@ namespace FallRush.Net
                 else
                 {
                     _viewers.Add(clientId);
-                    _viewerHello[clientId] = (hello.Name, hello.Token, hello.CosmeticPreset);
+                    _viewerHello[clientId] = (hello.Name, hello.Token, hello.CosmeticPreset, hello.SkillTier);
                     Debug.Log($"[gs] client={clientId} watches (match in progress; no late joiners) viewers={_viewers.Count}");
                 }
             }
             else
             {
-                if (!Seat(clientId, hello.Name, hello.Token, hello.CosmeticPreset))
+                if (!Seat(clientId, hello.Name, hello.Token, hello.CosmeticPreset, hello.SkillTier))
                     return;
                 if (!string.IsNullOrEmpty(hello.ShellAsset))
                     ShellCheck.Begin(clientId, hello.ShellAsset, hello.ShellWallet);
@@ -441,7 +497,7 @@ namespace FallRush.Net
             SendFullState(clientId);
         }
 
-        private bool Seat(ulong clientId, string name, byte[] token, byte preset = 0)
+        private bool Seat(ulong clientId, string name, byte[] token, byte preset = 0, byte tier = 1)
         {
             var core = _sim.Core;
             var slot = core.AddHuman(clientId);
@@ -454,7 +510,7 @@ namespace FallRush.Net
 
             // A token the client already holds (it stays valid while connected) is kept; otherwise a new one.
             var t = token != null && token.Length == 16 && !AllZero(token) ? token : NewToken();
-            Director.OnHumanJoined(slot, t, name, preset);
+            Director.OnHumanJoined(slot, t, name, preset, tier);
             _sim.OnSlotAttached(slot);
             Debug.Log($"[gs] slot {slot} → client={clientId} name=\"{Director.Names[slot]}\" humans={core.HumanCount} bots={core.BotCount}");
             return true;
@@ -468,7 +524,7 @@ namespace FallRush.Net
                 _viewers.Remove(id);
                 _viewerHello.TryGetValue(id, out var h);
                 _viewerHello.Remove(id);
-                if (Seat(id, h.name, h.token, h.preset))
+                if (Seat(id, h.name, h.token, h.preset, h.tier))
                     SendFullState(id);
             }
         }
@@ -669,7 +725,7 @@ namespace FallRush.Net
             {
                 Phase = d.Phase, PhaseStartTick = d.PhaseStartTick, PhaseEndTick = d.PhaseEndTick, ServerTick = core.Tick,
                 Round = (byte)d.Round, RoundCount = (byte)d.RoundCount, LoadSerial = d.LoadSerial,
-                Flags = (byte)(MatchStateMessage.FlagPractice | (d.Soak ? MatchStateMessage.FlagSoak : 0) | (d.Loading ? MatchStateMessage.FlagLoading : 0)),
+                Flags = (byte)(MatchStateMessage.FlagPractice | (d.Soak ? MatchStateMessage.FlagSoak : 0) | (d.Loading ? MatchStateMessage.FlagLoading : 0) | (d.PrivateRoom ? MatchStateMessage.FlagPrivate : 0)),
                 HostSlot = d.HostSlot >= 0 ? (byte)d.HostSlot : (byte)255,
                 OwnSlot = ownSlot >= 0 ? (byte)ownSlot : (byte)255,
                 Champion = d.Champion >= 0 ? (byte)d.Champion : (byte)255,

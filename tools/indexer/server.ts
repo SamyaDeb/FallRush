@@ -8,12 +8,18 @@
 //   POST /api/gas  {burner}       guest gas: a small devnet SOL top-up for a new burner (the only signer here: FUNDER)
 //   POST /api/faucet-gate {burner} the per-IP / per-session soft limit for the chips faucet (signs nothing; on-chain
 //                                 the faucet is limited per wallet only)
+//   GET  /api/features            P7-UX: {rooms, mm} kill switches read by the game's play hub
+//   POST /api/room {botMix}       P7-UX: a private room: reserves an idle server (an arena while another arena stays
+//                                 public, else a Classic-only server) and writes ROOMS/<gs>.json for it → {code, url}
+//   GET  /api/room/:code          P7-UX: the room's server URL + state (invite links)
+//   POST /api/mm {tier}           P7-UX: skill-tier matchmaking: the public lobby to join → {url, gs, reason, humans, size}
 // The archive lives in ARCHIVE/<match PDA>/ (written by the keepers); this service adds txs.json (bet / drop / market
 // signatures read from the rollup) and prunes to the newest KEEP matches (its own directory only).
 //   ARCHIVE=/archive KEEPERS="gs1=http://fallrush-keeper-1:3111,gs2=…" GS_PUBLIC="gs1=wss://gs1…,gs2=…" \
 //   FUNDER_KEYPAIR=/run/secrets/funder.json node --experimental-strip-types tools/indexer/server.ts
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { readFileSync, existsSync, readdirSync, statSync, writeFileSync, rmSync, createReadStream } from "node:fs";
+import { readFileSync, existsSync, readdirSync, statSync, writeFileSync, rmSync, createReadStream, renameSync, mkdirSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 
@@ -22,6 +28,11 @@ const ARCHIVE = process.env.ARCHIVE ?? "/archive";
 const KEEP = Number(process.env.KEEP ?? 200);
 const parseMap = (s: string | undefined) => Object.fromEntries((s ?? "").split(",").filter(Boolean).map((x) => x.split("=").map((y) => y.trim())));
 const KEEPERS: Record<string, string> = parseMap(process.env.KEEPERS);
+// P7-UX: servers without an arena keeper (Classic-only room servers) publish status.json through a shared volume
+const STATUS_FILES: Record<string, string> = parseMap(process.env.STATUS_FILES);
+const ROOMS = process.env.ROOMS ?? "";
+const ROOMS_ON = process.env.ROOMS_ON !== "0" && !!ROOMS;
+const MM_ON = process.env.MM_ON !== "0";
 const GS_PUBLIC: Record<string, string> = parseMap(process.env.GS_PUBLIC);
 const ER = new Connection(process.env.ER_RPC_URL ?? "https://devnet-as.magicblock.app", "confirmed");
 const BASE = new Connection(process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com", "confirmed");
@@ -54,9 +65,17 @@ async function status() {
         id, url: GS_PUBLIC[id] ?? null, up: !!sv, arena: k.arena, arenaKey: k.arenaKey, world: k.world,
         keeper: { stage: k.stage, since: k.since, alive: Date.now() - (k.heartbeat ?? 0) < 30_000, match: k.match, dealSig: k.dealSig ?? null, worldTick: k.worldTick, worldPhase: k.worldPhase, worldRound: k.worldRound, last: k.last },
         phase: sv?.phase ?? "offline", inMatch: sv?.inMatch ?? false, round: sv?.round ?? 0, humans: sv?.humans ?? 0, size: sv?.size ?? 12, matchHex: sv?.match ?? "", served: sv?.completed ?? 0,
+        room: !!sv?.room, lobbyTier: sv?.lobbyTier ?? null,
       };
     } catch (e: any) { return { id, url: GS_PUBLIC[id] ?? null, up: false, phase: "offline", error: String(e?.message ?? e).slice(0, 120) }; }
   }));
+  for (const [id, file] of Object.entries(STATUS_FILES)) {
+    const sv0 = readJson(file);
+    const sv = sv0 && Date.now() - sv0.t < 10_000 ? sv0 : null;
+    servers.push({ id, url: GS_PUBLIC[id] ?? null, up: !!sv, arena: null, classic: true, phase: sv?.phase ?? "offline", inMatch: sv?.inMatch ?? false, round: sv?.round ?? 0, humans: sv?.humans ?? 0, size: sv?.size ?? 12, matchHex: sv?.match ?? "", served: sv?.completed ?? 0, room: !!sv?.room, lobbyTier: sv?.lobbyTier ?? null } as any);
+  }
+  // P7-UX: a private room's server is never offered to the public (its code is never exposed)
+  for (const sv of servers as any[]) { const r = roomOf(sv.id); sv.room = !!r || !!sv.room; }
   statusCache = { at: Date.now(), body: { ok: true, t: Date.now(), servers, program: PROGRAM.toBase58(), network: "devnet", rollup: "devnet-as.magicblock.app" } };
   return statusCache.body;
 }
@@ -211,6 +230,99 @@ function faucetGate(ip: string, burner: string) {
   return { ok: true, remaining: FAUCET_PER_IP_DAY - seen - 1, note: "soft limit in the web layer; on-chain the faucet is limited per wallet (1,000 RUSH / 24 h)", burner };
 }
 
+// ------------------------------------------------------------------ P7-UX rooms + matchmaking
+// A room reserves one idle game server for a code. The server reads ROOMS/<gs>.json every second: while it is there the
+// server admits only hellos carrying the code, starts on the host's Start (no auto countdown) and fills to 12 with bots
+// of the room's mix. Rule: a room may take an arena only if another arena stays public; else a Classic-only server.
+type Room = { code: string; gs: string; createdAt: number; expiresAt: number; botMix: number; seen: boolean };
+const ROOM_IDLE_MS = 10 * 60_000, ROOM_LIVE_MS = 5 * 60_000, ROOMS_PER_IP_HOUR = Number(process.env.ROOMS_PER_IP_HOUR ?? 6);
+const rooms = new Map<string, Room>(); // by code
+const roomIp: Record<string, number[]> = {};
+const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const roomOf = (gs: string) => { for (const r of rooms.values()) if (r.gs === gs) return r; return null; };
+const PUBLIC_PHASES = new Set(["LobbyOpen", "Countdown"]);
+function writeRoom(r: Room | null, gs: string) {
+  if (!ROOMS) return;
+  const f = join(ROOMS, `${gs}.json`);
+  try {
+    if (!r) { rmSync(f, { force: true }); return; }
+    writeFileSync(f + ".tmp", JSON.stringify({ code: r.code, expiresAt: r.expiresAt, botMix: r.botMix }));
+    renameSync(f + ".tmp", f);
+  } catch (e: any) { console.warn("[rooms] write", gs, e?.message ?? e); }
+}
+function newCode() {
+  for (;;) {
+    let c = "";
+    const b = randomBytes(4);
+    for (let i = 0; i < 4; i++) c += ALPHABET[b[i] % ALPHABET.length];
+    if (!rooms.has(c)) return c;
+  }
+}
+/** Extends live rooms, ends idle ones (called every 2 s and before every room / mm decision). */
+async function sweepRooms() {
+  if (!rooms.size) return;
+  const st = await status();
+  for (const r of [...rooms.values()]) {
+    const sv: any = st.servers.find((x: any) => x.id === r.gs);
+    const live = sv?.up && (sv.humans > 0 || sv.inMatch);
+    if (live) { r.seen = true; r.expiresAt = Date.now() + ROOM_LIVE_MS; writeRoom(r, r.gs); }
+    if (Date.now() > r.expiresAt || (sv && !sv.up && Date.now() - r.createdAt > 60_000)) { rooms.delete(r.code); writeRoom(null, r.gs); console.log(`[rooms] ${r.code} on ${r.gs} ended`); }
+  }
+}
+setInterval(() => { sweepRooms().catch(() => {}); }, 2_000);
+// rooms live in memory: a restarted indexer opens every server to the public again (stale room files removed)
+if (ROOMS) {
+  try { mkdirSync(ROOMS, { recursive: true }); for (const f of readdirSync(ROOMS)) if (f.endsWith(".json")) rmSync(join(ROOMS, f), { force: true }); } catch (e: any) { console.warn("[rooms] init", e?.message ?? e); }
+  console.log(`[rooms] dir ${ROOMS} ${ROOMS_ON ? "on" : "off"}; classic servers ${Object.keys(STATUS_FILES).join(",") || "-"}`);
+}
+const idle = (sv: any) => sv.up && sv.url && !sv.room && !sv.inMatch && PUBLIC_PHASES.has(sv.phase) && (sv.humans ?? 0) === 0;
+async function createRoom(ip: string, botMix: number) {
+  if (!ROOMS_ON) return { code: 503, body: { ok: false, error: "rooms are off right now" } };
+  roomIp[ip] = recent(roomIp[ip], 3_600_000);
+  if (roomIp[ip].length >= ROOMS_PER_IP_HOUR) return { code: 429, body: { ok: false, error: "too many rooms from this network: try again later" } };
+  await sweepRooms();
+  statusCache.at = 0;
+  const st = await status();
+  const arenas = st.servers.filter((x: any) => x.arena != null && !x.classic);
+  const publicArenas = (except: string) => arenas.filter((x: any) => x.id !== except && x.up && !x.room).length;
+  // 1. an idle arena (the Final runs on-chain) while another arena stays public; 2. an idle Classic-only server
+  const pick = arenas.find((x: any) => idle(x) && publicArenas(x.id) >= 1) ?? st.servers.find((x: any) => x.classic && idle(x));
+  if (!pick) return { code: 409, body: { ok: false, error: "every room is busy right now: try Quick Match, or again in a few minutes" } };
+  const r: Room = { code: newCode(), gs: pick.id, createdAt: Date.now(), expiresAt: Date.now() + ROOM_IDLE_MS, botMix: Math.max(0, Math.min(3, botMix | 0)), seen: false };
+  rooms.set(r.code, r);
+  writeRoom(r, r.gs);
+  roomIp[ip].push(Date.now());
+  statusCache.at = 0;
+  console.log(`[rooms] ${r.code} on ${r.gs} (${pick.classic ? "classic" : "arena " + pick.arena}) mix ${r.botMix}`);
+  return { code: 200, body: { ok: true, code: r.code, url: pick.url, gs: pick.id, onchainFinal: !pick.classic, expiresAt: r.expiresAt } };
+}
+async function roomInfo(code: string) {
+  const r = rooms.get(code.toUpperCase());
+  if (!r) return { code: 404, body: { ok: false, error: "no room with that code (it may have ended)" } };
+  const st = await status();
+  const sv: any = st.servers.find((x: any) => x.id === r.gs);
+  return { code: 200, body: { ok: true, code: r.code, url: sv?.url ?? null, gs: r.gs, onchainFinal: !sv?.classic, phase: sv?.phase ?? "offline", humans: sv?.humans ?? 0, inMatch: !!sv?.inMatch, expiresAt: r.expiresAt } };
+}
+const TIERS = ["Rookie", "Contender", "Champion"];
+/** Skill-tier matchmaking over the public servers: same-tier lobby → empty server → nearest-tier lobby → watch the emptiest. */
+async function matchmake(tier: string) {
+  const t = Math.max(0, TIERS.indexOf(tier));
+  await sweepRooms();
+  const st = await status();
+  const pub = st.servers.filter((x: any) => x.up && x.url && !x.room && !x.classic);
+  const open = pub.filter((x: any) => !x.inMatch && PUBLIC_PHASES.has(x.phase) && x.humans < x.size);
+  const out = (x: any, reason: string) => ({ ok: true, url: x.url, gs: x.id, reason, humans: x.humans, size: x.size, phase: x.phase, lobbyTier: x.lobbyTier ?? null });
+  const same = open.filter((x: any) => x.humans > 0 && x.lobbyTier === TIERS[t]).sort((a: any, b: any) => b.humans - a.humans)[0];
+  if (same) return out(same, "same-tier lobby");
+  const empty = open.filter((x: any) => x.humans === 0)[0];
+  if (empty) return out(empty, "new lobby");
+  const near = open.filter((x: any) => x.humans > 0).sort((a: any, b: any) => Math.abs(TIERS.indexOf(a.lobbyTier) - t) - Math.abs(TIERS.indexOf(b.lobbyTier) - t) || b.humans - a.humans)[0];
+  if (near) return out(near, "nearest-tier lobby");
+  const watch = pub.sort((a: any, b: any) => a.humans - b.humans)[0];
+  if (watch) return out(watch, "all lobbies busy: watch, then join the next one");
+  return { ok: false, error: "no game server is up" };
+}
+
 // ------------------------------------------------------------------ http
 const send = (res: ServerResponse, code: number, body: any) => { res.writeHead(code, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(body)); };
 const bodyOf = (req: IncomingMessage) => new Promise<any>((ok) => { let b = ""; req.on("data", (c) => { b += c; if (b.length > 4096) req.destroy(); }); req.on("end", () => { try { ok(JSON.parse(b || "{}")); } catch { ok({}); } }); });
@@ -256,6 +368,11 @@ createServer(async (req, res) => {
       res.writeHead(200, { "content-type": m[2].endsWith(".bin") ? "application/octet-stream" : "text/plain", "cache-control": "public, max-age=3600" });
       return void createReadStream(f).pipe(res);
     }
+    if (p === "/features") return send(res, 200, { ok: true, rooms: ROOMS_ON, mm: MM_ON });
+    if (p === "/room" && req.method === "POST") { const b = await bodyOf(req); const r = await createRoom(ipOf(req), Number(b.botMix ?? 1)); return send(res, r.code, r.body); }
+    m = p.match(/^\/room\/([A-Za-z0-9]{4,8})$/);
+    if (m) { const r = await roomInfo(m[1]); return send(res, r.code, r.body); }
+    if (p === "/mm" && req.method === "POST") { const b = await bodyOf(req); return send(res, 200, await matchmake(String(b.tier ?? "Contender"))); }
     if (p === "/gas" && req.method === "POST") { const b = await bodyOf(req); return send(res, 200, await gas(ipOf(req), String(b.burner ?? ""))); }
     if (p === "/faucet-gate" && req.method === "POST") { const b = await bodyOf(req); return send(res, 200, faucetGate(ipOf(req), String(b.burner ?? ""))); }
     return send(res, 404, { ok: false, error: "not found" });

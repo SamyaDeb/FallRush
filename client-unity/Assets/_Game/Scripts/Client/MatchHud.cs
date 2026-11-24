@@ -32,7 +32,9 @@ namespace FallRush.Client
         private int _lastTimerSec = -1;
         private string _lastCounter = string.Empty;
         // P7 spectate card: who you watch, "Tab: next", players left
-        private UiKit.Card _spectateCard;
+        private RectTransform _spectateBar;
+        private Button _betButton;
+        private float _spectateSince = -1f, _nextPulse;
         private TMP_Text _spectateName, _spectateWhy, _spectateLeft;
         private Image _chainFill;
         private ResultBanner _banner;
@@ -110,7 +112,9 @@ namespace FallRush.Client
             _chainPill = Pill(canvas, new Vector2(1f, 0f), new Vector2(-14f, 44f), new Vector2(170f, 34f), UiKit.Grey, out _chainText, 16, Color.white, TextAlignmentOptions.Center);
             _chainText.font = UiKit.Display;
             _chainFill = _chainPill.Find("Fill").GetComponent<Image>();
-            _subPill = Pill(canvas, new Vector2(0.5f, 0f), new Vector2(0f, 48f), new Vector2(900f, 64f), new Color(1f, 1f, 1f, 0.95f), out _sub, 22, UiKit.Grape, TextAlignmentOptions.Center);
+            // P7-UX (OC-45): the callout sits under the top-centre counter (it was a bottom caption bar): short lines only
+            _subPill = Pill(canvas, new Vector2(0.5f, 1f), new Vector2(0f, -70f), new Vector2(420f, 44f), UiKit.Cream, out _sub, 20, UiKit.Ink, TextAlignmentOptions.Center);
+            _sub.font = UiKit.Display;
             _timerFill = _timerBadge.Find("Fill").GetComponent<Image>();
             BuildSpectate(canvas);
 
@@ -415,34 +419,74 @@ namespace FallRush.Client
             _champBadges = UiKit.Row(b, 30f, 6f, TextAnchor.MiddleCenter);
         }
 
+        /// <summary>
+        /// P7-UX (OC-44): the spectate bar (replaces the SPECTATING card and its caption line): eye, "OUT · WATCHING", the
+        /// followed name, ◀ ▶ (Q / E, Tab), players left and the BET button that opens the bet drawer (B). The match stays in
+        /// full view; nothing opens by itself.
+        /// </summary>
         private void BuildSpectate(RectTransform canvas)
         {
-            _spectateCard = UiKit.MakeCard(canvas, UiKit.CardSize.S, UiKit.CardHue.Grape, "SPECTATING", new Vector2(420f, 96f), UiIcon.Eye);
-            var r = _spectateCard.Root;
-            r.anchorMin = r.anchorMax = r.pivot = new Vector2(0.5f, 0f);
-            r.anchoredPosition = new Vector2(0f, 118f);
-            var b = _spectateCard.Body;
-            DestroyImmediate(b.GetComponent<VerticalLayoutGroup>());
-            var h = b.gameObject.AddComponent<HorizontalLayoutGroup>();
-            h.padding = new RectOffset(12, 12, 4, 4);
+            var go = new GameObject("SpectateBar", typeof(RectTransform));
+            _spectateBar = (RectTransform)go.transform;
+            _spectateBar.SetParent(canvas, false);
+            _spectateBar.anchorMin = _spectateBar.anchorMax = _spectateBar.pivot = new Vector2(0.5f, 0f);
+            _spectateBar.anchoredPosition = new Vector2(0f, 18f);
+            _spectateBar.sizeDelta = new Vector2(600f, 60f);
+            UiKit.SoftChunk(_spectateBar, UiKit.Cream, UiKit.CardRim(UiKit.CardHue.Grape), 3f);
+            var row = new GameObject("Row", typeof(RectTransform), typeof(HorizontalLayoutGroup)).GetComponent<RectTransform>();
+            row.SetParent(_spectateBar, false);
+            UiKit.Stretch(row);
+            var h = row.GetComponent<HorizontalLayoutGroup>();
+            h.padding = new RectOffset(14, 10, 6, 6);
             h.spacing = 8;
             h.childAlignment = TextAnchor.MiddleLeft;
             h.childControlWidth = h.childControlHeight = true;
             h.childForceExpandWidth = h.childForceExpandHeight = false;
-            _spectateName = UiKit.Cell(b, string.Empty, 170f, 20, UiKit.Ink, TextAlignmentOptions.Left, true);
+            UiKit.IconImage(row, UiIcon.Eye, UiKit.Grape, 26f);
+            var names = new GameObject("Names", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement)).GetComponent<RectTransform>();
+            names.SetParent(row, false);
+            var nle = names.GetComponent<LayoutElement>();
+            nle.minWidth = nle.preferredWidth = 190f;
+            var v = names.GetComponent<VerticalLayoutGroup>();
+            v.childControlWidth = v.childControlHeight = true;
+            v.childForceExpandWidth = true;
+            v.childForceExpandHeight = false;
+            v.spacing = -2;
+            v.childAlignment = TextAnchor.MiddleLeft;
+            _spectateWhy = UiKit.Label(names, "WATCHING", 12, UiKit.Grape, FontStyle.Bold, 14);
+            _spectateWhy.alignment = TextAlignmentOptions.Left;
+            _spectateWhy.characterSpacing = 6f;
+            _spectateName = UiKit.Label(names, string.Empty, 22, UiKit.Ink, FontStyle.Bold, 26);
             _spectateName.font = UiKit.Display;
-            UiKit.Chip(b, "Tab: next", UiKit.CardRim(UiKit.CardHue.Grape), Color.white, UiIcon.None, 13, 26f);
-            _spectateLeft = UiKit.Chip(b, "12 left", UiKit.Ink, Color.white, UiIcon.None, 13, 26f).GetComponentInChildren<TMP_Text>();
-            _spectateWhy = UiKit.Label(r, string.Empty, 13, UiKit.Ink, FontStyle.Bold, 18);
-            var wrt = (RectTransform)_spectateWhy.transform;
-            _spectateWhy.GetComponent<LayoutElement>().ignoreLayout = true;
-            wrt.anchorMin = new Vector2(0f, 0f);
-            wrt.anchorMax = new Vector2(1f, 0f);
-            wrt.pivot = new Vector2(0.5f, 1f);
-            wrt.anchoredPosition = new Vector2(0f, -4f);
-            wrt.sizeDelta = new Vector2(0f, 20f);
-            r.gameObject.SetActive(false);
+            _spectateName.alignment = TextAlignmentOptions.Left;
+            _spectateName.textWrappingMode = TextWrappingModes.NoWrap;
+            _spectateName.overflowMode = TextOverflowModes.Ellipsis;
+            UiKit.RoundButton(row, UiIcon.None, "◀", UiKit.SkyLight, 38f, () => _spectateSlot = PrevAlive(_spectateSlot));
+            UiKit.RoundButton(row, UiIcon.None, "▶", UiKit.SkyLight, 38f, () => _spectateSlot = NextAlive(_spectateSlot));
+            _spectateLeft = UiKit.Chip(row, "12 left", UiKit.Ink, Color.white, UiIcon.None, 13, 26f).GetComponentInChildren<TMP_Text>();
+            _betButton = UiKit.Button(row, "BET", UiKit.SunYellow, () => BetClicked?.Invoke());
+            var ble = _betButton.GetComponent<LayoutElement>();
+            ble.minWidth = ble.preferredWidth = 104f;
+            ble.minHeight = ble.preferredHeight = 44f;
+            var bt = _betButton.GetComponentInChildren<TMP_Text>();
+            bt.fontSize = 20;
+            bt.enableAutoSizing = false;
+            var cap = UiKit.Keycap(_betButton.transform.Find("Face"), "B", 12, 20f);
+            cap.GetComponent<LayoutElement>().ignoreLayout = true;
+            cap.anchorMin = cap.anchorMax = cap.pivot = new Vector2(0f, 0.5f);
+            cap.anchoredPosition = new Vector2(10f, 1f);
+            ((RectTransform)bt.transform).offsetMin = new Vector2(30f, 4f);
+            _spectateBar.gameObject.SetActive(false);
         }
+
+        /// <summary>P7-UX: the bet drawer's opener (set by the on-chain economy HUD; B or the spectate bar's BET button).</summary>
+        public static System.Action BetClicked;
+
+        /// <summary>P7-UX: a market is open, so the spectate bar shows BET (set by the on-chain economy HUD each frame).</summary>
+        public static bool BetAvailable;
+
+        /// <summary>P7-UX: the bet drawer's height while it is open; the spectate bar rides above it.</summary>
+        public static float BottomInset;
 
         // ------------------------------------------------------------------ gameplay events → banners + sounds
 
@@ -498,8 +542,19 @@ namespace FallRush.Client
         private void Update()
         {
             var kb = Keyboard.current;
-            if (kb != null && kb.tabKey.wasPressedThisFrame)
+            // P7-UX: switch the watched player with Q / E (Tab kept as an alias for E)
+            if (kb != null && (kb.eKey.wasPressedThisFrame || kb.tabKey.wasPressedThisFrame))
                 _spectateSlot = NextAlive(_spectateSlot);
+            if (kb != null && kb.qKey.wasPressedThisFrame)
+                _spectateSlot = PrevAlive(_spectateSlot);
+            if (_spectateBar != null)
+            {
+                var p = _spectateBar.anchoredPosition;
+                var y = 18f + BottomInset;
+                if (Mathf.Abs(p.y - y) > 0.5f)
+                    _spectateBar.anchoredPosition = new Vector2(p.x, GameSettings.ReducedMotion ? y : Mathf.Lerp(p.y, y, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 14f)));
+            }
+
             var cs = ClientSim.Instance;
             if (cs == null)
                 return;
@@ -604,6 +659,23 @@ namespace FallRush.Client
             return -1;
         }
 
+        private int PrevAlive(int from)
+        {
+            var cs = ClientSim.Instance;
+            if (cs == null || !cs.HasSnapshots)
+                return -1;
+            ref readonly var n = ref cs.Newest;
+            for (var k = 1; k <= Protocol.MaxPlayers; k++)
+            {
+                var s = ((from < 0 ? 0 : from) - k + 2 * Protocol.MaxPlayers) % Protocol.MaxPlayers;
+                for (var i = 0; i < n.Count; i++)
+                    if (n.Players[i].Slot == s && s != cs.OwnSlot && (n.Players[i].Flags & MotorState.Respawning) == 0 && (n.Players[i].Race & PlayerState.RaceFinished) == 0)
+                        return s;
+            }
+
+            return -1;
+        }
+
         private void UpdateCamera(ClientSim cs)
         {
             if (View == null)
@@ -684,20 +756,20 @@ namespace FallRush.Client
 
         private static string ModeGoal(string mode, int n) => mode switch
         {
-            "Race" => $"First {n} to the finish qualify",
-            "Survival" => $"Climb! First {n} to the summit escape the goo",
-            "Skill" => $"Grab stars! Top {n} after 60 s qualify (gold = +3, a bonk drops one)",
-            "Final" => "Last one standing wins the crown",
+            "Race" => $"First {n} to the finish",
+            "Survival" => $"First {n} up escape the goo",
+            "Skill" => $"Top {n} stars qualify",
+            "Final" => "Last one standing wins",
             _ => string.Empty,
         };
 
         /// <summary>G1 §3.6: one-line hint per mode on the round intro.</summary>
         private static string ModeTip(string mode) => mode switch
         {
-            "Race" => "Tip: dive (Shift) to reach further; jump right after a belly-flop to skip the slide",
-            "Survival" => "Tip: the inner lanes are safe and slow, the outer lanes fast and risky",
-            "Skill" => "Tip: spring pads launch you to the golden-star islands",
-            "Final" => "Tip: yellow lids flip open 1 s later: step off! A fall lands on the lower shelf once. Still standing at 120 s? Top shelf beats the lower one",
+            "Race" => "Shift dives further",
+            "Survival" => "Inner lanes are safer",
+            "Skill" => "Springs reach gold stars (+3)",
+            "Final" => "Yellow lid? Step off!",
             _ => string.Empty,
         };
 
@@ -736,6 +808,7 @@ namespace FallRush.Client
             else
                 conn = $"<color=#5BE3B5>●</color> {(ping != null && ping.SampleCount > 0 ? ping.P50Ms.ToString("F0") : "…")} ms{(cs.Remote.Lagging && ChainAdapters.Override == null ? "  <color=#FFA51F>LAGGING</color>" : "")}";
             SetPill(_connPill, _conn, conn);
+            _connPill.sizeDelta = new Vector2(Mathf.Clamp(_conn.preferredWidth + 30f, 96f, 300f), _connPill.sizeDelta.y); // P7-UX: fits "● 45 ms"
 
             _panels ??= new[] { _lobby, _deal, _results, _inter, _receipt }; // the CHAMPION card has its own timing (Champion())
             _want = null;
@@ -753,7 +826,8 @@ namespace FallRush.Client
                 SetPill(_counterPill, _counter, string.Empty);
                 SetPill(_timerBadge, _timer, string.Empty);
                 SetPill(_subPill, _sub, string.Empty);
-                UiMotion.SetVisible(_spectateCard.Root, false);
+                UiMotion.SetVisible(_spectateBar, false);
+                CursorPolicy.ClassicOut = false;
                 UiMotion.SetVisible(_mine, false);
                 ApplyPanels();
                 return;
@@ -763,7 +837,11 @@ namespace FallRush.Client
             var round = cs.Round;
             var inRound = m.Phase >= MatchPhase.RoundIntro && m.Phase <= MatchPhase.Intermission && round.HasValue;
             SetPill(_roundPill, _round, inRound ? $"ROUND {m.Round}/{m.RoundCount} · {UiNames.Map(round.Value.MapId)} · {mode}" : m.Phase <= MatchPhase.Countdown ? (IsPracticeMatch(m) ? "PRACTICE LOBBY" : "LOBBY") : IsPracticeMatch(m) ? "PRACTICE MATCH" : "MATCH");
-            SetPill(_modPill, _modifier, inRound ? UiNames.Modifier(round.Value.Modifier) : string.Empty);
+            // P7-UX: no "No modifier" pill; the round pill fits its text
+            var modName = inRound ? UiNames.Modifier(round.Value.Modifier) : string.Empty;
+            SetPill(_modPill, _modifier, modName == "No modifier" ? string.Empty : modName);
+            _roundPill.sizeDelta = new Vector2(Mathf.Clamp(_round.preferredWidth + 36f, 160f, 470f), _roundPill.sizeDelta.y);
+            _modPill.sizeDelta = new Vector2(Mathf.Clamp(_modifier.preferredWidth + 36f, 120f, 300f), _modPill.sizeDelta.y);
             if (inRound && m.Round == m.RoundCount && round.Value.RoundStartTick > 0)
                 _finalStartTick = round.Value.RoundStartTick;
 
@@ -832,16 +910,16 @@ namespace FallRush.Client
                 case MatchPhase.Aborted:
                     _center.text = "<size=54>MATCH ABORTED</size>";
                     _center.color = UiKit.Magenta;
-                    sub = "Every stake is refunded. Back to the lobby in a moment.";
+                    sub = "Stakes refunded · back to the lobby";
                     break;
             }
 
             if (m.Phase >= MatchPhase.RoundIntro && m.Phase <= MatchPhase.Intermission && (cs.MatchSlot == 255 || Spectating(cs)))
             {
                 var mine = cs.MatchSlot != 255 && cs.TryGetSlotInfo(cs.MatchSlot, out var info) ? info : default;
-                var why = cs.MatchSlot == 255 ? (ChainAdapters.Override != null && mode == "Final" ? "The Final runs on the MagicBlock rollup: bet (B) or drop chaos" : "Match in progress: you join the next one") :
-                    mine.Has(MatchSlotInfo.GraceExpired) ? "You were eliminated (disconnected)" :
-                    !mine.Has(MatchSlotInfo.Alive) ? "You're out: watch, bet (B) or drop chaos in the Final" : (mine.LateMask & (1 << (m.Round - 1))) != 0 ? "Map loaded too late: you sit this round out (still in)" : "Waiting";
+                var why = cs.MatchSlot == 255 ? (ChainAdapters.Override != null && mode == "Final" ? "FINAL ON-CHAIN · WATCHING" : "NEXT MATCH SOON · WATCHING") :
+                    mine.Has(MatchSlotInfo.GraceExpired) ? "DISCONNECTED · WATCHING" :
+                    !mine.Has(MatchSlotInfo.Alive) ? "OUT · WATCHING" : (mine.LateMask & (1 << (m.Round - 1))) != 0 ? "SITTING OUT · WATCHING" : "WATCHING";
                 spect = m.Phase <= MatchPhase.RoundActive;
                 if (spect)
                 {
@@ -857,7 +935,21 @@ namespace FallRush.Client
             }
 
             ApplyPanels();
-            UiMotion.SetVisible(_spectateCard.Root, spect);
+            UiMotion.SetVisible(_spectateBar, spect);
+            // P7-UX: an out player (or a watcher) plays with a free cursor; the BET button pulses for 4 s after going out
+            // (from the roster state, not the snapshot: a Skill / Survival respawn must not free the cursor mid-round)
+            CursorPolicy.ClassicOut = spect && OutOfRound(cs, m);
+            if (spect && _spectateSince < 0f)
+                _spectateSince = Time.unscaledTime;
+            else if (!spect)
+                _spectateSince = -1f;
+            if (_betButton.gameObject.activeSelf != BetAvailable)
+                _betButton.gameObject.SetActive(BetAvailable);
+            if (spect && BetAvailable && Time.unscaledTime - _spectateSince < 4f && Time.unscaledTime >= _nextPulse)
+            {
+                _nextPulse = Time.unscaledTime + 0.8f;
+                UiMotion.Bump((RectTransform)_betButton.transform);
+            }
             UiMotion.SetVisible(_mine, m.Phase == MatchPhase.RoundResult && _resultsAt >= 0f && Time.unscaledTime - _resultsAt > 1.1f && _mineHead.text.Length > 0);
             // counter bump on change (same phase)
             if (counter != _lastCounter)
@@ -872,7 +964,7 @@ namespace FallRush.Client
             SetPill(_subPill, _sub, sub);
             var w = Mathf.Clamp(_counter.preferredWidth + 44f, 220f, 900f);
             _counterPill.sizeDelta = new Vector2(w, counter.Contains("\n") ? 76f : 50f);
-            _subPill.sizeDelta = new Vector2(Mathf.Clamp(_sub.preferredWidth + 40f, 300f, 1150f), sub.Contains("\n") ? 74f : 44f);
+            _subPill.sizeDelta = new Vector2(Mathf.Clamp(_sub.preferredWidth + 44f, 260f, 620f), sub.Contains("\n") ? 64f : 42f);
         }
 
         /// <summary>P7: true while the on-chain layer runs for this client (the public hybrid match: the arena keeper records
@@ -882,6 +974,16 @@ namespace FallRush.Client
         /// <summary>A practice match: the server's practice flag and no on-chain recording (the public Classic server runs
         /// its matches with the practice flag; the arena keeper records them, so those are not practice).</summary>
         private static bool IsPracticeMatch(MatchStateMessage m) => (m.Flags & MatchStateMessage.FlagPractice) != 0 && !RecordedMatch && DevMenu.Enabled;
+
+        /// <summary>P7-UX: out of the current round for good (no slot, eliminated, disconnected, or sitting this round out).</summary>
+        private static bool OutOfRound(ClientSim cs, MatchStateMessage m)
+        {
+            if (cs.MatchSlot == 255)
+                return true;
+            if (!cs.TryGetSlotInfo(cs.MatchSlot, out var mine))
+                return false;
+            return mine.Has(MatchSlotInfo.GraceExpired) || !mine.Has(MatchSlotInfo.Alive) || m.Round >= 1 && (mine.LateMask & (1 << (m.Round - 1))) != 0;
+        }
 
         private static int AliveCount(MatchStateMessage m)
         {
@@ -1053,7 +1155,7 @@ namespace FallRush.Client
                 if (rs.Phase == RoundPhase.Intro)
                     _center.text = $"<size=72>{UiNames.Map(round.Value.MapId)}</size>\n<size=34><color=#FFD21F>{mode}</color></size>";
                 var modHint = UiNames.ModifierHint(round.Value.Modifier);
-                sub = ModeGoal(mode, n) + $"\n<size=15>{ModeTip(mode)}{(modHint.Length > 0 ? $"  ·  <color=#FF3EA5>{UiNames.Modifier(round.Value.Modifier)}: {modHint}</color>" : "")}</size>";
+                sub = ModeGoal(mode, n) + $"\n<size=15><color=#7B2FF7>{ModeTip(mode)}</color>{(modHint.Length > 0 ? $"  ·  <color=#FF3EA5>{UiNames.Modifier(round.Value.Modifier)}</color>" : "")}</size>";
                 return;
             }
 

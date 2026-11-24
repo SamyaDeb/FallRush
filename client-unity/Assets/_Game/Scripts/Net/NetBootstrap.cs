@@ -433,6 +433,13 @@ namespace FallRush.Net
             }
         }
 
+        /// <summary>P7-UX (server): the private room's code while one is open here (ServerMatch polls the room file); client:
+        /// the room to join (sent in hello v7).</summary>
+        public static string RoomCode;
+
+        /// <summary>P7-UX (client): the player's skill tier sent in hello v7 (0 Rookie, 1 Contender, 2 Champion).</summary>
+        public static byte SkillTier = 1;
+
         private void ApproveConnection(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
         {
             response.CreatePlayerObject = false;
@@ -451,6 +458,21 @@ namespace FallRush.Net
             if (!ok)
             {
                 Reject(response, request.ClientNetworkId, $"Malformed hello: {error}");
+                return;
+            }
+
+            // P7-UX (OC-46): a private room admits only its code; a room code for a room that is not here is refused too
+            // (the invite expired), so a friend never lands in a stranger's public lobby by mistake
+            var room = RoomCode;
+            if (room != null && hello.RoomCode != room)
+            {
+                Reject(response, request.ClientNetworkId, hello.RoomCode == null ? "This arena is hosting a private room. Use Quick Match, or ask for the invite link." : "Wrong room code for this arena.");
+                return;
+            }
+
+            if (room == null && hello.RoomCode != null)
+            {
+                Reject(response, request.ClientNetworkId, "That room has ended. Create a new one, or use Quick Match.");
                 return;
             }
 
@@ -618,6 +640,9 @@ namespace FallRush.Net
                 // P5 task 4: an owned capsule equipped on /me (?shell=<asset>&wallet=<owner>; desktop -fallrushShell asset:wallet)
                 ShellAsset = NetTargets.GetQueryParam(Application.absoluteURL, "shell") ?? ShellArg(0),
                 ShellWallet = NetTargets.GetQueryParam(Application.absoluteURL, "wallet") ?? ShellArg(1),
+                // P7-UX: the private room picked in the play hub (or ?room= from an invite link) + the skill tier
+                RoomCode = RoomCode ?? Protocol.CleanRoom(GetArgValue("-fallrushRoom")), // ?room= is read once by the play hub
+                SkillTier = SkillTier,
             };
             Manager.NetworkConfig.ConnectionData = Protocol.EncodeHello(hello);
 

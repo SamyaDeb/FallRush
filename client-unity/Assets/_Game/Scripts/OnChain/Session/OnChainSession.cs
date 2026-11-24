@@ -774,7 +774,8 @@ namespace FallRush.OnChain
                 GUI.color = Color.white;
             }
 
-            if (!_hasNewest)
+            // P7-UX: the raw status line is a dev / F3 aid only (players saw it as a caption under the HUD)
+            if (!_hasNewest && (_panel || FallRush.Client.DevMenu.Enabled))
                 GUI.Label(new Rect(16, Screen.height - 80, 900, 24), $"On-chain (preview): {_status}");
             if (SessionExpired)
             {

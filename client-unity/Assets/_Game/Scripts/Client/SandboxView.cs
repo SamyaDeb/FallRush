@@ -192,6 +192,7 @@ namespace FallRush.Client
             }
 
             Cursor.lockState = CursorLockMode.None;
+            CursorPolicy.Reset();
         }
 
         private void OnNetState()
@@ -221,23 +222,36 @@ namespace FallRush.Client
             var hintOn = Time.unscaledTime < _hintUntil && _photo == null;
             if (_hint.activeSelf != hintOn)
                 _hint.SetActive(hintOn);
-            if (kb != null && kb.escapeKey.wasPressedThisFrame)
-                Cursor.lockState = CursorLockMode.None;
-            var es = UnityEngine.EventSystems.EventSystem.current;
-            var pointerOverUi = _options.activeSelf && es != null && es.IsPointerOverGameObject();
-            if (mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked && !_overlay.activeSelf && !pointerOverUi)
-                Cursor.lockState = CursorLockMode.Locked; // WebGL: pointer lock needs this user gesture
+            // P7-UX (OC-44): CursorPolicy owns the pointer lock. An open interactive panel or spectating frees the cursor;
+            // only an alive player's click on the game (never on UI) takes the lock. Esc closes the top panel first.
             var probe = NetBootstrap.Instance != null && NetBootstrap.Instance.IsProbe; // scripted view: no pointer lock
-            // G1: settings open on Esc only (they covered the lobby panel whenever the mouse was free); a click on the game closes them.
+            var escPressed = kb != null && kb.escapeKey.wasPressedThisFrame;
+            if (escPressed)
+                Cursor.lockState = CursorLockMode.None;
+            CursorPolicy.SetOpen("settings", _optionsOpen);
+            CursorPolicy.Apply(_overlay.activeSelf);
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            var pointerOverUi = es != null && es.IsPointerOverGameObject();
+            var otherPanel = CursorPolicy.AnyOpenExcept("settings");
+            if (CursorPolicy.MayLock(mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked, pointerOverUi,
+                    otherPanel, CursorPolicy.Spectating, _overlay.activeSelf, probe))
+            {
+                Cursor.lockState = CursorLockMode.Locked; // WebGL: pointer lock needs this user gesture
+                _optionsOpen = false;
+            }
+
+            // G1: settings open on Esc only; a click on the game closes them.
             var locked = Cursor.lockState == CursorLockMode.Locked;
-            if (_wasLocked && !locked)
+            var policyFreed = Time.frameCount - CursorPolicy.PolicyFreeFrame <= 1;
+            if (_wasLocked && !locked && !policyFreed && !CursorPolicy.JustClosed)
                 _optionsOpen = true; // Esc while playing (the browser releases pointer lock itself)
-            else if (kb != null && kb.escapeKey.wasPressedThisFrame && !locked)
+            else if (escPressed && !locked && !CursorPolicy.JustClosed && !otherPanel)
                 _optionsOpen = !_optionsOpen;
             if (locked)
                 _optionsOpen = false;
             _wasLocked = locked;
             var showOptions = _optionsOpen && !_overlay.activeSelf && _photo == null && !probe;
+            CursorPolicy.SetOpen("settings", showOptions);
             UiMotion.SetVisible((RectTransform)_options.transform, showOptions); // P7: settings open / close with UiMotion
 
             var cs = ClientSim.Instance;
@@ -613,19 +627,25 @@ namespace FallRush.Client
             plateCanvas.SetParent(transform, false);
             plateCanvas.GetComponent<Canvas>().sortingOrder = -10;
             _plates = new Nameplates(plateCanvas, PhysxMotorWorld.GameplayMask());
-            // G3.5: the controls bar as a pill at the bottom centre.
-            var hintGo = new GameObject("ControlsHint", typeof(RectTransform));
-            var hrt = (RectTransform)hintGo.transform;
-            hrt.SetParent(canvas, false);
-            hrt.anchorMin = hrt.anchorMax = hrt.pivot = new Vector2(0.5f, 0f);
-            hrt.anchoredPosition = new Vector2(0f, 8f);
-            hrt.sizeDelta = new Vector2(1010f, 30f);
-            UiKit.Pill(hrt, new Color(1f, 1f, 1f, 0.92f));
-            var hint = UiKit.Label(hrt, "Click to capture the mouse · WASD move · Space jump · Shift / click dive · 1-4 emote · Esc settings · F1 hide · Tab spectate", 14, UiKit.Ink, FontStyle.Bold);
-            UiKit.Stretch((RectTransform)hint.transform);
-            hint.GetComponent<LayoutElement>().ignoreLayout = true;
-            _hint = hintGo;
-            _hintUntil = Time.unscaledTime + 8f;
+            // P7-UX (OC-45): the controls as a keycap card bottom-left (was a 1010 px caption strip): shown for 10 s in the
+            // first two matches, then on F1 only.
+            var hintCard = UiKit.MakeCard(canvas, UiKit.CardSize.S, UiKit.CardHue.Grape, "CONTROLS", new Vector2(196f, 226f), UiIcon.None);
+            var hrt = hintCard.Root;
+            hrt.anchorMin = hrt.anchorMax = hrt.pivot = new Vector2(0f, 0f);
+            hrt.anchoredPosition = new Vector2(16f, 90f);
+            hintCard.Body.GetComponent<VerticalLayoutGroup>().childAlignment = TextAnchor.UpperLeft;
+            UiKit.KeyHint(hintCard.Body, "WASD", "Move", 14, 24f);
+            UiKit.KeyHint(hintCard.Body, "Space", "Jump", 14, 24f);
+            UiKit.KeyHint(hintCard.Body, "Shift", "Dive", 14, 24f);
+            UiKit.KeyHint(hintCard.Body, "1-4", "Emote", 14, 24f);
+            UiKit.KeyHint(hintCard.Body, "Q E", "Watch next", 14, 24f);
+            UiKit.KeyHint(hintCard.Body, "B", "Bets", 14, 24f);
+            UiKit.KeyHint(hintCard.Body, "Esc", "Menu", 14, 24f);
+            _hint = hrt.gameObject;
+            var seen = PlayerPrefs.GetInt("fr.controlsSeen", 0);
+            _hintUntil = seen < 2 ? Time.unscaledTime + 10f : 0f;
+            PlayerPrefs.SetInt("fr.controlsSeen", seen + 1);
+            _hint.SetActive(false);
 
             BuildOptions(canvas);
 

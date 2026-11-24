@@ -141,7 +141,10 @@ namespace FallRush.Client
         private void Update()
         {
             var mouse = Mouse.current;
-            if (mouse != null && Cursor.lockState == CursorLockMode.Locked && _orbit != null)
+            // P7-UX: a spectator (free cursor) orbits by holding the right button over the game
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (mouse != null && _orbit != null && CursorPolicy.Orbit(Cursor.lockState == CursorLockMode.Locked, CursorPolicy.Spectating && !CursorPolicy.AnyPanelOpen,
+                    mouse.rightButton.isPressed, es != null && es.IsPointerOverGameObject()))
             {
                 var d = mouse.delta.ReadValue();
                 var sens = GameSettings.Sensitivity;

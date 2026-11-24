@@ -91,6 +91,7 @@ If you can't run a playtest in time, just tell the session. It goes ahead with P
 ## Run these yourself (filled in by the agent if a command was denied)
 
 ### W1. Waitlist Worker CORS (denied for the agent on 2026-11-23, as in the landing run)
+**Status 2026-11-24 ~07:15 UTC: deploy DONE by the user** (version `99502e02`). Preflight checked: `fallrush.fun` and `www.fallrush.fun` are allowed; an unknown origin is not. **Still open: the Turnstile hostnames check + one real sign-up.**
 Lets the fallrush.fun landing call the waitlist API (`ALLOWED_ORIGINS` gets `https://fallrush.fun` and `https://www.fallrush.fun`). From the main checkout (it has the landing's `node_modules`):
 ```bash
 cd /Users/samya/Downloads/FallRush && bash scripts/landing-deploy-cf.sh

@@ -584,6 +584,98 @@ namespace FallRush.Client
             return face;
         }
 
+        // ------------------------------------------------------------------ P7-UX (OC-45): keycaps, round buttons
+
+        /// <summary>A keyboard keycap (cream face, grape rim, a 3 px drop): instructions show keys, not sentences.</summary>
+        public static RectTransform Keycap(Transform parent, string key, int fontSize = 13, float height = 24f)
+        {
+            var go = new GameObject("Keycap", typeof(RectTransform), typeof(LayoutElement));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            var w = Mathf.Max(height, key.Length * fontSize * 0.62f + 10f);
+            var le = go.GetComponent<LayoutElement>();
+            le.minWidth = le.preferredWidth = w;
+            le.minHeight = le.preferredHeight = height;
+            le.flexibleWidth = le.flexibleHeight = 0f;
+            rt.sizeDelta = new Vector2(w, height);
+            var drop = Shape(rt, "Drop", new Color(Ink.r, Ink.g, Ink.b, 0.55f));
+            drop.pixelsPerUnitMultiplier = 3f;
+            Stretch(drop.rectTransform, 0f, new Vector2(0f, -3f));
+            var rim = Shape(rt, "Rim", Grape);
+            rim.pixelsPerUnitMultiplier = 3f;
+            Stretch(rim.rectTransform);
+            var face = Shape(rt, "Face", Cream);
+            face.pixelsPerUnitMultiplier = 3f;
+            Stretch(face.rectTransform, 2f);
+            var t = Label(rt, key, fontSize, Ink, FontStyle.Bold);
+            t.textWrappingMode = TextWrappingModes.NoWrap;
+            t.GetComponent<LayoutElement>().ignoreLayout = true;
+            Stretch((RectTransform)t.transform, 0f, new Vector2(0f, 1f));
+            return rt;
+        }
+
+        /// <summary>A keycap + a short label in a row ("[B] Bets").</summary>
+        public static RectTransform KeyHint(Transform parent, string key, string text, int fontSize = 14, float height = 26f, Color? textColor = null)
+        {
+            var row = Row(parent, height, 6f);
+            Keycap(row, key, fontSize - 1, height - 2f);
+            var t = Label(row, text, fontSize, textColor ?? Ink, FontStyle.Bold, (int)height);
+            t.textWrappingMode = TextWrappingModes.NoWrap;
+            t.alignment = TextAlignmentOptions.Left;
+            return row;
+        }
+
+        /// <summary>A round button (the drops dock, ◀ ▶ arrows, ✕): a disc with a rim and a drop that squashes on press.</summary>
+        public static Button RoundButton(Transform parent, UiIcon icon, string glyph, Color fill, float size, UnityEngine.Events.UnityAction onClick, Color? glyphColor = null)
+        {
+            var go = new GameObject("RoundButton", typeof(RectTransform), typeof(LayoutElement));
+            go.transform.SetParent(parent, false);
+            var rt = (RectTransform)go.transform;
+            rt.sizeDelta = new Vector2(size, size);
+            var le = go.GetComponent<LayoutElement>();
+            le.minWidth = le.preferredWidth = size;
+            le.minHeight = le.preferredHeight = size;
+            le.flexibleWidth = le.flexibleHeight = 0f;
+            var face = new GameObject("Face", typeof(RectTransform)).GetComponent<RectTransform>();
+            face.SetParent(rt, false);
+            Stretch(face);
+            var drop = Shape(face, "Drop", new Color(Ink.r, Ink.g, Ink.b, 0.45f), Circle);
+            drop.type = Image.Type.Simple;
+            Stretch(drop.rectTransform, 0f, new Vector2(0f, -4f));
+            var rim = Shape(face, "Rim", Grape, Circle);
+            rim.type = Image.Type.Simple;
+            Stretch(rim.rectTransform);
+            var fillImg = Shape(face, "Fill", fill, Circle);
+            fillImg.type = Image.Type.Simple;
+            fillImg.raycastTarget = true;
+            Stretch(fillImg.rectTransform, 3f);
+            var gc = glyphColor ?? Ink;
+            if (icon != UiIcon.None)
+            {
+                var ic = Shape(face, "Icon", gc, UiIcons.Get(icon));
+                ic.type = Image.Type.Simple;
+                ic.preserveAspect = true;
+                Stretch(ic.rectTransform, size * 0.26f);
+            }
+            else if (!string.IsNullOrEmpty(glyph))
+            {
+                var t = Label(face, glyph, Mathf.RoundToInt(size * 0.45f), gc, FontStyle.Bold);
+                t.font = Display;
+                t.GetComponent<LayoutElement>().ignoreLayout = true;
+                Stretch((RectTransform)t.transform);
+            }
+
+            var b = go.AddComponent<Button>();
+            b.targetGraphic = fillImg;
+            var colors = b.colors;
+            colors.disabledColor = new Color(0.7f, 0.7f, 0.75f, 0.8f);
+            b.colors = colors;
+            b.onClick.AddListener(onClick);
+            b.onClick.AddListener(() => GameAudio.Ui(GameAudio.UiCue.Click));
+            go.AddComponent<UiPress>().Target = face;
+            return b;
+        }
+
         public static Image Dot(Transform row, Color c, float size = 14f)
         {
             var go = new GameObject("Dot", typeof(RectTransform), typeof(LayoutElement));

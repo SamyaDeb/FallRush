@@ -32,6 +32,9 @@ namespace FallRush.Shared
         public const int HeaderSize = 1 + 1 + 4 + 4 + 4 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 16 + 32 + 32 + 4 + 16 + 16 + 1 + 1;
         public const byte FlagPractice = 1, FlagSoak = 2, FlagLoading = 4;
 
+        /// <summary>P7-UX: the server is hosting a private room (the host's Start begins the match; no auto countdown).</summary>
+        public const byte FlagPrivate = 8;
+
         public MatchPhase Phase;
         public uint PhaseStartTick, PhaseEndTick, ServerTick;
         public byte Round, RoundCount, LoadSerial, Flags, HostSlot = 255, OwnSlot = 255, Champion = 255, PlayerCount;
