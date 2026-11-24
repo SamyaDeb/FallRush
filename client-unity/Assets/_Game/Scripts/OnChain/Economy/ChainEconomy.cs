@@ -25,6 +25,10 @@ namespace FallRush.OnChain
     [Serializable] public sealed class ESealed { public bool ok, open; public string match, error; public ESealedEscrow escrow; public ESealedMine[] mine = Array.Empty<ESealedMine>(); }
     [Serializable] public sealed class ESeasonPlayer { public int crowns, finals, matches, achievements, betsWon, betsLost, drops, roundsSurvived; public string net, wallet; }
     [Serializable] public sealed class ESeason { public bool ok; public int id; public ESeasonPlayer player; }
+    // P7: /api/status (the arena keepers) → the current match's VRF deal request
+    [Serializable] public sealed class SKeeper { public string match, dealSig; }
+    [Serializable] public sealed class SServer { public string id; public SKeeper keeper; }
+    [Serializable] public sealed class SStatus { public bool ok; public SServer[] servers = Array.Empty<SServer>(); }
 
     /// <summary>
     /// P4: the player's side of the economy (RUSH chips, Rush Markets, Chaos Drops, receipt, claim), over the on-chain
@@ -54,12 +58,22 @@ namespace FallRush.OnChain
         /// <summary>The balance when this match's markets opened (the receipt shows the difference).</summary>
         public long MatchStartBalance = -1;
         public string MatchPda;
+        /// <summary>P7: the request_deal tx of the current match (from the arena keeper via /api/status; WebGL only).</summary>
+        public string DealSig;
+        private string _dealFor;
+        private double _dealAt;
         public bool Available { get; private set; } = true;
+        /// <summary>P7: the chips account is set up on the rollup (bets before that fail with 3007).</summary>
+        public bool ChipsReady => _chipsDone;
+        /// <summary>P7: the <c>?autobet=</c> test hook owns the sealed Champion bet (the auto-play must not bet it too:
+        /// P6's "autobet fires twice" was the two hooks each placing one).</summary>
+        public bool AutobetOwnsChampion => _autobet > 0;
         public int Calls, Errors;
         public readonly List<string> Log = new List<string>();
 
         private int _id;
         private readonly Dictionary<int, Action<string>> _pending = new Dictionary<int, Action<string>>();
+        private readonly List<int> _ids = new List<int>(8);
         private double _nextPoll, _chipsAt = -1;
         private bool _stateInFlight, _chipsDone;
 
@@ -72,7 +86,11 @@ namespace FallRush.OnChain
             return go.AddComponent<ChainEconomy>();
         }
 
-        private void Awake() => Instance = this;
+        private void Awake()
+        {
+            Instance = this;
+            _autobet = int.TryParse(FallRush.Shared.NetTargets.GetQueryParam(Application.absoluteURL, "autobet"), out var ab) ? ab : 0;
+        }
         private void OnDestroy() { if (Instance == this) Instance = null; }
 
         public static long Parse(string s) => long.TryParse(s, out var v) ? v : 0;
@@ -107,20 +125,22 @@ namespace FallRush.OnChain
                 return;
             if (_pending.Count > 0)
             {
-                var done = new List<int>();
-                foreach (var kv in _pending)
+                // P7 fix: a callback may queue the next call (state → sealedState), so iterate a snapshot of the ids and
+                // remove each one before its callback runs (the live build threw "Collection was modified" here, which
+                // left finished calls pending and could run a callback twice).
+                _ids.Clear();
+                _ids.AddRange(_pending.Keys);
+                foreach (var id in _ids)
                 {
-                    var r = tx.EconResult(kv.Key);
-                    if (r == null)
+                    var r = tx.EconResult(id);
+                    if (r == null || !_pending.TryGetValue(id, out var cb))
                         continue;
-                    done.Add(kv.Key);
-                    try { kv.Value(r); } catch (Exception e) { Debug.LogWarning("[econ] " + e.Message); }
+                    _pending.Remove(id);
+                    try { cb(r); } catch (Exception e) { Debug.LogWarning("[econ] " + e.Message); }
                 }
-
-                foreach (var k in done)
-                    _pending.Remove(k);
             }
 
+            DealPoll();
             // economy reads / writes need the chain link only, not a joined slot (a hybrid pre-joined client bets
             // through rounds 1–3, before the Final starts)
             if (!Rollup || !tx.Connected)
@@ -174,7 +194,8 @@ namespace FallRush.OnChain
                     });
                     if (_autobet < 0)
                         _autobet = int.TryParse(FallRush.Shared.NetTargets.GetQueryParam(Application.absoluteURL, "autobet"), out var ab) ? ab : 0;
-                    if (_autobet > 0 && Sealed != null && Sealed.open && s.match != null && _autobetFor != s.match.pda && MarketOpen(0))
+                    // P7: only once the chips account is on the rollup (a fresh guest's first bet failed with 3007 before)
+                    if (_autobet > 0 && _chipsDone && Sealed != null && Sealed.open && s.match != null && _autobetFor != s.match.pda && MarketOpen(0))
                     {
                         _autobetFor = s.match.pda;
                         var slot = 0;
@@ -193,6 +214,41 @@ namespace FallRush.OnChain
                     }
                 });
             }
+        }
+
+        /// <summary>P7: polls /api/status (same origin) every 3 s until the match's VRF deal request is known.</summary>
+        private void DealPoll()
+        {
+            var m = State?.match?.pda;
+            if (string.IsNullOrEmpty(m) || Application.platform != RuntimePlatform.WebGLPlayer || State.match.round > 1)
+                return; // the Deal screen only (the keeper's request_deal lands during round 1 at the latest)
+            if (_dealFor != m)
+            {
+                _dealFor = m;
+                DealSig = null;
+            }
+
+            var now = Time.realtimeSinceStartupAsDouble;
+            if (DealSig != null || now < _dealAt)
+                return;
+            _dealAt = now + 3.0;
+            var req = UnityEngine.Networking.UnityWebRequest.Get("/api/status");
+            req.SendWebRequest().completed += _ =>
+            {
+                try
+                {
+                    if (req.result != UnityEngine.Networking.UnityWebRequest.Result.Success)
+                        return;
+                    var st = JsonUtility.FromJson<SStatus>(req.downloadHandler.text);
+                    if (st?.servers == null)
+                        return;
+                    foreach (var sv in st.servers)
+                        if (sv?.keeper != null && sv.keeper.match == m && !string.IsNullOrEmpty(sv.keeper.dealSig))
+                            DealSig = sv.keeper.dealSig;
+                }
+                catch (Exception e) { Debug.LogWarning("[econ] status: " + e.Message); }
+                finally { req.Dispose(); }
+            };
         }
 
         private void Note(string s)

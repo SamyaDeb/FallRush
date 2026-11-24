@@ -245,10 +245,13 @@ function StoryWorld({ prog, onDigital, fx }: StoryCanvasProps & { fx: React.RefO
     W.sky.mesh.position.copy(cam.position);
     W.sky.mat.uniforms.digital.value = dig;
     W.sky.mat.uniforms.time.value = s.t;
-    const fog = scene.fog as THREE.Fog;
-    fog.color.copy(fogDay).lerp(fogNight, dig);
-    fog.near = 40 - dig * 10;
-    fog.far = 150 - dig * 40;
+    // beta audit: the fog is set in an effect: a frame can run before it (first frame) or after its cleanup (unmount)
+    const fog = scene.fog as THREE.Fog | null;
+    if (fog) {
+      fog.color.copy(fogDay).lerp(fogNight, dig);
+      fog.near = 40 - dig * 10;
+      fog.far = 150 - dig * 40;
+    }
     hemi.intensity = 1.2 - dig * 0.55;
     sun.intensity = 2.1 - dig * 1.1;
     night.intensity = dig * 60;

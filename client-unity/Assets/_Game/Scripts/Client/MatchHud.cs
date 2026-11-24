@@ -26,16 +26,47 @@ namespace FallRush.Client
         public SandboxView View;
 
         // corners
-        private TMP_Text _round, _modifier, _timer, _counter, _conn, _chainText, _sub, _spectate, _center;
-        private RectTransform _roundPill, _modPill, _timerBadge, _counterPill, _connPill, _chainPill, _subPill, _spectatePill;
+        private TMP_Text _round, _modifier, _timer, _counter, _conn, _chainText, _sub, _center;
+        private RectTransform _roundPill, _modPill, _timerBadge, _counterPill, _connPill, _chainPill, _subPill;
+        private Image _timerFill;
+        private int _lastTimerSec = -1;
+        private string _lastCounter = string.Empty;
+        // P7 spectate card: who you watch, "Tab: next", players left
+        private RectTransform _spectateBar;
+        private Button _betButton;
+        private float _spectateSince = -1f, _nextPulse;
+        private TMP_Text _spectateName, _spectateWhy, _spectateLeft;
         private Image _chainFill;
+        private bool _chainDotFollow;
+        private uint _roundTicks;
         private ResultBanner _banner;
         private CapsuleMachineWidget _countdown;
         // panels
-        private RectTransform _lobby, _deal, _results, _inter, _receipt;
-        private TMP_Text _lobbyStatus, _dealHead, _dealVrf, _dealSeed, _interNext, _receiptHead, _receiptIds, _receiptChain;
-        private readonly TMP_Text[] _receiptLinks = new TMP_Text[3];
-        private Button _start, _back;
+        private RectTransform _lobby, _deal, _results, _inter, _receipt, _champ;
+        private RectTransform _roomRow;
+        private TMP_Text _roomCode, _startLabel;
+        private Button _copy;
+        private float _copiedAt = -10f;
+        private TMP_Text _lobbyStatus, _lobbyCount, _dealHead, _dealSeed, _interNext, _receiptHead, _receiptIds;
+        private Button _start, _back, _vrfButton, _interLive;
+        private RectTransform _vrfChip;
+        private TMP_Text _vrfText;
+        private string _vrfUrl;
+        private UiKit.Card _lobbyCard, _dealCard, _resultsCard, _interCard, _receiptCard, _champCard, _mineCard, _nextCard;
+        private RectTransform _mine, _nextRt;
+        private TMP_Text _mineHead, _mineStat, _mineLine, _nextMap, _nextInfo, _champName, _champStats, _champSeason;
+        private Image _nextIcon;
+        private RectTransform _champBadges;
+        private int _champBadgeBits = -1;
+        private float _champAt = -1f, _resultsAt = -1f;
+        private bool _champLanded;
+        private uint _finalStartTick;
+        private string _finalTime = string.Empty;
+        private ReceiptCard _practiceReceipt;
+        private int _lobbyShown;
+        private readonly int[] _prevRank = new int[Protocol.MaxPlayers];
+        private readonly CountUp[] _survived = new CountUp[Protocol.MaxPlayers];
+        private readonly List<MatchSlotInfo> _rows = new List<MatchSlotInfo>(Protocol.MaxPlayers);
         private CapsuleMachineWidget _dealMachine;
         private readonly LobbyRow[] _lobbyRows = new LobbyRow[Protocol.MaxPlayers];
         private readonly TableRow[] _interRows = new TableRow[Protocol.MaxPlayers];
@@ -60,9 +91,9 @@ namespace FallRush.Client
         private bool _resultShown;
 
         private struct LobbyRow { public RectTransform Root; public Image Conn, Swatch; public TMP_Text Name, Tag; }
-        private struct TableRow { public RectTransform Root; public Image Dot; public TMP_Text Name, R1, R2, R3, R4, Note; }
-        private struct ResultRow { public RectTransform Root; public TMP_Text Word, Name; }
-        private struct DealCard { public RectTransform Root; public Image Fill; public TMP_Text Round, Map, Mod; }
+        private struct TableRow { public RectTransform Root, Face; public Image Dot, Hi; public TMP_Text Name, R1, R2, R3, R4, Survived, Note; public int Slot; }
+        private struct ResultRow { public RectTransform Root; public Image Hi; public TMP_Text Word, Name; }
+        private struct DealCard { public RectTransform Slot, Root; public UiKit.Card Card; public Image ModeIcon; public TMP_Text Map, Mode, Target, Odds; public bool Shown; }
 
         private void Start()
         {
@@ -70,35 +101,54 @@ namespace FallRush.Client
             if (_map != null && _map.definition != null && _map.definition.IsRace)
                 _course = new RaceRules(_map.CheckpointDefs(), _map.CourseLineMm(), 0);
             _rv = gameObject.AddComponent<ReactiveViews>();
+            for (var i = 0; i < _prevRank.Length; i++)
+                _prevRank[i] = -1;
             var canvas = UiKit.CreateCanvas("MatchHudCanvas");
             canvas.SetParent(transform, false);
 
             // ---- corners
-            _roundPill = Pill(canvas, new Vector2(0f, 1f), new Vector2(14f, -12f), new Vector2(470f, 40f), Color.white, out _round, 19, UiKit.Grape, TextAlignmentOptions.Left);
-            _modPill = Pill(canvas, new Vector2(0f, 1f), new Vector2(14f, -58f), new Vector2(300f, 30f), UiKit.Magenta, out _modifier, 15, Color.white, TextAlignmentOptions.Left);
-            _timerBadge = Pill(canvas, new Vector2(1f, 1f), new Vector2(-14f, -10f), new Vector2(120f, 64f), Color.white, out _timer, 44, UiKit.Ink, TextAlignmentOptions.Center);
-            _timer.font = UiKit.Body; // tabular figures: the timer does not jitter
-            _timer.fontStyle = FontStyles.Bold;
-            _counterPill = Pill(canvas, new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(420f, 50f), Color.white, out _counter, 26, UiKit.Magenta, TextAlignmentOptions.Center);
-            _counter.font = UiKit.Display;
-            _connPill = Pill(canvas, new Vector2(0f, 0f), new Vector2(14f, 44f), new Vector2(240f, 32f), Color.white, out _conn, 15, UiKit.Ink, TextAlignmentOptions.Left);
-            _chainPill = Pill(canvas, new Vector2(1f, 0f), new Vector2(-14f, 44f), new Vector2(170f, 34f), UiKit.Grey, out _chainText, 16, Color.white, TextAlignmentOptions.Center);
-            _chainText.font = UiKit.Display;
+            // P7-UX2 (OC-50): the corners are outlined type over the world (no pills): top-left the round label over the map
+            // title, the modifier as a magenta accent; top-centre the counter; top-right the timer in a draining ring;
+            // bottom-left the ping, bottom-right the chain state with its coloured dot
+            _roundPill = Pill(canvas, new Vector2(0f, 1f), new Vector2(18f, -10f), new Vector2(560f, 66f), Color.white, out _round, 30, Color.white, TextAlignmentOptions.TopLeft);
+            _round.lineSpacing = -18f;
+            _modPill = Pill(canvas, new Vector2(0f, 1f), new Vector2(18f, -78f), new Vector2(400f, 26f), UiKit.Magenta, out _modifier, 19, UiKit.Magenta, TextAlignmentOptions.Left);
+            _timerBadge = Pill(canvas, new Vector2(1f, 1f), new Vector2(-16f, -10f), new Vector2(82f, 82f), Color.white, out _timer, 34, Color.white, TextAlignmentOptions.Center);
+            _counterPill = Pill(canvas, new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(520f, 56f), Color.white, out _counter, 34, UiKit.SunYellow, TextAlignmentOptions.Center);
+            _connPill = Pill(canvas, new Vector2(0f, 0f), new Vector2(18f, 16f), new Vector2(200f, 24f), Color.white, out _conn, 15, Color.white, TextAlignmentOptions.Left);
+            _chainPill = Pill(canvas, new Vector2(1f, 0f), new Vector2(-18f, 16f), new Vector2(200f, 28f), UiKit.Grey, out _chainText, 18, Color.white, TextAlignmentOptions.Right);
             _chainFill = _chainPill.Find("Fill").GetComponent<Image>();
-            _subPill = Pill(canvas, new Vector2(0.5f, 0f), new Vector2(0f, 48f), new Vector2(900f, 64f), new Color(1f, 1f, 1f, 0.95f), out _sub, 22, UiKit.Grape, TextAlignmentOptions.Center);
-            _spectatePill = Pill(canvas, new Vector2(0.5f, 0f), new Vector2(0f, 124f), new Vector2(760f, 36f), UiKit.Ink, out _spectate, 16, Color.white, TextAlignmentOptions.Center);
+            var cf = _chainFill.rectTransform; // the state dot sits left of the right-aligned text
+            cf.anchorMin = cf.anchorMax = cf.pivot = new Vector2(1f, 0.5f);
+            _chainDotFollow = true;
+            // P7-UX (OC-45): the callout under the counter: outlined type, no box
+            _subPill = Pill(canvas, new Vector2(0.5f, 1f), new Vector2(0f, -66f), new Vector2(620f, 52f), UiKit.Cream, out _sub, 22, Color.white, TextAlignmentOptions.Top);
+            // the timer: a ring that drains (white → amber at 10 s → magenta at 5 s) behind outlined digits
+            _timerFill = _timerBadge.Find("Fill").GetComponent<Image>();
+            _timerFill.sprite = UiIcons.Get(UiIcon.Ring);
+            _timerFill.type = Image.Type.Filled;
+            _timerFill.fillMethod = Image.FillMethod.Radial360;
+            _timerFill.fillOrigin = (int)Image.Origin360.Top;
+            _timerFill.fillClockwise = false;
+            _timerFill.color = Color.white;
+            UiKit.Stretch(_timerFill.rectTransform);
+            var tback = UiKit.Shape(_timerBadge, "RingBack", new Color(UiKit.Ink.r, UiKit.Ink.g, UiKit.Ink.b, 0.35f), UiIcons.Get(UiIcon.Ring));
+            tback.type = Image.Type.Simple;
+            UiKit.Stretch(tback.rectTransform);
+            tback.transform.SetAsFirstSibling();
+            BuildSpectate(canvas);
 
             _center = UiKit.Shout(canvas, string.Empty, 96, UiKit.Magenta);
             var crt = (RectTransform)_center.transform;
             crt.anchorMin = crt.anchorMax = crt.pivot = new Vector2(0.5f, 0.5f);
             crt.anchoredPosition = new Vector2(0f, 90f);
             crt.sizeDelta = new Vector2(1100f, 200f);
-            _banner = ResultBanner.Create(canvas, new Vector2(110f, 205f));
-            _banner.transform.localScale = Vector3.one * 0.85f;
+            _banner = ResultBanner.Create(canvas, new Vector2(250f, 160f)); // P7-UX2: right of the result card (it hid the stamp)
             _countdown = CapsuleMachineWidget.Create(canvas, new Vector2(150f, 170f));
             var cdr = (RectTransform)_countdown.transform;
             cdr.anchorMin = cdr.anchorMax = new Vector2(0.5f, 0.5f);
-            cdr.anchoredPosition = new Vector2(0f, 150f);
+            cdr.anchoredPosition = new Vector2(0f, 180f); // P7-UX2: above the heads (it sat on the YOU marker), under the callout
+            cdr.localScale = Vector3.one * 0.75f;
             _countdown.gameObject.SetActive(false);
 
             BuildLobby(canvas);
@@ -106,7 +156,8 @@ namespace FallRush.Client
             BuildResults(canvas);
             BuildIntermission(canvas);
             BuildReceipt(canvas);
-            foreach (var p in new[] { _lobby, _deal, _results, _inter, _receipt })
+            BuildChampion(canvas);
+            foreach (var p in new[] { _lobby, _deal, _results, _inter, _receipt, _champ, _mine })
                 p.gameObject.SetActive(false);
             var cs = ClientSim.Instance;
             if (cs != null)
@@ -120,26 +171,35 @@ namespace FallRush.Client
                 cs.RaceEventReceived -= OnEvent;
         }
 
+        /// <summary>
+        /// P7-UX2 (OC-50) "Arcade HUD": a HUD element is outlined game type straight over the world (Lilita, ink outline +
+        /// soft underlay), no pill behind it. <paramref name="fill"/> is unused for the look; the "Fill" child the callers
+        /// tint (timer ring, chain state) is a small marker: a dot on the text's leading side, hidden until tinted.
+        /// </summary>
         private static RectTransform Pill(Transform canvas, Vector2 anchor, Vector2 pos, Vector2 size, Color fill, out TMP_Text text, int fontSize, Color textColor, TextAlignmentOptions align)
         {
-            var go = new GameObject("Pill", typeof(RectTransform));
+            var go = new GameObject("Hud", typeof(RectTransform));
             var rt = (RectTransform)go.transform;
             rt.SetParent(canvas, false);
             rt.anchorMin = rt.anchorMax = rt.pivot = anchor;
             rt.anchoredPosition = pos;
             rt.sizeDelta = size;
-            UiKit.Pill(rt, fill);
-            text = UiKit.Label(rt, string.Empty, fontSize, textColor, FontStyle.Bold);
+            var marker = UiKit.Shape(rt, "Fill", new Color(1f, 1f, 1f, 0f), UiKit.Circle);
+            marker.type = Image.Type.Simple;
+            var mrt = marker.rectTransform;
+            mrt.anchorMin = mrt.anchorMax = mrt.pivot = new Vector2(0f, 0.5f);
+            mrt.sizeDelta = new Vector2(12f, 12f);
+            mrt.anchoredPosition = new Vector2(-16f, 0f);
+            text = UiKit.HudText(rt, fontSize, ArcadeFace(textColor));
             text.alignment = align;
-            text.textWrappingMode = TextWrappingModes.NoWrap;
             var trt = (RectTransform)text.transform;
             UiKit.Stretch(trt);
-            trt.offsetMin = new Vector2(14f, 2f);
-            trt.offsetMax = new Vector2(-14f, -2f);
-            text.GetComponent<LayoutElement>().ignoreLayout = true;
             go.SetActive(false);
             return rt;
         }
+
+        /// <summary>Ink / grape text that sat on a white pill becomes white type with the ink outline; accents stay.</summary>
+        private static Color ArcadeFace(Color c) => c == UiKit.Ink || c == UiKit.Grape ? Color.white : c;
 
         private static void SetPill(RectTransform pill, TMP_Text t, string s)
         {
@@ -154,107 +214,176 @@ namespace FallRush.Client
 
         private void BuildLobby(RectTransform canvas)
         {
-            _lobby = UiKit.Panel(canvas, new Vector2(420f, 620f), UiKit.CloudWhite);
+            _lobbyCard = UiKit.MakeCard(canvas, UiKit.CardSize.M, UiKit.CardHue.Soda, "LOBBY", new Vector2(420f, 680f), UiIcon.Capsule);
+            _lobby = _lobbyCard.Root;
             _lobby.anchorMin = _lobby.anchorMax = _lobby.pivot = new Vector2(1f, 0.5f);
-            _lobby.anchoredPosition = new Vector2(-16f, 0f);
-            var v = _lobby.GetComponent<VerticalLayoutGroup>();
-            v.spacing = 2;
-            v.padding = new RectOffset(26, 26, 18, 22);
-            UiKit.Shout(_lobby, "LOBBY", 38, UiKit.SunYellow).GetComponent<LayoutElement>().minHeight = 48;
+            _lobby.anchoredPosition = new Vector2(-18f, 0f);
+            var body = _lobbyCard.Body;
+            body.GetComponent<VerticalLayoutGroup>().spacing = 1;
+            // P7-UX (OC-46): a private room's header: the big code + copy / share the invite link
+            _roomRow = UiKit.Row(body, 46f, 8f);
+            var rl = UiKit.Label(_roomRow, "ROOM", 13, UiKit.Grape, FontStyle.Bold, 40);
+            rl.GetComponent<LayoutElement>().preferredWidth = 46f;
+            _roomCode = UiKit.Label(_roomRow, string.Empty, 34, UiKit.Ink, FontStyle.Bold, 44);
+            _roomCode.font = UiKit.Display;
+            _roomCode.characterSpacing = 6f;
+            _roomCode.GetComponent<LayoutElement>().preferredWidth = 140f;
+            _copy = UiKit.Button(_roomRow, "Copy invite", UiKit.Mint, CopyInvite);
+            var cle = _copy.GetComponent<LayoutElement>();
+            cle.preferredWidth = cle.minWidth = 150f;
+            cle.minHeight = cle.preferredHeight = 40f;
+            _copy.GetComponentInChildren<TMP_Text>().fontSize = 17;
+            _roomRow.gameObject.SetActive(false);
+            _lobbyCount = UiKit.Label(body, string.Empty, 22, UiKit.Ink, FontStyle.Bold, 30);
+            _lobbyCount.font = UiKit.Display;
             for (var i = 0; i < _lobbyRows.Length; i++)
             {
-                var row = UiKit.Row(_lobby, 28f, 8f);
-                var r = new LobbyRow { Root = row };
-                r.Conn = UiKit.Dot(row, UiKit.Mint, 10f);
-                r.Swatch = UiKit.Dot(row, Color.white, 18f);
-                r.Name = UiKit.Cell(row, string.Empty, 220f, 17, UiKit.Ink);
-                r.Tag = UiKit.Cell(row, string.Empty, 70f, 13, UiKit.Grape, TextAlignmentOptions.Right, true);
+                var face = UiKit.FaceRow(body, 30f, 8f);
+                var r = new LobbyRow { Root = (RectTransform)face.parent };
+                r.Conn = UiKit.Dot(face, UiKit.Mint, 10f);
+                r.Swatch = UiKit.Dot(face, Color.white, 18f);
+                r.Name = UiKit.Cell(face, string.Empty, 230f, 17, UiKit.Ink);
+                r.Tag = UiKit.Cell(face, string.Empty, 70f, 13, UiKit.Grape, TextAlignmentOptions.Right, true);
+                r.Root.gameObject.SetActive(false);
                 _lobbyRows[i] = r;
             }
 
-            _lobbyStatus = UiKit.Label(_lobby, string.Empty, 17, UiKit.Ink, FontStyle.Normal, 70);
-            _start = UiKit.Button(_lobby, "Start now (host)", UiKit.SunYellow, () => ClientSim.Instance?.SendControl(ControlCmd.Start));
+            _lobbyStatus = UiKit.Label(body, string.Empty, 17, UiKit.Ink, FontStyle.Normal, 64);
+            _start = UiKit.Button(body, "Start now (host)", UiKit.SunYellow, () => ClientSim.Instance?.SendControl(ControlCmd.Start));
+            _startLabel = _start.GetComponentInChildren<TMP_Text>();
         }
+
+        private static UiKit.CardHue ModeHue(string mode) => mode switch
+        {
+            "Race" => UiKit.CardHue.Soda,
+            "Survival" => UiKit.CardHue.Grape,
+            "Skill" => UiKit.CardHue.Lemon,
+            "Final" => UiKit.CardHue.Bubblegum,
+            _ => UiKit.CardHue.Apple,
+        };
 
         private void BuildDeal(RectTransform canvas)
         {
-            _deal = UiKit.Panel(canvas, new Vector2(900f, 540f), UiKit.CloudWhite);
-            var v = _deal.GetComponent<VerticalLayoutGroup>();
-            v.padding = new RectOffset(300, 30, 22, 22);
-            v.spacing = 8;
+            _dealCard = UiKit.MakeCard(canvas, UiKit.CardSize.L, UiKit.CardHue.Lemon, "THE DEAL", new Vector2(980f, 560f), UiIcon.Capsule);
+            _deal = _dealCard.Root;
+            var v = _dealCard.Body.GetComponent<VerticalLayoutGroup>();
+            v.padding = new RectOffset(300, 26, 14, 16);
+            v.spacing = 10;
             v.childAlignment = TextAnchor.UpperLeft;
-            UiKit.Shout(_deal, "THE DEAL", 46, UiKit.SunYellow).alignment = TextAlignmentOptions.Left;
-            _dealMachine = CapsuleMachineWidget.Create(_deal, new Vector2(240f, 300f));
+            _dealMachine = CapsuleMachineWidget.Create(_dealCard.Body, new Vector2(250f, 312f));
             var mrt = (RectTransform)_dealMachine.transform;
             mrt.anchorMin = mrt.anchorMax = new Vector2(0f, 0.5f);
-            mrt.anchoredPosition = new Vector2(150f, 10f);
-            _dealHead = UiKit.Label(_deal, string.Empty, 17, UiKit.Grape, FontStyle.Bold, 26);
+            mrt.anchoredPosition = new Vector2(152f, 14f);
+            _dealHead = UiKit.Label(_dealCard.Body, string.Empty, 20, UiKit.Ink, FontStyle.Bold, 30);
             _dealHead.alignment = TextAlignmentOptions.Left;
+            var row = UiKit.Row(_dealCard.Body, 236f, 12f);
             for (var i = 0; i < _cards.Length; i++)
             {
-                var row = UiKit.Row(_deal, 54f, 10f);
-                var card = new DealCard { Root = row };
-                var bg = UiKit.Shape(row, "Card", new Color(0.95f, 0.96f, 1f));
-                UiKit.Stretch(bg.rectTransform);
-                bg.transform.SetAsFirstSibling();
-                card.Fill = bg;
-                card.Round = UiKit.Cell(row, $"R{i + 1}", 48f, 22, UiKit.Grape, TextAlignmentOptions.Center, true);
-                card.Round.font = UiKit.Display;
-                card.Map = UiKit.Cell(row, string.Empty, 360f, 18, UiKit.Ink, TextAlignmentOptions.Left, true);
-                card.Mod = UiKit.Cell(row, string.Empty, 150f, 15, UiKit.Magenta, TextAlignmentOptions.Left, true);
-                _cards[i] = card;
+                var slot = new GameObject("RoundSlot", typeof(RectTransform), typeof(LayoutElement)).GetComponent<RectTransform>();
+                slot.SetParent(row, false);
+                var le = slot.GetComponent<LayoutElement>();
+                le.minWidth = le.preferredWidth = 146f;
+                var card = UiKit.MakeCard(slot, UiKit.CardSize.S, UiKit.CardHue.Apple, $"ROUND {i + 1}", new Vector2(146f, 230f));
+                UiKit.Stretch(card.Root);
+                var b = card.Body;
+                b.GetComponent<VerticalLayoutGroup>().childAlignment = TextAnchor.UpperCenter;
+                var dc = new DealCard { Slot = slot, Root = card.Root, Card = card };
+                dc.ModeIcon = UiKit.IconImage(b, UiIcon.Race, UiKit.CardRim(UiKit.CardHue.Apple), 46f);
+                dc.Map = UiKit.Label(b, string.Empty, 17, UiKit.Ink, FontStyle.Bold, 44);
+                dc.Map.font = UiKit.Display;
+                dc.Mode = UiKit.Label(b, string.Empty, 13, UiKit.Grape, FontStyle.Bold, 18);
+                dc.Target = UiKit.Label(b, string.Empty, 14, UiKit.Ink, FontStyle.Bold, 20);
+                dc.Odds = UiKit.Label(b, string.Empty, 11, UiKit.Grape, FontStyle.Normal, 30);
+                card.Root.gameObject.SetActive(false);
+                _cards[i] = dc;
             }
 
-            _dealVrf = UiKit.Label(_deal, string.Empty, 16, UiKit.Ink, FontStyle.Bold, 24);
-            _dealVrf.alignment = TextAlignmentOptions.Left;
-            _dealSeed = UiKit.Label(_deal, string.Empty, 12, UiKit.Grey, FontStyle.Normal, 34);
+            // VRF / deal provenance: a chip with the real explorer link on a recorded match, "Classic deal" in practice
+            var vrow = UiKit.Row(_dealCard.Body, 40f, 10f);
+            vrow.GetComponent<HorizontalLayoutGroup>().childForceExpandHeight = false; // the chip keeps its own height
+            _vrfChip = UiKit.Chip(vrow, "Classic deal", UiKit.CardPastel(UiKit.CardHue.Apple), UiKit.Ink, UiIcon.Capsule, 15, 34f);
+            _vrfText = _vrfChip.GetComponentInChildren<TMP_Text>();
+            _vrfButton = UiKit.Button(vrow, "View the VRF request", UiKit.Mint, () =>
+            {
+                if (!string.IsNullOrEmpty(_vrfUrl))
+                    Application.OpenURL(_vrfUrl);
+            });
+            var vle = _vrfButton.GetComponent<LayoutElement>();
+            vle.preferredWidth = vle.minWidth = 230f;
+            vle.minHeight = vle.preferredHeight = 38f;
+            _vrfButton.GetComponentInChildren<TMP_Text>().fontSize = 18;
+            _vrfButton.gameObject.SetActive(false);
+            _dealSeed = UiKit.Label(_dealCard.Body, string.Empty, 12, UiKit.Grey, FontStyle.Normal, 20);
             _dealSeed.alignment = TextAlignmentOptions.Left;
         }
 
         private void BuildResults(RectTransform canvas)
         {
-            _results = UiKit.Panel(canvas, new Vector2(520f, 470f), UiKit.CloudWhite);
+            _resultsCard = UiKit.MakeCard(canvas, UiKit.CardSize.M, UiKit.CardHue.Apple, "ROUND RESULT", new Vector2(500f, 500f), UiIcon.Check);
+            _results = _resultsCard.Root;
             _results.anchorMin = _results.anchorMax = _results.pivot = new Vector2(0f, 0.5f);
-            _results.anchoredPosition = new Vector2(16f, -50f);
-            var v = _results.GetComponent<VerticalLayoutGroup>();
-            v.spacing = 0;
-            v.padding = new RectOffset(24, 24, 16, 18);
-            UiKit.Shout(_results, "ROUND RESULT", 32, UiKit.SunYellow).GetComponent<LayoutElement>().minHeight = 42;
+            _results.anchoredPosition = new Vector2(18f, -40f);
+            _resultsCard.Body.GetComponent<VerticalLayoutGroup>().spacing = 0;
             for (var i = 0; i < _resultRows.Length; i++)
             {
-                var row = UiKit.Row(_results, 29f, 10f);
+                var face = UiKit.FaceRow(_resultsCard.Body, 30f, 10f);
+                var hi = UiKit.Shape(face, "Hi", UiKit.CardPastel(UiKit.CardHue.Lemon));
+                UiKit.Stretch(hi.rectTransform, 0f);
+                hi.transform.SetAsFirstSibling();
                 _resultRows[i] = new ResultRow
                 {
-                    Root = row,
-                    Word = UiKit.Cell(row, string.Empty, 130f, 15, UiKit.Mint, TextAlignmentOptions.Left, true),
-                    Name = UiKit.Cell(row, string.Empty, 300f, 16, UiKit.Ink),
+                    Root = (RectTransform)face.parent,
+                    Hi = hi,
+                    Word = UiKit.Cell(face, string.Empty, 130f, 15, UiKit.Mint, TextAlignmentOptions.Left, true),
+                    Name = UiKit.Cell(face, string.Empty, 300f, 16, UiKit.Ink),
                 };
                 _resultRows[i].Word.font = UiKit.Display;
+                _resultRows[i].Root.gameObject.SetActive(false);
             }
+
+            // your own result: a card that lands after the banner
+            _mineCard = UiKit.MakeCard(canvas, UiKit.CardSize.M, UiKit.CardHue.Apple, "QUALIFIED", new Vector2(400f, 200f), UiIcon.Check);
+            _mine = _mineCard.Root;
+            _mine.anchorMin = _mine.anchorMax = _mine.pivot = new Vector2(1f, 0.5f);
+            _mine.anchoredPosition = new Vector2(-28f, -60f);
+            _mineHead = UiKit.Label(_mineCard.Body, string.Empty, 34, UiKit.Ink, FontStyle.Bold, 44);
+            _mineHead.font = UiKit.Display;
+            _mineStat = UiKit.Label(_mineCard.Body, string.Empty, 18, UiKit.Grape, FontStyle.Bold, 26);
+            _mineLine = UiKit.Label(_mineCard.Body, string.Empty, 15, UiKit.Ink, FontStyle.Normal, 40);
         }
 
         private TableRow[] Table(Transform panel, TableRow[] rows)
         {
-            var head = UiKit.Row(panel, 26f, 6f);
+            var head = UiKit.Row(panel, 24f, 6f);
+            head.GetComponent<HorizontalLayoutGroup>().padding = new RectOffset(8, 8, 0, 0);
             UiKit.Cell(head, string.Empty, 20f, 13, UiKit.Grape);
-            UiKit.Cell(head, "PLAYER", 250f, 13, UiKit.Grape, TextAlignmentOptions.Left, true);
+            UiKit.Cell(head, "PLAYER", 236f, 13, UiKit.Grape, TextAlignmentOptions.Left, true);
             for (var r = 1; r <= 4; r++)
-                UiKit.Cell(head, "R" + r, 54f, 13, UiKit.Grape, TextAlignmentOptions.Center, true);
-            UiKit.Cell(head, string.Empty, 170f, 13, UiKit.Grape);
+                UiKit.Cell(head, "R" + r, 50f, 13, UiKit.Grape, TextAlignmentOptions.Center, true);
+            UiKit.Cell(head, "ROUNDS", 66f, 13, UiKit.Grape, TextAlignmentOptions.Center, true);
+            UiKit.Cell(head, string.Empty, 150f, 13, UiKit.Grape);
             for (var i = 0; i < rows.Length; i++)
             {
-                var row = UiKit.Row(panel, 27f, 6f);
+                var face = UiKit.FaceRow(panel, 27f, 6f);
+                var hi = UiKit.Shape(face, "Hi", UiKit.CardPastel(UiKit.CardHue.Lemon));
+                UiKit.Stretch(hi.rectTransform, 0f);
+                hi.transform.SetAsFirstSibling();
                 rows[i] = new TableRow
                 {
-                    Root = row,
-                    Dot = UiKit.Dot(row, UiKit.Mint, 11f),
-                    Name = UiKit.Cell(row, string.Empty, 250f, 16, UiKit.Ink),
-                    R1 = UiKit.Cell(row, string.Empty, 54f, 16, UiKit.Ink, TextAlignmentOptions.Center),
-                    R2 = UiKit.Cell(row, string.Empty, 54f, 16, UiKit.Ink, TextAlignmentOptions.Center),
-                    R3 = UiKit.Cell(row, string.Empty, 54f, 16, UiKit.Ink, TextAlignmentOptions.Center),
-                    R4 = UiKit.Cell(row, string.Empty, 54f, 16, UiKit.Ink, TextAlignmentOptions.Center),
-                    Note = UiKit.Cell(row, string.Empty, 170f, 13, UiKit.Magenta),
+                    Root = (RectTransform)face.parent,
+                    Face = face,
+                    Hi = hi,
+                    Dot = UiKit.Dot(face, UiKit.Mint, 11f),
+                    Name = UiKit.Cell(face, string.Empty, 236f, 16, UiKit.Ink),
+                    R1 = UiKit.Cell(face, string.Empty, 50f, 16, UiKit.Ink, TextAlignmentOptions.Center),
+                    R2 = UiKit.Cell(face, string.Empty, 50f, 16, UiKit.Ink, TextAlignmentOptions.Center),
+                    R3 = UiKit.Cell(face, string.Empty, 50f, 16, UiKit.Ink, TextAlignmentOptions.Center),
+                    R4 = UiKit.Cell(face, string.Empty, 50f, 16, UiKit.Ink, TextAlignmentOptions.Center),
+                    Survived = UiKit.Cell(face, string.Empty, 66f, 17, UiKit.Grape, TextAlignmentOptions.Center, true),
+                    Note = UiKit.Cell(face, string.Empty, 150f, 13, UiKit.Magenta),
+                    Slot = -1,
                 };
+                rows[i].Root.gameObject.SetActive(false);
             }
 
             return rows;
@@ -262,42 +391,162 @@ namespace FallRush.Client
 
         private void BuildIntermission(RectTransform canvas)
         {
-            _inter = UiKit.Panel(canvas, new Vector2(760f, 600f), UiKit.CloudWhite);
-            var v = _inter.GetComponent<VerticalLayoutGroup>();
-            v.spacing = 0;
-            v.padding = new RectOffset(28, 28, 16, 18);
-            UiKit.Shout(_inter, "LEADERBOARD", 34, UiKit.SunYellow).GetComponent<LayoutElement>().minHeight = 44;
-            Table(_inter, _interRows);
-            _interNext = UiKit.Label(_inter, string.Empty, 16, UiKit.Ink, FontStyle.Bold, 44);
-            var picks = UiKit.Button(_inter, "Fan Picks: coming soon", UiKit.SkyLight, () => { });
-            picks.GetComponent<LayoutElement>().minHeight = 44;
-            picks.interactable = false; // TODO(P1): Fan Picks (doc 01 §10)
+            _interCard = UiKit.MakeCard(canvas, UiKit.CardSize.L, UiKit.CardHue.Grape, "LEADERBOARD", new Vector2(780f, 640f), UiIcon.Trophy);
+            _inter = _interCard.Root;
+            _inter.anchoredPosition = new Vector2(0f, 10f);
+            _interCard.Body.GetComponent<VerticalLayoutGroup>().spacing = 0;
+            Table(_interCard.Body, _interRows);
+            // next round: a mini card of the next map + a working link for spectators (/live)
+            var foot = UiKit.Row(_interCard.Body, 74f, 12f, TextAnchor.MiddleCenter);
+            foot.GetComponent<HorizontalLayoutGroup>().childForceExpandHeight = false; // P7-UX2: the /live button kept its 46 px (it stretched to a block)
+            var slot = new GameObject("NextSlot", typeof(RectTransform), typeof(LayoutElement)).GetComponent<RectTransform>();
+            slot.SetParent(foot, false);
+            var le = slot.GetComponent<LayoutElement>();
+            le.minWidth = le.preferredWidth = 470f;
+            le.minHeight = le.preferredHeight = 72f; // P7-UX2: the row no longer force-expands, so the slot keeps its height
+            _nextCard = UiKit.MakeCard(slot, UiKit.CardSize.S, UiKit.CardHue.Soda, "NEXT ROUND", new Vector2(470f, 72f));
+            UiKit.Stretch(_nextCard.Root);
+            _nextRt = _nextCard.Root;
+            var nb = _nextCard.Body;
+            DestroyImmediate(nb.GetComponent<VerticalLayoutGroup>());
+            var h = nb.gameObject.AddComponent<HorizontalLayoutGroup>();
+            h.padding = new RectOffset(10, 10, 2, 2);
+            h.spacing = 10;
+            h.childAlignment = TextAnchor.MiddleLeft;
+            h.childControlWidth = h.childControlHeight = true;
+            h.childForceExpandWidth = false;
+            h.childForceExpandHeight = false;
+            _nextIcon = UiKit.IconImage(nb, UiIcon.Race, UiKit.CardRim(UiKit.CardHue.Soda), 30f);
+            _nextMap = UiKit.Cell(nb, string.Empty, 150f, 18, UiKit.Ink, TextAlignmentOptions.Left, true);
+            _nextMap.font = UiKit.Display;
+            _nextInfo = UiKit.Cell(nb, string.Empty, 250f, 13, UiKit.Grape, TextAlignmentOptions.Left, true);
+            _nextInfo.textWrappingMode = TextWrappingModes.Normal;
+            _interLive = UiKit.Button(foot, "Bet on /live", UiKit.Mint, () => Application.OpenURL("/live"));
+            var lle = _interLive.GetComponent<LayoutElement>();
+            lle.preferredWidth = lle.minWidth = 200f;
+            lle.minHeight = lle.preferredHeight = 46f;
+            _interLive.gameObject.SetActive(Application.platform == RuntimePlatform.WebGLPlayer);
+            _interNext = UiKit.Label(_interCard.Body, string.Empty, 14, UiKit.Ink, FontStyle.Bold, 20);
         }
 
         private void BuildReceipt(RectTransform canvas)
         {
-            _receipt = UiKit.Panel(canvas, new Vector2(820f, 680f), UiKit.CloudWhite);
-            var v = _receipt.GetComponent<VerticalLayoutGroup>();
-            v.spacing = 0;
-            v.padding = new RectOffset(28, 28, 14, 16);
-            UiKit.Shout(_receipt, "MATCH RECEIPT", 34, UiKit.SunYellow).GetComponent<LayoutElement>().minHeight = 42;
-            _receiptHead = UiKit.Label(_receipt, string.Empty, 20, UiKit.Ink, FontStyle.Bold, 28);
-            Table(_receipt, _receiptRows);
-            _receiptIds = UiKit.Label(_receipt, string.Empty, 12, UiKit.Grey, FontStyle.Normal, 34);
-            _receiptChain = UiKit.Label(_receipt, string.Empty, 15, UiKit.Grape, FontStyle.Bold, 22);
-            for (var i = 0; i < _receiptLinks.Length; i++)
-            {
-                _receiptLinks[i] = UiKit.Label(_receipt, string.Empty, 13, UiKit.Ink, FontStyle.Normal, 18);
-                _receiptLinks[i].alignment = TextAlignmentOptions.Left;
-            }
-
-            _back = UiKit.Button(_receipt, "Back to lobby", UiKit.Mint, () =>
+            _receiptCard = UiKit.MakeCard(canvas, UiKit.CardSize.L, UiKit.CardHue.Tangerine, "MATCH RECEIPT", new Vector2(820f, 690f), UiIcon.Check);
+            _receipt = _receiptCard.Root;
+            var body = _receiptCard.Body;
+            body.GetComponent<VerticalLayoutGroup>().spacing = 0;
+            _receiptHead = UiKit.Label(body, string.Empty, 22, UiKit.Ink, FontStyle.Bold, 30);
+            _receiptHead.font = UiKit.Display;
+            Table(body, _receiptRows);
+            _receiptIds = UiKit.Label(body, string.Empty, 12, UiKit.Grey, FontStyle.Normal, 32);
+            _practiceReceipt = ReceiptCard.Create(body, 760f, 92f);
+            _back = UiKit.Button(body, "Back to lobby", UiKit.Mint, () =>
             {
                 _backSent = true;
                 ClientSim.Instance?.SendControl(ControlCmd.Back);
             });
             _back.GetComponent<LayoutElement>().minHeight = 50;
         }
+
+        /// <summary>P7: the CHAMPION card that lands after the crown drop (replaces the old "CHAMPION: name" counter line).</summary>
+        private void BuildChampion(RectTransform canvas)
+        {
+            _champCard = UiKit.MakeCard(canvas, UiKit.CardSize.L, UiKit.CardHue.Lemon, "CHAMPION", new Vector2(460f, 300f), UiIcon.Crown);
+            _champ = _champCard.Root;
+            _champ.anchorMin = _champ.anchorMax = _champ.pivot = new Vector2(1f, 0.5f); // right: the on-chain receipt opens on the left
+            _champ.anchoredPosition = new Vector2(-28f, -20f);
+            var b = _champCard.Body;
+            _champName = UiKit.Label(b, string.Empty, 40, UiKit.Ink, FontStyle.Bold, 50);
+            _champName.font = UiKit.Display;
+            _champName.fontSharedMaterial = UiKit.DisplayOutlined;
+            _champName.color = UiKit.SunYellow;
+            _champStats = UiKit.Label(b, string.Empty, 18, UiKit.Ink, FontStyle.Bold, 26);
+            _champSeason = UiKit.Label(b, string.Empty, 16, UiKit.Grape, FontStyle.Bold, 24);
+            _champBadges = UiKit.Row(b, 30f, 6f, TextAnchor.MiddleCenter);
+        }
+
+        /// <summary>
+        /// P7-UX (OC-44): the spectate bar (replaces the SPECTATING card and its caption line): eye, "OUT · WATCHING", the
+        /// followed name, ◀ ▶ (Q / E, Tab), players left and the BET button that opens the bet drawer (B). The match stays in
+        /// full view; nothing opens by itself.
+        /// </summary>
+        private void BuildSpectate(RectTransform canvas)
+        {
+            var go = new GameObject("SpectateBar", typeof(RectTransform));
+            _spectateBar = (RectTransform)go.transform;
+            _spectateBar.SetParent(canvas, false);
+            // P7-UX2 (OC-50): a full-width strip that darkens the bottom of the view (no pill), outlined type on it
+            _spectateBar.anchorMin = new Vector2(0f, 0f);
+            _spectateBar.anchorMax = new Vector2(1f, 0f);
+            _spectateBar.pivot = new Vector2(0.5f, 0f);
+            _spectateBar.anchoredPosition = new Vector2(0f, 0f);
+            _spectateBar.sizeDelta = new Vector2(0f, 84f);
+            var shade = UiKit.Shape(_spectateBar, "Shade", new Color(UiKit.Ink.r, UiKit.Ink.g, UiKit.Ink.b, 0.55f), UiKit.FadeUp);
+            shade.type = Image.Type.Simple;
+            UiKit.Stretch(shade.rectTransform);
+            var row = new GameObject("Row", typeof(RectTransform), typeof(HorizontalLayoutGroup)).GetComponent<RectTransform>();
+            row.SetParent(_spectateBar, false);
+            row.anchorMin = row.anchorMax = row.pivot = new Vector2(0.5f, 0f);
+            row.anchoredPosition = new Vector2(0f, 10f);
+            row.sizeDelta = new Vector2(640f, 60f);
+            var h = row.GetComponent<HorizontalLayoutGroup>();
+            h.padding = new RectOffset(14, 10, 6, 6);
+            h.spacing = 8;
+            h.childAlignment = TextAnchor.MiddleLeft;
+            h.childControlWidth = h.childControlHeight = true;
+            h.childForceExpandWidth = h.childForceExpandHeight = false;
+            UiKit.IconImage(row, UiIcon.Eye, Color.white, 28f);
+            var names = new GameObject("Names", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement)).GetComponent<RectTransform>();
+            names.SetParent(row, false);
+            var nle = names.GetComponent<LayoutElement>();
+            nle.minWidth = nle.preferredWidth = 190f;
+            var v = names.GetComponent<VerticalLayoutGroup>();
+            v.childControlWidth = v.childControlHeight = true;
+            v.childForceExpandWidth = true;
+            v.childForceExpandHeight = false;
+            v.spacing = -2;
+            v.childAlignment = TextAnchor.MiddleLeft;
+            _spectateWhy = UiKit.HudText(names, 13, UiKit.SunYellow);
+            _spectateWhy.GetComponent<LayoutElement>().ignoreLayout = false;
+            _spectateWhy.GetComponent<LayoutElement>().minHeight = 16f;
+            _spectateWhy.text = "WATCHING";
+            _spectateWhy.alignment = TextAlignmentOptions.Left;
+            _spectateWhy.characterSpacing = 4f;
+            _spectateName = UiKit.HudText(names, 28, Color.white);
+            _spectateName.GetComponent<LayoutElement>().ignoreLayout = false;
+            _spectateName.GetComponent<LayoutElement>().minHeight = 30f;
+            _spectateName.alignment = TextAlignmentOptions.Left;
+            _spectateName.textWrappingMode = TextWrappingModes.NoWrap;
+            _spectateName.overflowMode = TextOverflowModes.Ellipsis;
+            UiKit.RoundButton(row, UiIcon.None, "◀", UiKit.SkyLight, 38f, () => _spectateSlot = PrevAlive(_spectateSlot));
+            UiKit.RoundButton(row, UiIcon.None, "▶", UiKit.SkyLight, 38f, () => _spectateSlot = NextAlive(_spectateSlot));
+            _spectateLeft = UiKit.HudText(row, 18, UiKit.Mint);
+            _spectateLeft.GetComponent<LayoutElement>().ignoreLayout = false;
+            _spectateLeft.GetComponent<LayoutElement>().minWidth = 78f;
+            _spectateLeft.text = "12 LEFT";
+            _betButton = UiKit.Button(row, "BET", UiKit.SunYellow, () => BetClicked?.Invoke());
+            var ble = _betButton.GetComponent<LayoutElement>();
+            ble.minWidth = ble.preferredWidth = 104f;
+            ble.minHeight = ble.preferredHeight = 44f;
+            var bt = _betButton.GetComponentInChildren<TMP_Text>();
+            bt.fontSize = 20;
+            bt.enableAutoSizing = false;
+            var cap = UiKit.Keycap(_betButton.transform.Find("Face"), "B", 12, 20f);
+            cap.GetComponent<LayoutElement>().ignoreLayout = true;
+            cap.anchorMin = cap.anchorMax = cap.pivot = new Vector2(0f, 0.5f);
+            cap.anchoredPosition = new Vector2(10f, 1f);
+            ((RectTransform)bt.transform).offsetMin = new Vector2(30f, 4f);
+            _spectateBar.gameObject.SetActive(false);
+        }
+
+        /// <summary>P7-UX: the bet drawer's opener (set by the on-chain economy HUD; B or the spectate bar's BET button).</summary>
+        public static System.Action BetClicked;
+
+        /// <summary>P7-UX: a market is open, so the spectate bar shows BET (set by the on-chain economy HUD each frame).</summary>
+        public static bool BetAvailable;
+
+        /// <summary>P7-UX: the bet drawer's height while it is open; the spectate bar rides above it.</summary>
+        public static float BottomInset;
 
         // ------------------------------------------------------------------ gameplay events → banners + sounds
 
@@ -314,16 +563,19 @@ namespace FallRush.Client
                     _banner.Show(Mode() == "Survival" ? "ESCAPED!" : "QUALIFIED!", UiKit.Mint);
                     GameAudio.Play2D(GameAudio.Sfx.Qualify);
                     Fx.Confetti(View != null ? View.OwnFeet + Vector3.up : Vector3.zero);
+                    FollowCamera.Punch(0.07f);
                     break;
                 case RaceEventType.Eliminated:
                     _banner.Show("ELIMINATED", UiKit.Magenta);
                     GameAudio.Play2D(GameAudio.Sfx.Eliminated);
                     GameAudio.Duck(1.4f);
+                    FollowCamera.Punch(0.14f);
                     break;
                 case RaceEventType.Out:
                     _banner.Show((ElimReason)e.Arg == ElimReason.Goo ? "GOOED!" : "OUT!", UiKit.Magenta);
                     GameAudio.Play2D(GameAudio.Sfx.Eliminated);
                     GameAudio.Duck(1.4f);
+                    FollowCamera.Punch(0.14f);
                     break;
                 case RaceEventType.Finished when Mode() == "Survival":
                     _banner.Show("ESCAPED!", UiKit.Mint);
@@ -350,14 +602,26 @@ namespace FallRush.Client
         private void Update()
         {
             var kb = Keyboard.current;
-            if (kb != null && kb.tabKey.wasPressedThisFrame)
+            // P7-UX: switch the watched player with Q / E (Tab kept as an alias for E)
+            if (kb != null && (kb.eKey.wasPressedThisFrame || kb.tabKey.wasPressedThisFrame))
                 _spectateSlot = NextAlive(_spectateSlot);
+            if (kb != null && kb.qKey.wasPressedThisFrame)
+                _spectateSlot = PrevAlive(_spectateSlot);
+            if (_spectateBar != null)
+            {
+                var p = _spectateBar.anchoredPosition;
+                var y = BottomInset;
+                if (Mathf.Abs(p.y - y) > 0.5f)
+                    _spectateBar.anchoredPosition = new Vector2(p.x, GameSettings.ReducedMotion ? y : Mathf.Lerp(p.y, y, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 14f)));
+            }
+
             var cs = ClientSim.Instance;
             if (cs == null)
                 return;
             UpdateCamera(cs);
             Chain();
             Countdown(cs);
+            Champion(cs);
             if (Time.unscaledTime < _next)
                 return;
             _next = Time.unscaledTime + 0.1f;
@@ -371,20 +635,28 @@ namespace FallRush.Client
         /// <summary>Shows only the wanted panel; touches SetActive only on a change (no layout rebuild every refresh).</summary>
         private void ApplyPanels()
         {
+            // P7-UX2: one big panel at a time: while the bet drawer is open the centre cards (results, leaderboard, deal,
+            // receipt) step aside; the lobby card stays (it is on the right edge)
+            if (BottomInset > 0f && _want != _lobby)
+                _want = null;
             foreach (var p in _panels)
-            {
-                var on = p == _want;
-                if (p.gameObject.activeSelf != on)
-                    p.gameObject.SetActive(on);
-            }
+                UiMotion.SetVisible(p, p == _want);
+            if (_want == _results)
+                UiKit.FitHeight(_resultsCard, 160f, 560f);
+            else if (_want == _inter)
+                UiKit.FitHeight(_interCard, 300f, 660f);
+            else if (_want == _receipt)
+                UiKit.FitHeight(_receiptCard, 300f, 680f);
         }
 
         private void Chain()
         {
             var st = _chain.State;
             SetPill(_chainPill, _chainText, ChipText[(int)st]); // cached strings: no per-frame allocation
-            _chainFill.color = ChainChipStyle.Color(st);
-            _chainText.color = st == ChainState.Server ? Color.white : UiKit.Ink;
+            // P7-UX2: the state colour is the type's face (outlined), no chip behind it
+            var sc = ChainChipStyle.Color(st);
+            _chainText.color = st == ChainState.Server ? Color.white : sc;
+            _chainFill.color = new Color(0f, 0f, 0f, 0f);
         }
 
         /// <summary>G3.4 #5: the countdown is a capsule machine cranking out 3, 2, 1, RUSH!</summary>
@@ -452,7 +724,50 @@ namespace FallRush.Client
             {
                 var s = ((from < 0 ? -1 : from) + k + Protocol.MaxPlayers) % Protocol.MaxPlayers;
                 for (var i = 0; i < n.Count; i++)
-                    if (n.Players[i].Slot == s && s != cs.OwnSlot && (n.Players[i].Flags & MotorState.Respawning) == 0 && (n.Players[i].Race & PlayerState.RaceFinished) == 0)
+                    if (n.Players[i].Slot == s && s != cs.OwnSlot && (n.Players[i].Flags & MotorState.Respawning) == 0 && (n.Players[i].Race & PlayerState.RaceFinished) == 0 && !Fallen(cs, s))
+                        return s;
+            }
+
+            return -1;
+        }
+
+        private float _lowestSpawnY = float.NaN;
+
+        /// <summary>
+        /// P7-UX2: a watched player who dropped well below the map (9 m under the lowest spawn: under Lid Flip's lower
+        /// shelf) has fallen out; the spectate camera moves on instead of following them down and looking at the sky.
+        /// </summary>
+        private bool Fallen(ClientSim cs, int slot)
+        {
+            if (float.IsNaN(_lowestSpawnY))
+            {
+                _lowestSpawnY = 0f;
+                if (_map != null)
+                {
+                    var sp = _map.SpawnPoints();
+                    if (sp != null && sp.Length > 0)
+                    {
+                        _lowestSpawnY = float.MaxValue;
+                        foreach (var p in sp)
+                            _lowestSpawnY = Mathf.Min(_lowestSpawnY, p.Y);
+                    }
+                }
+            }
+
+            return cs.TrySample(slot, out var feet, out _, out _, out _, out _) && feet.y < _lowestSpawnY - 9f;
+        }
+
+        private int PrevAlive(int from)
+        {
+            var cs = ClientSim.Instance;
+            if (cs == null || !cs.HasSnapshots)
+                return -1;
+            ref readonly var n = ref cs.Newest;
+            for (var k = 1; k <= Protocol.MaxPlayers; k++)
+            {
+                var s = ((from < 0 ? 0 : from) - k + 2 * Protocol.MaxPlayers) % Protocol.MaxPlayers;
+                for (var i = 0; i < n.Count; i++)
+                    if (n.Players[i].Slot == s && s != cs.OwnSlot && (n.Players[i].Flags & MotorState.Respawning) == 0 && (n.Players[i].Race & PlayerState.RaceFinished) == 0 && !Fallen(cs, s))
                         return s;
             }
 
@@ -497,7 +812,7 @@ namespace FallRush.Client
             View.FocusPoint = null;
             if (Spectating(cs) && cs.MatchSlot != 255 || cs.MatchSlot == 255)
             {
-                if (_spectateSlot < 0 || !SlotAliveInSnapshot(cs, _spectateSlot))
+                if (_spectateSlot < 0 || !SlotAliveInSnapshot(cs, _spectateSlot) || Fallen(cs, _spectateSlot))
                     _spectateSlot = NextAlive(_spectateSlot);
                 View.FollowSlot = _spectateSlot;
             }
@@ -539,20 +854,20 @@ namespace FallRush.Client
 
         private static string ModeGoal(string mode, int n) => mode switch
         {
-            "Race" => $"First {n} to the finish qualify",
-            "Survival" => $"Climb! First {n} to the summit escape the goo",
-            "Skill" => $"Grab stars! Top {n} after 60 s qualify (gold = +3, a bonk drops one)",
-            "Final" => "Last one standing wins the crown",
+            "Race" => $"First {n} to the finish",
+            "Survival" => $"First {n} up escape the goo",
+            "Skill" => $"Top {n} stars qualify",
+            "Final" => "Last one standing wins",
             _ => string.Empty,
         };
 
         /// <summary>G1 §3.6: one-line hint per mode on the round intro.</summary>
         private static string ModeTip(string mode) => mode switch
         {
-            "Race" => "Tip: dive (Shift) to reach further; jump right after a belly-flop to skip the slide",
-            "Survival" => "Tip: the inner lanes are safe and slow, the outer lanes fast and risky",
-            "Skill" => "Tip: spring pads launch you to the golden-star islands",
-            "Final" => "Tip: yellow lids flip open 1 s later: step off! A fall lands on the lower shelf once. Still standing at 120 s? Top shelf beats the lower one",
+            "Race" => "Shift dives further",
+            "Survival" => "Inner lanes are safer",
+            "Skill" => "Springs reach gold stars (+3)",
+            "Final" => "Yellow lid? Step off!",
             _ => string.Empty,
         };
 
@@ -589,17 +904,18 @@ namespace FallRush.Client
             else if (boot != null && boot.State == ClientState.Disconnected)
                 conn = "<color=#FF3EA5>● Disconnected</color>";
             else
-                conn = $"<color=#5BE3B5>●</color> {(ping != null && ping.SampleCount > 0 ? ping.P50Ms.ToString("F0") : "…")} ms{(cs.Remote.Lagging ? "  <color=#FFA51F>LAGGING</color>" : "")}";
+                conn = $"<color=#5BE3B5>●</color> {(ping != null && ping.SampleCount > 0 ? ping.P50Ms.ToString("F0") : "…")} ms{(cs.Remote.Lagging && ChainAdapters.Override == null ? "  <color=#FFA51F>LAGGING</color>" : "")}";
             SetPill(_connPill, _conn, conn);
 
-            _panels ??= new[] { _lobby, _deal, _results, _inter, _receipt };
+
+            _panels ??= new[] { _lobby, _deal, _results, _inter, _receipt }; // the CHAMPION card has its own timing (Champion())
             _want = null;
             if (_center.text.Length > 0)
                 _center.text = string.Empty;
             var sub = string.Empty;
             var counter = string.Empty;
             var timer = string.Empty;
-            var spect = string.Empty;
+            var spect = false;
             _counter.color = UiKit.Magenta;
             if (m == null)
             {
@@ -608,7 +924,9 @@ namespace FallRush.Client
                 SetPill(_counterPill, _counter, string.Empty);
                 SetPill(_timerBadge, _timer, string.Empty);
                 SetPill(_subPill, _sub, string.Empty);
-                SetPill(_spectatePill, _spectate, string.Empty);
+                UiMotion.SetVisible(_spectateBar, false);
+                CursorPolicy.ClassicOut = false;
+                UiMotion.SetVisible(_mine, false);
                 ApplyPanels();
                 return;
             }
@@ -616,8 +934,12 @@ namespace FallRush.Client
             var mode = Mode();
             var round = cs.Round;
             var inRound = m.Phase >= MatchPhase.RoundIntro && m.Phase <= MatchPhase.Intermission && round.HasValue;
-            SetPill(_roundPill, _round, inRound ? $"ROUND {m.Round}/{m.RoundCount} · {UiNames.Map(round.Value.MapId)} · {mode}" : m.Phase <= MatchPhase.Countdown ? "PRACTICE LOBBY" : "PRACTICE MATCH");
-            SetPill(_modPill, _modifier, inRound ? UiNames.Modifier(round.Value.Modifier) : string.Empty);
+            SetPill(_roundPill, _round, inRound ? $"<size=58%><color=#FFD21F>ROUND {m.Round}/{m.RoundCount}</color>  <color=#5BE3B5>{mode.ToUpperInvariant()}</color></size>\n{UiNames.Map(round.Value.MapId).ToUpperInvariant()}" : m.Phase <= MatchPhase.Countdown ? (IsPracticeMatch(m) ? "PRACTICE LOBBY" : (m.Flags & MatchStateMessage.FlagPrivate) != 0 ? "PRIVATE ROOM" : "LOBBY") : IsPracticeMatch(m) ? "PRACTICE MATCH" : "MATCH");
+            // P7-UX: no "No modifier" pill; the round pill fits its text
+            var modName = inRound ? UiNames.Modifier(round.Value.Modifier) : string.Empty;
+            SetPill(_modPill, _modifier, modName == "No modifier" ? string.Empty : "+ " + modName.ToUpperInvariant());
+            if (inRound && m.Round == m.RoundCount && round.Value.RoundStartTick > 0)
+                _finalStartTick = round.Value.RoundStartTick;
 
             if (m.Phase != _lastPhase)
             {
@@ -628,6 +950,27 @@ namespace FallRush.Client
                     _dealtAt = Time.unscaledTime;
                     _dealtShown = 0;
                 }
+
+                if (m.Phase == MatchPhase.RoundResult)
+                    _resultsAt = Time.unscaledTime;
+                if (m.Phase == MatchPhase.Intermission)
+                    StaggerTable(_interRows);
+                if (m.Phase == MatchPhase.Done)
+                    StaggerTable(_receiptRows);
+                if (m.Phase == MatchPhase.Champion || m.Phase == MatchPhase.Finalizing)
+                {
+                    if (_champAt < 0f)
+                    {
+                        _champAt = Time.unscaledTime;
+                        _champLanded = false;
+                        // the Final's length when the server timed it (the hybrid match's round 4 runs on the rollup: the Classic
+                        // round start is a sentinel there, so implausible values are left out)
+                        var ft = m.PhaseStartTick > _finalStartTick ? (m.PhaseStartTick - _finalStartTick) / 30f : -1f;
+                        _finalTime = _finalStartTick > 0 && ft > 0f && ft < 600f ? $"{ft:0.0} s" : string.Empty;
+                    }
+                }
+                else if (m.Phase < MatchPhase.Champion)
+                    _champAt = -1f;
             }
 
             switch (m.Phase)
@@ -653,38 +996,144 @@ namespace FallRush.Client
                     break;
                 case MatchPhase.Champion:
                 case MatchPhase.Finalizing:
-                    counter = $"CHAMPION: {Name(cs, m.Champion)}";
-                    _counter.color = UiKit.Grape;
+                    // P7: the CHAMPION card (Champion()) lands after the crown drop; the counter line is gone
                     if (m.Champion == cs.MatchSlot)
                         sub = "You won the crown!";
                     break;
                 case MatchPhase.Done:
+                    RecordTier(cs, m);
                     ShowReceipt(cs, m, now);
                     break;
                 case MatchPhase.Aborted:
                     _center.text = "<size=54>MATCH ABORTED</size>";
                     _center.color = UiKit.Magenta;
-                    sub = "Back to the lobby in a moment.";
+                    sub = "Stakes refunded · back to the lobby";
                     break;
             }
 
             if (m.Phase >= MatchPhase.RoundIntro && m.Phase <= MatchPhase.Intermission && (cs.MatchSlot == 255 || Spectating(cs)))
             {
                 var mine = cs.MatchSlot != 255 && cs.TryGetSlotInfo(cs.MatchSlot, out var info) ? info : default;
-                var why = cs.MatchSlot == 255 ? "Match in progress: you join the next one" :
-                    mine.Has(MatchSlotInfo.GraceExpired) ? "You were eliminated (disconnected)" :
-                    !mine.Has(MatchSlotInfo.Alive) ? "Eliminated" : (mine.LateMask & (1 << (m.Round - 1))) != 0 ? "Map loaded too late: you sit this round out (still in)" : "Waiting";
-                spect = $"SPECTATING {(_spectateSlot >= 0 ? Name(cs, _spectateSlot) : "…")} · Tab: next · {why}";
+                var why = cs.MatchSlot == 255 ? (ChainAdapters.Override != null && mode == "Final" ? "FINAL ON-CHAIN · WATCHING" : "NEXT MATCH SOON · WATCHING") :
+                    mine.Has(MatchSlotInfo.GraceExpired) ? "DISCONNECTED · WATCHING" :
+                    !mine.Has(MatchSlotInfo.Alive) ? "OUT · WATCHING" : (mine.LateMask & (1 << (m.Round - 1))) != 0 ? "SITTING OUT · WATCHING" : "WATCHING";
+                spect = m.Phase <= MatchPhase.RoundActive;
+                if (spect)
+                {
+                    var name = _spectateSlot >= 0 ? Name(cs, _spectateSlot) : "…";
+                    if (_spectateName.text != name)
+                        _spectateName.text = name;
+                    if (_spectateWhy.text != why)
+                        _spectateWhy.text = why;
+                    var left = $"{AliveCount(m)} LEFT";
+                    if (_spectateLeft.text != left)
+                        _spectateLeft.text = left;
+                }
             }
 
             ApplyPanels();
+            UiMotion.SetVisible(_spectateBar, spect);
+            // P7-UX: an out player (or a watcher) plays with a free cursor; the BET button pulses for 4 s after going out
+            // (from the roster state, not the snapshot: a Skill / Survival respawn must not free the cursor mid-round)
+            CursorPolicy.ClassicOut = spect && OutOfRound(cs, m);
+            if (spect && _spectateSince < 0f)
+                _spectateSince = Time.unscaledTime;
+            else if (!spect)
+                _spectateSince = -1f;
+            if (_betButton.gameObject.activeSelf != BetAvailable)
+                _betButton.gameObject.SetActive(BetAvailable);
+            if (spect && BetAvailable && Time.unscaledTime - _spectateSince < 4f && Time.unscaledTime >= _nextPulse)
+            {
+                _nextPulse = Time.unscaledTime + 0.8f;
+                UiMotion.Bump((RectTransform)_betButton.transform);
+            }
+            UiMotion.SetVisible(_mine, false); // P7-UX2: your row in the result card says it (the separate card piled up)
+            // counter bump on change (same phase)
+            if (counter != _lastCounter)
+            {
+                if (counter.Length > 0 && _lastCounter.Length > 0 && _counterPill.gameObject.activeSelf)
+                    UiMotion.Bump(_counterPill);
+                _lastCounter = counter;
+            }
+
             SetPill(_counterPill, _counter, counter);
             SetPill(_timerBadge, _timer, timer);
             SetPill(_subPill, _sub, sub);
-            SetPill(_spectatePill, _spectate, spect);
             var w = Mathf.Clamp(_counter.preferredWidth + 44f, 220f, 900f);
             _counterPill.sizeDelta = new Vector2(w, counter.Contains("\n") ? 76f : 50f);
-            _subPill.sizeDelta = new Vector2(Mathf.Clamp(_sub.preferredWidth + 40f, 300f, 1150f), sub.Contains("\n") ? 74f : 44f);
+            _subPill.sizeDelta = new Vector2(Mathf.Clamp(_sub.preferredWidth + 44f, 260f, 620f), sub.Contains("\n") ? 64f : 42f);
+        }
+
+        /// <summary>P7: true while the on-chain layer runs for this client (the public hybrid match: the arena keeper records
+        /// it on-chain and the Final runs on the rollup). Set every frame by FallRush.OnChain's economy HUD.</summary>
+        public static bool RecordedMatch;
+
+        /// <summary>A practice match: the server's practice flag and no on-chain recording (the public Classic server runs
+        /// its matches with the practice flag; the arena keeper records them, so those are not practice).</summary>
+        private static bool IsPracticeMatch(MatchStateMessage m) => (m.Flags & MatchStateMessage.FlagPractice) != 0 && !RecordedMatch && DevMenu.Enabled;
+
+        /// <summary>P7-UX: copies the room's invite link (Web Share on phones), "Copied!" for 2 s.</summary>
+        private void CopyInvite()
+        {
+            var code = NetBootstrap.RoomCode;
+            if (string.IsNullOrEmpty(code))
+                return;
+            var url = WebShare.InviteUrl(code);
+            if (!WebShare.Share("Fall Rush", $"Join my Fall Rush room {code}", url))
+                WebShare.Copy(url);
+            _copiedAt = Time.unscaledTime;
+            UiKit.SetButtonText(_copy, "Copied!");
+            UiMotion.Bump((RectTransform)_copy.transform);
+            Invoke(nameof(ResetCopy), 2f);
+        }
+
+        private void ResetCopy() => UiKit.SetButtonText(_copy, "Copy invite");
+
+        private static string TierLabel(MatchStateMessage m) => $"{PlayerTier.Name} lobby";
+
+        private string _tierRecorded;
+
+        /// <summary>P7-UX (OC-47): this browser's match history for the skill tier (once per match, at the receipt).</summary>
+        private void RecordTier(ClientSim cs, MatchStateMessage m)
+        {
+            if (cs.MatchSlot == 255 || m.MatchId == null)
+                return;
+            var id = Sha256Hex(m.MatchId);
+            if (id == _tierRecorded)
+                return;
+            _tierRecorded = id;
+            if (!cs.TryGetSlotInfo(cs.MatchSlot, out var me))
+                return;
+            var survived = me.EliminatedRound > 0 ? me.EliminatedRound - 1 : m.RoundCount;
+            var final = me.EliminatedRound == 0 || me.EliminatedRound >= m.RoundCount;
+            PlayerTier.Record(id, survived, final, m.Champion == cs.MatchSlot);
+        }
+
+        private static string Sha256Hex(byte[] b)
+        {
+            var sb = new StringBuilder(b.Length * 2);
+            foreach (var x in b)
+                sb.Append(x.ToString("x2"));
+            return sb.ToString();
+        }
+
+        /// <summary>P7-UX: out of the current round for good (no slot, eliminated, disconnected, or sitting this round out).</summary>
+        private static bool OutOfRound(ClientSim cs, MatchStateMessage m)
+        {
+            if (cs.MatchSlot == 255)
+                return true;
+            if (!cs.TryGetSlotInfo(cs.MatchSlot, out var mine))
+                return false;
+            return mine.Has(MatchSlotInfo.GraceExpired) || !mine.Has(MatchSlotInfo.Alive) || m.Round >= 1 && (mine.LateMask & (1 << (m.Round - 1))) != 0;
+        }
+
+        private static int AliveCount(MatchStateMessage m)
+        {
+            var n = 0;
+            foreach (var s in m.Slots)
+                if (s.Has(MatchSlotInfo.Rostered) && s.Has(MatchSlotInfo.Alive))
+                    n++;
+            return n;
         }
 
         private void ShowLobby(ClientSim cs, MatchStateMessage m, uint now)
@@ -692,16 +1141,20 @@ namespace FallRush.Client
             _want = _lobby;
             var humans = 0;
             var k = 0;
+            var shown = 0;
             for (var i = 0; i < _lobbyRows.Length; i++)
             {
                 var r = _lobbyRows[i];
                 while (k < m.Slots.Length && !m.Slots[k].Has(MatchSlotInfo.Active) && !m.Slots[k].Has(MatchSlotInfo.Rostered))
                     k++;
                 var on = k < m.Slots.Length;
-                if (r.Root.gameObject.activeSelf != on)
-                    r.Root.gameObject.SetActive(on);
+                if (on && !r.Root.gameObject.activeSelf)
+                    UiMotion.Stagger(r.Root, Mathf.Max(0, i - _lobbyShown)); // a player joined: their row pops in
+                else if (!on && r.Root.gameObject.activeSelf)
+                    r.Root.gameObject.SetActive(false);
                 if (!on)
                     continue;
+                shown++;
                 var s = m.Slots[k++];
                 var bot = s.Has(MatchSlotInfo.Bot);
                 if (!bot)
@@ -712,23 +1165,54 @@ namespace FallRush.Client
                 r.Tag.text = s.Has(MatchSlotInfo.Host) ? "♛ HOST" : bot ? "BOT" : string.Empty;
             }
 
+            var count = $"{humans} / {Protocol.MaxPlayers} players";
+            if (_lobbyCount.text != count)
+            {
+                if (_lobbyCount.text.Length > 0)
+                    UiMotion.Bump((RectTransform)_lobbyCount.transform);
+                _lobbyCount.text = count;
+            }
+
+            _lobbyShown = shown;
+            var priv = (m.Flags & MatchStateMessage.FlagPrivate) != 0;
+            var host = cs.MatchSlot != 255 && m.HostSlot == cs.MatchSlot;
+            if (_roomRow.gameObject.activeSelf != priv)
+                _roomRow.gameObject.SetActive(priv);
+            var code = NetBootstrap.RoomCode ?? string.Empty;
+            if (priv && _roomCode.text != code)
+                _roomCode.text = code;
+            _lobbyCard.Title.text = priv ? "PRIVATE ROOM" : "QUICK MATCH";
             _sb.Clear();
-            _sb.Append($"{humans} / {Protocol.MaxPlayers} players · <b>bots fill empty slots</b>\n");
-            _sb.Append(m.Phase == MatchPhase.Countdown ? $"<size=26><color=#FF3EA5>Starting in {Secs((long)m.PhaseEndTick - now)}</color></size>" : "Waiting for a player…");
+            if (priv)
+            {
+                _sb.Append("<b>Send the invite to your friends</b>\n");
+                _sb.Append(host ? "Start when everyone is in · bots fill to 12" : "The host starts the match · bots fill to 12");
+            }
+            else
+            {
+                _sb.Append("<b>").Append(TierLabel(m)).Append("</b> · bots fill the empty seats\n");
+                _sb.Append(m.Phase == MatchPhase.Countdown ? $"<size=26><color=#FF3EA5>Starting in {Secs((long)m.PhaseEndTick - now)}</color></size>" : "Waiting for a player…");
+            }
+
             _lobbyStatus.text = _sb.ToString();
-            _start.gameObject.SetActive(cs.MatchSlot != 255 && m.HostSlot == cs.MatchSlot);
+            _start.gameObject.SetActive(host && priv); // beta audit: public lobbies count down (no host start)
+            var sl = priv ? "START MATCH" : "Start now (host)";
+            if (_startLabel.text != sl)
+                _startLabel.text = sl;
         }
 
-        /// <summary>G3.4 #2 / G3.6: the Chaos Capsule machine spins while the deal is pending, then pops one capsule per round.</summary>
+        /// <summary>
+        /// The Deal (G3.4 #2, P7 A1.3): the Chaos Capsule machine spins while the deal is pending, then pops one round card
+        /// per round (map, mode icon, qualify target, the round's market). The provenance chip links the on-chain VRF deal
+        /// when the arena keeper has one (<see cref="DealProvider"/>), else "Classic deal".
+        /// </summary>
         private void ShowDeal(ClientSim cs, MatchStateMessage m)
         {
             _want = _deal;
-            var deal = _chain.Deal;
             var dealt = m.Phase == MatchPhase.Dealt;
             _dealMachine.Spin(!dealt);
-            _dealHead.text = dealt ? $"{m.PlayerCount} players · {m.RoundCount} rounds" : "The Chaos Capsule machine is dealing…";
-            // One capsule per round, 0.7 s apart.
-            var reveal = dealt ? Mathf.Clamp(Mathf.FloorToInt((Time.unscaledTime - _dealtAt) / 0.7f) + 1, 0, m.RoundCount) : 0;
+            _dealHead.text = dealt ? $"{m.PlayerCount} players · {m.RoundCount} rounds · one crown" : "The Chaos Capsule machine is dealing…";
+            var reveal = dealt ? Mathf.Clamp(Mathf.FloorToInt((Time.unscaledTime - _dealtAt) / 0.4f) + 1, 0, m.RoundCount) : 0; // the Classic deal phase is short: 0.4 s apart
             while (_dealtShown < reveal)
             {
                 var r = _dealtShown++;
@@ -737,23 +1221,71 @@ namespace FallRush.Client
 
             for (var r = 0; r < _cards.Length; r++)
             {
-                var c = _cards[r];
-                var on = r < m.RoundCount;
-                if (c.Root.gameObject.activeSelf != on)
-                    c.Root.gameObject.SetActive(on);
-                if (!on)
-                    continue;
-                var shown = r < reveal;
-                var map = m.Maps[r];
-                c.Map.text = shown ? $"{UiNames.Map(map)} <size=13><color=#8C88A6>{MapPoolV1.ModeOf(map)} · {m.Targets[r]} advance</color></size>" : "?";
-                c.Mod.text = shown ? UiNames.Modifier(m.Modifiers[r]) + DealOdds(r, m.RoundCount) : string.Empty;
-                c.Fill.color = shown ? (r == m.RoundCount - 1 ? new Color(1f, 0.96f, 0.8f) : new Color(0.9f, 0.98f, 0.95f)) : new Color(0.95f, 0.96f, 1f);
+                ref var c = ref _cards[r];
+                var inMatch = r < m.RoundCount;
+                if (c.Slot.gameObject.activeSelf != inMatch)
+                    c.Slot.gameObject.SetActive(inMatch);
+                var shown = inMatch && r < reveal;
+                if (shown && !c.Shown)
+                {
+                    var map = m.Maps[r];
+                    var mode = MapPoolV1.ModeOf(map).ToString();
+                    c.Card.SetHue(ModeHue(mode));
+                    c.ModeIcon.sprite = UiIcons.Get(UiIcons.ForMode(mode));
+                    c.ModeIcon.color = UiKit.CardRim(ModeHue(mode));
+                    c.Map.text = UiNames.Map(map);
+                    c.Mode.text = (mode == "Final" ? "FINAL · on-chain" : mode.ToUpperInvariant()) + (m.Modifiers[r] != 0 ? $"\n<color=#FF3EA5>{UiNames.Modifier(m.Modifiers[r])}</color>" : string.Empty);
+                    c.Target.text = mode == "Final" ? "1 wins the crown" : $"{m.Targets[r]} advance";
+                    c.Card.Title.text = r == m.RoundCount - 1 ? "FINAL" : $"ROUND {r + 1}";
+                    UiMotion.SlideIn(c.Root, new Vector2(-70f, -24f));
+                    c.Shown = true;
+                }
+                else if (!shown && c.Shown)
+                {
+                    c.Shown = false;
+                    c.Root.gameObject.SetActive(false);
+                }
+
+                if (c.Shown)
+                {
+                    var odds = DealOdds(r, m.RoundCount);
+                    if (c.Odds.text != odds)
+                        c.Odds.text = odds;
+                }
             }
 
-            // VRF slot (G3.6): practice shows the local seed; M6 shows "VRF ✓" + the callback signature + explorer link.
-            _dealVrf.text = deal.Verified ? $"<color=#3FBF8F>VRF ✓</color> {deal.Headline}  <size=13>{deal.VrfSignature}</size>" : $"<color=#8C88A6>●</color> {deal.Headline}";
-            _dealSeed.text = $"seed {deal.SeedHex}\nmatch {Sha256.Hex(m.MatchId).Substring(0, 16)}…  ·  {(deal.ExplorerUrl ?? "explorer link: on ranked matches (M6)")}"; // TODO(M6): clickable explorer link
+            var deal = _chain.Deal;
+            var p = DealProvider != null ? DealProvider() : default;
+            if (!string.IsNullOrEmpty(p.Url))
+            {
+                _vrfUrl = p.Url;
+                SetChip(_vrfText, $"VRF ✓ MagicBlock VRF seeds the on-chain Final · {Short(p.Signature)}");
+                _vrfChip.GetComponentInChildren<Image>().color = UiKit.CardPastel(UiKit.CardHue.Apple);
+                _vrfButton.gameObject.SetActive(Application.platform == RuntimePlatform.WebGLPlayer || Application.isEditor);
+            }
+            else
+            {
+                _vrfUrl = null;
+                SetChip(_vrfText, IsPracticeMatch(m) ? "Practice deal (local seed)" : dealt ? "Rounds 1–3: Classic deal (game server seed)" : "Dealing…");
+                _vrfButton.gameObject.SetActive(false);
+            }
+
+            _dealSeed.text = $"seed {deal.SeedHex.Substring(0, 16)}…  ·  match {Sha256.Hex(m.MatchId).Substring(0, 16)}…";
         }
+
+        private static void SetChip(TMP_Text t, string s)
+        {
+            if (t.text != s)
+                t.text = s;
+        }
+
+        private static string Short(string s) => string.IsNullOrEmpty(s) || s.Length < 12 ? s ?? string.Empty : s.Substring(0, 6) + "…" + s.Substring(s.Length - 4);
+
+        /// <summary>The on-chain deal for this match (signature + explorer link) when the arena keeper dealt it with VRF.</summary>
+        public struct DealLink { public string Signature, Url; }
+
+        /// <summary>P7: set by the on-chain layer (FallRush.OnChain) when it knows the match's VRF deal; null otherwise.</summary>
+        public static System.Func<DealLink> DealProvider;
 
         /// <summary>
         /// P5 0.6 (UI only): the Rush Market of each capsule on the Deal screen (round index, round count → a line with
@@ -785,16 +1317,37 @@ namespace FallRush.Client
                 if (rs.Phase == RoundPhase.Intro)
                     _center.text = $"<size=72>{UiNames.Map(round.Value.MapId)}</size>\n<size=34><color=#FFD21F>{mode}</color></size>";
                 var modHint = UiNames.ModifierHint(round.Value.Modifier);
-                sub = ModeGoal(mode, n) + $"\n<size=15>{ModeTip(mode)}{(modHint.Length > 0 ? $"  ·  <color=#FF3EA5>{UiNames.Modifier(round.Value.Modifier)}: {modHint}</color>" : "")}</size>";
+                sub = ModeGoal(mode, n) + $"\n<size=15><color=#7B2FF7>{ModeTip(mode)}</color>{(modHint.Length > 0 ? $"  ·  <color=#FF3EA5>{UiNames.Modifier(round.Value.Modifier)}</color>" : "")}</size>";
                 return;
             }
 
-            // Top-right timer.
+            // Top-right timer: pulses and turns amber at ≤ 10 s, red at ≤ 5 s, with a tick each second from 5
             if (cs.HasRaceState && rs.RushEndTick > 0)
             {
                 var left = (long)rs.RushEndTick - now;
                 timer = Secs(left);
-                _timer.color = left < 300 ? UiKit.Magenta : UiKit.Ink;
+                var sec = left <= 0 ? 0 : (int)((left + 29) / 30);
+                _timer.color = sec <= 5 ? UiKit.Magenta : sec <= 10 ? UiKit.Amber : Color.white;
+                _timerFill.color = sec <= 5 ? UiKit.Magenta : sec <= 10 ? UiKit.Amber : Color.white;
+                if (left > _roundTicks)
+                    _roundTicks = (uint)left;
+                _timerFill.fillAmount = _roundTicks > 0 ? Mathf.Clamp01(left / (float)_roundTicks) : 1f;
+                if (sec != _lastTimerSec)
+                {
+                    if (sec <= 10 && sec > 0 && _lastTimerSec > 0)
+                    {
+                        UiMotion.Bump(_timerBadge);
+                        if (sec <= 5)
+                            GameAudio.Ui(GameAudio.UiCue.Tick);
+                    }
+
+                    _lastTimerSec = sec;
+                }
+            }
+            else
+            {
+                _lastTimerSec = -1;
+                _roundTicks = 0;
             }
 
             // Top-centre counter per mode.
@@ -810,14 +1363,15 @@ namespace FallRush.Client
                 {
                     var mine = 0;
                     var best = 0;
+                    var who = Spectating(cs) && _spectateSlot >= 0 ? _spectateSlot : cs.OwnSlot; // P7-UX2: a spectator sees the watched player's stars
                     for (var i = 0; i < rs.FinisherCount; i++)
                     {
-                        if (rs.FinisherSlots[i] == cs.OwnSlot)
+                        if (rs.FinisherSlots[i] == who)
                             mine = (int)rs.FinisherTicks[i];
                         best = Mathf.Max(best, (int)rs.FinisherTicks[i]);
                     }
 
-                    counter = $"★ {mine}  <size=16>(best {best} · top {rs.QualifyCount} qualify)</size>";
+                    counter = $"★ {mine}  <size=50%>BEST {best} · TOP {rs.QualifyCount} QUALIFY</size>";
                     break;
                 }
                 case "Final":
@@ -841,47 +1395,119 @@ namespace FallRush.Client
         {
             var cp = cs.OwnRace & PlayerState.RaceCheckpointMask;
             var total = _course != null ? _course.Checkpoints.Length : 0;
-            return total > 0 && !cs.OwnOutOfSim ? $"\n<size=15><color=#2A1250>checkpoint {cp}/{total}</color></size>" : string.Empty;
+            return total > 0 && !cs.OwnOutOfSim ? $"\n<size=50%>CHECKPOINT {cp}/{total}</size>" : string.Empty;
         }
+
+        private static string Ordinal(int n) => n + (n % 100 is 11 or 12 or 13 ? "th" : (n % 10) switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" });
 
         private void ShowResults(ClientSim cs, MatchStateMessage m)
         {
-            _want = _results;
+            // P7-UX2: the stamp (QUALIFIED / ELIMINATED) first, the result card 1.2 s later
+            _want = _resultsAt >= 0f && Time.unscaledTime - _resultsAt < 1.6f ? null : _results;
+            var mode = Mode();
             var k = 0;
+            var qualified = 0;
+            var myPlace = 0;
+            var myQ = false;
+            var myReason = ElimReason.NotQualified;
             foreach (var e in cs.MatchEvents)
             {
                 if (e.Round != m.Round || (e.Tag != Transcript.Qualified && e.Tag != Transcript.Eliminated) || k >= _resultRows.Length)
                     continue;
                 var q = e.Tag == Transcript.Qualified;
+                if (q)
+                    qualified++;
                 var row = _resultRows[k++];
-                row.Root.gameObject.SetActive(true);
+                if (!row.Root.gameObject.activeSelf)
+                    UiMotion.Stagger(row.Root, k - 1);
                 row.Word.text = q ? "QUALIFIED" : "OUT";
                 row.Word.color = q ? UiKit.Hex(0x3FBF8F) : UiKit.Magenta;
                 var me = e.Slot == cs.MatchSlot;
+                row.Hi.enabled = me;
+                if (me)
+                {
+                    myPlace = k;
+                    myQ = q;
+                    myReason = (ElimReason)(e.Arg != null && e.Arg.Length > 0 ? e.Arg[0] : 0);
+                }
+
                 row.Name.text = (me ? "<b>" : "") + Name(cs, e.Slot) + (me ? " (you)</b>" : "") + (q ? string.Empty : $"  <size=12><color=#8C88A6>{Reason((ElimReason)(e.Arg != null && e.Arg.Length > 0 ? e.Arg[0] : 0))}</color></size>");
             }
 
+            if (k == 0)
+                _want = null; // nothing to list (the on-chain Final's results live in its receipt)
             for (; k < _resultRows.Length; k++)
                 if (_resultRows[k].Root.gameObject.activeSelf)
                     _resultRows[k].Root.gameObject.SetActive(false);
+            _resultsCard.Title.text = $"ROUND {m.Round} RESULT";
+
+            // your own card: place, time or score, one stat line
+            if (myPlace > 0)
+            {
+                _mineCard.SetHue(myQ ? UiKit.CardHue.Apple : UiKit.CardHue.Bubblegum);
+                _mineCard.Title.text = myQ ? (mode == "Survival" ? "ESCAPED" : "QUALIFIED") : "ELIMINATED";
+                _mineCard.Icon.sprite = UiIcons.Get(myQ ? UiIcon.Check : UiIcon.Cross);
+                _mineHead.text = myQ ? $"{Ordinal(myPlace)} place" : "Out this round";
+                var stat = MyStat(cs, mode);
+                _mineStat.text = myQ ? stat : $"{Reason(myReason)}{(stat.Length > 0 ? " · " + stat : string.Empty)}";
+                _mineLine.text = m.Round < m.RoundCount ? $"{qualified} of {m.PlayerCount} advance to round {m.Round + 1}" : "The Final decides the crown";
+            }
+            else
+                _mineHead.text = string.Empty;
 
             if (!_resultShown && cs.TryGetSlotInfo(cs.MatchSlot, out var mine) && mine.Has(MatchSlotInfo.Rostered))
             {
                 _resultShown = true;
                 if (mine.Has(MatchSlotInfo.Alive))
+                {
                     _banner.Show(Mode() == "Survival" ? "ESCAPED!" : "QUALIFIED!", UiKit.Mint, 4f);
+                    FollowCamera.Punch(0.06f);
+                }
                 else if (mine.EliminatedRound == m.Round)
+                {
                     _banner.Show("ELIMINATED", UiKit.Magenta, 4f);
+                    FollowCamera.Punch(0.12f); // the claw grab
+                }
             }
+        }
+
+        /// <summary>Your time (race / survival) or score (skill) for the round just played, from the last round state.</summary>
+        private string MyStat(ClientSim cs, string mode)
+        {
+            if (!cs.HasRaceState || !cs.Round.HasValue)
+                return string.Empty;
+            var rs = cs.RaceState;
+            for (var i = 0; i < rs.FinisherCount; i++)
+            {
+                if (rs.FinisherSlots[i] != cs.OwnSlot)
+                    continue;
+                var v = rs.FinisherTicks[i];
+                if (mode == "Skill")
+                    return $"★ {v} stars";
+                var start = cs.Round.Value.RoundStartTick;
+                return v > start ? $"time {(v - start) / 30f:0.0} s" : string.Empty;
+            }
+
+            return string.Empty;
+        }
+
+        private void StaggerTable(TableRow[] table)
+        {
+            for (var i = 0; i < table.Length; i++)
+                if (table[i].Root.gameObject.activeSelf)
+                {
+                    table[i].Root.gameObject.SetActive(false);
+                    table[i].Slot = -1;
+                }
         }
 
         private void Leaderboard(ClientSim cs, MatchStateMessage m, TableRow[] table)
         {
-            var rows = new List<MatchSlotInfo>();
+            _rows.Clear();
             foreach (var s in m.Slots)
                 if (s.Has(MatchSlotInfo.Rostered))
-                    rows.Add(s);
-            rows.Sort((a, b) =>
+                    _rows.Add(s);
+            _rows.Sort((a, b) =>
             {
                 var aa = a.Has(MatchSlotInfo.Alive);
                 var ba = b.Has(MatchSlotInfo.Alive);
@@ -892,23 +1518,42 @@ namespace FallRush.Client
                 var r = Mathf.Max(0, a.EliminatedRound - 1);
                 return a.Places[r].CompareTo(b.Places[r]);
             });
+            var now = Time.unscaledTime;
             for (var i = 0; i < table.Length; i++)
             {
-                var t = table[i];
-                var on = i < rows.Count;
-                if (t.Root.gameObject.activeSelf != on)
-                    t.Root.gameObject.SetActive(on);
+                ref var t = ref table[i];
+                var on = i < _rows.Count;
                 if (!on)
+                {
+                    if (t.Root.gameObject.activeSelf)
+                        t.Root.gameObject.SetActive(false);
                     continue;
-                var s = rows[i];
+                }
+
+                var s = _rows[i];
+                if (!t.Root.gameObject.activeSelf)
+                    UiMotion.Stagger(t.Root, i);
+                else if (t.Slot != s.Slot && s.Slot < _prevRank.Length && _prevRank[s.Slot] >= 0 && _prevRank[s.Slot] != i)
+                    UiMotion.SlideFrom(t.Face, new Vector2(0f, (i - _prevRank[s.Slot]) * 27f)); // a changed rank slides to its new place
+                if (s.Slot < _prevRank.Length)
+                    _prevRank[s.Slot] = i;
+                t.Slot = s.Slot;
                 var me = s.Slot == cs.MatchSlot;
                 var alive = s.Has(MatchSlotInfo.Alive);
+                t.Hi.enabled = me;
                 t.Dot.color = alive ? UiKit.Mint : UiKit.Magenta;
                 t.Name.text = (me ? "<b>" : "") + (s.Has(MatchSlotInfo.Bot) ? "<size=11><color=#7B2FF7>BOT</color></size> " : "") + s.Name + (me ? " (you)</b>" : "");
                 t.R1.text = Place(s.Places[0]);
                 t.R2.text = Place(s.Places[1]);
                 t.R3.text = Place(s.Places[2]);
                 t.R4.text = Place(s.Places[3]);
+                var survived = alive ? Mathf.Min(m.Round, m.RoundCount) : Mathf.Max(0, s.EliminatedRound - 1);
+                if (s.Slot < _survived.Length)
+                {
+                    _survived[s.Slot].Set(survived, now);
+                    t.Survived.text = Mathf.RoundToInt((float)_survived[s.Slot].Value(now)).ToString();
+                }
+
                 t.Note.text = alive ? (m.Champion == s.Slot ? "♛ champion" : string.Empty) : $"out R{s.EliminatedRound}: {Reason(s.Reason)}";
             }
         }
@@ -920,29 +1565,121 @@ namespace FallRush.Client
             _want = _inter;
             Leaderboard(cs, m, _interRows);
             var next = m.Round;
-            _interNext.text = next < m.RoundCount
-                ? $"<b>Next:</b> round {next + 1}: {UiNames.Map(m.Maps[next])} ({MapPoolV1.ModeOf(m.Maps[next])}) · <color=#FF3EA5>{UiNames.Modifier(m.Modifiers[next])}</color> · {m.Targets[next]} advance · in {Secs((long)m.PhaseEndTick - now)} s"
-                : string.Empty;
+            var has = next < m.RoundCount;
+            if (_nextRt.gameObject.activeSelf != has)
+                _nextRt.gameObject.SetActive(has);
+            if (has)
+            {
+                var mode = MapPoolV1.ModeOf(m.Maps[next]).ToString();
+                _nextCard.SetHue(ModeHue(mode));
+                _nextCard.Title.text = next == m.RoundCount - 1 ? "NEXT: THE FINAL" : $"NEXT: ROUND {next + 1}";
+                _nextIcon.sprite = UiIcons.Get(UiIcons.ForMode(mode));
+                _nextIcon.color = UiKit.CardRim(ModeHue(mode));
+                _nextMap.text = UiNames.Map(m.Maps[next]);
+                _nextInfo.text = $"{mode} · {(mode == "Final" ? "1 wins" : m.Targets[next] + " advance")}{(m.Modifiers[next] != 0 ? $" · <color=#FF3EA5>{UiNames.Modifier(m.Modifiers[next])}</color>" : string.Empty)}";
+                _interNext.text = $"Starts in {Secs((long)m.PhaseEndTick - now)} s";
+            }
+            else
+                _interNext.text = string.Empty;
         }
 
-        /// <summary>G3.6: the receipt is laid out for explorer links (Rollup tx, Solana tx, Match account); practice shows placeholders.</summary>
+        /// <summary>
+        /// The match receipt (Classic / practice). A recorded match shows its on-chain receipt in the economy HUD; here a
+        /// practice match shows a clear "Practice: not recorded" card instead of placeholder dashes.
+        /// </summary>
+        /// <summary>P7: true while the economy HUD shows the on-chain receipt card (left); this receipt then moves right.</summary>
+        public static bool ExternalReceipt;
+
         private void ShowReceipt(ClientSim cs, MatchStateMessage m, uint now)
         {
             _want = _receipt;
+            var ext = ExternalReceipt;
+            // P7-UX2: with the on-chain receipt open (left), this card is the standings table: its own title, top-aligned
+            // with the receipt on the right (two "MATCH RECEIPT" cards side by side read as a duplicate)
+            var pivot = ext ? new Vector2(1f, 1f) : new Vector2(0.5f, 0.5f);
+            if (_receipt.pivot != pivot)
+            {
+                _receipt.anchorMin = _receipt.anchorMax = _receipt.pivot = pivot;
+                _receipt.anchoredPosition = ext ? new Vector2(-16f, -72f) : Vector2.zero;
+                _receipt.sizeDelta = ext ? new Vector2(730f, 600f) : new Vector2(820f, 690f);
+                _receiptCard.Title.text = ext ? "FINAL STANDINGS" : "MATCH RECEIPT";
+            }
+
+            _practiceReceipt.gameObject.SetActive(!ext);
             _receiptHead.text = $"♛ Champion: {Name(cs, m.Champion)}";
             Leaderboard(cs, m, _receiptRows);
-            _receiptIds.text = $"match {Sha256.Hex(m.MatchId).Substring(0, 16)}…   seed {Sha256.Hex(m.Seed).Substring(0, 16)}…\ntranscript {Sha256.Hex(m.Transcript).Substring(0, 16)}… ({m.EventCount} events)";
-            var st = _chain.State;
-            _receiptChain.text = $"<color=#{UiKit.HexOf(ChainChipStyle.Color(st))}>{ChainChipStyle.Text(st)}</color>  {(_chain.IsPractice ? _chain.Detail : string.Empty)}";
+            _receiptIds.text = $"match {Sha256.Hex(m.MatchId).Substring(0, 16)}…   seed {Sha256.Hex(m.Seed).Substring(0, 16)}…   transcript {Sha256.Hex(m.Transcript).Substring(0, 16)}… ({m.EventCount} events)";
             var links = _chain.Receipt;
-            _receiptLinks[0].text = Link("Rollup tx", links.RollupTx, links.RollupUrl);     // TODO(M6): ER transaction + explorer
-            _receiptLinks[1].text = Link("Solana tx", links.SolanaTx, links.SolanaUrl);     // TODO(M6): commit / undelegate on Solana
-            _receiptLinks[2].text = Link("Match account", links.MatchAccount, links.AccountUrl); // TODO(M6): the Match PDA
+            var recorded = !_chain.IsPractice && (!string.IsNullOrEmpty(links.SolanaUrl) || !string.IsNullOrEmpty(links.RollupUrl));
+            if (ext)
+            {
+            }
+            else if (recorded)
+                _practiceReceipt.ShowSteps(true, _chain.State == ChainState.SolanaConfirmed, links.SolanaUrl ?? links.RollupUrl, null);
+            else
+                _practiceReceipt.ShowPractice(_chain.IsPractice ? "Practice: not recorded on chain" : "Classic match: results on the game server",
+                    IsPracticeMatch(m) ? "Ranked matches write a receipt to Solana (rollup, then Solana) with an explorer link." : "The on-chain receipt appears when the Final ran on the rollup.");
             _back.interactable = !_backSent;
             UiKit.SetButtonText(_back, _backSent ? $"Waiting… (lobby in {Secs((long)m.PhaseEndTick - now)} s)" : $"Back to lobby ({Secs((long)m.PhaseEndTick - now)} s)");
         }
 
-        private static string Link(string label, string value, string url) =>
-            $"<b>{label}</b>  " + (string.IsNullOrEmpty(value) ? "<color=#8C88A6>— (practice: not recorded)</color>" : $"<color=#3FA9F5>{value}</color>{(string.IsNullOrEmpty(url) ? "" : "  <size=11>" + url + "</size>")}");
+        // ------------------------------------------------------------------ champion card
+
+        /// <summary>The champion's extras from the on-chain layer: the season line and the achievement bits (UI only).</summary>
+        public struct ChampionExtras { public string SeasonLine; public int Achievements; }
+
+        /// <summary>P7: set by FallRush.OnChain (P6 season data via the indexer); null in Classic / practice.</summary>
+        public static System.Func<int, ChampionExtras> ChampionExtrasProvider;
+
+        private static readonly string[] BadgeNames = { "FIRST CROWN", "3-ROUND SURVIVOR", "PERFECT PREDICTOR", "CHAOS AGENT" };
+        private static readonly UiIcon[] BadgeIcons = { UiIcon.Crown, UiIcon.Trophy, UiIcon.Eye, UiIcon.Bolt };
+
+        /// <summary>The CHAMPION card lands 1.9 s after the podium (the crown settles at 1.8 s); confetti and a camera punch.</summary>
+        private void Champion(ClientSim cs)
+        {
+            var m = cs.Match;
+            var on = m != null && (m.Phase == MatchPhase.Champion || m.Phase == MatchPhase.Finalizing) && m.Champion != 255 && _champAt >= 0f;
+            if (!on)
+            {
+                if (_champ.gameObject.activeSelf)
+                    UiMotion.Hide(_champ); // the receipt (Done) names the champion
+                return;
+            }
+
+            if (!_champLanded && Time.unscaledTime - _champAt >= 1.9f)
+            {
+                _champLanded = true;
+                _champName.text = Name(cs, m.Champion);
+                var you = m.Champion == cs.MatchSlot;
+                _champCard.Title.text = you ? "CHAMPION: YOU!" : "CHAMPION";
+                _champStats.text = $"Survived {m.RoundCount} rounds" + (_finalTime.Length > 0 ? $" · Final {_finalTime}" : string.Empty);
+                _champSeason.text = string.Empty;
+                _champBadgeBits = -1;
+                UiMotion.SlideIn(_champ, new Vector2(0f, 260f));
+                UiMotion.Bump(_champ);
+                UiKit.FitHeight(_champCard, 140f, 320f);
+                GameAudio.Ui(GameAudio.UiCue.Whoosh);
+                FollowCamera.Punch(0.1f);
+                if (_podium != null)
+                    Fx.Confetti(_podium.FocusPoint + Vector3.up * 1.2f, GameSettings.ReducedMotion ? 30 : 110);
+            }
+
+            if (!_champLanded || ChampionExtrasProvider == null)
+                return;
+            ChampionExtras x;
+            try { x = ChampionExtrasProvider(m.Champion); }
+            catch { return; }
+            if (!string.IsNullOrEmpty(x.SeasonLine) && _champSeason.text != x.SeasonLine)
+                _champSeason.text = x.SeasonLine;
+            if (x.Achievements != _champBadgeBits)
+            {
+                _champBadgeBits = x.Achievements;
+                for (var i = _champBadges.childCount - 1; i >= 0; i--)
+                    Destroy(_champBadges.GetChild(i).gameObject);
+                for (var b = 0; b < BadgeNames.Length; b++)
+                    if ((x.Achievements >> b & 1) != 0)
+                        UiMotion.Stagger(UiKit.Chip(_champBadges, BadgeNames[b], UiKit.CardRim(UiKit.CardHue.Grape), Color.white, BadgeIcons[b], 12, 26f), b);
+            }
+        }
     }
 }

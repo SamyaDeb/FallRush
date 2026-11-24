@@ -252,7 +252,14 @@ namespace FallRush.OnChain
 
             var cs = ClientSim.Instance;
             if (cs != null && !ReferenceEquals(cs.Feed, this) && !_handedBack && OverridesServer)
+            {
                 cs.Feed = this;
+                // P7-UX2 (OC-49): drop the Classic server's snapshots at the switch. The buffer held the Classic tick
+                // (~300k) and arena ticks restart at 0, so every arena World was refused ("not newer") and a spectator's
+                // hazard clock (no prediction → Remote.RenderTick) ran on the Classic clock: every lid ring had "retired"
+                // (only the inner 3×3 drew) and the other players froze in mid-air. Alive finalists' opponents too.
+                cs.Remote.Reset();
+            }
             if (MatchHex != null && !ServerConfirmed)
             {
                 // pre-joined, not confirmed: keep the arena link warm but do not touch the screens; the server's own
@@ -767,19 +774,20 @@ namespace FallRush.OnChain
         private void OnGUI()
         {
             var now = ClientSim.Now;
-            if (_hasNewest && _clock.Lagging(now))
+            if (_hasNewest && _clock.Lagging(now) && (_panel || FallRush.Client.DevMenu.Enabled)) // P7-UX2: the raw IMGUI label is a dev aid only
             {
                 GUI.color = new Color(1f, 0.75f, 0.2f);
                 GUI.Label(new Rect(Screen.width * 0.5f - 60, 70, 200, 24), "! LAGGING");
                 GUI.color = Color.white;
             }
 
-            if (!_hasNewest)
+            // P7-UX: the raw status line is a dev / F3 aid only (players saw it as a caption under the HUD)
+            if (!_hasNewest && (_panel || FallRush.Client.DevMenu.Enabled))
                 GUI.Label(new Rect(16, Screen.height - 80, 900, 24), $"On-chain (preview): {_status}");
             if (SessionExpired)
             {
                 GUI.color = new Color(1f, 0.75f, 0.2f);
-                GUI.Label(new Rect(Screen.width * 0.5f - 220, 96, 440, 24), "Session expired → rejoin (your inputs are no longer accepted)");
+                GUI.Label(new Rect(Screen.width * 0.5f - 220, 96, 440, 24), "Session expired: rejoin (your inputs are no longer accepted)");
                 GUI.color = Color.white;
             }
             if (!_panel)

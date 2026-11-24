@@ -341,7 +341,7 @@ Snapshot interpolation at `renderTime = serverTimeEstimate − interpDelay` (`Ne
   - squash/stretch spring: landing (1.15, 0.8) scaled by impact, jump (0.9, 1.12); about 0.18 s, slightly underdamped;
   - lean toward smoothed acceleration, ≤ 18°, critically damped;
   - wobble spring kicked by landings and hazard hits;
-  - stun pop: the lid hinges open 25° and 3 stars orbit for 0.6 s;
+  - stun pop: the lid hinges open 25° and 3 yellow dizzy stars orbit the head through the stun + 1.2 s after the get-up (OC-51);
   - dive pitch 80° (60 ° of it held during the dive landing);
   - two-point foot stepping (stride 0.2 m, 0.09 s arc).
 - **Rendering:**

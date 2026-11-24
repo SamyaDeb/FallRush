@@ -20,6 +20,7 @@ namespace FallRush.Client
     public sealed class SandboxView : MonoBehaviour
     {
         private RushlingVisuals[] _rushlings;
+        private CheckpointMarkers _markers;
         private Nameplates _plates;
         private readonly string[] _plateText = new string[Protocol.MaxPlayers];
         private readonly string[] _plateName = new string[Protocol.MaxPlayers];
@@ -100,6 +101,7 @@ namespace FallRush.Client
         {
             _map = MapInfo.Current;
             WorldLook.OnMapLoaded();
+            _markers = CheckpointMarkers.Build(_map, transform); // 2026-11-24: flags on Goo Tower's respawn spots (visual only)
             var lit = _map != null ? _map.playerMaterial : null;
             var unlit = _map != null ? _map.unlitMaterial : null;
             _rushlings = new RushlingVisuals[Protocol.MaxPlayers];
@@ -192,6 +194,7 @@ namespace FallRush.Client
             }
 
             Cursor.lockState = CursorLockMode.None;
+            CursorPolicy.Reset();
         }
 
         private void OnNetState()
@@ -221,25 +224,37 @@ namespace FallRush.Client
             var hintOn = Time.unscaledTime < _hintUntil && _photo == null;
             if (_hint.activeSelf != hintOn)
                 _hint.SetActive(hintOn);
-            if (kb != null && kb.escapeKey.wasPressedThisFrame)
-                Cursor.lockState = CursorLockMode.None;
-            var es = UnityEngine.EventSystems.EventSystem.current;
-            var pointerOverUi = _options.activeSelf && es != null && es.IsPointerOverGameObject();
-            if (mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked && !_overlay.activeSelf && !pointerOverUi)
-                Cursor.lockState = CursorLockMode.Locked; // WebGL: pointer lock needs this user gesture
+            // P7-UX (OC-44): CursorPolicy owns the pointer lock. An open interactive panel or spectating frees the cursor;
+            // only an alive player's click on the game (never on UI) takes the lock. Esc closes the top panel first.
             var probe = NetBootstrap.Instance != null && NetBootstrap.Instance.IsProbe; // scripted view: no pointer lock
-            // G1: settings open on Esc only (they covered the lobby panel whenever the mouse was free); a click on the game closes them.
+            var escPressed = kb != null && kb.escapeKey.wasPressedThisFrame;
+            if (escPressed)
+                Cursor.lockState = CursorLockMode.None;
+            CursorPolicy.SetOpen("settings", _optionsOpen);
+            CursorPolicy.Apply(_overlay.activeSelf);
+            var clicked = mouse != null && mouse.leftButton.wasPressedThisFrame;
+            var pointerOverUi = clicked && CursorPolicy.OverUi(mouse.position.ReadValue());
+            var otherPanel = CursorPolicy.AnyOpenExcept("settings");
+            if (CursorPolicy.MayLock(clicked && Cursor.lockState != CursorLockMode.Locked, pointerOverUi,
+                    otherPanel, CursorPolicy.Spectating, _overlay.activeSelf, probe))
+            {
+                Cursor.lockState = CursorLockMode.Locked; // WebGL: pointer lock needs this user gesture
+                _optionsOpen = false;
+            }
+
+            // G1: settings open on Esc only; a click on the game closes them.
             var locked = Cursor.lockState == CursorLockMode.Locked;
-            if (_wasLocked && !locked)
+            var policyFreed = Time.frameCount - CursorPolicy.PolicyFreeFrame <= 1;
+            if (_wasLocked && !locked && !policyFreed && !CursorPolicy.JustClosed)
                 _optionsOpen = true; // Esc while playing (the browser releases pointer lock itself)
-            else if (kb != null && kb.escapeKey.wasPressedThisFrame && !locked)
+            else if (escPressed && !locked && !CursorPolicy.JustClosed && !otherPanel)
                 _optionsOpen = !_optionsOpen;
             if (locked)
                 _optionsOpen = false;
             _wasLocked = locked;
             var showOptions = _optionsOpen && !_overlay.activeSelf && _photo == null && !probe;
-            if (_options.activeSelf != showOptions)
-                _options.SetActive(showOptions);
+            CursorPolicy.SetOpen("settings", showOptions);
+            UiMotion.SetVisible((RectTransform)_options.transform, showOptions); // P7: settings open / close with UiMotion
 
             var cs = ClientSim.Instance;
             if (cs == null)
@@ -262,22 +277,48 @@ namespace FallRush.Client
             for (var i = 0; i < Protocol.MaxPlayers; i++)
             {
                 var vis = _rushlings[i];
-                if (!cs.TrySample(i, out var feet, out var vel, out var flags, out var yaw, out var stun) ||
-                    (flags & MotorState.Respawning) != 0 || ReactiveViews.Current != null && ReactiveViews.Current.CapsuleHides(i))
+                var sampled = cs.TrySample(i, out var feet, out var vel, out var flags, out var yaw, out var stun);
+                var capsuled = ReactiveViews.Current != null && ReactiveViews.Current.CapsuleHides(i);
+                if (!sampled || (flags & MotorState.Respawning) != 0 || capsuled)
                 {
+                    // Dizzy hits (2026-11-24): falling off the course no longer vanishes in a poof. The Rushling keeps
+                    // tumbling down (stars on, visual only: the sim froze it at the fall line) until the respawn moves it.
+                    var falling = sampled && !capsuled && (flags & MotorState.Respawning) != 0 && cs.Phase == RoundPhase.Rush;
                     if (!_wasRespawning[i])
                     {
-                        vis.SetVisible(false);
                         _wasRespawning[i] = true;
-                        // G3.3: a knock-out leaves a poof (or a goo splash) where the Rushling vanished.
+                        _fallT[i] = -1f;
                         if (_wasVisible[i] && cs.Phase == RoundPhase.Rush)
                         {
                             var gooed = _map != null && _map.goo.Length > 0;
+                            GameAudio.Hits.KnockedOut(i == own, gooed); // own only
                             if (gooed)
-                                Fx.Splash(_lastFeet[i]);
-                            else
-                                Fx.Poof(_lastFeet[i]);
-                            GameAudio.Play(gooed ? GameAudio.Sfx.Goo : GameAudio.Sfx.CapsulePop, _lastFeet[i], i == own ? 1f : 0.6f);
+                                Fx.Splash(_lastFeet[i]); // goo eliminates: it still sinks out of sight
+                            else if (falling)
+                            {
+                                _fallT[i] = 0f;
+                                _fallFeet[i] = _lastFeet[i];
+                                _fallVel[i] = _lastVelS[i];
+                            }
+                        }
+
+                        if (_fallT[i] < 0f)
+                            vis.SetVisible(false);
+                    }
+
+                    if (_fallT[i] >= 0f)
+                    {
+                        if (!falling || _fallT[i] > KnockOffFallSecs)
+                        {
+                            _fallT[i] = -1f;
+                            vis.SetVisible(false); // out for good (an elimination), or the respawn is late
+                        }
+                        else
+                        {
+                            _fallT[i] += dt;
+                            _fallVel[i] += Vector3.down * (22f * dt);
+                            _fallFeet[i] += _fallVel[i] * dt;
+                            vis.Drive(_fallFeet[i], _fallVel[i], 0, yaw, 30, dt);
                         }
                     }
 
@@ -290,7 +331,13 @@ namespace FallRush.Client
 
                 if (_wasRespawning[i])
                 {
+                    var fell = _fallT[i] >= 0f;
+                    _fallT[i] = -1f;
+                    if (fell)
+                        vis.SetVisible(false); // reset the pose: it reappears upright at the checkpoint
                     vis.SetVisible(true);
+                    if (fell)
+                        vis.Dizzy(RushlingVisuals.DizzyTail); // still seeing stars
                     if (_photo == "silhouette")
                         vis.SetSilhouette(true);
                     _wasRespawning[i] = false;
@@ -303,12 +350,15 @@ namespace FallRush.Client
                     feet = held; // the claw carries it (visual only)
                 if (Time.unscaledTime >= _hitStopUntil[i])
                     vis.Drive(feet, vel, flags, yaw, stun, dt);
+                    if (i == own && (flags & MotorState.Grounded) != 0)
+                        _markers?.Touch(feet);
                 var camT = Camera.main != null ? Camera.main.transform.position : feet;
                 var d2 = (camT - feet).sqrMagnitude;
                 vis.SetOutline(i == own || d2 < (vis.Preset >= 0 ? 22f * 22f : 0f)); // G2.4: hull only near the camera
                 Juice(i, vis, feet, vel, i == own, cs);
                 _wasVisible[i] = true;
                 _lastFeet[i] = feet;
+                _lastVelS[i] = vel;
                 _feetNow[i] = feet;
                 _visibleNow[i] = true;
                 if (_photo == null)
@@ -384,7 +434,8 @@ namespace FallRush.Client
             UpdateHazardVisuals(cs);
             FadeSigns();
 
-            var lagging = cs.Remote.Lagging;
+            // P7: during the on-chain Final the Classic server sends no snapshots on purpose; its lag is not the player's
+            var lagging = cs.Remote.Lagging && ChainAdapters.Override == null;
             if (_lagIcon.activeSelf != lagging)
                 _lagIcon.SetActive(lagging);
 
@@ -416,6 +467,21 @@ namespace FallRush.Client
         private readonly float[] _slideFxAt = new float[Protocol.MaxPlayers];
         private readonly bool[] _wasVisible = new bool[Protocol.MaxPlayers];
         private readonly Vector3[] _lastFeet = new Vector3[Protocol.MaxPlayers];
+        private readonly Vector3[] _lastVelS = new Vector3[Protocol.MaxPlayers];
+
+        // Dizzy hits: the visual fall after leaving the course (−1 = none).
+        public const float KnockOffFallSecs = 1.4f;
+        private readonly float[] _fallT = NewFallTimers();
+        private readonly Vector3[] _fallFeet = new Vector3[Protocol.MaxPlayers];
+        private readonly Vector3[] _fallVel = new Vector3[Protocol.MaxPlayers];
+
+        private static float[] NewFallTimers()
+        {
+            var a = new float[Protocol.MaxPlayers];
+            for (var i = 0; i < a.Length; i++)
+                a[i] = -1f;
+            return a;
+        }
         private int _stepParity;
 
         /// <summary>Per-Rushling effects and sounds from the G1 juice hooks (visual / audio only).</summary>
@@ -454,10 +520,11 @@ namespace FallRush.Client
             {
                 Fx.Bonk(feet);
                 _hazardViews?.SquashBumperNear(feet); // G4.9: the pillow bumper squashes and wobbles (client-only)
-                GameAudio.Play(GameAudio.Sfx.Bonk, feet, vol, 0.9f + UnityEngine.Random.value * 0.2f);
-                _hitStopUntil[i] = Time.unscaledTime + 0.06f; // hit-stop: the visuals freeze ~60 ms (the sim never does)
-                if (own)
-                    GameAudio.Chirp(1, feet);
+                GameAudio.Hits.Stunned(own, feet); // dizzy hits: boing + birds, your own hits only
+                // Hit-stop: the visuals freeze ~60 ms (the sim never does), except inside a rolling ball (no collider):
+                // there a frozen body hides in the 2 m ball and reads as gone.
+                if (_hazardViews == null || !_hazardViews.BallNear(feet + Vector3.up * 0.6f, 0.6f))
+                    _hitStopUntil[i] = Time.unscaledTime + 0.06f;
             }
 
             if (vis.StumbleStartedThisFrame)
@@ -467,8 +534,8 @@ namespace FallRush.Client
                     GameAudio.Play(GameAudio.Sfx.Stumble, feet, vol);
             }
 
-            if (vis.GetUpThisFrame && near)
-                GameAudio.Chirp(3, feet);
+            if (vis.GetUpThisFrame)
+                GameAudio.Hits.GotUp(own, feet);
             if (vis.EmoteStartedThisFrame && near)
             {
                 GameAudio.Play(GameAudio.Sfx.Emote, feet, vol);
@@ -528,7 +595,7 @@ namespace FallRush.Client
             var r = cs.Remote;
             var now = ClientSim.Now;
             _sb.Clear();
-            _sb.Append("<b>NET (F3)</b>  M3: predicted (pushes too)\n");
+            _sb.Append("<b>NET (F3)</b>  predicted (pushes too)\n");
             _sb.Append("RTT p50 ").Append(ping != null ? ping.P50Ms.ToString("F0") : "-").Append(" / p95 ").Append(ping != null ? ping.P95Ms.ToString("F0") : "-").Append(" ms\n");
             _sb.Append("server tick ").Append(serverTick).Append("  predicted ").Append(clock.PredictedTick)
                 .Append(" (+").Append((long)clock.PredictedTick - serverTick).Append(")\n");
@@ -596,16 +663,13 @@ namespace FallRush.Client
             var lrt = (RectTransform)_lagIcon.transform;
             lrt.SetParent(canvas, false);
             lrt.anchorMin = lrt.anchorMax = lrt.pivot = new Vector2(1f, 1f);
-            lrt.anchoredPosition = new Vector2(-16f, -16f);
-            lrt.sizeDelta = new Vector2(150f, 44f);
-            _lagIcon.GetComponent<Image>().color = UiKit.Amber;
-            _lagIcon.GetComponent<Image>().sprite = UiKit.Round;
-            _lagIcon.GetComponent<Image>().type = Image.Type.Sliced;
-            var lt = UiKit.Label(lrt, "! LAGGING", 22, UiKit.Ink, FontStyle.Bold);
-            var ltr = (RectTransform)lt.transform;
-            ltr.anchorMin = Vector2.zero;
-            ltr.anchorMax = Vector2.one;
-            ltr.offsetMin = ltr.offsetMax = Vector2.zero;
+            lrt.anchoredPosition = new Vector2(-18f, -98f); // P7-UX2: outlined amber type under the timer (no pill)
+            lrt.sizeDelta = new Vector2(160f, 26f);
+            _lagIcon.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0f);
+            var lt = UiKit.HudText(lrt, 18, UiKit.Amber);
+            lt.text = "! LAGGING";
+            lt.alignment = TextAlignmentOptions.Right;
+            UiKit.Stretch((RectTransform)lt.transform);
             _lagIcon.SetActive(false);
 
             // Nameplates on their own canvas, sorted under every HUD / match panel (they drew over the result panels).
@@ -613,19 +677,25 @@ namespace FallRush.Client
             plateCanvas.SetParent(transform, false);
             plateCanvas.GetComponent<Canvas>().sortingOrder = -10;
             _plates = new Nameplates(plateCanvas, PhysxMotorWorld.GameplayMask());
-            // G3.5: the controls bar as a pill at the bottom centre.
-            var hintGo = new GameObject("ControlsHint", typeof(RectTransform));
-            var hrt = (RectTransform)hintGo.transform;
-            hrt.SetParent(canvas, false);
-            hrt.anchorMin = hrt.anchorMax = hrt.pivot = new Vector2(0.5f, 0f);
-            hrt.anchoredPosition = new Vector2(0f, 8f);
-            hrt.sizeDelta = new Vector2(1010f, 30f);
-            UiKit.Pill(hrt, new Color(1f, 1f, 1f, 0.92f));
-            var hint = UiKit.Label(hrt, "Click to capture the mouse · WASD move · Space jump · Shift / click dive · 1-4 emote · Esc settings · F1 hide · Tab spectate", 14, UiKit.Ink, FontStyle.Bold);
-            UiKit.Stretch((RectTransform)hint.transform);
-            hint.GetComponent<LayoutElement>().ignoreLayout = true;
-            _hint = hintGo;
-            _hintUntil = Time.unscaledTime + 8f;
+            // P7-UX (OC-45): the controls as a keycap card bottom-left (was a 1010 px caption strip): shown for 10 s in the
+            // first two matches, then on F1 only.
+            var hintCard = UiKit.MakeCard(canvas, UiKit.CardSize.S, UiKit.CardHue.Grape, "CONTROLS", new Vector2(196f, 226f), UiIcon.None);
+            var hrt = hintCard.Root;
+            hrt.anchorMin = hrt.anchorMax = hrt.pivot = new Vector2(0f, 0f);
+            hrt.anchoredPosition = new Vector2(16f, 90f);
+            hintCard.Body.GetComponent<VerticalLayoutGroup>().childAlignment = TextAnchor.UpperLeft;
+            UiKit.KeyHint(hintCard.Body, "WASD", "Move", 14, 24f);
+            UiKit.KeyHint(hintCard.Body, "Space", "Jump", 14, 24f);
+            UiKit.KeyHint(hintCard.Body, "Shift", "Dive", 14, 24f);
+            UiKit.KeyHint(hintCard.Body, "1-4", "Emote", 14, 24f);
+            UiKit.KeyHint(hintCard.Body, "Q E", "Watch next", 14, 24f);
+            UiKit.KeyHint(hintCard.Body, "B", "Bets", 14, 24f);
+            UiKit.KeyHint(hintCard.Body, "Esc", "Menu", 14, 24f);
+            _hint = hrt.gameObject;
+            var seen = PlayerPrefs.GetInt("fr.controlsSeen", 0);
+            _hintUntil = seen < 2 ? Time.unscaledTime + 10f : 0f;
+            PlayerPrefs.SetInt("fr.controlsSeen", seen + 1);
+            _hint.SetActive(false);
 
             BuildOptions(canvas);
 

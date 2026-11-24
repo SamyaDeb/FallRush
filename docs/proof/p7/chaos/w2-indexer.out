@@ -1,0 +1,4 @@
+2026-11-23T21:36:49Z indexer stopped
+during: /api/status 502
+during: /arenas 200
+2026-11-23T21:39:55Z indexer back (healthy) 197 s after the stop; watchdog: 2026-11-23T21:39:20Z restart fallrush-indexer after 3 failed checks

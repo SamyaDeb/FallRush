@@ -27,6 +27,9 @@ namespace FallRush.Client
         private double _acc;
         private int _respawnIn;
         private RushlingVisuals _vis;
+        private bool _falling;
+        private float _fallT;
+        private Vector3 _fallFeet, _fallVel, _lastFeetV, _lastVelV;
         private FollowCamera _cam;
         private Transform _camTarget;
         private PlayerInputSampler _sampler;
@@ -35,6 +38,14 @@ namespace FallRush.Client
         private int _sel;
         private Vec3 _spawn;
         private byte _spawnYaw;
+        // 2026-11-24 playtest: falls respawn like a real match (Survival: the OC-51 tower spots; Race: the last checkpoint),
+        // not at the start. When nothing is left above the goo, the practice round restarts (it used to respawn into the goo
+        // at the start forever).
+        private int[] _survivalSpots = System.Array.Empty<int>();
+        private CheckpointDef[] _checkpoints = System.Array.Empty<CheckpointDef>();
+        private int _cpReached;
+        private int _groundYMm;
+        private CheckpointMarkers _markers;
         // live readouts
         private float _airStartY, _apex, _airTime, _airDist;
         private Vector3 _airStartPos;
@@ -44,9 +55,9 @@ namespace FallRush.Client
 
         private static readonly string[] Fields =
         {
-            "run.maxSpeed (mm/s)", "run.groundAccel (mm/s²)", "run.groundDecel (mm/s²)", "run.airControlPermille",
-            "gravity.accel (mm/s²)", "gravity.fallMultiplierPermille", "jump.apexHeight (mm)",
-            "dive.horizontalSpeed (mm/s)", "dive.verticalSpeed (mm/s)", "dive.landStunMs (slide)", "dive.slideDecel (mm/s²)",
+            "run.maxSpeed (mm/s)", "run.groundAccel (mm/s^2)", "run.groundDecel (mm/s^2)", "run.airControlPermille",
+            "gravity.accel (mm/s^2)", "gravity.fallMultiplierPermille", "jump.apexHeight (mm)",
+            "dive.horizontalSpeed (mm/s)", "dive.verticalSpeed (mm/s)", "dive.landStunMs (slide)", "dive.slideDecel (mm/s^2)",
             "stumble.minFallHeight (mm)", "stumble.durationMs", "stumble.speedPermille",
         };
 
@@ -72,7 +83,14 @@ namespace FallRush.Client
             var yaws = _map.SpawnYaws();
             _spawn = spawns[0];
             _spawnYaw = yaws[0];
-            Respawn();
+            var mode = _map.definition != null ? _map.definition.mode : "";
+            if (mode == "Survival")
+                _survivalSpots = RulesFactory.RespawnSpots(_map.botRoutes);
+            else if (mode == "Race")
+                _checkpoints = _map.CheckpointDefs();
+            _markers = CheckpointMarkers.Build(_map, transform);
+            _panel = Debug.isDebugBuild; // the tuning panel opens with F6 (shown by default only in dev builds)
+            Restart();
 
             var root = new GameObject("PracticeRushling").transform;
             root.SetParent(transform, false);
@@ -98,9 +116,60 @@ namespace FallRush.Client
             Debug.Log($"[practice] DEV practice mode on {_map.gameObject.scene.name} (F6 panel, F7 print JSON, R respawn)");
         }
 
+        /// <summary>Back to the start with the round clock (hazards, goo) from zero: the R key, the first spawn, and a fall with no safe spot left.</summary>
+        private void Restart()
+        {
+            _tick = 0;
+            _cpReached = 0;
+            _s = new MotorState { Position = _spawn, Yaw = _spawnYaw };
+            _groundYMm = _s.PosY;
+            _prev = _s;
+            _respawnIn = 0;
+        }
+
+        /// <summary>After a fall: the same spot a real match would pick (see <see cref="SurvivalRules.Respawn"/>, <see cref="RaceRules"/>).</summary>
         private void Respawn()
         {
+            if (_survivalSpots.Length >= 4)
+            {
+                var goo = _hz != null ? _hz.GooYMm(_tick) : int.MinValue;
+                var min = goo == int.MinValue ? int.MinValue : goo + SurvivalRules.GooMarginMm;
+                var max = _groundYMm + 300;
+                var best = -1;
+                for (var j = 0; j < _survivalSpots.Length / 4; j++)
+                {
+                    var y = _survivalSpots[j * 4 + 1];
+                    if (y >= min && y <= max && (best < 0 || y > _survivalSpots[best * 4 + 1]))
+                        best = j;
+                }
+
+                if (best < 0)
+                {
+                    Debug.Log("[practice] the goo passed every respawn spot: restarting the round");
+                    Restart();
+                    return;
+                }
+
+                Place(_survivalSpots[best * 4], _survivalSpots[best * 4 + 1], _survivalSpots[best * 4 + 2], (byte)_survivalSpots[best * 4 + 3]);
+                return;
+            }
+
+            if (_cpReached > 0 && _checkpoints[_cpReached - 1].RespawnMm is { Length: >= 4 } spots)
+            {
+                Place(spots[0], spots[1], spots[2], (byte)spots[3]);
+                return;
+            }
+
             _s = new MotorState { Position = _spawn, Yaw = _spawnYaw };
+            _groundYMm = _s.PosY;
+            _prev = _s;
+            _respawnIn = 0;
+        }
+
+        private void Place(int x, int y, int z, byte yaw)
+        {
+            _s = new MotorState { Position = new Vec3(x * 0.001f, (y + 50) * 0.001f, z * 0.001f), Yaw = yaw };
+            _groundYMm = y;
             _prev = _s;
             _respawnIn = 0;
         }
@@ -121,7 +190,7 @@ namespace FallRush.Client
                 if (kb.f7Key.wasPressedThisFrame)
                     PrintJson();
                 if (kb.rKey.wasPressedThisFrame)
-                    Respawn();
+                    Restart();
                 if (kb.escapeKey.wasPressedThisFrame)
                     Cursor.lockState = CursorLockMode.None;
                 if (_panel)
@@ -154,8 +223,49 @@ namespace FallRush.Client
             _renderAlpha = a;
             var feet = Vector3.Lerp(V(_prev.Position), V(_s.Position), a);
             if (!_s.Has(MotorState.Respawning))
+            {
+                if (_falling)
+                {
+                    _falling = false;
+                    _vis.SetVisible(false); // reset the pose at the respawn point
+                    _vis.SetVisible(true);
+                    _vis.Dizzy(RushlingVisuals.DizzyTail);
+                }
+
                 _vis.Drive(feet, V(_s.Velocity), _s.Flags, _s.Yaw, _s.StunTicks, Time.deltaTime);
-            _camTarget.position = feet + Vector3.up * 0.8f;
+                if (_vis.StunStartedThisFrame)
+                {
+                    Fx.Bonk(feet);
+                    GameAudio.Hits.Stunned(true, feet);
+                }
+
+                if (_vis.GetUpThisFrame)
+                    GameAudio.Hits.GotUp(true, feet);
+                _lastFeetV = feet;
+                _lastVelV = V(_s.Velocity);
+                _camTarget.position = feet + Vector3.up * 0.8f;
+            }
+            else
+            {
+                // Dizzy hits: off the course it keeps tumbling down with stars (visual only) instead of freezing in the air.
+                if (!_falling)
+                {
+                    _falling = true;
+                    _fallT = 0f;
+                    _fallFeet = _lastFeetV;
+                    _fallVel = _lastVelV;
+                    GameAudio.Hits.KnockedOut(true, _hz != null && _hz.Goo.Length > 0);
+                }
+
+                _fallT += Time.deltaTime;
+                if (_fallT < SandboxView.KnockOffFallSecs)
+                {
+                    _fallVel += Vector3.down * (22f * Time.deltaTime);
+                    _fallFeet += _fallVel * Time.deltaTime;
+                    _vis.Drive(_fallFeet, _fallVel, 0, _s.Yaw, 30, Time.deltaTime);
+                }
+            }
+
             _views.Update(_hz, _tick + a - _hz.RoundStartTick, GameSettings.ReducedMotion);
         }
 
@@ -174,6 +284,17 @@ namespace FallRush.Client
             _sampler.Sample(ref cmd);
             _world.BeginTick(_tick);
             var r = PlayerStep.Run(_motor, ref _s, in cmd, _tick, _world, _hz);
+            if (_s.Has(MotorState.Grounded))
+            {
+                _groundYMm = _s.PosY;
+                if (_survivalSpots.Length > 0)
+                    _markers?.Touch(V(_s.Position));
+            }
+            if (_cpReached < _checkpoints.Length && _checkpoints[_cpReached].Contains(_s.PosX, _s.PosY, _s.PosZ))
+            {
+                _markers?.Reached(_cpReached);
+                _cpReached++;
+            }
             if ((r & (PlayerStep.Result.FellOut | PlayerStep.Result.Gooed)) != 0)
                 _respawnIn = 0;
             if ((r & PlayerStep.Result.HazardHit) != 0)
@@ -254,13 +375,13 @@ namespace FallRush.Client
 
             GUILayout.BeginArea(new Rect(10, 10, 430, 520), GUI.skin.box);
             GUILayout.Label("<b>PRACTICE / TUNING (dev only)</b>  F6 hide · F7 print JSON · R respawn");
-            GUILayout.Label("PgUp/PgDn select · +/− change (or the buttons) · values in movement_v2.json units");
+            GUILayout.Label("PgUp/PgDn select · +/- change (or the buttons) · values in movement_v2.json units");
             for (var i = 0; i < Fields.Length; i++)
             {
                 GUILayout.BeginHorizontal();
                 GUILayout.Label((i == _sel ? "▶ " : "   ") + Fields[i], GUILayout.Width(250));
                 GUILayout.Label(Field(i).ToString(), GUILayout.Width(60));
-                if (GUILayout.Button("−", GUILayout.Width(28)))
+                if (GUILayout.Button("-", GUILayout.Width(28)))
                     Change(i, -Steps[i]);
                 if (GUILayout.Button("+", GUILayout.Width(28)))
                     Change(i, Steps[i]);

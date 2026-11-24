@@ -9,8 +9,11 @@ namespace FallRush.Tests
     /// motor's upright capsule (a vertical segment + radius). Sweeps use conservative advancement on that distance,
     /// so the results do not depend on PhysX. Normals are impact normals (edge contacts give diagonal normals, like PhysX sweeps).
     /// </summary>
-    public sealed class AnalyticWorld : IMotorWorld
+    public sealed class AnalyticWorld : IMotorWorld, ISlopeLandingWorld
     {
+        /// <summary>OC-56 opt-in (off by default: the motor vectors and every older test keep the rush-core rule).</summary>
+        public bool SlopeLanding { get; set; }
+
         private const float HitEps = 1e-4f;
         private const int MaxIterations = 512;
 

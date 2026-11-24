@@ -1,5 +1,6 @@
 using Unity.Cinemachine;
 using Unity.Cinemachine.TargetTracking;
+using FallRush.Net;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -37,6 +38,16 @@ namespace FallRush.Client
 
         public Transform Target { get; private set; }
 
+        /// <summary>P7: the live gameplay camera (UI juice asks it for small punches; visual only).</summary>
+        public static FollowCamera Active { get; private set; }
+
+        /// <summary>P7 A1.5: a small camera punch from UI moments (eliminated, qualified, Chaos Drop, crown); reduced motion: none.</summary>
+        public static void Punch(float amplitude)
+        {
+            if (Active != null && Active.isActiveAndEnabled)
+                Active.Shake(amplitude);
+        }
+
         public static FollowCamera Create(Camera main, Transform target, int gameplayMask)
         {
             if (main.GetComponent<CinemachineBrain>() == null)
@@ -45,6 +56,7 @@ namespace FallRush.Client
             var go = new GameObject("FollowCam");
             var fc = go.AddComponent<FollowCamera>();
             fc.Target = target;
+            Active = fc;
 
             var vcam = go.AddComponent<CinemachineCamera>();
             vcam.Target = new CameraTarget { TrackingTarget = target, LookAtTarget = target, CustomLookAtTarget = false };
@@ -130,7 +142,10 @@ namespace FallRush.Client
         private void Update()
         {
             var mouse = Mouse.current;
-            if (mouse != null && Cursor.lockState == CursorLockMode.Locked && _orbit != null)
+            // P7-UX: a spectator (free cursor) orbits by holding the right button over the game
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (mouse != null && _orbit != null && CursorPolicy.Orbit(Cursor.lockState == CursorLockMode.Locked, CursorPolicy.Spectating && !CursorPolicy.AnyPanelOpen,
+                    mouse.rightButton.isPressed, es != null && es.IsPointerOverGameObject()))
             {
                 var d = mouse.delta.ReadValue();
                 var sens = GameSettings.Sensitivity;
@@ -143,6 +158,23 @@ namespace FallRush.Client
             }
 
             var dt = Time.unscaledDeltaTime;
+            // P7-UX2: a spectator's camera eases up to a higher look-down angle (≥ 32°) unless they are orbiting with the
+            // right button: moving hazard boards and Goo Tower's walls have no colliders for the deoccluder (visual only),
+            // so from the default low angle they could hide the watched player
+            // (not on Goo Tower, mode Survival: its laps overhead put a high camera into the tower: there the closer
+            // distance alone keeps the watched player in view)
+            var overheadLaps = MapInfo.Current != null && MapInfo.Current.definition != null && MapInfo.Current.definition.mode == "Survival";
+            if (_orbit != null && CursorPolicy.Spectating && !overheadLaps && !(mouse != null && mouse.rightButton.isPressed) && Cursor.lockState != CursorLockMode.Locked)
+            {
+                var va = _orbit.VerticalAxis;
+                var want = Mathf.Max(_rig.Elevation, 32f);
+                if (va.Value < want - 0.1f)
+                {
+                    va.Value = Mathf.MoveTowards(va.Value, want, dt * 40f);
+                    _orbit.VerticalAxis = va;
+                }
+            }
+
             _kick = Mathf.MoveTowards(_kick, 0f, dt / 0.6f);
             if (GameSettings.ReducedMotion)
             {
@@ -153,7 +185,7 @@ namespace FallRush.Client
             var lens = _vcam.Lens;
             lens.FieldOfView = _rig.Fov + FovOffset + GameSettings.FovOffset + DiveFovKick * Mathf.SmoothStep(0f, 1f, _kick);
             _vcam.Lens = lens;
-            _orbit.Radius = _rig.Distance * GameSettings.CameraDistance;
+            _orbit.Radius = _rig.Distance * GameSettings.CameraDistance * (CursorPolicy.Spectating ? 0.82f : 1f); // P7-UX2: a spectator's camera sits closer (walls hid the watched player)
 
             if (_shake > 0f)
             {

@@ -160,32 +160,36 @@ namespace FallRush.Client
         }
 
         /// <summary>
-        /// G4.8z hit: a white "bonk" puff + 3–5 tiny white sparks at the impact (body height). No star shape and nothing gold:
-        /// stars mean score. Reduced motion: 2 puffs, 3 sparks (was 3 stars; 7 stars at full motion).
+        /// Hit (dizzy hits, 2026-11-24): a few tiny yellow twinkles pop out round the head. No white puff and no white sparks
+        /// any more: under the bloom they made a big white starburst that hid the flopped Rushling for the whole stun (it read
+        /// as "vanished"). The dizzy stars over the head (RushlingParts.DizzyStars) are the hit sign.
         /// </summary>
         public void Bonk(Vector3 at)
         {
-            var c = at + Vector3.up * 1.0f;
-            Burst(_puff, c, Reduced ? 2 : 4, 1.1f, 0.6f, 0.5f, 0.32f, new Color(1f, 1f, 1f, 0.95f), 1.5f);
-            if (_streak == null)
+            if (_sparkle == null)
                 return;
+            var c = at + Vector3.up * 1.25f;
             var p = new ParticleSystem.EmitParams { applyShapeToPosition = false };
             var n = BonkSparks(Reduced);
             for (var i = 0; i < n; i++)
             {
-                var a = (i + Random.value * 0.6f) / n * Mathf.PI * 2f;
-                var d = new Vector3(Mathf.Cos(a), 0.5f + Random.value * 0.5f, Mathf.Sin(a)).normalized;
+                var a = (i + Random.value * 0.5f) / n * Mathf.PI * 2f;
+                var d = new Vector3(Mathf.Cos(a), 0.35f, Mathf.Sin(a)).normalized;
                 p.position = c + d * 0.2f;
-                p.velocity = d * (4.5f + Random.value * 2f);
-                p.startSize = 0.06f;
-                p.startLifetime = 0.22f;
-                p.startColor = Color.white;
-                _streak.Emit(p, 1);
+                p.velocity = d * (1.4f + Random.value * 0.6f);
+                p.startSize = 0.11f;
+                p.startLifetime = 0.35f;
+                p.startColor = new Color(1f, 0.88f, 0.3f, 1f);
+                p.rotation = Random.value * 360f;
+                _sparkle.Emit(p, 1);
             }
         }
 
         /// <summary>Sparks per bonk: 5 at full motion, 3 with reduced motion (within the 3–5 rule).</summary>
         public static int BonkSparks(bool reduced) => reduced ? 3 : 5;
+
+        /// <summary>Puffs per bonk: none.</summary>
+        public static int BonkPuffs(bool reduced) => 0; // no white puff (it hid the hit Rushling)
 
         public void Ring(Vector3 at)
         {

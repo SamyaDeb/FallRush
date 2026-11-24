@@ -109,6 +109,32 @@ namespace FallRush.Client
             }
         }
 
+        /// <summary>
+        /// Dizzy hits: true when a live rolling-ball visual overlaps a sphere of <paramref name="pad"/> m around
+        /// <paramref name="p"/> (the hit Rushling's chest). Then the hit-stop is skipped, so the body leaves the ball at once
+        /// instead of freezing inside it (the ball has no collider; a frozen body inside a 2 m ball read as "vanished").
+        /// </summary>
+        public bool BallNear(Vector3 p, float pad)
+        {
+            var lanes = _map.rollingBalls;
+            if (lanes == null || _ballHz == null)
+                return false;
+            for (var i = 0; i < lanes.Length && i < _ballHz.RollingBalls.Length; i++)
+            {
+                var lane = lanes[i];
+                if (lane == null)
+                    continue;
+                var r = _ballHz.RollingBalls[i].RadiusMm * 0.001f + pad;
+                foreach (var b in lane.balls)
+                    if (b != null && b.gameObject.activeSelf && (b.position - p).sqrMagnitude < r * r)
+                        return true;
+            }
+
+            return false;
+        }
+
+        private HazardSet _ballHz;
+
         /// <summary>The bumper's render scale <paramref name="secs"/> after a hit (squash down, bulge out, wobble back).</summary>
         public static Vector3 BumperScale(float secs, bool reduced)
         {
@@ -246,6 +272,7 @@ namespace FallRush.Client
         /// <summary>G4.1a: ball visuals at the lane pose (fractional ticks), rolled by the distance travelled; unused visuals hidden.</summary>
         private void UpdateBalls(HazardSet hz, double t)
         {
+            _ballHz = hz;
             var lanes = _map.rollingBalls;
             if (lanes == null)
                 return;

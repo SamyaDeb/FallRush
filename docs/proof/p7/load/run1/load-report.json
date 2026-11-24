@@ -1,0 +1,281 @@
+{
+ "matches": 15,
+ "finished": 8,
+ "aborted": 7,
+ "cu_max": 253760,
+ "cu_p95_max": 226514,
+ "cu_p95_median": 188033.0,
+ "tick_gap_p95_ms": [
+  42,
+  42,
+  41,
+  43,
+  42,
+  42,
+  41,
+  41
+ ],
+ "real_time": [
+  0.9996,
+  0.9996,
+  1.0002,
+  1,
+  1.0,
+  1.0,
+  1.0001,
+  1.0001
+ ],
+ "restarts": 0,
+ "sealed": [
+  0,
+  0,
+  12,
+  15,
+  15,
+  14,
+  8,
+  14,
+  12,
+  14,
+  16,
+  0,
+  11,
+  0,
+  13
+ ],
+ "sealed_revealed": [
+  0,
+  0,
+  12,
+  15,
+  15,
+  14,
+  8,
+  14,
+  12,
+  14,
+  16,
+  0,
+  11,
+  0,
+  13
+ ],
+ "sealed_forfeits": [
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0
+ ],
+ "drops": [
+  1,
+  0,
+  0,
+  3,
+  3,
+  3,
+  0,
+  0,
+  0,
+  3,
+  0,
+  0,
+  0,
+  0,
+  0
+ ],
+ "humans": [
+  1,
+  1,
+  0,
+  1,
+  1,
+  1,
+  0,
+  0,
+  0,
+  1,
+  1,
+  0,
+  0,
+  0,
+  1
+ ],
+ "payout_markets_checked": 33,
+ "payout_mismatches": 0,
+ "bet": {
+  "ok": 63,
+  "refused": 30,
+  "p50_ms": 352,
+  "p95_ms": 1208,
+  "max_ms": 2524,
+  "errors": {
+   "6030": 27,
+   "6029": 3
+  }
+ },
+ "sealedBet": {
+  "ok": 144,
+  "refused": 5,
+  "p50_ms": 1342,
+  "p95_ms": 3765,
+  "max_ms": 12692,
+  "errors": {
+   "6029": 4,
+   "6042": 1
+  }
+ },
+ "drop": {
+  "ok": 12,
+  "refused": 8,
+  "p50_ms": 894,
+  "p95_ms": 1876,
+  "max_ms": 1876,
+  "errors": {
+   "6037": 7,
+   "6036": 1
+  }
+ },
+ "rpc429_bettors": 8269,
+ "bettor_setup": "30/30",
+ "sealed_by_bettors_per_match": {
+  "6WAtRBthB8ychfnYyg2BUz9rusuriFcfBWhkASpzqRPw": [
+   15,
+   0
+  ],
+  "ApmFppk4dyzmiYnRjAnVEwUMr7fCxqQRTUvaRZScn2Pt": [
+   14,
+   0
+  ],
+  "CLZu5ytpRVYBAL8cPaU4udUcXphvH7L3PTbj4Y4SJeD": [
+   14,
+   1
+  ],
+  "BRoWLFVf32NZwRMkJCGwjKsUW1w7yAiFJdTdiV47pRtT": [
+   12,
+   0
+  ],
+  "83mv9HTLBy2aJT5YLWumDTGQjBqg9D134ES3aE3YBZNe": [
+   15,
+   0
+  ],
+  "5QNJYW6cEUBd6pKjbgcCfgJbusMjH34sFdZhXUTgLVrk": [
+   12,
+   1
+  ],
+  "9RqNuj4D4hexFwTzL9uDSV7tFTgBn8b5vmdKQfMTRVh4": [
+   14,
+   1
+  ],
+  "HJNa1oG33iZJTvja42V9m3zPZbaw4RXXmjvFCuQcASTw": [
+   12,
+   0
+  ],
+  "DBAsE7hEz9wnpPgZZF3ssDXoFoRMpQ91EtR8HrdreJ5R": [
+   15,
+   0
+  ],
+  "9hL5ZGKPkxce2aFhJei6G7UBUwoaQTtp8CkFpUGqdzyS": [
+   8,
+   1
+  ],
+  "J9zhHxfJ78z367kQqp46fd3TbmoZ9rf8RxeU3tQyxLk7": [
+   13,
+   1
+  ]
+ },
+ "input_confirm_p50_ms_median": 218,
+ "input_confirm_p95_ms_max": 1086,
+ "players": [
+  {
+   "run": "player-gs1-1",
+   "pass": true,
+   "switched": true,
+   "match": "2ZqXh27SVEBgfFT3dY283bEW4eLu1VajK7fsb2Bu3Byz"
+  },
+  {
+   "run": "player-gs1-2",
+   "pass": true,
+   "switched": true,
+   "match": "6WAtRBthB8ychfnYyg2BUz9rusuriFcfBWhkASpzqRPw"
+  },
+  {
+   "run": "player-gs1-3",
+   "pass": true,
+   "switched": true,
+   "match": "83mv9HTLBy2aJT5YLWumDTGQjBqg9D134ES3aE3YBZNe"
+  },
+  {
+   "run": "player-gs1-4",
+   "pass": true,
+   "switched": true,
+   "match": "DBAsE7hEz9wnpPgZZF3ssDXoFoRMpQ91EtR8HrdreJ5R"
+  },
+  {
+   "run": "player-gs2-1",
+   "pass": true,
+   "switched": true,
+   "match": "5MizWRaVtUtfFa29UyiZxMbzVy1vrEjuWAWpoxsPjsUY"
+  },
+  {
+   "run": "player-gs2-2",
+   "pass": true,
+   "switched": true,
+   "match": "CLZu5ytpRVYBAL8cPaU4udUcXphvH7L3PTbj4Y4SJeD"
+  },
+  {
+   "run": "player-gs2-3",
+   "pass": true,
+   "switched": true,
+   "match": "9RqNuj4D4hexFwTzL9uDSV7tFTgBn8b5vmdKQfMTRVh4"
+  },
+  {
+   "run": "player-gs2-4",
+   "pass": true,
+   "switched": true,
+   "match": "J9zhHxfJ78z367kQqp46fd3TbmoZ9rf8RxeU3tQyxLk7"
+  }
+ ],
+ "vps_peak_cpu_pct_mem_mib": {
+  "fallrush-keeper-2": [
+   15.1,
+   84.4
+  ],
+  "fallrush-keeper-1": [
+   16.37,
+   88.43
+  ],
+  "fallrush-indexer": [
+   15.38,
+   65.48
+  ],
+  "fallrush-web": [
+   3.52,
+   3.543
+  ],
+  "fallrush-gs2": [
+   9.72,
+   141.9
+  ],
+  "fallrush-gs1": [
+   8.96,
+   160.3
+  ]
+ },
+ "vps_load1_max": 1.02,
+ "finity": {
+  "all_200": false,
+  "max_s": 8.006166,
+  "samples": 84
+ }
+}

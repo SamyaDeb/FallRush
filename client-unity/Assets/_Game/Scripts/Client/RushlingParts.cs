@@ -22,7 +22,7 @@ namespace FallRush.Client
         public static readonly Vector3 KeyPivot = new Vector3(0f, 0.5f, -ProcMesh.R - 0.005f);
 
         private static readonly Dictionary<int, Mesh> BodyCache = new Dictionary<int, Mesh>();
-        private static Mesh _swirls;
+        private static Mesh _stars;
 
         private static readonly Color Ink = UiKit.Hex(0x2A1250);
         private static readonly Color DomeWhite = new Color(0.98f, 0.98f, 1f);
@@ -191,30 +191,45 @@ namespace FallRush.Client
         }
 
         /// <summary>
-        /// G4.8z dizzy sign: three small swirl spirals in a ring around the head (one renderer; the ring spins). Ink and
-        /// lavender, never a star and never gold: on the race maps stars mean score (the Star Fountain pickups / drops, the
-        /// golden star, the podium sparkle), so a stun must not read as "turned into stars".
+        /// Dizzy stars (2026-11-24, replaces the G4.8z swirls at the user's request): three chunky classic-yellow cartoon
+        /// stars with a darker amber rim in a ring around the head (one renderer; the ring spins and bobs). Each star is
+        /// double-sided (a front and a mirrored back extrusion) so it reads from every side. On the race maps the score
+        /// stars are pickups on the course; these only ever orbit a hit Rushling's head, so context tells them apart.
         /// </summary>
-        public static Mesh StunSwirls()
+        public static Mesh DizzyStars()
         {
-            if (_swirls != null)
-                return _swirls;
+            if (_stars != null)
+                return _stars;
             var c = new Combiner();
-            for (var i = 0; i < SwirlCount; i++)
+            for (var i = 0; i < StarCount; i++)
             {
-                var a = i * Mathf.PI * 2f / SwirlCount;
-                // The spiral lies in its local XY plane; turn it to face out of the ring so it shows from the side.
-                var rot = Quaternion.Euler(0f, 90f - a * Mathf.Rad2Deg, 0f);
-                c.Add(Shapes.Swirl, Trs(new Vector3(Mathf.Cos(a) * 0.27f, (i & 1) * 0.04f, Mathf.Sin(a) * 0.27f), rot, Vector3.one), SwirlColours[i % SwirlColours.Length], FlagNoHull);
+                var a = i * Mathf.PI * 2f / StarCount;
+                // The star lies in its local XY plane; turn it to face out of the ring so it shows from the side.
+                var rot = Quaternion.Euler(0f, 90f - a * Mathf.Rad2Deg, (i * 23f) % 36f - 18f);
+                var at = new Vector3(Mathf.Cos(a) * StarRing, (i & 1) * 0.05f, Mathf.Sin(a) * StarRing);
+                var k = StarSize;
+                var fwd = rot * Vector3.forward;
+                const float d = 0.02f; // Star5 extrusion depth
+                // Two mirrored extrusions, each pushed out by its depth, so both outer faces are capped (a solid star).
+                for (var side = -1; side <= 1; side += 2)
+                {
+                    var face = rot * Quaternion.Euler(0f, side < 0 ? 180f : 0f, 0f);
+                    // Rim: a bigger, thinner orange star behind the lemon one (a dark edge all round).
+                    c.Add(Shapes.Star5, Trs(at + fwd * (side * d * 0.7f), face, new Vector3(k * 1.25f, k * 1.25f, 0.7f)), StarRim, FlagNoHull);
+                    c.Add(Shapes.Star5, Trs(at + fwd * (side * d * 1.05f), face, new Vector3(k, k, 1f)), StarYellow, FlagNoHull);
+                    // Shine: a tiny white star on the upper-left of each face.
+                    c.Add(Shapes.Star5, Trs(at + fwd * (side * d * 1.25f) + face * new Vector3(-0.022f, 0.026f, 0f), face, new Vector3(k * 0.3f, k * 0.3f, 0.2f)), StarShine, FlagNoHull);
+                }
             }
 
-            return _swirls = c.Build("StunSwirls");
+            return _stars = c.Build("DizzyStars");
         }
 
-        public const int SwirlCount = 3;
+        public const int StarCount = 4;
+        public const float StarRing = 0.27f, StarSize = 1.55f; // Star5 is 6 cm tip radius → ~9 cm stars (user: smaller)
 
-        /// <summary>Swirl colours: ink, lavender, ink (doc 17 §3 ink + the goo lavender).</summary>
-        public static readonly Color[] SwirlColours = { UiKit.Hex(0x2A1250), UiKit.Hex(0xB98CFF), UiKit.Hex(0x2A1250) };
+        /// <summary>Classic cartoon yellow and its amber rim (user pick, 2026-11-24).</summary>
+        public static readonly Color StarYellow = UiKit.Hex(0xFFE14D), StarRim = UiKit.Hex(0xFF8A1F), StarShine = Color.white;
 
         /// <summary>Triangle count of one Rushling with this preset (body + lid + limbs), for the budget test.</summary>
         public static int Triangles(int presetId) => (int)(Body(presetId).GetIndexCount(0) / 3) + LimbTriangles;

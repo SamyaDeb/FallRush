@@ -40,10 +40,10 @@ let teeTok: { token: string; exp: number } | null = null;
 /** TEE auth token for the game authority (challenge signed with its key; ~30 days). */
 export async function teeToken(kp: Keypair = wallet): Promise<string> {
   if (teeTok && teeTok.exp > Date.now() + 60_000) return teeTok.token;
-  const c = await (await fetch(`${TEE_URL}/auth/challenge?pubkey=${kp.publicKey.toBase58()}`)).json() as any;
+  const c = await (await fetch(`${TEE_URL}/auth/challenge?pubkey=${kp.publicKey.toBase58()}`, { signal: AbortSignal.timeout(15_000) })).json() as any;
   if (!c.challenge) throw new Error(`tee challenge: ${JSON.stringify(c).slice(0, 200)}`);
   const sig = nacl.sign.detached(new Uint8Array(Buffer.from(c.challenge, "utf-8")), kp.secretKey);
-  const r = await fetch(`${TEE_URL}/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pubkey: kp.publicKey.toBase58(), challenge: c.challenge, signature: bs58.encode(sig) }) });
+  const r = await fetch(`${TEE_URL}/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pubkey: kp.publicKey.toBase58(), challenge: c.challenge, signature: bs58.encode(sig) }), signal: AbortSignal.timeout(15_000) });
   const j = await r.json() as any;
   if (r.status !== 200 || !j.token) throw new Error(`tee login: ${JSON.stringify(j).slice(0, 200)}`);
   teeTok = { token: j.token, exp: j.expiresAt ?? Date.now() + 86_400_000 };

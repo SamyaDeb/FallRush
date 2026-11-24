@@ -5,21 +5,37 @@ namespace FallRush.Shared
 {
     /// <summary>
     /// <c>RoundRules.Survival</c> (Goo Tower, GDD §5.2, M4): goo rises (pure <see cref="GooDef"/>; touching it knocks you out,
-    /// decided in <see cref="PlayerStep.Run"/> on both sides); falling out of the map knocks you out too. The first N to
+    /// decided in <see cref="PlayerStep.Run"/> on both sides). OC-51 (P7): a <b>fall</b> (out of the map, or dropping into
+    /// the goo from a ledge above it) respawns you 1 s later on the tower path, like a race checkpoint: at the highest
+    /// respawn spot not above the ledge you fell from that is at least <see cref="GooMarginMm"/> above the goo. No such spot
+    /// (the goo already passed your ledge) = knocked out. Standing on a ledge as the goo rises over it still knocks you out. The first N to
     /// reach the summit pad qualify at once ("escaped") and leave the simulation; the round ends when N have escaped or
     /// nobody is left climbing. On timer end every survivor qualifies, ranked by height then slot, capped at N (the rest
     /// TIMEOUT_RANK). Fewer than N alive: only the survivors qualify (the director's minimum-advance handles 0 and 1).
     /// </summary>
     public sealed class SurvivalRules : TimedRoundRules
     {
+        /// <summary>A respawn spot must be this far above the goo (≈ 9 s of rise at Goo Tower's 170 mm/s).</summary>
+        public const int GooMarginMm = 1500;
+        /// <summary>Dropping into the goo from a ledge this far above its surface counts as a fall (respawn), not as caught.</summary>
+        public const int FallIntoGooMm = 600;
+
         public readonly CheckpointDef Summit;
+        private readonly int[] _spots; // x, y, z, yaw256 quadruples (mm), server side (from the bot routes)
+        private readonly int[] _groundY = new int[SimCore.MaxSlots];
+        private readonly bool[] _pending = new bool[SimCore.MaxSlots];
+        private readonly bool[] _pendingGoo = new bool[SimCore.MaxSlots];
         private int _escaped;
 
-        public SurvivalRules(CheckpointDef summit, uint timerTicks)
+        public SurvivalRules(CheckpointDef summit, uint timerTicks, int[] respawnSpotsMm = null)
         {
             Summit = summit;
             TimerTicks = timerTicks;
+            _spots = respawnSpotsMm ?? Array.Empty<int>();
         }
+
+        public int RespawnSpots => _spots.Length / 4;
+        public int Respawned { get; private set; }
 
         public override string Mode => "Survival";
         public int Escaped => _escaped;
@@ -37,7 +53,16 @@ namespace FallRush.Shared
             }
         }
 
-        protected override void OnBegin(SimCore sim, uint tick) => _escaped = 0;
+        protected override void OnBegin(SimCore sim, uint tick)
+        {
+            _escaped = 0;
+            Respawned = 0;
+            for (var i = 0; i < SimCore.MaxSlots; i++)
+            {
+                _pending[i] = _pendingGoo[i] = false;
+                _groundY[i] = sim.Slots[i].State.PosY;
+            }
+        }
 
         protected override void OnRushTick(SimCore sim, uint tick)
         {
@@ -48,10 +73,24 @@ namespace FallRush.Shared
                 ref var s = ref sim.Slots[i].State;
                 if (s.Has(MotorState.Respawning))
                 {
-                    KnockOut(i, tick, (sim.Slots[i].LastStep & PlayerStep.Result.Gooed) != 0 ? ElimReason.Goo : ElimReason.FellOut);
+                    if (_pending[i])
+                        continue; // falling: SimCore calls Respawn after the delay
+                    var gooed = (sim.Slots[i].LastStep & PlayerStep.Result.Gooed) != 0;
+                    var gooY = Hazards != null ? Hazards.GooYMm(tick) : int.MinValue;
+                    var fell = !gooed || gooY == int.MinValue || (long)_groundY[i] - gooY >= FallIntoGooMm;
+                    if (fell && _spots.Length >= 4)
+                    {
+                        _pending[i] = true;
+                        _pendingGoo[i] = gooed;
+                        continue;
+                    }
+
+                    KnockOut(i, tick, gooed ? ElimReason.Goo : ElimReason.FellOut);
                     continue;
                 }
 
+                if (s.Has(MotorState.Grounded))
+                    _groundY[i] = s.PosY;
                 ref var p = ref Players[i];
                 if (s.PosY > p.Height)
                     p.Height = s.PosY;
@@ -64,6 +103,58 @@ namespace FallRush.Shared
                     Emit(RaceEventType.Finished, tick, i, _escaped);
                 }
             }
+        }
+
+        /// <summary>OC-51: after a fall, back onto the tower path (or out, when the goo has passed your ledge).</summary>
+        public override bool Respawn(SimCore sim, int slot)
+        {
+            if (!_pending[slot])
+                return false;
+            _pending[slot] = false;
+            var floor = Hazards != null ? Hazards.GooYMm(sim.Tick) : int.MinValue;
+            var min = floor == int.MinValue ? int.MinValue : floor + GooMarginMm;
+            var max = _groundY[slot] + 300;
+            var best = -1;
+            var bestFree = -1;
+            var n = _spots.Length / 4;
+            for (var j = 0; j < n; j++)
+            {
+                var y = _spots[j * 4 + 1];
+                if (y < min || y > max)
+                    continue;
+                if (best < 0 || y > _spots[best * 4 + 1])
+                    best = j;
+                if (!Occupied(sim, slot, _spots[j * 4], y, _spots[j * 4 + 2]) && (bestFree < 0 || y > _spots[bestFree * 4 + 1]))
+                    bestFree = j;
+            }
+
+            var pick = bestFree >= 0 ? bestFree : best;
+            if (pick < 0)
+            {
+                KnockOut(slot, sim.Tick, _pendingGoo[slot] ? ElimReason.Goo : ElimReason.FellOut);
+                return true; // out: stays hidden (respawning flag), out of the simulation
+            }
+
+            sim.Place(slot, new Vec3(_spots[pick * 4] * 0.001f, (_spots[pick * 4 + 1] + 50) * 0.001f, _spots[pick * 4 + 2] * 0.001f), (byte)_spots[pick * 4 + 3]);
+            _groundY[slot] = _spots[pick * 4 + 1];
+            Respawned++;
+            Emit(RaceEventType.Respawned, sim.Tick, slot, 0);
+            return true;
+        }
+
+        private static bool Occupied(SimCore sim, int self, int x, int y, int z)
+        {
+            for (var i = 0; i < SimCore.MaxSlots; i++)
+            {
+                if (i == self || !sim.Slots[i].Active)
+                    continue;
+                ref readonly var s = ref sim.Slots[i].State;
+                long dx = s.PosX - x, dz = s.PosZ - z, dy = s.PosY - y;
+                if (dx * dx + dz * dz < 800L * 800L && dy > -1000 && dy < 1000)
+                    return true;
+            }
+
+            return false;
         }
 
         protected override bool ShouldEnd(SimCore sim, uint tick) => _escaped >= QualifyCount || CountInPlay() == 0;

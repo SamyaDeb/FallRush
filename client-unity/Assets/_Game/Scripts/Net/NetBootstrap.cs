@@ -201,6 +201,9 @@ namespace FallRush.Net
         // ---- server-side ----
         private readonly HashSet<ulong> _serverClients = new HashSet<ulong>();
         public int ServerConnectedCount => _serverClients.Count;
+
+        /// <summary>Beta audit: connections a server admits: the 12 seats plus a few watchers (the next lobby seats them).</summary>
+        public const int MaxConnections = Protocol.MaxPlayers + 4;
         public ushort ListenPort { get; private set; }
 
         private string _pendingDisconnectReason;
@@ -312,12 +315,27 @@ namespace FallRush.Net
         /// </summary>
         public static string PracticeMapArg()
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!PracticeAllowed)
+                return null;
             var v = GetArgValue("-fallrushPractice") ?? NetTargets.GetQueryParam(Application.absoluteURL, "practice");
             return string.IsNullOrEmpty(v) ? null : v;
+        }
+
+        /// <summary>
+        /// Practice (offline, no networking) runs in the Editor and development builds, and (2026-11-24, for local
+        /// playtests of every map) in a release WebGL build served from localhost / 127.0.0.1 only: never on the public site.
+        /// </summary>
+        public static bool PracticeAllowed
+        {
+            get
+            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                return true;
 #else
-            return null;
+                var u = Application.absoluteURL ?? string.Empty;
+                return u.StartsWith("http://localhost:", StringComparison.Ordinal) || u.StartsWith("http://127.0.0.1:", StringComparison.Ordinal);
 #endif
+            }
         }
 
         /// <summary>True while the DEV practice mode runs (no networking).</summary>
@@ -326,10 +344,10 @@ namespace FallRush.Net
         /// <summary>DEV: enter the practice mode on map <paramref name="key"/> (e.g. "BlockPartyDash"). No-op in release builds.</summary>
         public static void StartPractice(string key)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!PracticeAllowed)
+                return;
             IsPractice = true;
             SceneManager.LoadScene("Map_" + key);
-#endif
         }
 
         private void Start()
@@ -433,6 +451,19 @@ namespace FallRush.Net
             }
         }
 
+        /// <summary>P7-UX (server): the private room's code while one is open here (ServerMatch polls the room file); client:
+        /// the room to join (sent in hello v7).</summary>
+        public static string RoomCode;
+
+        /// <summary>P7-UX (server): re-reads the room file now (set by ServerMatch).</summary>
+        public static System.Action RoomRefresh;
+
+        /// <summary>P7-UX (client): the server the play hub picked (matchmaking or a room); null = the usual resolution.</summary>
+        public static string HubServerUrl;
+
+        /// <summary>P7-UX (client): the player's skill tier sent in hello v7 (0 Rookie, 1 Contender, 2 Champion).</summary>
+        public static byte SkillTier = 1;
+
         private void ApproveConnection(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
         {
             response.CreatePlayerObject = false;
@@ -454,9 +485,28 @@ namespace FallRush.Net
                 return;
             }
 
-            if (_serverClients.Count >= Protocol.MaxPlayers)
+            // P7-UX (OC-46): a private room admits only its code; a room code for a room that is not here is refused too
+            // (the invite expired), so a friend never lands in a stranger's public lobby by mistake
+            // the room file may have been written a moment ago (the host connects ~0.6 s after /api/room; the server polls
+            // the file once a second): re-read it before judging a code it does not know yet
+            if (hello.RoomCode != null && hello.RoomCode != RoomCode)
+                RoomRefresh?.Invoke();
+            var room = RoomCode;
+            if (room != null && hello.RoomCode != room)
             {
-                Reject(response, request.ClientNetworkId, $"Server full ({Protocol.MaxPlayers}/{Protocol.MaxPlayers}).");
+                Reject(response, request.ClientNetworkId, hello.RoomCode == null ? "This arena is hosting a private room. Use Quick Match, or ask for the invite link." : "Wrong room code for this arena.");
+                return;
+            }
+
+            if (room == null && hello.RoomCode != null)
+            {
+                Reject(response, request.ClientNetworkId, "That room has ended. Create a new one, or use Quick Match.");
+                return;
+            }
+
+            if (_serverClients.Count >= MaxConnections)
+            {
+                Reject(response, request.ClientNetworkId, "Server full: try Quick Match again in a minute.");
                 return;
             }
 
@@ -514,6 +564,9 @@ namespace FallRush.Net
                 configured = OverrideServerUrl;
             Target = NetTargets.ResolveServerTarget(Application.absoluteURL, configured, out var source, out var warning);
             TargetSource = source;
+            // P7-UX: the play hub's pick (matchmaking / a room) wins over ?server= (the old Quick Play URL)
+            if (!string.IsNullOrEmpty(HubServerUrl) && NetTargets.TryParseServerUrl(HubServerUrl, out var hub, out _))
+                Target = hub;
             if (warning != null)
                 Debug.LogWarning($"[net] {warning}");
 
@@ -618,6 +671,9 @@ namespace FallRush.Net
                 // P5 task 4: an owned capsule equipped on /me (?shell=<asset>&wallet=<owner>; desktop -fallrushShell asset:wallet)
                 ShellAsset = NetTargets.GetQueryParam(Application.absoluteURL, "shell") ?? ShellArg(0),
                 ShellWallet = NetTargets.GetQueryParam(Application.absoluteURL, "wallet") ?? ShellArg(1),
+                // P7-UX: the private room picked in the play hub (or ?room= from an invite link) + the skill tier
+                RoomCode = RoomCode ?? Protocol.CleanRoom(GetArgValue("-fallrushRoom")), // ?room= is read once by the play hub
+                SkillTier = SkillTier,
             };
             Manager.NetworkConfig.ConnectionData = Protocol.EncodeHello(hello);
 

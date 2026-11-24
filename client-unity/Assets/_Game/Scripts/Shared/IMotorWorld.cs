@@ -37,4 +37,16 @@ namespace FallRush.Shared
         /// </summary>
         bool SurfaceDelta(int surfaceId, Vec3 feet, out Vec3 delta);
     }
+
+    /// <summary>
+    /// OC-56 (2026-11-24, user-approved narrow motor fix): a world that opts in lets a falling capsule land on a surface that
+    /// rises under it. Without it the ground probe only runs while vel.y ≤ 0 after collide-and-slide, and sliding onto an
+    /// up-slope turns the fall into a small climb (vel.y &gt; 0), so a jump onto any ramp skated 3 mm above it, airborne, until
+    /// the ramp ended. Opt-in per map (Capsule Run, Goo Tower, Sandbox: Classic-only maps); the on-chain Final's map and
+    /// rush-core (Rust) keep the old rule, so the program, the wasm and the motor vectors are unchanged.
+    /// </summary>
+    public interface ISlopeLandingWorld
+    {
+        bool SlopeLanding { get; }
+    }
 }

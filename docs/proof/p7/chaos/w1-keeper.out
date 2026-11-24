@@ -1,0 +1,4 @@
+2026-11-23T20:49:59Z keeper-1: waiting for stage 'final'
+ssh: connect to host <VPS_IP> port 22: Operation timed out
+2026-11-23T20:59:10Z keeper-1 restarted at stage 'final'
+2026-11-23T21:00:31Z keeper-1 recovered (resume from on-chain state) in 92 s; stages after restart: final sealed_reveal resume chain_setup final sealed_finish settle receipt capsules finalize rewards season 

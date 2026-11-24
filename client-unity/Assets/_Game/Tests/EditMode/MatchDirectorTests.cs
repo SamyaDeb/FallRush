@@ -359,7 +359,7 @@ namespace FallRush.Tests
             h.RunUntil(() => h.D.Phase == MatchPhase.Countdown);
             Assert.That(h.D.HostSlot, Is.EqualTo(0), "the first human is the host");
             Assert.That(h.D.HostStart(3), Is.False, "only the host can start");
-            Assert.That(h.D.HostStart(0), Is.True);
+            Assert.That(h.D.HostStart(0), Is.False, "beta audit: no host start in a public lobby (the countdown runs out)");
             h.RunUntil(() => h.D.Phase == MatchPhase.Dealing);
             Assert.That(h.D.PlayerCount, Is.EqualTo(12));
             Assert.That(h.Sim.BotCount, Is.EqualTo(10));

@@ -9,7 +9,7 @@ namespace FallRush.Net
     /// <para>Note: Unity sweeps do not report colliders the capsule already overlaps at the start; the motor
     /// depenetrates first (<see cref="ComputePenetration"/>) so that case does not arise in normal play.</para>
     /// </summary>
-    public sealed class PhysxMotorWorld : IMotorWorld
+    public sealed class PhysxMotorWorld : IMotorWorld, ISlopeLandingWorld
     {
         public const string GameplayLayerName = "Gameplay";
 
@@ -29,6 +29,9 @@ namespace FallRush.Net
         private bool _posed;
 
         /// <param name="platforms">Collider of each <see cref="HazardSet.Platforms"/> entry (same order), moved by <see cref="BeginTick"/>.</param>
+        /// <summary>OC-56: land on up-slopes (set per map by <see cref="MapInfo.CreateWorld(CapsuleCollider, MovementConfig, in RoundParams, out HazardSet)"/>).</summary>
+        public bool SlopeLanding { get; set; }
+
         public PhysxMotorWorld(PhysicsScene scene, int layerMask, CapsuleCollider probe, HazardSet hazards = null, Collider[] platforms = null)
             : this(scene, layerMask, probe, hazards, new MapInfo.Colliders { Platforms = platforms ?? System.Array.Empty<Collider>() })
         {

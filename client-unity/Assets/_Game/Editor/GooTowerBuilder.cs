@@ -644,22 +644,27 @@ public static class GooTowerBuilder
         // fall lands in the goo); 0.2 m rise per gap (0.35 / 0.38 cut the reach: bots landed short), and 0.45 m onto the
         // wide corner 5 so the last block ends at 13.3 m, under k5's start height − 0.3 m (above it bots switched to k5's
         // route on the block and walked off the column).
-        const float gap = 1.8f, jumpRise = 0.2f, lastRise = 0.45f;
+        // 2026-11-24 playtest (OC-54): FLAT blocks. On the pitched tops (14°) a jump never landed: the motor's ground probe runs
+        // only with vel.y ≤ 0, and an airborne slide up a slope keeps vel.y > 0, so you glided up the block with air
+        // control and fell off its end ("slippy, no grip"). Flat tops, 4 even 0.69 m hops (corner → 3 blocks → corner 5),
+        // gaps 1.8 → 1.5 m, so every landing grips. The last top (13.06 m) stays under k5's start height − 0.3 m.
+        const float gap = 1.5f;
         const int nSeg = 3;
-        var segLen = (2f * HalfLen - (nSeg + 1) * gap) / nSeg; // 2.27 m
-        var segRise = (Rise - nSeg * jumpRise - lastRise) / nSeg; // 0.57 m inside each block
+        var segLen = (2f * HalfLen - (nSeg + 1) * gap) / nSeg; // 2.67 m
+        var hop = Rise / (nSeg + 1); // 0.69 m
+        const float segRise = 0f;
         var cols = new[] { -1.25f, 1.25f };
         var segS0 = new float[nSeg];
         var segY0 = new float[nSeg];
         for (var j = 0; j < nSeg; j++)
         {
             segS0[j] = -HalfLen + gap + j * (segLen + gap);
-            segY0[j] = y0 + (j + 1) * jumpRise + j * segRise;
+            segY0[j] = y0 + (j + 1) * hop;
         }
 
         foreach (var cw in cols)
             for (var j = 0; j < nSeg; j++)
-                Slope(k, $"Col{(cw < 0 ? "In" : "Out")}{j}", segS0[j], segY0[j], segS0[j] + segLen, segY0[j] + segRise, cw - 1.0f, cw + 1.0f, 1f, _block); // G4.3c/d: 1.6 → 1.8 → 2.0 m
+                SideBox(k, $"Col{(cw < 0 ? "In" : "Out")}{j}", segS0[j], segS0[j] + segLen, cw - 1.0f, cw + 1.0f, segY0[j] - 1f, segY0[j], _block); // 2.0 m wide, 1 m slab
 
         // One mallet over the middle blocks at s 0, swinging across both columns. A hit throws you off the column: you drop
         // onto k0, one lap down (from ≈ 25 s the goo is already there).

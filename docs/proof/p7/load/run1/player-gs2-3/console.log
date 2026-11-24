@@ -1,0 +1,1266 @@
+18.6	log	You can reduce startup time if you configure your web server to add "Content-Encoding: br" response header when serving "blob:https://play.<VPS_IP>.sslip.io/f3bfdf7b-5469-4fe3-b585-873e9537e78e" file.
+18.6	log	You can reduce startup time if you configure your web server to add "Content-Encoding: br" response header when serving "blob:https://play.<VPS_IP>.sslip.io/f8776557-c40f-46a2-a7cf-512fa92a8922" file.
+18.7	log	You can reduce startup time if you configure your web server to add "Content-Encoding: br" response header when serving "/unity/Build/WebGL.framework.js.unityweb" file.
+22.9	log	[UnityMemory] Configuration Parameters - Can be set up in boot.config
+
+22.9	log	    "memorysetup-allocator-temp-initial-block-size-main=262144"
+
+22.9	log	    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+
+23.0	log	    "memorysetup-temp-allocator-size-audio-worker=65536"
+
+23.0	log	    "memorysetup-remapper-allocator-initial-capacity=32768"
+
+23.0	log	    "memorysetup-temp-allocator-size-background-worker=32768"
+
+23.0	log	    "memorysetup-bucket-allocator-granularity=16"
+
+23.0	log	    "memorysetup-bucket-allocator-bucket-count=8"
+
+23.0	log	    "memorysetup-bucket-allocator-block-size=4194304"
+
+23.0	log	    "memorysetup-bucket-allocator-block-count=1"
+
+23.0	log	    "memorysetup-main-allocator-block-size=16777216"
+
+23.0	log	    "memorysetup-thread-allocator-block-size=16777216"
+
+23.0	log	    "memorysetup-gfx-main-allocator-block-size=16777216"
+
+23.0	log	    "memorysetup-gfx-thread-allocator-block-size=16777216"
+
+23.0	log	    "memorysetup-cache-allocator-block-size=4194304"
+
+23.1	log	    "memorysetup-typetree-allocator-block-size=2097152"
+
+23.1	log	    "memorysetup-profiler-bucket-allocator-granularity=16"
+
+23.1	log	    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+
+23.1	log	    "memorysetup-profiler-bucket-allocator-block-size=4194304"
+
+23.1	log	    "memorysetup-profiler-bucket-allocator-block-count=1"
+
+23.1	log	    "memorysetup-profiler-allocator-block-size=16777216"
+
+23.1	log	    "memorysetup-profiler-editor-allocator-block-size=1048576"
+
+23.1	log	    "memorysetup-temp-allocator-size-main=4194304"
+
+23.1	log	    "memorysetup-job-temp-allocator-block-size=2097152"
+
+23.1	log	    "memorysetup-job-temp-allocator-block-size-background=1048576"
+
+23.1	log	    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+
+23.1	log	Input System module state changed to: Initialized.
+
+23.1	log	[Physics::Module] Initialized fallback backend.
+
+23.1	log	[Physics::Module] Id: 0xdecafbad
+
+23.1	log	Loading player data from data.unity3d
+
+23.1	log	Initialize engine version: 6000.3.28f1 (8f082d2fe476)
+
+23.1	log	[Subsystems] Discovering subsystems at path UnitySubsystems
+
+23.1	log	Creating WebGL 2.0 context.
+23.1	log	Renderer: WebKit WebGL
+
+23.1	log	Vendor:   WebKit
+
+23.1	log	Version:  OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium))
+
+23.1	log	GLES:     3
+
+23.1	log	 EXT_clip_control EXT_color_buffer_float EXT_color_buffer_half_float EXT_conservative_depth EXT_depth_clamp EXT_disjoint_timer_query_webgl2 EXT_float_blend EXT_polygon_offset_clamp EXT_render_snorm EXT_texture_compression_bptc EXT_texture_compression_rgtc EXT_texture_filter_anisotropic EXT_texture_mirror_clamp_to_edge EXT_texture_norm16 KHR_parallel_shader_compile NV_shader_noperspective_interpolation OES_draw_buffers_indexed OES_sample_variables OES_shader_multisample_interpolation OES_texture_float_linear WEBGL_blend_func_extended WEBGL_clip_cull_distance WEBGL_compressed_texture_astc WEBGL_compressed_texture_etc WEBGL_compressed_texture_etc1 WEBGL_compressed_texture_pvrtc WEBGL_compressed_texture_s3tc WEBGL_compressed_texture_s3tc_srgb WEBGL_debug_renderer_info WEBGL_debug_shaders WEBGL_lose_context WEBGL_multi_draw WEBGL_polygon_mode WEBGL_provoking_vertex WEBGL_render_shared_exponent WEBGL_stencil_texturing GL_EXT_clip_control GL_EXT_color_buffer_float GL_EXT_color_buffer_half_float GL_EXT_conservative_
+
+23.1	log	depth GL_EXT_depth_clamp GL_EXT_disjoint_timer_query_webgl2 GL_EXT_float_blend GL_EXT_polygon_offset_clamp GL_EXT_render_snorm GL_EXT_texture_compression_bptc GL_EXT_texture_compression_rgtc GL_EXT_texture_filter_anisotropic GL_EXT_texture_mirror_clamp_to_edge GL_EXT_texture_norm16 GL_KHR_parallel_shader_compile GL_NV_shader_noperspective_interpolation GL_OES_draw_buffers_indexed GL_OES_sample_variables GL_OES_shader_multisample_interpolation GL_OES_texture_float_linear GL_WEBGL_blend_func_extended GL_WEBGL_clip_cull_distance GL_WEBGL_compressed_texture_astc GL_WEBGL_compressed_texture_etc GL_WEBGL_compressed_texture_etc1 GL_WEBGL_compressed_texture_pvrtc GL_WEBGL_compressed_texture_s3tc GL_WEBGL_compressed_texture_s3tc_srgb GL_WEBGL_debug_renderer_info GL_WEBGL_debug_shaders GL_WEBGL_lose_context GL_WEBGL_multi_draw GL_WEBGL_polygon_mode GL_WEBGL_provoking_vertex GL_WEBGL_render_shared_exponent GL_WEBGL_stencil_texturing
+
+23.1	log	OPENGL LOG: Creating OpenGL ES 3.0 graphics device ; Context level  <OpenGL ES 3.0> ; Context handle 1
+
+23.3	log	[Physics::Module] Selected backend.
+
+23.3	log	[Physics::Module] Name: PhysX
+
+23.3	log	[Physics::Module] Id: 0xf2b8ea05
+
+23.3	log	[Physics::Module] SDK Version: 4.1.2
+
+23.3	log	[Physics::Module] Integration Version: 1.0.0
+
+23.3	log	[Physics::Module] Threading Mode: Single-Threaded
+
+23.4	log	ERROR: Shader 
+23.4	log	Hidden/CoreSRP/CoreCopy shader is not supported on this GPU (none of subshaders/fallbacks are suitable)
+
+23.4	log	ERROR: Shader 
+23.4	log	Hidden/Universal Render Pipeline/StencilDitherMaskSeed shader is not supported on this GPU (none of subshaders/fallbacks are suitable)
+
+23.4	log	ERROR: Shader 
+23.4	log	Hidden/Universal/HDRDebugView shader is not supported on this GPU (none of subshaders/fallbacks are suitable)
+
+23.5	log	Input System initialize...
+
+23.5	log	UnloadTime: 3.700001 ms
+
+23.6	log	Audio context resumed after 0.439 seconds.
+26.0	log	UnloadTime: 2.500000 ms
+
+26.0	log	Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
+
+26.0	log	Unloading 3 unused Assets to reduce memory usage. Loaded Objects now: 2130.
+
+26.0	log	Total: 12.000000 ms (FindLiveObjects: 0.299999 ms CreateObjectMapping: 0.200001 ms MarkObjects: 11.399999 ms  DeleteObjects: 0.100001 ms)
+
+
+26.1	log	Trying to get length of sound which is not loaded yet.
+26.1	log	Trying to get length of sound which is not loaded yet.
+26.1	log	Trying to get length of sound which is not loaded yet.
+26.1	log	Trying to get length of sound which is not loaded yet.
+26.1	log	Trying to get length of sound which is not loaded yet.
+26.1	log	Trying to get length of sound which is not loaded yet.
+26.1	log	Trying to get length of sound which is not loaded yet.
+26.1	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.2	log	Trying to get length of sound which is not loaded yet.
+26.9	log	[net] connecting to wss://gs2.<VPS_IP>.sslip.io/ (from QueryString) protocol=6 build=0.2.0-m2
+
+27.0	log	UnloadTime: 8.400000 ms
+
+27.0	log	Unloading 3 Unused Serialized files (Serialized files now loaded: 0)
+
+27.0	log	Unloading 14 unused Assets to reduce memory usage. Loaded Objects now: 2310.
+
+27.0	log	Total: 8.700001 ms (FindLiveObjects: 1.100000 ms CreateObjectMapping: 0.200001 ms MarkObjects: 6.900000 ms  DeleteObjects: 0.500000 ms)
+
+
+28.5	log	[net] round: map=254 variant=A modifier=None seed=0x0000000000000000 start=0 qualify=0/0 intro=0 countdown=0 timer=0 serverMapHash=77dcefe7
+
+28.6	log	[net] loading Map_Lobby (round 0)
+
+28.7	log	UnloadTime: 3.000000 ms
+
+28.7	log	Unloading 1 Unused Serialized files (Serialized files now loaded: 0)
+
+28.7	log	Unloading 13 unused Assets to reduce memory usage. Loaded Objects now: 2671.
+
+28.7	log	Total: 9.699999 ms (FindLiveObjects: 0.899999 ms CreateObjectMapping: 0.200001 ms MarkObjects: 8.299999 ms  DeleteObjects: 0.300000 ms)
+
+
+28.7	log	[gfx] level=high Mobile_RPAsset grading HighDynamicRange HDR True scale 1.00 cameraHDR=True rtRGB111110=True rtHalf=True post=True device=OpenGLES3
+
+28.9	log	[net] prediction ready map=Map_Lobby mapHash=77dcefe7 round: map=254 variant=A modifier=None seed=0x0000000000000000 start=0 qualify=0/0 intro=0 countdown=0 timer=0 hazards=5
+
+28.9	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+28.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+39.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=154 match=153 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=10.0 last=10 max=10 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=113ms extrap=6.6% frozen=21.5% lagEvents=3 remoteStutter p50=NaN p95=NaNm/s course=- phase=Sandbox cp=0 finished=False race=- hazardCorr=0 pos=(5.9,0.0,0.8) m4 match=Countdown round=0 map=Lobby slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=318 rxBytes=8 bytesIn=6396 events=0
+
+39.0	log	[gate] budget map=Lobby gfx=high fpsMedian=59 fps1pcLow=48 drawCallsMedian=59 drawCallsMax=65 trisMax=208050 texMB=14.0 screen=1440x900
+
+39.0	log	[gate] render map=Lobby drawCalls=58 batches=56 setPass=44 tris=205608 visible=1
+
+39.0	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=83 p95=1057ms lead=2/3 resyncs=1
+
+48.5	log	[net] fonc: {"t":"final_prejoin","net":"devnet","arena":"E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG","match":"b2ff1f220765dcb428d348f5e8633528","slot_map":[{"slot":0,"name":"Player 1","kind":"human"}]}
+
+48.5	log	[onchain] pre-join: devnet arena E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG match b2ff1f220765dcb428d348f5e8633528, slot 0
+
+48.6	log	[onchain] session: target devnet via bundle ws://127.0.0.1:8788/, lead T+3, 3 ticks per tx, core loading
+
+48.9	log	[gate] pred corrections=2 per5s=1.00 pushCorrections=0 meanCorr=21.8cm maxCorr=28.0cm snaps=151 match=149 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=2.0 last=1 max=10 drift meanMm=93.30 maxMm=93.3 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=130ms extrap=2.2% frozen=0.2% lagEvents=4 remoteStutter p50=0.29 p95=34.00m/s course=- phase=Sandbox cp=0 finished=False race=- hazardCorr=0 pos=(5.9,0.0,0.5) m4 match=Dealing round=0 map=Lobby slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=994 rxBytes=8 bytesIn=14358 events=0
+
+48.9	log	[gate] budget map=Lobby gfx=high fpsMedian=59 fps1pcLow=50 drawCallsMedian=58 drawCallsMax=87 trisMax=230055 texMB=37.1 screen=1440x900
+
+48.9	log	[gate] render map=Lobby drawCalls=84 batches=82 setPass=67 tris=213012 visible=12
+
+49.0	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=83 p95=800ms lead=-6/3 resyncs=1
+
+49.0	log	[rcw] rush_core.wasm ready, rc_version 0x10002, 320510 B
+49.1	log	[frc] chain bundle ready: devnet (P5 pool, arena 3) via rollup, burner 5AHz4bhJQ2HVAcPTMiVheE36zvV9kymNMpp1MUBr7ppB (public key)
+49.5	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+51.6	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+52.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+52.4	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+52.6	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+52.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+53.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 88 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase Dealt
+
+54.5	log	[net] round: map=0 variant=A modifier=TinyTilt seed=0x428e9ba4ee56f764 start=2147418112 qualify=8/12 intro=0 countdown=0 timer=0 serverMapHash=50125d89
+
+54.5	log	[net] loading Map_BlockPartyDash (round 1)
+
+54.7	log	UnloadTime: 26.699999 ms
+
+54.7	log	Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
+
+54.7	log	Unloading 63 unused Assets to reduce memory usage. Loaded Objects now: 5924.
+
+54.7	log	Total: 22.900000 ms (FindLiveObjects: 0.600001 ms CreateObjectMapping: 0.100000 ms MarkObjects: 21.099999 ms  DeleteObjects: 1.100000 ms)
+
+
+54.7	log	[gfx] level=high Mobile_RPAsset grading HighDynamicRange HDR True scale 1.00 cameraHDR=True rtRGB111110=True rtHalf=True post=True device=OpenGLES3
+
+54.8	log	[net] prediction ready map=Map_BlockPartyDash mapHash=50125d89 round: map=0 variant=A modifier=TinyTilt seed=0x428e9ba4ee56f764 start=2147418112 qualify=8/12 intro=0 countdown=0 timer=0 hazards=43
+
+57.8	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+57.8	log	[net] round: map=0 variant=A modifier=TinyTilt seed=0x428e9ba4ee56f764 start=452596 qualify=8/12 intro=60 countdown=90 timer=4500 serverMapHash=50125d89
+
+57.9	log	[net] prediction ready map=Map_BlockPartyDash mapHash=50125d89 round: map=0 variant=A modifier=TinyTilt seed=0x428e9ba4ee56f764 start=452596 qualify=8/12 intro=60 countdown=90 timer=4500 hazards=43
+
+58.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 94 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundIntro
+
+60.7	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+63.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 94 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+64.8	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=108 match=107 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=8.0 last=8 max=8 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=83ms extrap=3.0% frozen=6.7% lagEvents=5 remoteStutter p50=0.22 p95=1.04m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(-1.0,0.0,7.6) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=75804 events=2
+
+64.8	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=43 drawCallsMedian=174 drawCallsMax=194 trisMax=422814 texMB=38.2 screen=1440x900
+
+64.8	log	[gate] render map=BlockPartyDash drawCalls=192 batches=184 setPass=99 tris=421732 visible=12
+
+64.8	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=82 p95=183ms lead=4/4 resyncs=2
+
+68.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 93 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 59 playing True phase RoundActive
+
+73.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 88 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+74.9	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=3 meanCorr=0.0cm maxCorr=0.0cm snaps=150 match=123 silent=24 hazMismatch=0 hazExplained=0 respawns=0 replay mean=9.2 last=8 max=13 drift meanMm=8.06 maxMm=8.1 subMm=0 predHits=1 interp delay=150ms target=150ms lateP95=81ms extrap=0.5% frozen=0.0% lagEvents=5 remoteStutter p50=0.21 p95=0.72m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(1.3,0.5,17.4) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=119904 events=2
+
+74.9	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=37 drawCallsMedian=201 drawCallsMax=211 trisMax=444556 texMB=38.2 screen=1440x900
+
+74.9	log	[gate] render map=BlockPartyDash drawCalls=199 batches=192 setPass=105 tris=435009 visible=12
+
+74.9	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=66 p95=176ms lead=6/6 resyncs=2
+
+78.5	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 105 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+83.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 120 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+84.8	log	[gate] pred corrections=2 per5s=1.00 pushCorrections=2 meanCorr=11.3cm maxCorr=14.3cm snaps=149 match=138 silent=7 hazMismatch=0 hazExplained=0 respawns=0 replay mean=9.0 last=12 max=13 drift meanMm=41.64 maxMm=75.0 subMm=0 predHits=5 interp delay=150ms target=150ms lateP95=434ms extrap=6.8% frozen=5.0% lagEvents=7 remoteStutter p50=0.21 p95=9.00m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(-2.8,1.3,18.9) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=163710 events=2
+
+84.8	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=218 drawCallsMax=224 trisMax=452380 texMB=38.2 screen=1440x900
+
+84.8	log	[gate] render map=BlockPartyDash drawCalls=200 batches=192 setPass=107 tris=430027 visible=12
+
+84.8	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=66 p95=226ms lead=6/6 resyncs=2
+
+88.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 170 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+93.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 134 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+94.8	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=4 meanCorr=0.0cm maxCorr=14.3cm snaps=151 match=135 silent=12 hazMismatch=0 hazExplained=0 respawns=0 replay mean=9.4 last=8 max=13 drift meanMm=35.52 maxMm=75.0 subMm=0 predHits=8 interp delay=150ms target=150ms lateP95=59ms extrap=2.5% frozen=2.7% lagEvents=8 remoteStutter p50=0.20 p95=0.91m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(-0.9,0.0,11.7) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=208104 events=2
+
+94.8	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=56 drawCallsMedian=215 drawCallsMax=224 trisMax=450327 texMB=38.2 screen=1440x900
+
+94.8	log	[gate] render map=BlockPartyDash drawCalls=213 batches=205 setPass=116 tris=442337 visible=12
+
+94.9	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=67 p95=226ms lead=6/6 resyncs=2
+
+98.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 138 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+103.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 181 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 61 playing True phase RoundActive
+
+104.8	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=1 meanCorr=0.0cm maxCorr=14.3cm snaps=150 match=144 silent=5 hazMismatch=0 hazExplained=0 respawns=0 replay mean=8.0 last=8 max=13 drift meanMm=35.52 maxMm=75.0 subMm=0 predHits=10 interp delay=150ms target=150ms lateP95=74ms extrap=2.8% frozen=4.2% lagEvents=9 remoteStutter p50=0.23 p95=1.07m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.9,0.0,12.8) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=252204 events=2
+
+104.8	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=56 drawCallsMedian=216 drawCallsMax=222 trisMax=450069 texMB=38.2 screen=1440x900
+
+104.8	log	[gate] render map=BlockPartyDash drawCalls=221 batches=214 setPass=120 tris=446731 visible=12
+
+104.8	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=67 p95=317ms lead=6/6 resyncs=2
+
+108.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 158 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 61 playing True phase RoundActive
+
+113.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 133 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 61 playing True phase RoundActive
+
+114.8	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=14.3cm snaps=150 match=150 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=8 max=13 drift meanMm=35.52 maxMm=75.0 subMm=0 predHits=13 interp delay=150ms target=150ms lateP95=69ms extrap=2.3% frozen=4.8% lagEvents=10 remoteStutter p50=0.22 p95=3.02m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(-1.8,1.2,15.4) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=296304 events=2
+
+114.8	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=56 drawCallsMedian=218 drawCallsMax=223 trisMax=448251 texMB=38.2 screen=1440x900
+
+114.8	log	[gate] render map=BlockPartyDash drawCalls=217 batches=210 setPass=121 tris=442463 visible=12
+
+114.8	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=67 p95=317ms lead=6/6 resyncs=2
+
+118.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 120 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+123.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 130 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+124.8	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=14.3cm snaps=150 match=145 silent=5 hazMismatch=0 hazExplained=0 respawns=0 replay mean=7.8 last=8 max=13 drift meanMm=35.52 maxMm=75.0 subMm=0 predHits=16 interp delay=150ms target=150ms lateP95=57ms extrap=0.8% frozen=0.0% lagEvents=10 remoteStutter p50=0.21 p95=0.79m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(1.1,0.0,11.4) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=340404 events=2
+
+124.8	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=56 drawCallsMedian=218 drawCallsMax=223 trisMax=446921 texMB=38.2 screen=1440x900
+
+124.8	log	[gate] render map=BlockPartyDash drawCalls=215 batches=208 setPass=119 tris=441029 visible=12
+
+124.8	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=67 p95=199ms lead=7/6 resyncs=2
+
+128.5	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 126 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+133.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 120 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+135.0	log	[gate] pred corrections=1 per5s=0.50 pushCorrections=0 meanCorr=12.0cm maxCorr=14.3cm snaps=151 match=144 silent=6 hazMismatch=0 hazExplained=0 respawns=0 replay mean=8.6 last=9 max=13 drift meanMm=43.07 maxMm=80.8 subMm=0 predHits=19 interp delay=150ms target=150ms lateP95=131ms extrap=6.4% frozen=0.2% lagEvents=11 remoteStutter p50=0.22 p95=0.87m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(-2.4,0.0,11.0) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=384798 events=2
+
+135.0	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=50 drawCallsMedian=216 drawCallsMax=220 trisMax=446521 texMB=38.2 screen=1440x900
+
+135.0	log	[gate] render map=BlockPartyDash drawCalls=199 batches=191 setPass=108 tris=427162 visible=12
+
+135.0	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=66 p95=184ms lead=1/6 resyncs=2
+
+138.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 122 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+143.5	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 115 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+144.8	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=1 meanCorr=0.0cm maxCorr=14.3cm snaps=149 match=142 silent=6 hazMismatch=0 hazExplained=0 respawns=0 replay mean=7.7 last=7 max=13 drift meanMm=43.93 maxMm=80.8 subMm=0 predHits=21 interp delay=150ms target=150ms lateP95=81ms extrap=0.3% frozen=0.0% lagEvents=11 remoteStutter p50=0.19 p95=0.64m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(-1.1,0.6,11.2) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=428604 events=2
+
+144.8	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=48 drawCallsMedian=185 drawCallsMax=201 trisMax=427489 texMB=38.2 screen=1440x900
+
+144.8	log	[gate] render map=BlockPartyDash drawCalls=186 batches=178 setPass=99 tris=418356 visible=12
+
+144.8	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=66 p95=133ms lead=6/6 resyncs=2
+
+148.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 91 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+153.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 88 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+154.8	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=1 meanCorr=0.0cm maxCorr=14.3cm snaps=150 match=145 silent=4 hazMismatch=0 hazExplained=0 respawns=0 replay mean=8.4 last=8 max=13 drift meanMm=43.93 maxMm=80.8 subMm=0 predHits=24 interp delay=150ms target=150ms lateP95=54ms extrap=1.2% frozen=0.0% lagEvents=11 remoteStutter p50=0.22 p95=0.73m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(-0.1,0.9,15.4) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=472704 events=2
+
+154.8	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=187 drawCallsMax=190 trisMax=423790 texMB=38.2 screen=1440x900
+
+154.8	log	[gate] render map=BlockPartyDash drawCalls=185 batches=178 setPass=97 tris=420382 visible=12
+
+154.8	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=66 p95=149ms lead=6/6 resyncs=2
+
+158.5	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 77 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+163.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 84 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 61 playing True phase RoundActive
+
+164.8	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=2 meanCorr=0.0cm maxCorr=14.3cm snaps=150 match=143 silent=5 hazMismatch=0 hazExplained=0 respawns=0 replay mean=8.1 last=8 max=13 drift meanMm=43.93 maxMm=80.8 subMm=0 predHits=27 interp delay=150ms target=150ms lateP95=122ms extrap=2.5% frozen=0.0% lagEvents=11 remoteStutter p50=0.21 p95=0.72m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(2.0,0.1,14.9) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=516804 events=2
+
+164.8	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=187 drawCallsMax=190 trisMax=423778 texMB=38.2 screen=1440x900
+
+164.8	log	[gate] render map=BlockPartyDash drawCalls=186 batches=179 setPass=96 tris=421472 visible=12
+
+164.8	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=66 p95=133ms lead=6/6 resyncs=2
+
+168.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 122 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 61 playing True phase RoundActive
+
+173.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 102 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+174.9	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=14.3cm snaps=150 match=146 silent=4 hazMismatch=0 hazExplained=0 respawns=0 replay mean=8.5 last=8 max=13 drift meanMm=43.69 maxMm=80.8 subMm=0 predHits=31 interp delay=150ms target=150ms lateP95=67ms extrap=0.0% frozen=0.0% lagEvents=11 remoteStutter p50=0.20 p95=0.72m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(1.0,0.8,13.6) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=560904 events=2
+
+174.9	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=188 drawCallsMax=192 trisMax=425742 texMB=38.2 screen=1440x900
+
+174.9	log	[gate] render map=BlockPartyDash drawCalls=191 batches=184 setPass=99 tris=424992 visible=12
+
+174.9	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=66 p95=150ms lead=6/6 resyncs=2
+
+178.5	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 86 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 61 playing True phase RoundActive
+
+183.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 85 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+184.9	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=1 meanCorr=0.0cm maxCorr=14.3cm snaps=151 match=143 silent=7 hazMismatch=0 hazExplained=0 respawns=0 replay mean=7.6 last=8 max=13 drift meanMm=43.87 maxMm=80.8 subMm=0 predHits=34 interp delay=150ms target=150ms lateP95=64ms extrap=0.7% frozen=0.0% lagEvents=11 remoteStutter p50=0.22 p95=0.83m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(-2.3,0.0,10.3) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=605298 events=2
+
+184.9	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=188 drawCallsMax=194 trisMax=425892 texMB=38.2 screen=1440x900
+
+184.9	log	[gate] render map=BlockPartyDash drawCalls=185 batches=177 setPass=96 tris=418268 visible=12
+
+184.9	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=67 p95=151ms lead=7/6 resyncs=2
+
+188.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 84 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 61 playing True phase RoundActive
+
+193.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 83 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+194.9	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=2 meanCorr=0.0cm maxCorr=14.3cm snaps=150 match=140 silent=8 hazMismatch=0 hazExplained=0 respawns=0 replay mean=8.1 last=8 max=13 drift meanMm=43.87 maxMm=80.8 subMm=0 predHits=37 interp delay=150ms target=150ms lateP95=79ms extrap=1.0% frozen=0.0% lagEvents=11 remoteStutter p50=0.22 p95=0.74m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(2.3,0.0,11.4) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=649398 events=2
+
+194.9	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=188 drawCallsMax=193 trisMax=425760 texMB=38.2 screen=1440x900
+
+194.9	log	[gate] render map=BlockPartyDash drawCalls=191 batches=184 setPass=100 tris=423620 visible=12
+
+194.9	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=66 p95=151ms lead=4/6 resyncs=2
+
+198.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 78 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+203.5	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 74 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 59 playing True phase RoundActive
+
+204.9	log	[gate] pred corrections=1 per5s=0.50 pushCorrections=0 meanCorr=8.3cm maxCorr=14.3cm snaps=150 match=149 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=7.0 last=7 max=13 drift meanMm=47.80 maxMm=83.2 subMm=0 predHits=40 interp delay=150ms target=150ms lateP95=65ms extrap=1.0% frozen=0.0% lagEvents=11 remoteStutter p50=0.20 p95=0.63m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(2.0,1.3,17.2) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2346 rxBytes=16 bytesIn=693498 events=2
+
+204.9	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=185 drawCallsMax=193 trisMax=423662 texMB=38.2 screen=1440x900
+
+204.9	log	[gate] render map=BlockPartyDash drawCalls=185 batches=178 setPass=92 tris=419590 visible=12
+
+204.9	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=66 p95=151ms lead=6/6 resyncs=2
+
+208.5	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 89 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.7	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+212.8	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+213.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 81 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundResult
+
+213.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+214.9	log	[gate] pred corrections=5 per5s=2.50 pushCorrections=0 meanCorr=33.8cm maxCorr=48.0cm snaps=150 match=143 silent=2 hazMismatch=0 hazExplained=0 respawns=0 replay mean=8.3 last=8 max=13 drift meanMm=70.48 maxMm=190.9 subMm=0 predHits=42 interp delay=150ms target=150ms lateP95=79ms extrap=1.5% frozen=0.0% lagEvents=11 remoteStutter p50=0.21 p95=0.85m/s course=- phase=Ended cp=0 finished=False race=- hazardCorr=0 pos=(-2.1,0.0,9.0) m4 match=RoundResult round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=2684 rxBytes=16 bytesIn=737598 events=15
+
+214.9	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=188 drawCallsMax=206 trisMax=424774 texMB=38.2 screen=1440x900
+
+214.9	log	[gate] render map=BlockPartyDash drawCalls=205 batches=198 setPass=115 tris=422278 visible=12
+
+214.9	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=66 p95=135ms lead=6/6 resyncs=2
+
+218.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 73 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundResult
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+218.7	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+223.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 93 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase Intermission
+
+224.9	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=48.0cm snaps=150 match=150 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=8 max=13 drift meanMm=70.48 maxMm=190.9 subMm=0 predHits=42 interp delay=150ms target=150ms lateP95=96ms extrap=0.3% frozen=0.0% lagEvents=11 remoteStutter p50=0.38 p95=1.44m/s course=- phase=Ended cp=0 finished=False race=- hazardCorr=0 pos=(-2.1,0.0,9.0) m4 match=Intermission round=1 map=BlockPartyDash slot=0 out=False rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=3022 rxBytes=16 bytesIn=781698 events=15
+
+224.9	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=199 drawCallsMax=211 trisMax=423074 texMB=38.2 screen=1440x900
+
+224.9	log	[gate] render map=BlockPartyDash drawCalls=197 batches=188 setPass=103 tris=420004 visible=12
+
+224.9	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=66 p95=150ms lead=6/6 resyncs=2
+
+226.6	log	[net] round: map=1 variant=A modifier=None seed=0xd9ce68caa9fef1f9 start=2147418112 qualify=5/8 intro=0 countdown=0 timer=0 serverMapHash=5d5a00be
+
+226.6	log	[net] round: map=1 variant=A modifier=None seed=0xd9ce68caa9fef1f9 start=457668 qualify=5/8 intro=60 countdown=90 timer=4500 serverMapHash=5d5a00be
+
+226.6	log	[net] loading Map_GooTower (round 2)
+
+226.7	log	UnloadTime: 23.399999 ms
+
+226.7	log	Unloading 2 Unused Serialized files (Serialized files now loaded: 0)
+
+226.7	log	Unloading 136 unused Assets to reduce memory usage. Loaded Objects now: 5622.
+
+226.7	log	Total: 28.600001 ms (FindLiveObjects: 2.400000 ms CreateObjectMapping: 0.600000 ms MarkObjects: 24.400000 ms  DeleteObjects: 1.200001 ms)
+
+
+226.7	log	[gfx] level=high Mobile_RPAsset grading HighDynamicRange HDR True scale 1.00 cameraHDR=True rtRGB111110=True rtHalf=True post=True device=OpenGLES3
+
+226.8	log	[net] prediction ready map=Map_GooTower mapHash=5d5a00be round: map=1 variant=A modifier=None seed=0xd9ce68caa9fef1f9 start=457668 qualify=5/8 intro=60 countdown=90 timer=4500 hazards=22
+
+226.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+226.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+228.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 94 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundIntro
+
+233.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 99 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+236.9	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=58ms extrap=2.2% frozen=1.9% lagEvents=12 remoteStutter p50=0.24 p95=0.76m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=2 map=GooTower slot=0 out=True rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=3698 rxBytes=24 bytesIn=820450 events=16
+
+236.9	log	[gate] budget map=GooTower gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=125 drawCallsMax=146 trisMax=381262 texMB=38.2 screen=1440x900
+
+236.9	log	[gate] render map=GooTower drawCalls=123 batches=122 setPass=82 tris=366536 visible=8
+
+236.9	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=66 p95=150ms lead=6/6 resyncs=2
+
+238.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 86 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 59 playing False phase RoundActive
+
+243.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 80 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 59 playing False phase RoundActive
+
+246.9	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=81ms extrap=3.3% frozen=2.5% lagEvents=13 remoteStutter p50=0.31 p95=1.54m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=2 map=GooTower slot=0 out=True rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=3698 rxBytes=24 bytesIn=850750 events=16
+
+246.9	log	[gate] budget map=GooTower gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=92 drawCallsMax=123 trisMax=367826 texMB=38.2 screen=1440x900
+
+246.9	log	[gate] render map=GooTower drawCalls=72 batches=70 setPass=51 tris=293840 visible=8
+
+246.9	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=67 p95=150ms lead=7/6 resyncs=2
+
+248.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 112 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+253.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 254 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+256.8	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=81ms extrap=4.9% frozen=5.5% lagEvents=15 remoteStutter p50=0.30 p95=2.77m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=2 map=GooTower slot=0 out=True rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=3698 rxBytes=24 bytesIn=881050 events=16
+
+256.9	log	[gate] budget map=GooTower gfx=high fpsMedian=59 fps1pcLow=48 drawCallsMedian=83 drawCallsMax=152 trisMax=382942 texMB=38.2 screen=1440x900
+
+256.9	log	[gate] render map=GooTower drawCalls=110 batches=108 setPass=74 tris=343244 visible=8
+
+256.9	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=67 p95=233ms lead=7/6 resyncs=2
+
+258.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 178 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 61 playing False phase RoundActive
+
+263.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 158 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+266.9	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=67ms extrap=1.7% frozen=0.0% lagEvents=15 remoteStutter p50=0.14 p95=0.50m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=2 map=GooTower slot=0 out=True rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=3698 rxBytes=24 bytesIn=911148 events=16
+
+266.9	log	[gate] budget map=GooTower gfx=high fpsMedian=59 fps1pcLow=50 drawCallsMedian=118 drawCallsMax=175 trisMax=404280 texMB=38.2 screen=1440x900
+
+266.9	log	[gate] render map=GooTower drawCalls=92 batches=89 setPass=55 tris=325000 visible=8
+
+266.9	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=67 p95=167ms lead=7/6 resyncs=2
+
+268.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 121 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 58 playing False phase RoundActive
+
+273.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 110 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+276.9	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=234ms extrap=12.6% frozen=1.8% lagEvents=17 remoteStutter p50=0.25 p95=0.74m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=2 map=GooTower slot=0 out=True rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=3698 rxBytes=24 bytesIn=941044 events=16
+
+276.9	log	[gate] budget map=GooTower gfx=high fpsMedian=59 fps1pcLow=50 drawCallsMedian=111 drawCallsMax=135 trisMax=369951 texMB=38.2 screen=1440x900
+
+276.9	log	[gate] render map=GooTower drawCalls=83 batches=81 setPass=56 tris=313384 visible=8
+
+276.9	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=67 p95=350ms lead=6/6 resyncs=2
+
+278.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 120 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+283.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 345 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+286.9	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=781ms extrap=15.1% frozen=16.0% lagEvents=23 remoteStutter p50=NaN p95=NaNm/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=2 map=GooTower slot=0 out=True rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=3698 rxBytes=24 bytesIn=971950 events=16
+
+286.9	log	[gate] budget map=GooTower gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=100 drawCallsMax=128 trisMax=355757 texMB=38.2 screen=1440x900
+
+286.9	log	[gate] render map=GooTower drawCalls=100 batches=98 setPass=66 tris=329807 visible=8
+
+286.9	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=68 p95=750ms lead=4/6 resyncs=3
+
+288.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 383 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 59 playing False phase RoundActive
+
+290.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+290.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+290.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+290.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+290.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+290.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+290.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+290.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+290.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+293.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 406 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 59 playing False phase RoundResult
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.8	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.9	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.9	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+296.9	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=112ms extrap=9.3% frozen=2.0% lagEvents=26 remoteStutter p50=NaN p95=NaNm/s course=- phase=Ended cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=Intermission round=2 map=GooTower slot=0 out=True rxIn=0 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=4374 rxBytes=24 bytesIn=1002452 events=25
+
+296.9	log	[gate] budget map=GooTower gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=103 drawCallsMax=116 trisMax=334395 texMB=38.2 screen=1440x900
+
+296.9	log	[gate] render map=GooTower drawCalls=116 batches=114 setPass=75 tris=331729 visible=8
+
+296.9	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=99 p95=750ms lead=7/6 resyncs=3
+
+298.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 249 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase Intermission
+
+303.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 186 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 53 playing False phase Intermission
+
+304.8	log	[net] round: map=2 variant=B modifier=None seed=0x424ad1ffd5cd0125 start=2147418112 qualify=3/5 intro=0 countdown=0 timer=0 serverMapHash=0bde7d75
+
+304.8	log	[net] loading Map_StarScramble (round 3)
+
+304.8	log	UnloadTime: 22.300000 ms
+
+304.9	log	Unloading 1 Unused Serialized files (Serialized files now loaded: 0)
+
+304.9	log	Unloading 182 unused Assets to reduce memory usage. Loaded Objects now: 5058.
+
+304.9	log	Total: 31.100000 ms (FindLiveObjects: 1.000000 ms CreateObjectMapping: 0.300001 ms MarkObjects: 27.199999 ms  DeleteObjects: 2.600000 ms)
+
+
+304.9	log	[net] round: map=2 variant=B modifier=None seed=0x424ad1ffd5cd0125 start=460012 qualify=3/5 intro=60 countdown=90 timer=1800 serverMapHash=0bde7d75
+
+304.9	log	[gfx] level=high Mobile_RPAsset grading HighDynamicRange HDR True scale 1.00 cameraHDR=True rtRGB111110=True rtHalf=True post=True device=OpenGLES3
+
+305.0	log	[net] prediction ready map=Map_StarScramble mapHash=0bde7d75 round: map=2 variant=B modifier=None seed=0x424ad1ffd5cd0125 start=460012 qualify=3/5 intro=60 countdown=90 timer=1800 hazards=10
+
+305.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+305.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+308.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 131 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 59 playing False phase RoundIntro
+
+313.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 137 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+315.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=64ms extrap=3.4% frozen=2.4% lagEvents=26 remoteStutter p50=0.45 p95=1.79m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=3 map=StarScramble slot=0 out=True rxIn=12 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=5050 rxBytes=288 bytesIn=1046568 events=26
+
+315.0	log	[gate] budget map=StarScramble gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=110 drawCallsMax=127 trisMax=254982 texMB=38.2 screen=1440x900
+
+315.0	log	[gate] render map=StarScramble drawCalls=101 batches=96 setPass=64 tris=220472 visible=5
+
+315.0	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=67 p95=368ms lead=6/6 resyncs=3
+
+318.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 116 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+323.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 110 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 61 playing False phase RoundActive
+
+325.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=148ms extrap=3.2% frozen=0.2% lagEvents=27 remoteStutter p50=0.62 p95=1.27m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=3 map=StarScramble slot=0 out=True rxIn=22 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=5050 rxBytes=500 bytesIn=1066518 events=26
+
+325.0	log	[gate] budget map=StarScramble gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=99 drawCallsMax=109 trisMax=238849 texMB=38.2 screen=1440x900
+
+325.0	log	[gate] render map=StarScramble drawCalls=104 batches=101 setPass=62 tris=230669 visible=5
+
+325.0	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=66 p95=148ms lead=3/6 resyncs=3
+
+328.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 90 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 61 playing False phase RoundActive
+
+333.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 92 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+335.1	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=87ms extrap=0.3% frozen=0.0% lagEvents=27 remoteStutter p50=0.29 p95=1.46m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=3 map=StarScramble slot=0 out=True rxIn=43 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=5050 rxBytes=954 bytesIn=1086601 events=26
+
+335.1	log	[gate] budget map=StarScramble gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=85 drawCallsMax=114 trisMax=241245 texMB=38.2 screen=1440x900
+
+335.1	log	[gate] render map=StarScramble drawCalls=114 batches=110 setPass=70 tris=236633 visible=5
+
+335.1	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=66 p95=148ms lead=6/6 resyncs=3
+
+338.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 87 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 59 playing False phase RoundActive
+
+343.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 356 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+345.1	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=86ms extrap=7.0% frozen=9.2% lagEvents=29 remoteStutter p50=0.74 p95=1.60m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=3 map=StarScramble slot=0 out=True rxIn=58 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=5050 rxBytes=1276 bytesIn=1106551 events=26
+
+345.1	log	[gate] budget map=StarScramble gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=111 drawCallsMax=129 trisMax=253567 texMB=38.2 screen=1440x900
+
+345.1	log	[gate] render map=StarScramble drawCalls=91 batches=88 setPass=52 tris=220933 visible=5
+
+345.1	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=67 p95=233ms lead=7/6 resyncs=3
+
+348.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 219 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+353.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 144 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+355.1	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=94ms extrap=2.7% frozen=0.0% lagEvents=29 remoteStutter p50=0.70 p95=1.56m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=3 map=StarScramble slot=0 out=True rxIn=67 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=5050 rxBytes=1466 bytesIn=1126501 events=26
+
+355.1	log	[gate] budget map=StarScramble gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=106 drawCallsMax=124 trisMax=253603 texMB=38.2 screen=1440x900
+
+355.1	log	[gate] render map=StarScramble drawCalls=107 batches=105 setPass=55 tris=243354 visible=5
+
+355.1	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=67 p95=233ms lead=6/6 resyncs=3
+
+358.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 152 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 59 playing False phase RoundActive
+
+363.5	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 123 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 59 playing False phase RoundActive
+
+365.1	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=57ms extrap=1.0% frozen=0.0% lagEvents=29 remoteStutter p50=0.27 p95=1.03m/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=3 map=StarScramble slot=0 out=True rxIn=78 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=5050 rxBytes=1708 bytesIn=1146318 events=26
+
+365.1	log	[gate] budget map=StarScramble gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=110 drawCallsMax=124 trisMax=247870 texMB=38.2 screen=1440x900
+
+365.2	log	[gate] render map=StarScramble drawCalls=115 batches=112 setPass=65 tris=245559 visible=5
+
+365.3	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=68 p95=232ms lead=7/6 resyncs=3
+
+368.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 103 confirm p50 0 p95 0 gaps 0 polls 0 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundActive
+
+370.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+370.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+370.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+370.1	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+370.1	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+370.1	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+373.4	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 89 confirm p50 0 p95 0 gaps 1 polls 2 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase RoundResult
+
+375.5	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=66ms extrap=1.5% frozen=0.0% lagEvents=29 remoteStutter p50=1.08 p95=1.89m/s course=- phase=Ended cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundResult round=3 map=StarScramble slot=0 out=True rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=5388 rxBytes=1920 bytesIn=1166268 events=32
+
+375.6	log	[gate] budget map=StarScramble gfx=high fpsMedian=59 fps1pcLow=40 drawCallsMedian=115 drawCallsMax=129 trisMax=252007 texMB=38.2 screen=1440x900
+
+375.6	log	[gate] render map=StarScramble drawCalls=108 batches=105 setPass=67 tris=229981 visible=5
+
+375.6	log	[gate] frame p50=17.0ms p95=19.0ms fps=59 ping p50=66 p95=150ms lead=6/6 resyncs=3
+
+377.0	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.0	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.0	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.0	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.0	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.0	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.0	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.0	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.1	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.1	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.1	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.1	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.1	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.1	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.1	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.1	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.1	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.1	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.1	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.2	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+377.2	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+379.0	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 94 confirm p50 0 p95 0 gaps 1 polls 7 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 6 playing False phase Intermission
+
+384.0	log	[net] round: map=3 variant=A modifier=None seed=0xc334b3405e845758 start=2147418112 qualify=1/3 intro=0 countdown=0 timer=0 serverMapHash=b0684a98
+
+384.0	log	[net] loading Map_CrumbleShelf (round 4)
+
+384.0	log	[onchain] tick 0 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 96 confirm p50 0 p95 0 gaps 1 polls 12 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 4 playing True phase RoundIntro
+
+384.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+384.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+384.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+384.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+384.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+384.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+384.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+384.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+384.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+385.1	log	UnloadTime: 39.300001 ms
+
+385.1	log	Unloading 2 Unused Serialized files (Serialized files now loaded: 0)
+
+385.1	log	Unloading 83 unused Assets to reduce memory usage. Loaded Objects now: 4960.
+
+385.1	log	Total: 35.000000 ms (FindLiveObjects: 1.199999 ms CreateObjectMapping: 0.300001 ms MarkObjects: 26.799999 ms  DeleteObjects: 6.700001 ms)
+
+
+385.1	log	[net] fonc: {"t":"final_onchain","net":"devnet","arena":"E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG","match":"b2ff1f220765dcb428d348f5e8633528","url":"","slot_map":[{"slot":5,"name":"Tinker","kind":"bot"},{"slot":9,"name":"Clank","kind":"bot"},{"slot":11,"name":"Fizz","kind":"bot"}]}
+
+385.1	log	[net] round: map=3 variant=A modifier=None seed=0xc334b3405e845758 start=462405 qualify=1/3 intro=60 countdown=90 timer=3600 serverMapHash=b0684a98
+
+385.1	log	[gfx] level=high Mobile_RPAsset grading HighDynamicRange HDR True scale 1.00 cameraHDR=True rtRGB111110=True rtHalf=True post=True device=OpenGLES3
+
+385.1	log	[onchain] joined E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG slot spectator, map CrumbleShelf
+
+385.1	log	[onchain] drop seen LID FRENZY at tick 354 trigger 377 telegraph 23 ticks (0.77 s) recv 360.743
+
+385.2	log	[net] prediction ready map=Map_CrumbleShelf mapHash=b0684a98 round: map=3 variant=A modifier=None seed=0x9c16cca93de48da0 start=151 qualify=1/3 intro=60 countdown=90 timer=3600 hazards=3
+
+385.2	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+385.2	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+385.2	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+385.2	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+389.0	log	[onchain] tick 490 upd/s 29.6 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 104 confirm p50 116 p95 116 gaps 1 polls 16 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 3 playing True phase RoundActive
+
+394.1	log	[onchain] tick 644 upd/s 29.2 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 107 confirm p50 116 p95 116 gaps 3 polls 22 resync 0 lag 0 rejected 0 unconfirmed 0 lead +2 fps 3 playing True phase RoundActive
+
+396.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=817ms extrap=3.3% frozen=2.3% lagEvents=30 remoteStutter p50=NaN p95=NaNm/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=4 map=CrumbleShelf slot=255 out=False rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=6740 rxBytes=1928 bytesIn=1186828 events=0
+
+396.0	log	[gate] budget map=CrumbleShelf gfx=high fpsMedian=1 fps1pcLow=1 drawCallsMedian=98 drawCallsMax=101 trisMax=182419 texMB=38.2 screen=1440x900
+
+396.0	log	[gate] render map=CrumbleShelf drawCalls=98 batches=95 setPass=79 tris=180413 visible=3
+
+396.0	log	[gate] frame p50=1000.0ms p95=1061.0ms fps=1 ping p50=81 p95=999ms lead=-19/6 resyncs=11
+
+398.7	log	[onchain] tick 767 upd/s 18.5 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 102 confirm p50 116 p95 116 gaps 5 polls 25 resync 0 lag 1 rejected 0 unconfirmed 0 lead +2 fps 3 playing True phase RoundActive
+
+400.7	log	[onchain] drop seen LID FRENZY at tick 845 trigger 868 telegraph 23 ticks (0.77 s) recv 377.087
+
+403.4	log	[onchain] tick 922 upd/s 26.6 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 182 confirm p50 116 p95 116 gaps 8 polls 30 resync 0 lag 1 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+406.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=817ms extrap=0.0% frozen=100.0% lagEvents=30 remoteStutter p50=NaN p95=NaNm/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=4 map=CrumbleShelf slot=255 out=False rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=6740 rxBytes=1928 bytesIn=1186828 events=0
+
+406.0	log	[gate] budget map=CrumbleShelf gfx=high fpsMedian=59 fps1pcLow=31 drawCallsMedian=100 drawCallsMax=105 trisMax=181635 texMB=38.2 screen=1440x900
+
+406.0	log	[gate] render map=CrumbleShelf drawCalls=98 batches=95 setPass=79 tris=180455 visible=3
+
+406.0	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=100 p95=1001ms lead=-19/6 resyncs=11
+
+411.4	log	[onchain] tick 1063 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 381 confirm p50 116 p95 116 gaps 11 polls 34 resync 0 lag 5 rejected 0 unconfirmed 0 lead +2 fps 13 playing True phase RoundActive
+
+411.6	log	[onchain] drop seen WIND GUST at tick 1169 trigger 1165 telegraph -4 ticks (-0.13 s) recv 388.040
+
+413.4	log	[onchain] tick 1227 upd/s 7.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 295 confirm p50 116 p95 116 gaps 15 polls 37 resync 0 lag 7 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+416.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=817ms extrap=0.0% frozen=100.0% lagEvents=30 remoteStutter p50=NaN p95=NaNm/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=4 map=CrumbleShelf slot=255 out=False rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=6740 rxBytes=1928 bytesIn=1186828 events=0
+
+416.0	log	[gate] budget map=CrumbleShelf gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=100 drawCallsMax=105 trisMax=181651 texMB=38.2 screen=1440x900
+
+416.0	log	[gate] render map=CrumbleShelf drawCalls=98 batches=95 setPass=79 tris=180431 visible=3
+
+416.0	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=118 p95=1001ms lead=-19/6 resyncs=11
+
+418.4	log	[onchain] tick 1373 upd/s 1.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 216 confirm p50 116 p95 116 gaps 18 polls 42 resync 0 lag 8 rejected 0 unconfirmed 0 lead +2 fps 61 playing True phase RoundActive
+
+423.4	log	[onchain] tick 1523 upd/s 1.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 224 confirm p50 116 p95 116 gaps 23 polls 47 resync 0 lag 13 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+426.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=817ms extrap=0.0% frozen=100.0% lagEvents=30 remoteStutter p50=NaN p95=NaNm/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=4 map=CrumbleShelf slot=255 out=False rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=6740 rxBytes=1928 bytesIn=1186828 events=0
+
+426.0	log	[gate] budget map=CrumbleShelf gfx=high fpsMedian=59 fps1pcLow=56 drawCallsMedian=98 drawCallsMax=99 trisMax=181439 texMB=38.2 screen=1440x900
+
+426.0	log	[gate] render map=CrumbleShelf drawCalls=98 batches=95 setPass=79 tris=180431 visible=3
+
+426.0	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=96 p95=997ms lead=-19/6 resyncs=11
+
+428.6	log	[onchain] tick 1678 upd/s 30.5 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 169 confirm p50 116 p95 116 gaps 25 polls 52 resync 0 lag 16 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+433.4	log	[onchain] tick 1829 upd/s 29.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 123 confirm p50 116 p95 116 gaps 25 polls 57 resync 0 lag 16 rejected 0 unconfirmed 0 lead +2 fps 61 playing True phase RoundActive
+
+436.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=817ms extrap=0.0% frozen=100.0% lagEvents=30 remoteStutter p50=NaN p95=NaNm/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=4 map=CrumbleShelf slot=255 out=False rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=6740 rxBytes=1928 bytesIn=1186828 events=0
+
+436.0	log	[gate] budget map=CrumbleShelf gfx=high fpsMedian=59 fps1pcLow=53 drawCallsMedian=98 drawCallsMax=98 trisMax=181409 texMB=38.2 screen=1440x900
+
+436.0	log	[gate] render map=CrumbleShelf drawCalls=98 batches=95 setPass=79 tris=180435 visible=3
+
+436.0	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=67 p95=183ms lead=-19/6 resyncs=11
+
+438.5	log	[onchain] tick 1978 upd/s 28.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 108 confirm p50 116 p95 116 gaps 25 polls 62 resync 0 lag 16 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+443.4	log	[onchain] tick 2129 upd/s 31.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 108 confirm p50 116 p95 116 gaps 27 polls 67 resync 0 lag 16 rejected 0 unconfirmed 0 lead +2 fps 61 playing True phase RoundActive
+
+446.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=817ms extrap=0.0% frozen=100.0% lagEvents=30 remoteStutter p50=NaN p95=NaNm/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=4 map=CrumbleShelf slot=255 out=False rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=6740 rxBytes=1928 bytesIn=1186828 events=0
+
+446.0	log	[gate] budget map=CrumbleShelf gfx=high fpsMedian=59 fps1pcLow=45 drawCallsMedian=98 drawCallsMax=98 trisMax=181411 texMB=38.2 screen=1440x900
+
+446.0	log	[gate] render map=CrumbleShelf drawCalls=98 batches=95 setPass=79 tris=180429 visible=3
+
+446.0	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=66 p95=167ms lead=-19/6 resyncs=11
+
+448.4	log	[onchain] tick 2279 upd/s 30.5 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 94 confirm p50 116 p95 116 gaps 27 polls 72 resync 0 lag 16 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+453.4	log	[onchain] tick 2429 upd/s 30.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 96 confirm p50 116 p95 116 gaps 27 polls 77 resync 0 lag 16 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundActive
+
+456.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=817ms extrap=0.0% frozen=100.0% lagEvents=30 remoteStutter p50=NaN p95=NaNm/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=RoundActive round=4 map=CrumbleShelf slot=255 out=False rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=6740 rxBytes=1928 bytesIn=1186828 events=0
+
+456.0	log	[gate] budget map=CrumbleShelf gfx=high fpsMedian=59 fps1pcLow=43 drawCallsMedian=98 drawCallsMax=98 trisMax=181409 texMB=38.2 screen=1440x900
+
+456.0	log	[gate] render map=CrumbleShelf drawCalls=98 batches=95 setPass=79 tris=180431 visible=3
+
+456.0	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=67 p95=167ms lead=-19/6 resyncs=11
+
+456.8	log	[onchain] RESULT champion 9 order 9,11,5 own slot 255 arena E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG tick 2530
+
+457.1	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+457.1	log	[onchain] Solana check 9RqNuj4D4hexFwTzL9uDSV7tFTgBn8b5vmdKQfMTRVh4: "owner":"DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh","
+
+457.5	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+458.5	log	[onchain] tick 2580 upd/s 30.5 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 95 confirm p50 116 p95 116 gaps 27 polls 81 resync 0 lag 16 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase RoundResult
+
+460.9	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+460.9	log	[onchain] Solana check 9RqNuj4D4hexFwTzL9uDSV7tFTgBn8b5vmdKQfMTRVh4: "owner":"DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh","
+
+463.4	log	[onchain] switch done: server match Champion, champion 9; handing back
+
+463.4	log	[onchain] tick 2727 upd/s 31.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 139 confirm p50 116 p95 116 gaps 27 polls 86 resync 0 lag 16 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase Champion
+
+464.9	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+465.0	log	[onchain] Solana check 9RqNuj4D4hexFwTzL9uDSV7tFTgBn8b5vmdKQfMTRVh4: "owner":"DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh","
+
+466.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=84ms extrap=0.3% frozen=73.8% lagEvents=30 remoteStutter p50=NaN p95=NaNm/s course=- phase=Sandbox cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=Champion round=4 map=CrumbleShelf slot=0 out=True rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=7416 rxBytes=1928 bytesIn=1190221 events=0
+
+466.0	log	[gate] budget map=CrumbleShelf gfx=high fpsMedian=59 fps1pcLow=40 drawCallsMedian=63 drawCallsMax=98 trisMax=182507 texMB=38.2 screen=1440x900
+
+466.0	log	[gate] render map=CrumbleShelf drawCalls=63 batches=63 setPass=53 tris=136049 visible=3
+
+466.0	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=67 p95=166ms lead=8/6 resyncs=12
+
+468.5	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 164 confirm p50 116 p95 116 gaps 27 polls 91 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 59 playing False phase Champion
+
+468.9	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+471.4	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.4	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.4	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.4	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.4	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.4	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.4	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.4	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.5	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.5	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.5	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.5	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.5	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.5	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.5	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.5	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.5	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+471.5	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+472.9	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+473.4	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 222 confirm p50 116 p95 116 gaps 27 polls 96 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase Done
+
+476.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=94ms extrap=5.5% frozen=0.2% lagEvents=31 remoteStutter p50=NaN p95=NaNm/s course=- phase=Sandbox cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=Done round=4 map=CrumbleShelf slot=0 out=True rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=8092 rxBytes=1928 bytesIn=1203271 events=0
+
+476.0	log	[gate] budget map=CrumbleShelf gfx=high fpsMedian=59 fps1pcLow=37 drawCallsMedian=63 drawCallsMax=87 trisMax=183253 texMB=38.2 screen=1440x900
+
+476.0	log	[gate] render map=CrumbleShelf drawCalls=87 batches=84 setPass=72 tris=182277 visible=3
+
+476.0	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=74 p95=191ms lead=6/6 resyncs=12
+
+476.9	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+478.3	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+478.4	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 150 confirm p50 116 p95 116 gaps 27 polls 101 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase Done
+
+478.7	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+480.9	warning	[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.
+480.9	log	[onchain] Solana ✓: Match 9RqNuj4D4hexFwTzL9uDSV7tFTgBn8b5vmdKQfMTRVh4 is back on Solana (committed)
+
+483.4	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 213 confirm p50 116 p95 116 gaps 27 polls 106 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase Done
+
+486.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=0 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=65ms extrap=3.7% frozen=1.2% lagEvents=33 remoteStutter p50=NaN p95=NaNm/s course=- phase=Sandbox cp=0 finished=False race=- hazardCorr=0 pos=(0.0,0.0,0.0) m4 match=Done round=4 map=CrumbleShelf slot=0 out=True rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=8092 rxBytes=1928 bytesIn=1216321 events=0
+
+486.0	log	[gate] budget map=CrumbleShelf gfx=high fpsMedian=59 fps1pcLow=50 drawCallsMedian=92 drawCallsMax=93 trisMax=183839 texMB=38.2 screen=1440x900
+
+486.0	log	[gate] render map=CrumbleShelf drawCalls=92 batches=89 setPass=75 tris=182863 visible=3
+
+486.0	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=67 p95=199ms lead=6/6 resyncs=12
+
+488.5	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 161 confirm p50 116 p95 116 gaps 27 polls 111 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 60 playing False phase Done
+
+491.4	log	[net] round: map=254 variant=A modifier=None seed=0x0000000000000000 start=0 qualify=0/0 intro=0 countdown=0 timer=0 serverMapHash=77dcefe7
+
+491.5	log	[net] loading Map_Lobby (round 0)
+
+491.5	log	UnloadTime: 18.600000 ms
+
+491.5	log	Unloading 1 Unused Serialized files (Serialized files now loaded: 0)
+
+491.5	log	Unloading 76 unused Assets to reduce memory usage. Loaded Objects now: 4944.
+
+491.6	log	Total: 43.800001 ms (FindLiveObjects: 0.600000 ms CreateObjectMapping: 0.200001 ms MarkObjects: 40.699999 ms  DeleteObjects: 2.300001 ms)
+
+
+491.6	log	[gfx] level=high Mobile_RPAsset grading HighDynamicRange HDR True scale 1.00 cameraHDR=True rtRGB111110=True rtHalf=True post=True device=OpenGLES3
+
+491.6	log	[net] prediction ready map=Map_Lobby mapHash=77dcefe7 round: map=254 variant=A modifier=None seed=0x0000000000000000 start=0 qualify=0/0 intro=0 countdown=0 timer=0 hazards=5
+
+491.7	warning	The character used for Ellipsis is not available in font asset [FR_Body] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+491.7	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+493.4	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 157 confirm p50 116 p95 116 gaps 27 polls 116 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase Countdown
+
+498.5	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 118 confirm p50 116 p95 116 gaps 27 polls 121 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase Countdown
+
+501.7	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=100 match=99 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=18.0 last=18 max=18 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=131ms extrap=2.9% frozen=16.4% lagEvents=34 remoteStutter p50=NaN p95=NaNm/s course=- phase=Sandbox cp=0 finished=False race=- hazardCorr=0 pos=(5.9,0.9,0.8) m4 match=Countdown round=0 map=Lobby slot=0 out=False rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=8251 rxBytes=1936 bytesIn=1227509 events=0
+
+501.7	log	[gate] budget map=Lobby gfx=high fpsMedian=59 fps1pcLow=45 drawCallsMedian=79 drawCallsMax=85 trisMax=210806 texMB=38.2 screen=1440x900
+
+501.7	log	[gate] render map=Lobby drawCalls=79 batches=77 setPass=62 tris=208424 visible=1
+
+501.7	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=67 p95=162ms lead=0/6 resyncs=12
+
+503.5	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 309 confirm p50 116 p95 116 gaps 27 polls 125 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase Countdown
+
+508.5	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 222 confirm p50 116 p95 116 gaps 27 polls 130 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase Countdown
+
+511.5	log	[net] fonc: {"t":"final_prejoin","net":"devnet","arena":"E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG","match":"9786806143c947a18b9f6396bbeada8f","slot_map":[{"slot":0,"name":"Player 1","kind":"human"}]}
+
+511.7	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=203 match=162 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=166.3 last=129 max=199 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=76ms extrap=0.2% frozen=26.1% lagEvents=34 remoteStutter p50=0.50 p95=0.88m/s course=- phase=Sandbox cp=0 finished=False race=- hazardCorr=0 pos=(5.9,0.0,0.6) m4 match=Dealing round=0 map=Lobby slot=0 out=False rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=8927 rxBytes=1936 bytesIn=1236844 events=0
+
+511.7	log	[gate] budget map=Lobby gfx=high fpsMedian=59 fps1pcLow=45 drawCallsMedian=78 drawCallsMax=90 trisMax=209108 texMB=38.2 screen=1440x900
+
+511.7	log	[gate] render map=Lobby drawCalls=69 batches=67 setPass=54 tris=206598 visible=12
+
+511.7	log	[gate] frame p50=17.0ms p95=18.0ms fps=59 ping p50=67 p95=4509ms lead=5/6 resyncs=13
+
+513.6	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 168 confirm p50 116 p95 116 gaps 27 polls 135 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 60 playing True phase Dealing
+
+516.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+517.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+517.0	warning	The character used for Ellipsis is not available in font asset [FR_Display] or any potential fallbacks. Switching Text Overflow mode to Truncate.
+
+518.0	log	[net] round: map=0 variant=B modifier=TurboToys seed=0x4517c4045b842196 start=2147418112 qualify=8/12 intro=0 countdown=0 timer=0 serverMapHash=50125d89
+
+518.0	log	[net] loading Map_BlockPartyDash (round 1)
+
+519.1	log	UnloadTime: 30.100001 ms
+
+519.1	log	Unloading 2 Unused Serialized files (Serialized files now loaded: 0)
+
+519.2	log	Unloading 64 unused Assets to reduce memory usage. Loaded Objects now: 6119.
+
+519.2	log	Total: 34.299999 ms (FindLiveObjects: 0.900000 ms CreateObjectMapping: 0.299999 ms MarkObjects: 30.900000 ms  DeleteObjects: 2.200000 ms)
+
+
+519.2	log	[gfx] level=high Mobile_RPAsset grading HighDynamicRange HDR True scale 1.00 cameraHDR=True rtRGB111110=True rtHalf=True post=True device=OpenGLES3
+
+519.2	log	[net] prediction ready map=Map_BlockPartyDash mapHash=50125d89 round: map=0 variant=B modifier=TurboToys seed=0x4517c4045b842196 start=2147418112 qualify=8/12 intro=0 countdown=0 timer=0 hazards=43
+
+519.2	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 131 confirm p50 116 p95 116 gaps 27 polls 141 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 5 playing True phase RoundIntro
+
+520.0	log	[net] round: map=0 variant=B modifier=TurboToys seed=0x4517c4045b842196 start=466449 qualify=8/12 intro=60 countdown=90 timer=4500 serverMapHash=50125d89
+
+520.0	log	[net] prediction ready map=Map_BlockPartyDash mapHash=50125d89 round: map=0 variant=B modifier=TurboToys seed=0x4517c4045b842196 start=466449 qualify=8/12 intro=60 countdown=90 timer=4500 hazards=43
+
+523.9	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 123 confirm p50 116 p95 116 gaps 27 polls 145 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 3 playing True phase RoundIntro
+
+531.0	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 167 confirm p50 116 p95 116 gaps 27 polls 147 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 3 playing True phase RoundActive
+
+531.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=77 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=6277ms extrap=2.8% frozen=16.5% lagEvents=36 remoteStutter p50=NaN p95=NaNm/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(-6.0,0.0,1.5) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=10279 rxBytes=1944 bytesIn=1291528 events=2
+
+531.0	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=1 fps1pcLow=0 drawCallsMedian=156 drawCallsMax=177 trisMax=397950 texMB=38.2 screen=1440x900
+
+531.0	log	[gate] render map=BlockPartyDash drawCalls=175 batches=167 setPass=89 tris=394538 visible=12
+
+531.1	log	[gate] frame p50=1001.0ms p95=6999.0ms fps=1 ping p50=98 p95=5007ms lead=-20/6 resyncs=22
+
+537.8	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 167 confirm p50 116 p95 116 gaps 27 polls 148 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 3 playing True phase RoundActive
+
+540.0	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 169 confirm p50 116 p95 116 gaps 27 polls 150 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 10 playing True phase RoundActive
+
+542.0	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=61 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=5054ms extrap=0.0% frozen=42.9% lagEvents=36 remoteStutter p50=NaN p95=NaNm/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(-6.0,0.0,1.5) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=10279 rxBytes=1944 bytesIn=1309462 events=2
+
+542.0	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=59 fps1pcLow=0 drawCallsMedian=181 drawCallsMax=191 trisMax=406604 texMB=38.2 screen=1440x900
+
+542.0	log	[gate] render map=BlockPartyDash drawCalls=191 batches=182 setPass=95 tris=406604 visible=12
+
+542.0	log	[gate] frame p50=17.0ms p95=6839.0ms fps=59 ping p50=116 p95=5505ms lead=-20/6 resyncs=26
+
+543.9	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 150 confirm p50 116 p95 116 gaps 27 polls 153 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 4 playing True phase RoundActive
+
+555.9	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 150 confirm p50 116 p95 116 gaps 27 polls 158 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 3 playing True phase RoundActive
+
+555.9	log	[gate] pred corrections=0 per5s=0.00 pushCorrections=0 meanCorr=0.0cm maxCorr=0.0cm snaps=105 match=0 silent=0 hazMismatch=0 hazExplained=0 respawns=0 replay mean=0.0 last=0 max=0 drift meanMm=0.00 maxMm=0.0 subMm=0 predHits=0 interp delay=150ms target=150ms lateP95=7247ms extrap=0.0% frozen=14.3% lagEvents=37 remoteStutter p50=NaN p95=NaNm/s course=- phase=Rush cp=0 finished=False race=- hazardCorr=0 pos=(-6.0,0.0,1.5) m4 match=RoundActive round=1 map=BlockPartyDash slot=0 out=False rxIn=88 rxLate=0 rxLateMax=0 rxGaps=0 matchBytes=10279 rxBytes=1944 bytesIn=1340332 events=2
+
+555.9	log	[gate] budget map=BlockPartyDash gfx=high fpsMedian=1 fps1pcLow=0 drawCallsMedian=188 drawCallsMax=190 trisMax=405066 texMB=38.2 screen=1440x900
+
+555.9	log	[gate] render map=BlockPartyDash drawCalls=185 batches=177 setPass=95 tris=399077 visible=12
+
+555.9	log	[gate] frame p50=1002.0ms p95=7925.0ms fps=1 ping p50=499 p95=5924ms lead=-15/6 resyncs=33
+
+555.9	log	[onchain] tick 2727 upd/s 0.0 batches/s 0.0 corr/5s 0 corr 0 match 0 late 0 replay 0/0 rtt 150 confirm p50 116 p95 116 gaps 27 polls 158 resync 0 lag 17 rejected 0 unconfirmed 0 lead +2 fps 4 playing True phase RoundActive
+

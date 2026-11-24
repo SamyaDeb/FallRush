@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fall Rush audio, synthesised from scratch (G3.2, doc 17 §6). Every sound is ours: no samples, no third-party audio.
 
-    python3 tools/audio/synth.py <out_dir>
+    python3 tools/audio/synth.py <out_dir> [--dizzy-only]
 
 Writes 44.1 kHz 16-bit WAVs: music loops (stereo, seamless, normalised to about -14 LUFS with ffmpeg's ebur128
 measurement), a victory sting, SFX, UI sounds and gibberish chirps (mono). Deterministic (fixed seeds).
@@ -238,6 +238,41 @@ def ui():
     n = int(0.3 * SR); k = np.linspace(0, 1, n); out['whoosh'] = lowpass(noise(n), 300 + 2500 * k) * np.sin(np.pi * k) * 1.6
     return out
 
+def dizzy_sfx():
+    """Dizzy hits (2026-11-24): funny cartoon cues, own seed so the other clips stay byte-identical.
+    dizzy = a spring "boing" + tweeting cartoon birds circling the head; wheee = a slide whistle falling off the course."""
+    out = {}
+    r = np.random.default_rng(2411)
+    # boing: a spring twang, pitch gliding up with a fast wobble that dies away (+ a soft octave for body)
+    d = 0.5; n = int(d * SR); tt = np.arange(n) / SR
+    f = (210 + 120 * (1 - np.exp(-tt / 0.06))) * (1 + 0.28 * np.sin(2 * np.pi * 13 * tt) * np.exp(-tt / 0.22))
+    ph = np.cumsum(2 * np.pi * f / SR)
+    boing = (np.sin(ph) + 0.35 * np.sin(2 * ph) + 0.12 * np.sin(3 * ph)) * env(n, 0.002, 0.05, 0.75, 0.2, 0.25) * 0.75
+    # birds: 7 quick tweets (rising-falling, trilled), louder and softer as they circle
+    birds = np.zeros(int(1.45 * SR))
+    for i in range(7):
+        o = int((0.08 + i * 0.18 + r.uniform(-0.02, 0.02)) * SR)
+        d = r.uniform(0.07, 0.11); m = int(d * SR); tt = np.arange(m) / SR
+        base = r.uniform(2500, 3300)
+        f = base * (1 + 0.22 * np.sin(np.pi * tt / d)) * (1 + 0.04 * np.sin(2 * np.pi * 38 * tt))
+        tw = np.sin(np.cumsum(2 * np.pi * f / SR)) * env(m, 0.004, 0.02, 0.7, 0.03, d - 0.06)
+        if i % 2 == 0:  # a double tweet now and then
+            tw = np.concatenate([tw, np.zeros(int(0.03 * SR)), tw[: m * 2 // 3] * 0.8])
+        e = min(len(tw), len(birds) - o)
+        birds[o:o + e] += tw[:e] * (0.55 + 0.45 * np.sin(np.pi * 2 * i / 3.5) ** 2) * 0.32
+    lead = int(0.18 * SR)
+    x = np.zeros(lead + len(birds))
+    x[:len(boing)] += boing
+    x[lead:] += birds
+    out['dizzy'] = x
+    # wheee: a slide whistle swooping up a little, then falling a long way (with a breathy edge)
+    d = 0.95; n = int(d * SR); tt = np.arange(n) / SR; k = tt / d
+    f = 900 + 500 * np.sin(np.pi * np.minimum(k / 0.25, 1) / 2) - 1050 * np.clip((k - 0.25) / 0.75, 0, 1) ** 1.3
+    f = f * (1 + 0.012 * np.sin(2 * np.pi * 6 * tt))
+    w = np.sin(np.cumsum(2 * np.pi * f / SR)) + 0.08 * bandpass(noise(n), 1800, 2)
+    out['wheee'] = w * env(n, 0.03, 0.1, 0.8, 0.25, 0.6) * 0.55
+    return out
+
 def chirps():
     """Gibberish (no words): 3-5 syllables of a buzzy voice through vowel formants, pitch contour per mood."""
     out = {}
@@ -287,6 +322,10 @@ def music(path, buf, target=-14.0):
 
 def main():
     out = sys.argv[1]; os.makedirs(out, exist_ok=True)
+    for k, x in dizzy_sfx().items():
+        write(os.path.join(out, 'sfx_' + k + '.wav'), x)
+    if '--dizzy-only' in sys.argv:  # write only the dizzy-hit clips (the rest stay as they are)
+        return
     report = {}
     # Lobby: relaxed, C major, 112 bpm, 8 bars. Race: bouncy, F major, 128 bpm. Final: tense, A minor, 142 bpm.
     mel_lobby = [(0, 4, 1), (1, 5, 1), (2, 4, 0.5), (2.5, 2, 1.5), (4, 0, 1), (5, 2, 1), (6, 4, 2), (8, 5, 1), (9, 4, 1), (10, 2, 1), (11, 0, 1), (12, 1, 1.5), (13.5, 2, 0.5), (14, 0, 2)]

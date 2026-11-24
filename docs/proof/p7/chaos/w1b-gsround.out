@@ -1,0 +1,5 @@
+2026-11-23T21:16:45Z gs1: waiting for round 2
+2026-11-23T21:19:19Z gs1 restarted mid-round 2 (on-chain match 8BBeQLKdrhLE5nZdw7TLEZ94b1MyktDJomDwLTBWLonY)
+2026-11-23T21:19:21Z gs1 back up (LobbyOpen) in 6 s
+2026-11-23T21:19:23Z keeper after the gs restart: finalize {}|rewards {}|idle {}|create_match {}|delegate_match {}|chain_setup {}|deal {}|rounds_1_3 {}|
+2026-11-23T21:19:44Z archived (abort + refunds) 21 s after the gs back-up check

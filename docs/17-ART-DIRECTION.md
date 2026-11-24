@@ -351,6 +351,12 @@ All through `Editor/MapArt.cs` + `Editor/MapDressing.cs`, run by every builder b
 - **Hit feedback:** a hit shows **dizzy swirls** (three ink / lavender spirals round the head) and a white bonk puff with 3–5
   white sparks; no stars and no gold on a hit (stars mean score: Star Fountain pickups / drops, the golden star, the podium).
   The §8.4 "hit stars" line is replaced by this.
+  **Superseded 2026-11-24 (P7, OC-51, user pick):** a hit shows **three classic-yellow cartoon stars** (amber rim) circling the
+  head through the stun and ~1.2 s after the get-up (sleepy eyes, slow woozy sway), a small chest-height puff, and only your
+  own hits make a sound (boing + cartoon birds; a slide whistle when you fall off). Falling off the course no longer vanishes
+  in a poof: the Rushling tumbles down with its stars until the respawn.
+  **OC-52:** no white bonk burst (it hid the flopped Rushling under bloom); 4 small unlit lemon stars with a shine; tired ≈ 4 s
+  (lid hangs open, key stops, slumped sway), look only.
 - **Lid Flip (soft):** calm lids keep 85 % of the sun in a cast shadow, so a shaded calm lid never comes near the lit amber
   for deutan / protan eyes (≥ 0.12 luma, measured on shots).
 - **Prop kit (G4.9):** 22 original capsule-toy props from one deterministic Blender script (`tools/blender/props.py`): foam

@@ -160,14 +160,14 @@ namespace FallRush.OnChain
             var e = ChainEconomy.Instance;
             if (e != null && e.State != null)
                 AutoDrop(e);
-            if (e?.State?.match == null || _t < _betAt)
+            if (e?.State?.match == null || _t < _betAt || !e.ChipsReady)
                 return;
             _betAt = _t + 1.5f;
             if (e.MatchPda != null && e.State.match.pda != e.MatchPda)
                 return;
             for (var k = 0; k < 5; k++)
             {
-                if (_bet[k] || !e.MarketOpen(k))
+                if (_bet[k] || !e.MarketOpen(k) || (k == 0 && e.AutobetOwnsChampion))
                     continue;
                 _bet[k] = true;
                 var slots = e.State.match.slots;

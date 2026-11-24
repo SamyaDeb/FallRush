@@ -1,23 +1,37 @@
 // /play: the Unity WebGL build (Brotli) full screen. Meanwhile, silently: a guest burner, gas, session key, chips
-// (faucet on the first visit), and Quick Play = the fullest open game server (/api/status). No popups.
+// (faucet on the first visit). The game's own hub picks the mode (P7-UX); ?quickplay=1 keeps the one-click flow. No popups.
 import { api } from '../lib/net';
 import { ensureGuest, wallet, chainFor } from '../lib/chain';
 declare const createUnityInstance: any;
 export function play(root: HTMLElement) {
   const t0 = performance.now();
   document.getElementById('top')!.style.display = 'none';
+  document.getElementById('foot')!.style.display = 'none';
+  // P7: the capsule loader (the bottom half fills with the real download progress; the size is the build's)
   root.innerHTML = `<div id="unity-wrap"><canvas id="unity-canvas" tabindex="-1"></canvas>
-    <div id="unity-load"><div style="font:44px 'Lilita One';-webkit-text-stroke:6px #7B2FF7;paint-order:stroke fill">FALL <span style="color:#FFD21F">RUSH</span></div>
-    <div class="bar"><i id="bar"></i></div><div id="msg" class="muted" style="color:#ddd">loading the game…</div><div id="guest" class="muted" style="color:#bbb"></div></div></div>`;
+    <div id="unity-load"><div class="word">FALL <span class="yellow">RUSH</span></div>
+    <div class="capsule" id="cap"><div class="top"><span class="shine"></span></div><div class="bot"><i></i></div></div>
+    <div class="loadcard"><div class="pct" id="pct">0%</div><div id="msg">loading the game…</div><div id="guest" class="muted"></div></div></div></div>`;
   const msg = (s: string) => { (root.querySelector('#guest') as HTMLElement).textContent = s; };
   (window as any).__fr = { t0, marks: {} as Record<string, number> };
   const mark = (k: string) => { (window as any).__fr.marks[k] = Math.round(performance.now() - t0); };
   // guest wallet in parallel with the download (Unity's own bundle instance reuses it: same localStorage)
   const guest = chainFor().then(() => ensureGuest(msg)).then((g) => { mark('guest'); msg(g.error ? `guest wallet: ${g.error} (you can still play)` : `guest wallet ready · ${g.chips ? Number(BigInt(g.chips) / 1000000n) + ' RUSH chips' : ''}`); return g; }).catch((e) => { msg('guest wallet: ' + e); });
+  // beta audit: no WebGL 2 → say so up front instead of a 21 MB download that cannot start
+  const gl2 = (() => { try { return !!document.createElement('canvas').getContext('webgl2'); } catch { return false; } })();
+  if (!gl2) {
+    (root.querySelector('#msg') as HTMLElement).innerHTML = 'This browser has no WebGL 2, which Fall Rush needs.<br>Try desktop Chrome, Edge, Firefox or Safari 15+. You can still <a href="/live">watch and bet on /live</a>.';
+    return () => { document.getElementById('top')!.style.display = ''; document.getElementById('foot')!.style.display = ''; };
+  }
+  const phone = /iPhone|iPad|Android/i.test(navigator.userAgent);
   (async () => {
-    // Quick Play: the fullest open server; else any running one (you watch, then join the next lobby)
-    let server = new URLSearchParams(location.search).get('server');
-    if (!server) {
+    // P7-UX (OC-48): the game's own front end (title → character ring → play hub) picks the mode and the server
+    // (skill-tier matchmaking, rooms, ?room= invite links). The old one-click Quick Play stays for scripts and old
+    // links: ?quickplay=1 or ?server= (the fullest open server, as before).
+    const q0 = new URLSearchParams(location.search);
+    const legacy = q0.get('quickplay') === '1' || !!q0.get('server') || !!q0.get('autobet') || !!q0.get('bot');
+    let server = q0.get('server');
+    if (!server && legacy) {
       try {
         const s = await api('/status');
         const up = (s.servers ?? []).filter((x: any) => x.up && x.url);
@@ -28,7 +42,7 @@ export function play(root: HTMLElement) {
     mark('quickplay');
     const q = new URLSearchParams(location.search);
     if (server) q.set('server', server);
-    q.set('quickplay', '1');
+    if (legacy) q.set('quickplay', '1');
     try { const eq = JSON.parse(localStorage.getItem('fallrush.equip') ?? 'null'); const w = wallet(); if (eq?.asset && eq.wallet && (!w || w.burner === eq.wallet)) { q.set('shell', eq.asset); q.set('wallet', eq.wallet); } } catch { /* none */ }
     history.replaceState({}, '', '/play?' + q.toString());
     await chainFor().catch(() => {}); // the burner exists before Unity's own bundle instance starts (one burner); the rest of the guest setup runs in parallel
@@ -36,9 +50,11 @@ export function play(root: HTMLElement) {
     // (one TCP stream measured 0.1–0.5 MB/s from the VPS, 4 streams ~2.2 MB/s) as plain bytes; Unity's loader
     // decodes the Brotli itself (Decompression Fallback, doc 15 OC-14)
     const bj = await fetch('/unity/Build/build.json').then((r) => r.json()).catch(() => ({ loader: 'WebGL.loader.js', data: 'WebGL.data.br', framework: 'WebGL.framework.js.br', code: 'WebGL.wasm.br', parallel: false }));
-    const bar = root.querySelector('#bar') as HTMLElement;
     const got: Record<string, number> = {}, tot: Record<string, number> = {};
-    const prog = () => { const a = Object.values(got).reduce((x, y) => x + y, 0), b = Object.values(tot).reduce((x, y) => x + y, 0); if (b) bar.style.width = Math.round((90 * a) / b) + '%'; };
+    const cap = root.querySelector('#cap') as HTMLElement, pct = root.querySelector('#pct') as HTMLElement, msgEl = root.querySelector('#msg') as HTMLElement;
+    const MB = (n: number) => (n / 1048576).toFixed(1);
+    const show = (p: number) => { const v = Math.max(0, Math.min(1, p)); cap.style.setProperty('--p', v.toFixed(3)); pct.textContent = Math.round(v * 100) + '%'; };
+    const prog = () => { const a = Object.values(got).reduce((x, y) => x + y, 0), b = Object.values(tot).reduce((x, y) => x + y, 0); if (b) { show((0.9 * a) / b); msgEl.textContent = `downloading ${MB(a)} / ${MB(b)} MB`; } };
     const pfetch = async (name: string, parts = 5): Promise<string> => {
       const url = '/unity/Build/' + name;
       const n = Number((await fetch(url, { method: 'HEAD' })).headers.get('content-length') ?? 0);
@@ -69,15 +85,18 @@ export function play(root: HTMLElement) {
     };
     const [dataUrl, codeUrl] = await Promise.all([pfetch(bj.data).catch(() => '/unity/Build/' + bj.data), pfetch(bj.code).catch(() => '/unity/Build/' + bj.code)]);
     mark('download');
+    msgEl.textContent = phone ? 'unpacking… (phones: experimental, a desktop browser plays best)' : 'unpacking…';
     const s = document.createElement('script');
+    const failed = (why: string) => { msgEl.innerHTML = `could not start the game: ${String(why).replace(/[&<>"']/g, '')}<br><a href="#" onclick="location.reload();return false">Reload</a>`; };
+    s.onerror = () => failed('the game loader did not download (network?)');
     s.src = '/unity/Build/' + bj.loader;
     s.onload = () => createUnityInstance(root.querySelector('#unity-canvas'), {
       dataUrl, frameworkUrl: '/unity/Build/' + bj.framework, codeUrl,
       streamingAssetsUrl: '/unity/StreamingAssets', companyName: 'Fall Rush', productName: 'Fall Rush', productVersion: '0.5',
-    }, (p: number) => { bar.style.width = Math.max(90, Math.round(90 + p * 10)) + '%'; })
-      .then((inst: any) => { mark('unity'); (window as any).__fr.unity = inst; (root.querySelector('#unity-load') as HTMLElement).style.display = 'none'; })
-      .catch((e: any) => { (root.querySelector('#msg') as HTMLElement).textContent = 'could not start the game: ' + e; });
+    }, (p: number) => { show(0.9 + p * 0.1); if (p > 0.05) msgEl.textContent = 'starting the game…'; })
+      .then((inst: any) => { mark('unity'); (window as any).__fr.unity = inst; cap.classList.add('open'); show(1); setTimeout(() => { (root.querySelector('#unity-load') as HTMLElement).style.display = 'none'; }, 450); })
+      .catch((e: any) => failed(String(e?.message ?? e)));
     document.body.appendChild(s);
   })();
-  return () => { document.getElementById('top')!.style.display = ''; location.reload(); };
+  return () => { document.getElementById('top')!.style.display = ''; document.getElementById('foot')!.style.display = ''; location.reload(); };
 }

@@ -45,6 +45,7 @@ namespace FallRush.Shared
     public sealed class MatchDirector
     {
         // ---- timings (ticks at 30 Hz; M4-10) ----
+        public const uint JoinGraceTicks = 240, CountdownMaxTicks = 1350; // beta audit: 8 s after a join, ≤ 45 s total
         public const int CountdownTicks = 600, DealingTicks = 90, DealtTicks = 90, LoadTimeoutTicks = 300;
         public const int RoundIntroTicks = 60, RoundCountdownTicks = 90; // 5 s: 2 s intro (fly-through starts) + 3-2-1-RUSH
         public const int ResultTicks = 180, IntermissionTicks = 240, ChampionTicks = 240, DoneTicks = 600, AbortTicks = 150;
@@ -61,6 +62,38 @@ namespace FallRush.Shared
         public bool Soak;
         /// <summary>Occupants at roster lock (bots fill to it). 12 for practice (M4-2).</summary>
         public int MatchSize = MaxSlots;
+
+        /// <summary>P7-UX (OC-46): a private room is active on this server (the host starts it; no auto countdown).</summary>
+        public bool PrivateRoom;
+
+        /// <summary>P7-UX: the room's bot mix (0 easy, 1 mixed = the public default, 2 hard).</summary>
+        public int RoomBotMix = 1;
+
+        /// <summary>P7-UX: each seated human's skill tier from their hello (0 Rookie, 1 Contender, 2 Champion).</summary>
+        public readonly byte[] SkillTiers = new byte[MaxSlots];
+
+        /// <summary>P7-UX: the lobby's tier = the most common tier among the connected humans (ties → the higher count's
+        /// lower tier; nobody → Contender). It sets the bots' mix in a public match.</summary>
+        public int LobbyTier
+        {
+            get
+            {
+                var n = new int[3];
+                for (var i = 0; i < MaxSlots; i++)
+                    if (_sim.Slots[i].Active && !_sim.Slots[i].Bot && !_sim.Slots[i].Detached)
+                        n[Math.Min(2, (int)SkillTiers[i])]++;
+                if (n[0] + n[1] + n[2] == 0)
+                    return 1;
+                var best = 1;
+                for (var t = 0; t < 3; t++)
+                    if (n[t] > n[best])
+                        best = t;
+                return best;
+            }
+        }
+
+        /// <summary>The bot mix the roster lock uses.</summary>
+        public int BotMix => PrivateRoom ? Math.Max(0, Math.Min(2, RoomBotMix)) : LobbyTier;
         /// <summary>Dev: play only these maps (one round each; the last round crowns 1). Null = the deal's four rounds.</summary>
         public byte[] PlanOverride;
         public int VariantOverride = -1, ModifierOverride = -1;
@@ -127,13 +160,53 @@ namespace FallRush.Shared
         // =====================================================================
 
         /// <summary>A human took <paramref name="slot"/> in the lobby (or as a viewer moved in). <paramref name="token"/> = their reconnect token.</summary>
-        public void OnHumanJoined(int slot, byte[] token, string name, byte preset = 0)
+        public void OnHumanJoined(int slot, byte[] token, string name, byte preset = 0, byte tier = 1)
         {
             Tokens[slot] = token;
+            SkillTiers[slot] = (byte)Math.Min(2, (int)tier);
             Presets[slot] = CosmeticPresets.Clamp(preset);
-            Names[slot] = string.IsNullOrEmpty(name) ? $"Player {slot + 1}" : name;
+            Names[slot] = CleanName(name, slot);
+            // beta audit: a public countdown keeps at least JoinGraceTicks after each arrival (capped at
+            // CountdownMaxTicks from its start), so a crowd arriving over half a minute lands in one match instead of
+            // the first few locking the roster and the rest watching
+            if (Phase == MatchPhase.Countdown && !PrivateRoom && !Soak)
+            {
+                var want = Math.Min(Tick + JoinGraceTicks, PhaseStartTick + CountdownMaxTicks);
+                if (want > PhaseEndTick)
+                    PhaseEndTick = want;
+            }
+
             UpdateHost();
             _host.OnMatchChanged();
+        }
+
+        /// <summary>
+        /// Beta audit: names are shown with rich text (nameplates) and written into JSON / jsonl lines: drop control
+        /// characters, tag brackets, quotes and backslashes; an empty result becomes "Player N".
+        /// </summary>
+        public static string CleanName(string name, int slot)
+        {
+            if (!string.IsNullOrEmpty(name))
+            {
+                var sb = new System.Text.StringBuilder(name.Length);
+                foreach (var ch in name)
+                    if (ch >= 0x20 && ch != 0x7F && ch != '<' && ch != '>' && ch != '\\' && ch != '"' && !(ch >= 0x2028 && ch <= 0x202E) && !(ch >= 0x200B && ch <= 0x200F))
+                        sb.Append(ch);
+                name = sb.ToString().Trim();
+            }
+
+            return string.IsNullOrEmpty(name) ? $"Player {slot + 1}" : name;
+        }
+
+        /// <summary>Beta audit: a slot that is still connected under this token (a stale connection after a network change).</summary>
+        public int FindConnectedSlot(ReadOnlySpan<byte> token)
+        {
+            if (token.Length != 16 || IsZero(token))
+                return -1;
+            for (var i = 0; i < MaxSlots; i++)
+                if (Tokens[i] != null && _sim.Slots[i].Active && !_sim.Slots[i].Bot && !_sim.Slots[i].Detached && token.SequenceEqual(Tokens[i]))
+                    return i;
+            return -1;
         }
 
         /// <summary>True if the slot is in the current match roster (a disconnect then keeps it for the grace period).</summary>
@@ -148,6 +221,7 @@ namespace FallRush.Shared
             if (!InMatch || !Roster[slot].Occupied)
             {
                 Tokens[slot] = null;
+                SkillTiers[slot] = 1;
                 Names[slot] = null;
                 _ready[slot] = false;
                 UpdateHost();
@@ -207,6 +281,9 @@ namespace FallRush.Shared
         public bool HostStart(int slot)
         {
             if (slot != HostSlot || (Phase != MatchPhase.Countdown && Phase != MatchPhase.LobbyOpen))
+                return false;
+            // beta audit: in a public lobby the first arrival could start alone while others were still joining
+            if (!PrivateRoom && !Soak)
                 return false;
             _hostStart = true;
             return true;
@@ -270,11 +347,26 @@ namespace FallRush.Shared
                         _host.OnMatchChanged();
                     }
 
+                    // P7-UX: a private room waits for its host's Start (friends arrive over minutes, not 20 s)
+                    if (PrivateRoom && !Soak)
+                    {
+                        if (_hostStart && HumansConnected() > 0)
+                            LockRoster(tick);
+                        break;
+                    }
+
                     if (HumansConnected() > 0 || Soak)
                         SetPhase(MatchPhase.Countdown, tick, (uint)CountdownTicks);
                     break;
 
                 case MatchPhase.Countdown:
+                    // beta audit: the server became a private room during a public countdown: wait for the host's Start
+                    if (PrivateRoom && !Soak && !_hostStart)
+                    {
+                        SetPhase(MatchPhase.LobbyOpen, tick, 0);
+                        break;
+                    }
+
                     if (HumansConnected() == 0 && !Soak)
                     {
                         SetPhase(MatchPhase.LobbyOpen, tick, 0);
@@ -453,6 +545,7 @@ namespace FallRush.Shared
         {
             MatchSerial++;
             var size = Math.Max(RoundTargets.MinPlayers, Math.Min(MaxSlots, MatchSize));
+            var mix = BotMix;
             for (var i = 0; i < MaxSlots; i++)
                 if (_sim.Slots[i].Active && !_sim.Slots[i].Bot && i >= size)
                     size = i + 1;
@@ -476,7 +569,7 @@ namespace FallRush.Shared
                 {
                     Occupied = true, Bot = bot, Alive = true, Connected = true, Places = new byte[4], Late = new bool[4],
                     Name = bot ? BotNames[i % BotNames.Length] : Names[i] ?? $"Player {i + 1}",
-                    Tier = bot ? TierFor(MatchSeed, i) : BotTier.Reference,
+                    Tier = bot ? TierFor(MatchSeed, i, mix) : BotTier.Reference,
                     Preset = bot ? CosmeticPresets.ForBot(i) : Presets[i],
                 };
                 entries.Add(new RosterHash.Entry { Slot = (byte)i, Bot = bot, UserId = RosterHash.PlaceholderUserId(i, bot) }); // TODO(M5): real guest ids
@@ -508,11 +601,24 @@ namespace FallRush.Shared
         }
 
         /// <summary>Bot skill tier per slot from the match seed: 30 % easy, 50 % normal, 20 % good (M4 §3.5).</summary>
-        public static BotTier TierFor(byte[] seed, int slot)
+        public static BotTier TierFor(byte[] seed, int slot) => TierFor(seed, slot, 1);
+
+        /// <summary>
+        /// P7-UX (OC-47): the bot tier for a lobby's mix, still a pure function of the seed. Mix 1 (Contender, the public
+        /// default) is exactly the M4 rule; mix 0 (Rookie) 60 / 35 / 5 %, mix 2 (Champion) 10 / 45 / 45 % easy / normal / good.
+        /// </summary>
+        public static BotTier TierFor(byte[] seed, int slot, int mix)
         {
             var h = Sha256Of(Encoding.ASCII.GetBytes("fallrush-bot-tier"), seed, new[] { (byte)slot });
-            var x = h[0] % 10;
-            return x < 3 ? BotTier.Easy : x < 8 ? BotTier.Normal : BotTier.Good;
+            if (mix == 1 || mix < 0 || mix > 2)
+            {
+                var x = h[0] % 10;
+                return x < 3 ? BotTier.Easy : x < 8 ? BotTier.Normal : BotTier.Good;
+            }
+
+            var y = h[0] % 20;
+            return mix == 0 ? (y < 12 ? BotTier.Easy : y < 19 ? BotTier.Normal : BotTier.Good)
+                : (y < 2 ? BotTier.Easy : y < 11 ? BotTier.Normal : BotTier.Good);
         }
 
         /// <summary>The <see cref="RoundParams"/> of round <paramref name="r"/> (1-based) from the deal.</summary>

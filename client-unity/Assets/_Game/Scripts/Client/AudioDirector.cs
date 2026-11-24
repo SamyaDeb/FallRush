@@ -28,7 +28,7 @@ namespace FallRush.Client
 
         public static AudioDirector Get()
         {
-            if (s_Instance != null || s_Quitting)
+            if (s_Instance != null || s_Quitting || !Application.isPlaying) // edit mode (tests, Editor shots): no audio
                 return s_Instance;
             var go = new GameObject("AudioDirector");
             DontDestroyOnLoad(go);

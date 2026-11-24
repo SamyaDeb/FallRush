@@ -1,0 +1,44 @@
+{
+ "flow": "player",
+ "started": "2026-11-23T20:22:39.615Z",
+ "marks": {
+  "archived": {
+   "t": 554.74,
+   "match": "J9zhHxfJ78z367kQqp46fd3TbmoZ9rf8RxeU3tQyxLk7",
+   "switched": true
+  }
+ },
+ "match": {
+  "match": "J9zhHxfJ78z367kQqp46fd3TbmoZ9rf8RxeU3tQyxLk7",
+  "arena": 3,
+  "doneAt": 1795465917153,
+  "startedAt": 1795465435631,
+  "champion": 10,
+  "humanMask": 1,
+  "flags": 59,
+  "mintedMask": 1,
+  "finalOnChain": true,
+  "realTime": 1.0001289241281506,
+  "drops": 0,
+  "pools": [
+   "247000000",
+   "36000000",
+   "0",
+   "88000000",
+   "58000000"
+  ],
+  "finalizeMode": "action",
+  "replay": true,
+  "status": 5,
+  "aborted": false,
+  "hidden": false,
+  "sealed": {
+   "n": 13,
+   "revealed": 13,
+   "forfeits": 0
+  }
+ },
+ "switched": true,
+ "pass": true,
+ "finished": "2026-11-23T20:31:58.304Z"
+}

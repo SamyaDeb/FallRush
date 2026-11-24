@@ -53,10 +53,14 @@ const stage = (s: string, extra: object = {}) => {
 };
 
 // ------------------------------------------------------------------ status / health
+const STAGE_REST = new Set(["idle", "boot", "match_failed", "resume_failed"]);
 const serverStatus = () => { try { return JSON.parse(readFileSync(join(LOG_DIR, "status.json"), "utf8")); } catch { return null; } };
 createServer((req, res) => {
   const body = req.url?.startsWith("/health")
-    ? { ok: Date.now() - (status.heartbeat ?? BOOT) < 30_000, stage: status.stage, heartbeat: status.heartbeat }
+    // beta audit: the heartbeat is a timer, so it ticks while the main loop is stuck on a hung RPC: a match stage
+    // (a whole match is ~8 min) that has not moved for 25 min is unhealthy too (the watchdog then restarts the keeper,
+    // which resumes or aborts + refunds the match)
+    ? { ok: Date.now() - (status.heartbeat ?? BOOT) < 30_000 && (STAGE_REST.has(status.stage) || Date.now() - status.since < 25 * 60_000), stage: status.stage, since: status.since, heartbeat: status.heartbeat }
     : { ...status, server: serverStatus(), now: Date.now() };
   res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
   res.end(JSON.stringify(body));
@@ -379,7 +383,7 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
   mkdirSync(mdir, { recursive: true });
   const mlog = join(mdir, "keeper.jsonl");
   const out: any = { match: matchPda.toBase58(), matchHex, arena: ARENA, arenaKey: arena.toBase58(), world: world.toBase58(), resumed, startedAt: Date.now(), sigs: {} as Record<string, string> };
-  status.match = matchPda.toBase58(); status.matchHex = matchHex;
+  status.match = matchPda.toBase58(); status.matchHex = matchHex; status.dealSig = null; // P7: the VRF deal's request tx (the Deal screen links it)
   const a0: any = await arenaAcc();
   const maps: PublicKey[] = a0.maps;
   const lines = jsonl ? readLines(jsonl) : [];
@@ -445,6 +449,7 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
     if (statusName(m) === "created") {
       stage("deal");
       out.sigs.requestDeal = (await act("request_deal", async () => sendEr([await pe.methods.requestDeal().accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda, oracleQueue: EP.vrfQueue }).instruction()], [wallet], "request_deal"), mlog)).sig;
+      status.dealSig = out.sigs.requestDeal ?? null;
     }
     for (const td = Date.now(); ;) {
       m = await erMatch(matchPda);
@@ -462,7 +467,9 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
       } else {
         stage("rounds_1_3");
         let br: any;
-        try { br = await bridgeRounds13(jsonl, matchPda, mlog); }
+        // P7: the Classic server's status says whether it still plays this match (a mid-match restart loses it)
+        const classicGone = () => { const sv = serverStatus(); return !!sv && Date.now() - (sv.t ?? 0) < 10_000 && (!sv.inMatch || (sv.match && sv.match !== matchHex)); };
+        try { br = await bridgeRounds13(jsonl, matchPda, mlog, undefined, classicGone); }
         catch (e: any) {
           // the Classic server aborted the match (e.g. every human left): abort it on-chain too (markets refund)
           if (!/unexpected event ABORT/.test(String(e?.message ?? e))) throw e;

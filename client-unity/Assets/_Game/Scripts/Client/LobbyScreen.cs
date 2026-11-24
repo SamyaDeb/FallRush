@@ -31,10 +31,11 @@ namespace FallRush.Client
             _state = UiKit.Label(panel, string.Empty, 32, UiKit.Ink, FontStyle.Bold, 48);
             _details = UiKit.Label(panel, string.Empty, 17, UiKit.Ink, FontStyle.Normal, 80);
             _rtt = UiKit.Label(panel, string.Empty, 20, UiKit.Grape, FontStyle.Bold, 30);
-            _enter = UiKit.Button(panel, "Enter Sandbox (M2)", UiKit.Mint, OnEnter);
+            _enter = UiKit.Button(panel, "Enter the arena", UiKit.Mint, OnEnter);
             _reconnect = UiKit.Button(panel, "Retry", UiKit.SunYellow, OnReconnect);
             _autoplay = NetTargets.GetQueryParam(Application.absoluteURL, "autoplay") == "1";
             UiKit.Button(panel, "Back to Menu", UiKit.SkyLight, OnBack);
+            UiMotion.Show(panel); // P7: the connecting card pops in
 
             if (NetBootstrap.Instance != null)
                 NetBootstrap.Instance.StateChanged += Refresh;
@@ -95,15 +96,17 @@ namespace FallRush.Client
             if (boot.State == ClientState.Connected && nm != null)
             {
                 var players = ping != null ? ping.ServerPlayerCount : 0;
-                _details.text = $"Players connected: {(players > 0 ? players.ToString() : "…")} / {Protocol.MaxPlayers}\n<size=13><color=#8C88A6>{boot.Target.Url} · client {nm.LocalClientId}</color></size>";
+                _details.text = DevMenu.Enabled
+                    ? $"Players connected: {(players > 0 ? players.ToString() : "…")} / {Protocol.MaxPlayers}\n<size=13><color=#8C88A6>{boot.Target.Url} · client {nm.LocalClientId}</color></size>"
+                    : $"Players connected: {(players > 0 ? players.ToString() : "…")} / {Protocol.MaxPlayers}";
             }
             else if (boot.State == ClientState.Disconnected)
             {
-                _details.text = $"Server: {boot.Target.Url}\n{boot.LastDisconnectReason}";
+                _details.text = DevMenu.Enabled ? $"Server: {boot.Target.Url}\n{boot.LastDisconnectReason}" : boot.LastDisconnectReason;
             }
             else
             {
-                _details.text = $"Server: {boot.Target.Url}";
+                _details.text = DevMenu.Enabled ? $"Server: {boot.Target.Url}" : "Finding your arena…";
             }
 
             if (boot.State == ClientState.Connected && ping != null && ping.SampleCount > 0)
@@ -120,7 +123,7 @@ namespace FallRush.Client
                 var r = cs.Round.Value;
                 var label = r.MapId == MapPoolV1.BlockPartyDash
                     ? $"Enter {UiNames.Map(r.MapId)} ({(r.Variant == 0 ? "A" : "B")}, {UiNames.Modifier(r.Modifier)})"
-                    : "Enter Sandbox + obstacle kit";
+                    : "Enter the practice arena";
                 UiKit.SetButtonText(_enter, label);
             }
 

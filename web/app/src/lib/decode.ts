@@ -1,3 +1,4 @@
+import { ICON, type IconName } from './icons';
 // Zero-copy layouts (programs/fall_rush/src/{sim,econ,state}.rs; the same offsets the bundle + Unity use).
 import { b58 } from './net';
 const dv = (d: Uint8Array) => new DataView(d.buffer, d.byteOffset, d.byteLength);
@@ -85,5 +86,7 @@ export const ACH = [
   { bit: 4, icon: '🎯', name: 'Perfect predictor', why: '≥ 2 bets in one match, all won' },
   { bit: 8, icon: '🌪', name: 'Chaos agent', why: 'bought a Chaos Drop in an on-chain Final' },
 ];
-export const badges = (bits: number) => ACH.filter((a) => bits & a.bit).map((a) => `<span class="pill" title="${a.why}">${a.icon} ${a.name}</span>`).join(' ');
+const ACH_ICON: IconName[] = ['crown', 'trophy', 'eye', 'bolt'];
+/** P7: achievement badges (SVG icons, the same set as the game's icon atlas). */
+export const badges = (bits: number) => ACH.map((a, i) => (bits & a.bit ? `<span class="badge" title="${a.why}">${ICON[ACH_ICON[i]]}${a.name}</span>` : '')).join('');
 export function seasonName(id: number) { return id >= 1_000_000 ? `test season ${id - 1_000_000}` : `${Math.floor(id / 100)} · week ${id % 100}`; }

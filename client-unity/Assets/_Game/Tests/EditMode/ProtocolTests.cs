@@ -13,8 +13,9 @@ namespace FallRush.Tests
             var hello = new Protocol.Hello { ProtocolVersion = Protocol.Version, BuildVersion = "0.1.0-m1", CosmeticPreset = 7 };
             var bytes = Protocol.EncodeHello(hello);
 
-            Assert.That(bytes.Length, Is.EqualTo(Protocol.HelloMinBytes + 8));
-            Assert.That(bytes[0], Is.EqualTo(6)); // u16 little-endian (protocol v6, G2.2)
+            // v7: the extension is always present (name len + token + room len + tier)
+            Assert.That(bytes.Length, Is.EqualTo(Protocol.HelloMinBytes + 8 + 1 + Protocol.TokenBytes + 2));
+            Assert.That(bytes[0], Is.EqualTo(7)); // u16 little-endian (protocol v7, P7-UX)
             Assert.That(bytes[1], Is.EqualTo(0));
 
             Assert.That(Protocol.TryDecodeHello(bytes, out var decoded, out var error), Is.True, error);
@@ -129,13 +130,14 @@ namespace FallRush.Tests
 
             var plain = Protocol.EncodeHello(new Protocol.Hello { ProtocolVersion = Protocol.Version, BuildVersion = "m4" });
             Assert.That(Protocol.TryDecodeHello(plain, out var p, out _), Is.True);
-            Assert.That(p.Token, Is.Null, "no extension: a new player");
+            Assert.That(p.Token, Is.EqualTo(new byte[Protocol.TokenBytes]), "v7: a zero token = a new player");
+            Assert.That(p.RoomCode, Is.Null);
         }
 
         [Test]
         public void MessageNames_AreStable()
         {
-            Assert.That(Protocol.Version, Is.EqualTo(6));
+            Assert.That(Protocol.Version, Is.EqualTo(7));
             Assert.That(Protocol.Msg.Match, Is.EqualTo("match"));
             Assert.That(Protocol.Msg.MatchEvent, Is.EqualTo("mevt"));
             Assert.That(Protocol.Msg.Reactive, Is.EqualTo("rx"));
@@ -150,6 +152,40 @@ namespace FallRush.Tests
             Assert.That(Protocol.Msg.Input, Is.EqualTo("in"));
             Assert.That(Protocol.Msg.Snap, Is.EqualTo("snap"));
             Assert.That(Encoding.UTF8.GetByteCount(Protocol.Msg.Ping), Is.LessThan(16));
+        }
+    
+        [Test]
+        public void HelloV7_RoomAndTier_RoundTrip()
+        {
+            var h = new Protocol.Hello { ProtocolVersion = Protocol.Version, BuildVersion = "p7", CosmeticPreset = 4, Name = "Ann", Token = new byte[16], RoomCode = "goo7", SkillTier = 2,
+                ShellAsset = "8d6SFeBgcitcisjU3NMvgV5GaVFxjsH9Gk8HCPvKzbfq", ShellWallet = "58YqMtZDoDAZ3zToumjRJa8zJuyU5bhpiFJqkTeZwAVk" };
+            Assert.That(Protocol.TryDecodeHello(Protocol.EncodeHello(h), out var d, out var err), Is.True, err);
+            Assert.That(d.RoomCode, Is.EqualTo("GOO7"), "upper-cased");
+            Assert.That(d.SkillTier, Is.EqualTo(2));
+            Assert.That(d.ShellWallet, Is.EqualTo(h.ShellWallet), "the shell still rides after the room block");
+            Assert.That(d.Name, Is.EqualTo("Ann"));
+        }
+
+        [Test]
+        public void HelloV7_BadRoomCodesMeanNoRoom()
+        {
+            Assert.That(Protocol.CleanRoom("ab"), Is.Null);
+            Assert.That(Protocol.CleanRoom("ABCDEFGHJ"), Is.Null);
+            Assert.That(Protocol.CleanRoom("AB-D"), Is.Null);
+            Assert.That(Protocol.CleanRoom(" xk29 "), Is.EqualTo("XK29"));
+            var h = new Protocol.Hello { ProtocolVersion = Protocol.Version, BuildVersion = "p7", RoomCode = "a b!", SkillTier = 9 };
+            Assert.That(Protocol.TryDecodeHello(Protocol.EncodeHello(h), out var d, out var err), Is.True, err);
+            Assert.That(d.RoomCode, Is.Null);
+            Assert.That(d.SkillTier, Is.EqualTo(2), "tier clamped");
+        }
+
+        [Test]
+        public void HelloV6_IsStillDecodedForTheMismatchMessage()
+        {
+            var v6 = Protocol.EncodeHello(new Protocol.Hello { ProtocolVersion = 6, BuildVersion = "old", Name = "Ann", Token = new byte[16] });
+            Assert.That(Protocol.TryDecodeHello(v6, out var d, out var err), Is.True, err);
+            Assert.That(d.ProtocolVersion, Is.EqualTo(6));
+            Assert.That(d.RoomCode, Is.Null);
         }
     }
 }

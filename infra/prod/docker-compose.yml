@@ -5,7 +5,7 @@ name: fallrush
 x-logs: &logs
   logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
 x-node: &node
-  image: fallrush-node:p6
+  image: fallrush-node:p7
   restart: unless-stopped
   env_file: .env
   <<: *logs
@@ -22,7 +22,7 @@ services:
     healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"], interval: 30s, timeout: 3s, retries: 3 }
     <<: *logs
   fallrush-gs1:
-    image: fallrush-gameserver:p5
+    image: fallrush-gameserver:p7ux
     container_name: fallrush-gs1
     restart: unless-stopped
     ports: ["127.0.0.1:7777:7777"]
@@ -36,12 +36,13 @@ services:
       GAMESERVER_ONCHAIN_FINAL_NET: devnet
       GAMESERVER_ONCHAIN_ARENA: HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt
       GAMESERVER_ONCHAIN_WORLD: HYJRSXpSGZ3HdjmZr4oMy3x6VgTWLcarkgHav7L4hSTQ
-    volumes: ["./logs/gs1:/logs"]
+      GAMESERVER_ROOM_FILE: /rooms/gs1.json  # P7-UX (OC-46): a private room's code, written by the indexer
+    volumes: ["./logs/gs1:/logs", "./rooms:/rooms:ro"]
     cpus: 0.75
     mem_limit: 1g
     <<: *logs
   fallrush-gs2:
-    image: fallrush-gameserver:p5
+    image: fallrush-gameserver:p7ux
     container_name: fallrush-gs2
     restart: unless-stopped
     profiles: ["gs2"]
@@ -56,7 +57,27 @@ services:
       GAMESERVER_ONCHAIN_FINAL_NET: devnet
       GAMESERVER_ONCHAIN_ARENA: E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG
       GAMESERVER_ONCHAIN_WORLD: 9Q5KBadvfx3Yoen1uqLUgbU1x6tXn4GmkEkjGqfPuRWn
-    volumes: ["./logs/gs2:/logs"]
+      GAMESERVER_ROOM_FILE: /rooms/gs2.json
+    volumes: ["./logs/gs2:/logs", "./rooms:/rooms:ro"]
+    cpus: 0.75
+    mem_limit: 1g
+    <<: *logs
+  # P7-UX (OC-46): the Classic-only room server (no arena, no keeper: its Final runs on the Classic server). It hosts a
+  # private room when both arenas are busy or one must stay public. Reached as wss://<GS1_HOST>/gs3 (host nginx).
+  fallrush-gs3:
+    image: fallrush-gameserver:p7ux
+    container_name: fallrush-gs3
+    restart: unless-stopped
+    profiles: ["gs3"]
+    ports: ["127.0.0.1:7779:7777"]
+    environment:
+      GAMESERVER_ID: gs3
+      GAMESERVER_PORT: "7777"
+      GAMESERVER_BOTS: "12"
+      GAMESERVER_MATCH_SIZE: "12"
+      GAMESERVER_MATCH_LOG_DIR: /logs
+      GAMESERVER_ROOM_FILE: /rooms/gs3.json
+    volumes: ["./logs/gs3:/logs", "./rooms:/rooms:ro"]
     cpus: 0.75
     mem_limit: 1g
     <<: *logs
@@ -85,9 +106,10 @@ services:
     <<: *node
     container_name: fallrush-indexer
     command: ["node", "--experimental-strip-types", "--no-warnings", "tools/indexer/server.ts"]
-    environment: { PORT: "3112", ARCHIVE: /archive }
+    # P7: a playtest venue shares one IP; P7-UX: rooms (ROOMS dir shared with the game servers) + gs3's status file
+    environment: { PORT: "3112", ARCHIVE: /archive, GAS_PER_IP_DAY: "60", GAS_PER_HOUR: "40", FAUCET_PER_IP_DAY: "60", ROOMS: /rooms, STATUS_FILES: "gs3=/gs3logs/status.json" }
     ports: ["127.0.0.1:3112:3112"]
-    volumes: ["./archive:/archive", "./secrets/funder.json:/secrets/funder.json:ro"]
+    volumes: ["./archive:/archive", "./secrets/funder.json:/secrets/funder.json:ro", "./rooms:/rooms", "./logs/gs3:/gs3logs:ro"]
     cpus: 0.25
     mem_limit: 512m
     healthcheck: { test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3112/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], interval: 30s, timeout: 5s, retries: 3 }

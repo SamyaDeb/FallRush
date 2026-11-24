@@ -16,16 +16,31 @@ namespace FallRush.Client
         {
             Step, Jump, Land, Dive, Slide, Stumble, Bonk, Mallet, Spinner, Goo, Wobble, TileDrop, Star, StarGold, Checkpoint,
             Qualify, Eliminated, Count, Rush, Emote, Spring, Claw, CapsulePop, Confetti,
+            Dizzy, Wheee, // 2026-11-24 dizzy hits: boing + cartoon birds (own hit), slide whistle (own knock-off fall)
         }
 
         public enum Music : byte { None, Lobby, Race, Final, Victory }
 
         public static void Ui(UiCue c) => AudioDirector.Get()?.PlayUi(c);
 
-        public static void Play(Sfx s, Vector3 at, float volume = 1f, float pitch = 1f) => AudioDirector.Get()?.PlaySfx(s, at, volume, pitch, false);
+        /// <summary>Test hook: every SFX request (before the director, so it works without one).</summary>
+        public static System.Action<Sfx> Requested;
+
+        /// <summary>Test hook: every chirp request (the mood).</summary>
+        public static System.Action<int> ChirpRequested;
+
+        public static void Play(Sfx s, Vector3 at, float volume = 1f, float pitch = 1f)
+        {
+            Requested?.Invoke(s);
+            AudioDirector.Get()?.PlaySfx(s, at, volume, pitch, false);
+        }
 
         /// <summary>A non-positional SFX (your own events: qualify, countdown).</summary>
-        public static void Play2D(Sfx s, float volume = 1f, float pitch = 1f) => AudioDirector.Get()?.PlaySfx(s, Vector3.zero, volume, pitch, true);
+        public static void Play2D(Sfx s, float volume = 1f, float pitch = 1f)
+        {
+            Requested?.Invoke(s);
+            AudioDirector.Get()?.PlaySfx(s, Vector3.zero, volume, pitch, true);
+        }
 
         public static void SetMusic(Music m) => AudioDirector.Get()?.SetMusic(m);
 
@@ -33,6 +48,40 @@ namespace FallRush.Client
         public static void Duck(float seconds, float depth = 0.35f) => AudioDirector.Get()?.Duck(seconds, depth);
 
         /// <summary>A gibberish chirp for an expression (pitch-randomised; no voice lines).</summary>
-        public static void Chirp(int mood, Vector3 at) => AudioDirector.Get()?.Chirp(mood, at);
+        public static void Chirp(int mood, Vector3 at)
+        {
+            ChirpRequested?.Invoke(mood);
+            AudioDirector.Get()?.Chirp(mood, at);
+        }
+
+        /// <summary>
+        /// Dizzy hits (2026-11-24): only your own Rushling makes hit sounds, never other players or bots (and a spectator,
+        /// who owns no slot, hears none). Flat 2D cues: they are about you, not a place in the world.
+        /// </summary>
+        public static class Hits
+        {
+            /// <summary>A hazard knocked a Rushling (stun started).</summary>
+            public static void Stunned(bool own, Vector3 feet)
+            {
+                if (!own)
+                    return;
+                Play2D(Sfx.Dizzy, 0.9f, 0.96f + Random.value * 0.08f); // boing + cartoon birds
+                Chirp(2, feet);                                        // a surprised "whoa!" gibberish
+            }
+
+            /// <summary>The Rushling got back up after the stun.</summary>
+            public static void GotUp(bool own, Vector3 feet)
+            {
+                if (own)
+                    Chirp(0, feet); // a cheerful "phew"
+            }
+
+            /// <summary>The Rushling left the course (fell out, or into goo).</summary>
+            public static void KnockedOut(bool own, bool gooed)
+            {
+                if (own)
+                    Play2D(gooed ? Sfx.Goo : Sfx.Wheee);
+            }
+        }
     }
 }

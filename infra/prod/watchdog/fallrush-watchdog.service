@@ -1,0 +1,10 @@
+[Unit]
+Description=Fall Rush watchdog (restarts only fallrush-* containers after 3 failed checks)
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/fallrush/watchdog/fallrush-watchdog.sh
+CPUQuota=10%
+MemoryMax=64M
+Nice=10
