@@ -62,7 +62,7 @@ case "${1:-}" in
     tar -C client-unity/Builds/Server -czf "$STAGE/gs.tgz" FallRushServer.x86_64 UnityPlayer.so libdecor-0.so.0 libdecor-cairo.so FallRushServer_Data
     cp infra/prod/gameserver.Dockerfile "$STAGE/Dockerfile.gs"
     for t in 1 2 3 4; do "${SCP[@]}" "$STAGE/gs.tgz" "$STAGE/Dockerfile.gs" "root@$VPS_IP:/opt/fallrush/build/" && break; sleep 5; done
-    "${SSH[@]}" 'set -e; cd /opt/fallrush/build; rm -rf gs-p7ux; mkdir gs-p7ux; tar -C gs-p7ux -xzf gs.tgz; docker build -q -f Dockerfile.gs -t fallrush-gameserver:p7ux gs-p7ux >/dev/null && echo "image fallrush-gameserver:p7ux built"'
+    "${SSH[@]}" 'set -e; cd /opt/fallrush/build; rm -rf gs-p7ux; mkdir gs-p7ux; tar -C gs-p7ux -xzf gs.tgz; if docker image inspect fallrush-gameserver:p7ux >/dev/null 2>&1; then docker tag fallrush-gameserver:p7ux fallrush-gameserver:p7ux-prev && echo "previous image kept as :p7ux-prev"; fi; docker build -q -f Dockerfile.gs -t fallrush-gameserver:p7ux gs-p7ux >/dev/null && echo "image fallrush-gameserver:p7ux built"'
     "${SSH[@]}" 'set -e; mkdir -p /opt/fallrush/rooms /opt/fallrush/logs/gs3; chmod 755 /opt/fallrush/rooms; chown 10001:10001 /opt/fallrush/logs/gs3 2>/dev/null || true; ls -ld /opt/fallrush/rooms /opt/fallrush/logs/gs3 | wc -l'
     "${SSH[@]}" 'cd /opt/fallrush; grep -q "gs3=" .env || sed -i "s#^GS_PUBLIC=\(.*\)\$#GS_PUBLIC=\1,gs3=wss://gs1.'"$DASH"'.sslip.io/gs3#" .env; chmod 600 .env; grep -c "gs3=" .env'
     "${SCP[@]}" infra/prod/docker-compose.yml "root@$VPS_IP:/opt/fallrush/docker-compose.p7.yml"

@@ -56,6 +56,28 @@ namespace FallRush.Tests
             Assert.That(again.Result, Is.EqualTo(st.Result), "deterministic for a run seed");
         }
 
+        /// <summary>OC-53: falls respawn on the tower path: the corner landings of every side, on both laps.</summary>
+        [Test]
+        public void RespawnSpots_CoverEverySide_BelowTheSummit()
+        {
+            var map = Load();
+            var s = RulesFactory.RespawnSpots(map.botRoutes);
+            TestContext.WriteLine($"{s.Length / 4} respawn spots");
+            Assert.That(s.Length / 4, Is.GreaterThanOrEqualTo(Sides), "a spot on every side");
+            var heights = new HashSet<int>();
+            for (var i = 0; i < s.Length; i += 4)
+            {
+                Assert.That(s[i + 1], Is.LessThan(KitMm(Height)), "never on the summit");
+                heights.Add(s[i + 1] / 1000);
+            }
+
+            Assert.That(heights.Count, Is.GreaterThanOrEqualTo(Sides - 1), "spread over the climb, not one level");
+            var rules = (SurvivalRules)RulesFactory.Create(map, map.MapId);
+            Assert.That(rules.RespawnSpots, Is.EqualTo(s.Length / 4), "the server's Survival rules get them");
+        }
+
+        private static int KitMm(float m) => Mathf.RoundToInt(m * 1000f);
+
         /// <summary>Rule 6: readable without words. No world text anywhere in the scene.</summary>
         [Test]
         public void Scene_HasNoInWorldText()

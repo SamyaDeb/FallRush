@@ -187,6 +187,91 @@ namespace FallRush.Tests
             Assert.That(res.Order, Is.EqualTo(new[] { 0, 1, 2, 3 }), "same goo tick → slot order");
         }
 
+        // ------------------------------------------------------------------ OC-51: Goo Tower falls respawn
+
+        // A spawn deck (top y 0) under the default spawns and a 4 m ledge at the origin; spots on both.
+        private static AnalyticWorld FallWorld() => new AnalyticWorld()
+            .AddBox(new Vec3(-14f, -1f, -22f), new Vec3(14f, 0f, -18f))
+            .AddBox(new Vec3(-2f, 0f, -2f), new Vec3(2f, 4f, 2f))
+            .AddBox(new Vec3(-10f, 0f, 9f), new Vec3(-8f, 8f, 11f));
+
+        private static readonly int[] FallSpots = { 0, 0, -20000, 0, 0, 4000, 0, 0 };
+
+        private static void StandOn(Round<SurvivalRules> r, float x, float y, float z)
+        {
+            r.Sim.Place(0, new Vec3(x, y + 0.05f, z), 0);
+            for (var i = 0; i < 6; i++)
+                r.Sim.Step();
+            Assert.That(r.Sim.Slots[0].State.Has(MotorState.Grounded), Is.True);
+        }
+
+        [Test]
+        public void Survival_FallOffTheMap_RespawnsOnTheHighestSpotNotAboveTheLedge()
+        {
+            var r = new Round<SurvivalRules>(new SurvivalRules(Box(0, 0, 90000, 1000), 3000, FallSpots), new HazardSet(null, null) { Goo = new[] { Goo(-50000, 0, 0, -50000) } }, FallWorld(), 1, 1);
+            r.Start();
+            StandOn(r, 0f, 4f, 0f);
+            r.Sim.Place(0, new Vec3(20f, 4.05f, 20f), 0); // pushed off into the void
+            r.StepUntil(() => r.Rules.Respawned > 0 || r.Rules.Players[0].Out, 300);
+            Assert.That(r.Rules.Players[0].Out, Is.False, "a fall is not a knockout");
+            Assert.That(r.Rules.Respawned, Is.EqualTo(1));
+            ref readonly var s = ref r.Sim.Slots[0].State;
+            Assert.That(s.Has(MotorState.Respawning), Is.False);
+            Assert.That(s.PosY, Is.EqualTo(4050).Within(5), "back on the 4 m ledge, not the deck");
+            Assert.That(s.PosX, Is.EqualTo(0).Within(5));
+        }
+
+        [Test]
+        public void Survival_FallIntoTheGooFromALedge_Respawns_StandingInRisingGoo_KnocksOut()
+        {
+            var r = new Round<SurvivalRules>(new SurvivalRules(Box(0, 0, 90000, 1000), 3000, FallSpots), new HazardSet(null, null) { Goo = new[] { Goo(0, 0, 0, 0) } }, FallWorld(), 1, 1);
+            r.Start();
+            StandOn(r, 0f, 4f, 0f);
+            r.Sim.Place(0, new Vec3(6f, 4.05f, 0f), 0); // off the ledge, down into the goo at y 0
+            r.StepUntil(() => r.Rules.Respawned > 0 || r.Rules.Players[0].Out, 300);
+            Assert.That(r.Rules.Players[0].Out, Is.False, "dropping into the goo from 4 m up is a fall");
+            Assert.That(r.Sim.Slots[0].State.PosY, Is.EqualTo(4050).Within(5));
+
+            var c = new Round<SurvivalRules>(new SurvivalRules(Box(0, 0, 90000, 1000), 3000, FallSpots), new HazardSet(null, null) { Goo = new[] { Goo(-500, 600, 0, 3000) } }, new AnalyticWorld().Ground(), 1, 1);
+            c.Start();
+            c.StepUntil(() => c.Rules.Players[0].Out, 300);
+            Assert.That(c.Rules.Players[0].Out, Is.True, "the goo rising over you still knocks you out");
+            Assert.That(c.Rules.Players[0].OutReason, Is.EqualTo(ElimReason.Goo));
+            Assert.That(c.Rules.Respawned, Is.Zero);
+        }
+
+        [Test]
+        public void Survival_FallAfterTheGooPassedEverySpot_KnocksOut()
+        {
+            var r = new Round<SurvivalRules>(new SurvivalRules(Box(0, 0, 90000, 1000), 3000, FallSpots), new HazardSet(null, null) { Goo = new[] { Goo(-500, 3000, 0, 3000) } }, FallWorld(), 1, 1);
+            r.Start();
+            StandOn(r, -9f, 8f, 10f);
+            r.StepUntil(() => r.Hz.GooYMm(r.Sim.Tick) >= 3000, 120);
+            r.Sim.Place(0, new Vec3(20f, 8.05f, 20f), 0);
+            r.StepUntil(() => r.Rules.Players[0].Out, 300);
+            Assert.That(r.Rules.Players[0].Out, Is.True, "no spot 1.5 m above the goo at or below the 8 m ledge");
+            Assert.That(r.Rules.Players[0].OutReason, Is.EqualTo(ElimReason.Goo));
+        }
+
+        [Test]
+        public void RespawnSpots_AreTheWideRunPoints_FacingTheNextPoint()
+        {
+            var route = new BotRoute
+            {
+                Points = new[]
+                {
+                    new Waypoint { XMm = 0, YMm = 0, ZMm = 0, RadiusMm = 1200, Action = WaypointAction.Run },
+                    new Waypoint { XMm = 0, YMm = 0, ZMm = 5000, RadiusMm = 400, Action = WaypointAction.Run },
+                    new Waypoint { XMm = 100, YMm = 0, ZMm = 5100, RadiusMm = 1200, Action = WaypointAction.Jump },
+                    new Waypoint { XMm = 5000, YMm = 2750, ZMm = 5000, RadiusMm = 1000, Action = WaypointAction.Run },
+                    new Waypoint { XMm = 10000, YMm = 2750, ZMm = 5000, RadiusMm = 400, Action = WaypointAction.Run },
+                },
+            };
+            var dup = new BotRoute { Points = new[] { new Waypoint { XMm = 200, YMm = 0, ZMm = 0, RadiusMm = 1200 }, new Waypoint { XMm = 200, ZMm = 4000 } } };
+            var s = FallRush.Net.RulesFactory.RespawnSpots(new[] { route, dup });
+            Assert.That(s, Is.EqualTo(new[] { 0, 0, 0, 0, 5000, 2750, 5000, 64 }), "two spots; yaw 0 = +Z, 64 = +X; the 0.2 m duplicate dropped");
+        }
+
         // ------------------------------------------------------------------ skill (stars)
 
         private static StarFieldDef Field(int anchors = 16, int golden = 4, int[] attach = null)
