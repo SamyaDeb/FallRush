@@ -35,3 +35,10 @@
 2026-11-24T13:51:34Z arena2: gs1 on fallrush-gameserver:p7ux (healthy)
 2026-11-24T13:51:35Z gs3: host available memory 5588 MB
 2026-11-24T13:51:46Z gs3: up (Classic-only room server, 127.0.0.1:7779)
+2026-11-24T17:27:05Z gsimage: fallrush-gameserver:p7ux built, rooms dir + gs3 logs ready, GS_PUBLIC has gs3 (not live)
+2026-11-24T17:27:40Z build: web.p7 staged (web #14: dizzy hits, Goo Tower k4 + checkpoint circles; not live)
+2026-11-24T17:27:59Z arena3: gs2 on fallrush-gameserver:p7ux (healthy)
+2026-11-24T17:28:14Z arena2: gs1 on fallrush-gameserver:p7ux (healthy)
+2026-11-24T17:28:15Z gs3: host available memory 5719 MB
+2026-11-24T17:28:25Z gs3: up (Classic-only room server, 127.0.0.1:7779)
+2026-11-24T17:28:27Z web: switched to the P7 build (web.p6bak kept)
