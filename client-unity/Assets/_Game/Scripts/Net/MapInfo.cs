@@ -199,7 +199,12 @@ namespace FallRush.Net
         public PhysxMotorWorld CreateWorld(CapsuleCollider probe, MovementConfig cfg, in RoundParams p, out HazardSet hazards)
         {
             hazards = BuildHazards(in p, out var cols);
-            return new PhysxMotorWorld(gameObject.scene.GetPhysicsScene(), PhysxMotorWorld.GameplayMask(), probe, hazards, cols);
+            var id = MapId;
+            return new PhysxMotorWorld(gameObject.scene.GetPhysicsScene(), PhysxMotorWorld.GameplayMask(), probe, hazards, cols)
+            {
+                // OC-56: Classic-only maps with ramps land on up-slopes; the on-chain Final (Crumble Shelf) keeps rush-core's rule.
+                SlopeLanding = id == MapPoolV1.BlockPartyDash || id == MapPoolV1.GooTower || id == MapPoolV1.Sandbox,
+            };
         }
 
         public Vec3[] SpawnPoints()

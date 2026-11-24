@@ -239,6 +239,8 @@ namespace FallRush.Shared
             vel.Z = vz;
 
             var fallSpeed = -vel.Y; // before the move and the ground snap zero it (stumble check)
+            // OC-56: falling into this move (opt-in worlds only): still probe after sliding onto an up-slope.
+            var fallingIn = !grounded && vel.Y <= 0f && world is ISlopeLandingWorld sl && sl.SlopeLanding;
 
             // ---- move ----
             SlideMove(ref pos, ref vel, new Vec3(vx * dt, dy, vz * dt), grounded, allowStep: grounded, world);
@@ -246,7 +248,7 @@ namespace FallRush.Shared
             // ---- ground probe + snap ----
             var groundedNow = false;
             var surface = 0;
-            if (!jumped && !dived && vel.Y <= 0f)
+            if (!jumped && !dived && (vel.Y <= 0f || fallingIn))
             {
                 var probe = (wasGrounded ? c.SnapDistance : 0f) + c.Skin * 2f;
                 // Edge contacts (sphere resting on a corner) count as ground only if the face is not too far above the

@@ -225,7 +225,13 @@ public static class GooTowerFeelCheck
         for (var i = 0; i < args.Length - 1; i++)
             if (args[i] == "-fallrushQaRuns")
                 int.TryParse(args[i + 1], out runs);
+        RouteQa.FallLogSection = 4; // k4 Narrow Steps: where do the falls happen?
+        RouteQa.FallLog.Clear();
         RouteQa.RunAll(map, runs);
+        var outArg = CapsuleRunShots.Arg("-fallrushQAOut");
+        if (outArg != null)
+            File.WriteAllLines(Path.ChangeExtension(outArg, ".k4-falls.txt"), RouteQa.FallLog);
+        RouteQa.FallLogSection = -1;
     }
 }
 #endif

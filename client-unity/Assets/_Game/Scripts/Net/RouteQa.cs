@@ -113,6 +113,11 @@ namespace FallRush.Net
         /// side (or escapes from the last one). A drop to a lower side (a lap down, or off a block onto the side below) ends
         /// the attempt: its contacts and the drop (counted as a fall) go to the side it was on, with no traversal time.
         /// </summary>
+        /// <summary>Diagnostics (Editor QA only): when ≥ 0, each drop / out on this Survival section is logged with the feet, the
+        /// route and the ticks since the bot's last hazard hit.</summary>
+        public static int FallLogSection = -1;
+        public static readonly List<string> FallLog = new List<string>();
+
         private static void RunOneSurvival(MapInfo map, CapsuleCollider probe, int variant, int run, BotTier tier, Tally t)
         {
             BotBrainSet set = null;
@@ -122,7 +127,16 @@ namespace FallRush.Net
             var doors = new int[SimCore.MaxSlots];
             var falls = new int[SimCore.MaxSlots];
             var gone = new bool[SimCore.MaxSlots];
+            var lastHit = new uint[SimCore.MaxSlots];
             var started = false;
+            void Log(SimCore core, int i, int cur, int route, string what)
+            {
+                if (cur != FallLogSection)
+                    return;
+                var p = core.Slots[i].State.Position;
+                FallLog.Add($"v{variant} r{run} slot {i} route {route} {what} at ({p.X:F1}, {p.Y:F1}, {p.Z:F1}) last hit {(lastHit[i] == 0 ? "never" : (core.Tick - lastHit[i]) + " ticks before")}");
+            }
+
             ModeQa.RunOne(map, probe, variant, 0, run, tier, ModeQa.PlayersFor("Survival"), onBots: s => set = s, perTick: (core, rules, hz) =>
             {
                 if (!(rules is SurvivalRules sv) || set == null || rules.Phase != RoundPhase.Rush)
@@ -141,15 +155,16 @@ namespace FallRush.Net
                     var cur = Math.Min(MaxSections - 1, sec[i]);
                     var route = Math.Min(MaxRoutes - 1, set[i].Waypoints.RouteTaken[Math.Min(cur, set[i].Waypoints.RouteTaken.Length - 1)]);
                     var step = core.Slots[i].LastStep;
-                    if ((step & PlayerStep.Result.HazardHit) != 0) hits[i]++;
+                    if ((step & PlayerStep.Result.HazardHit) != 0) { hits[i]++; lastHit[i] = core.Tick; }
                     if ((step & PlayerStep.Result.DoorPushed) != 0) doors[i]++;
-                    if ((step & (PlayerStep.Result.FellOut | PlayerStep.Result.Gooed)) != 0) falls[i]++;
+                    if ((step & (PlayerStep.Result.FellOut | PlayerStep.Result.Gooed)) != 0) { falls[i]++; Log(core, i, cur, route, "fell out"); }
                     var done = sv.Players[i].Done;
                     var outNow = sv.Players[i].Out;
                     var now = done ? sec[i] + 1 : set[i].Section;
                     if (outNow && !done)
                     {
                         // Knocked out (goo / fell out of the map): the attempt's contacts and the fall stay with this side.
+                        Log(core, i, cur, route, "out");
                         t.Hits[cur, route] += hits[i];
                         t.Doors[cur, route] += doors[i];
                         t.Falls[cur, route] += Math.Max(1, falls[i]);
@@ -170,6 +185,7 @@ namespace FallRush.Net
                     else
                     {
                         // Dropped to a lower side: a fall on this side, no traversal.
+                        Log(core, i, cur, route, "dropped a side");
                         t.Hits[cur, route] += hits[i];
                         t.Doors[cur, route] += doors[i];
                         t.Falls[cur, route] += falls[i] + 1;
