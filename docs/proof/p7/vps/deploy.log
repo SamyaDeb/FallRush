@@ -57,3 +57,11 @@
 2026-11-24T17:59:29Z web: switched to the P7 build (web.p6bak kept)
 2026-11-24T17:59:41Z watchdog: fallrush-watchdog.timer active
 2026-11-24T18:00:12Z beta-audit: landing web/site rebuilt (StoryCanvas fog null guard, og:url fallrush.fun); previous kept as web.site-prebeta
+2026-11-24T18:20:34Z indexer: up on fallrush-node:p7 (healthy)
+2026-11-24T18:36:08Z gsimage: fallrush-gameserver:p7ux built, rooms dir + gs3 logs ready, GS_PUBLIC has gs3 (not live)
+2026-11-24T18:36:30Z build: web.p7 staged (web #15: OC-56 slope landing + beta-audit c413a91; not live)
+2026-11-24T18:36:51Z arena3: gs2 on fallrush-gameserver:p7ux (healthy)
+2026-11-24T18:37:01Z arena2: gs1 on fallrush-gameserver:p7ux (healthy)
+2026-11-24T18:37:02Z gs3: host available memory 5719 MB
+2026-11-24T18:37:12Z gs3: up (Classic-only room server, 127.0.0.1:7779)
+2026-11-24T18:37:14Z web: switched to the P7 build (web.p6bak kept)
