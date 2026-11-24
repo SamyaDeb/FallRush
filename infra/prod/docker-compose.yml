@@ -5,7 +5,7 @@ name: fallrush
 x-logs: &logs
   logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
 x-node: &node
-  image: fallrush-node:p7
+  image: fallrush-node:sub
   restart: unless-stopped
   env_file: .env
   <<: *logs
@@ -22,7 +22,7 @@ services:
     healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"], interval: 30s, timeout: 3s, retries: 3 }
     <<: *logs
   fallrush-gs1:
-    image: fallrush-gameserver:p7ux
+    image: fallrush-gameserver:sub
     container_name: fallrush-gs1
     restart: unless-stopped
     ports: ["127.0.0.1:7777:7777"]
@@ -42,7 +42,7 @@ services:
     mem_limit: 1g
     <<: *logs
   fallrush-gs2:
-    image: fallrush-gameserver:p7ux
+    image: fallrush-gameserver:sub
     container_name: fallrush-gs2
     restart: unless-stopped
     profiles: ["gs2"]
@@ -65,7 +65,7 @@ services:
   # P7-UX (OC-46): the Classic-only room server (no arena, no keeper: its Final runs on the Classic server). It hosts a
   # private room when both arenas are busy or one must stay public. Reached as wss://<GS1_HOST>/gs3 (host nginx).
   fallrush-gs3:
-    image: fallrush-gameserver:p7ux
+    image: fallrush-gameserver:sub
     container_name: fallrush-gs3
     restart: unless-stopped
     profiles: ["gs3"]
