@@ -57,10 +57,10 @@ case "${1:-}" in
     healthy fallrush-gs1 && healthy fallrush-gs2 && healthy fallrush-gs3 && note "gs1/gs2/gs3: up on fallrush-gameserver:sub (healthy)" || { note "gs: NOT healthy"; exit 1; } ;;
   web)
     wait_idle
-    "${SSH[@]}" 'set -e; cd /opt/fallrush; rm -rf web.presub; mkdir web.presub; (cd web && tar --exclude=./site -cf - .) | tar -C web.presub -xf -; find web -mindepth 1 -maxdepth 1 ! -name site -exec rm -rf {} +; (cd web.sub && tar --exclude=./site -cf - .) | tar -C web -xf -; test -d web/site && echo "web/site kept"; docker exec fallrush-web nginx -t -q && docker exec fallrush-web nginx -s reload'
+    "${SSH[@]}" 'set -e; cd /opt/fallrush; [ -d web.presub ] || { mkdir web.presub; (cd web && tar --exclude=./site -cf - .) | tar -C web.presub -xf -; }; find web -mindepth 1 -maxdepth 1 ! -name site -exec rm -rf {} +; (cd web.sub && tar --exclude=./site -cf - .) | tar -C web -xf -; test -d web/site && echo "web/site kept"; docker exec fallrush-web nginx -t -q && docker exec fallrush-web nginx -s reload'
     note "web: switched to the submission build (web.presub kept)" ;;
   rollback)
-    "${SSH[@]}" 'set -e; cd /opt/fallrush; sed -i "s#fallrush-gameserver:sub#fallrush-gameserver:pre-sub#; s#fallrush-node:sub#fallrush-node:pre-sub#" docker-compose.yml; docker compose --profile gs2 --profile gs3 up -d --no-deps fallrush-gs1 fallrush-gs2 fallrush-gs3 fallrush-keeper-1 fallrush-keeper-2 fallrush-indexer 2>&1 | tail -3; if [ -d web.presub ]; then find web -mindepth 1 -maxdepth 1 ! -name site -exec rm -rf {} +; (cd web.presub && tar -cf - .) | tar -C web -xf -; docker exec fallrush-web nginx -s reload; fi'
+    "${SSH[@]}" 'set -e; cd /opt/fallrush; sed -i "s#fallrush-gameserver:sub#fallrush-gameserver:pre-sub#; s#fallrush-node:sub#fallrush-node:pre-sub#" docker-compose.yml; docker compose --profile gs2 --profile gs3 up -d --no-deps fallrush-gs1 fallrush-gs2 fallrush-gs3 fallrush-keeper-1 fallrush-keeper-2 fallrush-indexer 2>&1 | tail -3; if [ -d web.presub ]; then find web -mindepth 1 -maxdepth 1 ! -name site -exec rm -rf {} +; (cd web.presub && tar --exclude=./site -cf - .) | tar -C web -xf -; docker exec fallrush-web nginx -s reload; fi'
     note "rollback: images :pre-sub*, web.presub" ;;
   *) echo "usage: $0 build|indexer|keepers|gs|web|rollback"; exit 2 ;;
 esac
