@@ -84,3 +84,6 @@
 2026-11-24T20:01:59Z build: node image fallrush-node:p7 + web.p7 staged (not live)
 2026-11-24T20:02:01Z web: switched to the P7 build (web.p6bak kept)
 2026-11-24T20:02:01Z beta-audit: web #17 (no stars on hits, stagger instead of flop, pinned re-stuns = one hit) after snapshot 20:01 UTC; neighbours OK
+2026-11-24T20:05:05Z build: node image fallrush-node:p7 + web.p7 staged (not live)
+2026-11-24T20:05:06Z web: switched to the P7 build (web.p6bak kept)
+2026-11-24T20:05:06Z beta-audit: web #18 = #17 + ?v=<build version> cache-busting on every Unity build file (Cloudflare kept WebGL.loader.js 4 h)
