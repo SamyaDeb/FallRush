@@ -16,15 +16,18 @@ const body = rows.map((l) => {
   return `| ${l.system} | ${l.proves ?? ""}${cu} | ${where(l)} | ${link} |`;
 }).join("\n");
 const extra = [
+  ["Session-key bet (P4 run)", "a spectator's bet signed by a session key: no wallet popup", "Ephemeral Rollup", "2AkjGY2J973H96dMVuwik4GgZuCma9ag8jBByykyQRZJjfe5UkpNjXmbMUHC6SNGMr4NKfVreDJFYZPPMaJQDttd", true],
+  ["Sealed bet revealed (P6 run)", "a sealed Champion pick from the Private ER book, checked against its on-chain commitment", "Ephemeral Rollup", "5hHtAaQaSkAo2MzPZYsVQn832ftQ5P9oWfJkC4hZw95XW3wLZCwFmbmMg3nekBZymUA1WT2w9FWfBL454sY3xFXq", true],
   ["Cash-out (rollup)", "chips cashed out on the rollup, signed by a session key", "Ephemeral Rollup", "WMNKz6687fnFjdWudPadZhdPRjYMgq5ZaUgfYrDx3QgszVi4WANAJThS7JWwcFymuZptSsdLz1yfcwcwfxWMNUY", true],
   ["Cash-out → RUSH SPL token", "250 RUSH minted to the player's token account on Solana", "Solana devnet", "4qnt6mkNNqy1weCxsTqi2HC7j17r12HLjMxb3a4vdyvgFtw99GVrGrcAiVruhwsNW1fYJfEREnMQRW1grxnooUWs", false],
-].map(([s, p, w, sig, r]) => `| ${s} | ${p} | ${w} | [\`${short(sig)}\`](${tx(sig, r)}) |`).join("\n");
+].map(([s, p, w, sig, r]) => `| ${s} | ${p} | ${w} | [\`${short(sig)}\`](${tx(sig, r)}) |`).join("\n") +
+  `\n| Crown minted by a Magic Action (P6 run) | the Crown (Metaplex Core) created by the post-undelegate Magic Action; the winner was a scripted test wallet | Solana devnet | [\`Eoi1Xaek…wAi2z\`](https://explorer.solana.com/address/Eoi1XaekwQz2CB4BvHCXxK2P4Uuxx1PCn7FXxB8wAi2z?cluster=devnet) |`;
 console.log(`# Proof: one explorer link per system
 
 Every link below was fetched live (\`getTransaction\` / \`getAccountInfo\`) when this page was generated (${j.at.slice(0, 16).replace("T", " ")} UTC), from one archived match:
-**[\`${j.match}\`](https://fallrush.fun/receipt/${j.match})** (arena ${j.arena}). Its receipt page shows every step, with the Final replayed in your browser.
+**[\`${j.match}\`](https://fallrush.fun/receipt/${j.match})** (arena ${j.arena}). Its receipt page shows every step, with the Final replayed in your browser.${j.judge ? "\nIt was played in **judge mode** (`/play?judge=1`): rounds 1–3 were fast-forwarded by the server (the receipt says so); the Final was played and computed on-chain. A phone on `/live` bought the Chaos Drop below during it." : ""}
 
-Rollup transactions open in Solana Explorer through a custom cluster (\`${ER}\`). Rollups do not keep transactions forever: if a rollup link stops opening, the [receipt](https://fallrush.fun/receipt/${j.match}) and the [replay](https://fallrush.fun/replay/${j.match}) work from our archive and the Match account on Solana.
+Rollup transactions open in Solana Explorer through a custom cluster (\`${ER}\`): Explorer asks once to **Connect** to that server; click Connect and the transaction loads (checked by hand for the \`tick()\` below: Success, ${Number(j.links.find((l) => l.system.startsWith('tick'))?.cu ?? 0).toLocaleString('en-US')} CU). Rollups do not keep transactions forever: if a rollup link stops opening, the [receipt](https://fallrush.fun/receipt/${j.match}) and the [replay](https://fallrush.fun/replay/${j.match}) work from our archive and the Match account on Solana.
 
 > Rounds 1–3 run on our server and are recorded on-chain. The Final's physics runs on Solana, in a MagicBlock Ephemeral Rollup, 30 times a second. Replay any match and compare it with the on-chain receipt.
 
