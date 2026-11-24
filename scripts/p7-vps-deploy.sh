@@ -57,5 +57,49 @@ case "${1:-}" in
     "${SCP[@]}" infra/prod/watchdog/fallrush-watchdog.service infra/prod/watchdog/fallrush-watchdog.timer "root@$VPS_IP:/etc/systemd/system/"
     "${SSH[@]}" 'set -e; chmod 755 /opt/fallrush/watchdog/fallrush-watchdog.sh; systemctl daemon-reload; systemctl enable --now fallrush-watchdog.timer; systemctl start fallrush-watchdog.service; sleep 2; systemctl is-active fallrush-watchdog.timer; tail -3 /opt/fallrush/logs/watchdog.log 2>/dev/null || true'
     note "watchdog: fallrush-watchdog.timer active" ;;
-  *) echo "usage: $0 build|web|indexer|keeper-1|arena3|watchdog"; exit 2 ;;
+  gsimage)
+    # P7-UX: the game server image with protocol v7 (rooms + tiers); :p5 stays on the host for a rollback
+    tar -C client-unity/Builds/Server -czf "$STAGE/gs.tgz" FallRushServer.x86_64 UnityPlayer.so libdecor-0.so.0 libdecor-cairo.so FallRushServer_Data
+    cp infra/prod/gameserver.Dockerfile "$STAGE/Dockerfile.gs"
+    for t in 1 2 3 4; do "${SCP[@]}" "$STAGE/gs.tgz" "$STAGE/Dockerfile.gs" "root@$VPS_IP:/opt/fallrush/build/" && break; sleep 5; done
+    "${SSH[@]}" 'set -e; cd /opt/fallrush/build; rm -rf gs-p7ux; mkdir gs-p7ux; tar -C gs-p7ux -xzf gs.tgz; docker build -q -f Dockerfile.gs -t fallrush-gameserver:p7ux gs-p7ux >/dev/null && echo "image fallrush-gameserver:p7ux built"'
+    "${SSH[@]}" 'set -e; mkdir -p /opt/fallrush/rooms /opt/fallrush/logs/gs3; chmod 755 /opt/fallrush/rooms; chown 1000:1000 /opt/fallrush/logs/gs3 2>/dev/null || true; ls -ld /opt/fallrush/rooms /opt/fallrush/logs/gs3 | wc -l'
+    "${SSH[@]}" 'cd /opt/fallrush; grep -q "gs3=" .env || sed -i "s#^GS_PUBLIC=\(.*\)\$#GS_PUBLIC=\1,gs3=wss://gs1.'"$DASH"'.sslip.io/gs3#" .env; chmod 600 .env; grep -c "gs3=" .env'
+    "${SCP[@]}" infra/prod/docker-compose.yml "root@$VPS_IP:/opt/fallrush/docker-compose.p7.yml"
+    note "gsimage: fallrush-gameserver:p7ux built, rooms dir + gs3 logs ready, GS_PUBLIC has gs3 (not live)" ;;
+  arena2)
+    # gs1 on the v7 image (+ the rooms mount); keeper-1 untouched
+    wait_idle
+    "${SSH[@]}" "set -e; cd /opt/fallrush; cp docker-compose.yml docker-compose.p7pre-ux.yml; cp docker-compose.p7.yml docker-compose.yml; docker compose up -d --no-deps fallrush-gs1 2>&1 | tail -2"
+    healthy fallrush-gs1 && note "arena2: gs1 on fallrush-gameserver:p7ux (healthy)" || { note "arena2: gs1 NOT healthy"; exit 1; } ;;
+  arena3ux)
+    wait_idle
+    "${SSH[@]}" "set -e; cd /opt/fallrush; cp docker-compose.p7.yml docker-compose.yml; docker compose --profile gs2 up -d --no-deps fallrush-gs2 2>&1 | tail -2"
+    healthy fallrush-gs2 && note "arena3: gs2 on fallrush-gameserver:p7ux (healthy)" || { note "arena3: gs2 NOT healthy"; exit 1; } ;;
+  gs3)
+    # the Classic-only room server: free memory first (the 1 GB cap is the P5 per-server cap)
+    FREE=$("${SSH[@]}" "free -m | awk '/^Mem:/ {print \$7}'")
+    note "gs3: host available memory ${FREE} MB"
+    [ "${FREE:-0}" -ge 1400 ] || { note "gs3: SKIPPED (under 1.4 GB available): rooms stay arena-only"; exit 0; }
+    "${SSH[@]}" "set -e; cd /opt/fallrush; cp docker-compose.p7.yml docker-compose.yml; docker compose --profile gs3 up -d --no-deps fallrush-gs3 2>&1 | tail -2"
+    healthy fallrush-gs3 && note "gs3: up (Classic-only room server, 127.0.0.1:7779)" || { note "gs3: NOT healthy"; exit 1; } ;;
+  nginx-gs3)
+    # one location in the gs1 server blocks (port 80 + the certbot TLS block) of OUR conf only; nginx -t, then reload
+    "${SSH[@]}" 'set -e; F=/etc/nginx/sites-available/fallrush-p5.conf; cp $F /opt/fallrush/fallrush-p5.conf.p7ux-bak
+      if ! grep -q "location = /gs3" $F; then
+        python3 - "$F" <<PY
+import re,sys
+p=sys.argv[1]; s=open(p).read()
+loc="  location = /gs3 { proxy_pass http://127.0.0.1:7779/; proxy_http_version 1.1; proxy_set_header Upgrade \$http_upgrade; proxy_set_header Connection \$fallrush_p5_connection_upgrade; proxy_set_header Host \$host; proxy_read_timeout 3600s; proxy_send_timeout 3600s; }\n"
+out=[]; n=0
+for block in re.split(r"(?=server\s*\{)", s):
+    if re.search(r"server_name\s+gs1\.", block) and "proxy_pass http://127.0.0.1:7777" in block:
+        block=block.replace("  location / {", loc+"  location / {",1); n+=1
+    out.append(block)
+open(p,"w").write("".join(out)); print("gs1 blocks patched:", n)
+PY
+      fi
+      if nginx -t 2>/dev/null; then systemctl reload nginx && echo reloaded; else cp /opt/fallrush/fallrush-p5.conf.p7ux-bak $F; echo "nginx -t FAILED: restored"; exit 1; fi'
+    note "nginx-gs3: /gs3 location on the gs1 name (nginx -t ok, reloaded)" ;;
+  *) echo "usage: $0 build|web|indexer|keeper-1|arena3|watchdog|gsimage|arena2|arena3ux|gs3|nginx-gs3"; exit 2 ;;
 esac

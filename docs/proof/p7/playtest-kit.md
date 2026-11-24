@@ -10,7 +10,9 @@ Share sections 1 and 2 with the testers as they are. Sections 3 and 4 are for yo
 
 **How it works (≤ 120 words).** You're a Rushling, a wind-up capsule toy. 12 players race through 4 rounds; bots fill the empty seats. Rounds 1–3 knock players out; the last round, **Lid Flip**, runs on a **MagicBlock rollup** on Solana. Stand on the lids, dodge the sweeper, be the last one standing to win the **Crown**. Out early? You keep playing as a spectator: press **B** to bet chips on who survives, or drop **Chaos Drops** on the Final. The **Champion bet is sealed**: nobody, not even us, can see your pick until betting closes. No wallet, no popups: you get a guest wallet and free test chips automatically (devnet, no real money).
 
-**Controls.** WASD / arrows move · Space jump · Shift or left click dive · mouse look · 1–4 emotes · Tab: watch the next player · B: Rush Markets (bets) · Esc: settings.
+**Getting in.** Click to start → pick your Rushling on the ring (A / D or the arrows) → in the hub choose **Quick Match** (matched with players of your tier, bots fill the empty seats), **Create Room** (a private room: click **Copy invite** in the lobby and send the link; you press **START MATCH**), or **Join Room** (type your friend's 4-letter code, or just open their invite link).
+
+**Controls.** WASD / arrows move · Space jump · Shift or left click dive · mouse look · 1–4 emotes · Esc: close / menu. **When you're out:** the cursor is free; Q / E (or ◀ ▶) watch another player; hold the right mouse button to turn the camera; **B** or the **BET** button opens the bet drawer at the bottom (B, ✕ or Esc closes it).
 
 **Phones.** Use a phone for **https://fallrush.fun/live**: watch the Final live as a 2D map, bet, and buy Chaos Drops while someone else plays.
 
@@ -23,7 +25,7 @@ After each match, the game shows a **receipt**: it ticks *Rollup ✓ → Solana 
 ## 2. Feedback form (copy into Google Forms or the group chat)
 
 1. Device and browser (e.g. "MacBook Air, Chrome" / "iPhone 15, Safari for /live"):
-2. Time from clicking **Play** to being in the lobby (about how many seconds?):
+2. Time from clicking **Play** in the hub to being in the lobby (about how many seconds?). Did the ring / hub / room invite make sense?
 3. Bugs: what happened, when (round / screen), and a screenshot if you can:
 4. **Feel** of the movement and the maps (1 = bad, 5 = great):
 5. **The cards and menus** (deal, results, leaderboard, receipt) (1–5):

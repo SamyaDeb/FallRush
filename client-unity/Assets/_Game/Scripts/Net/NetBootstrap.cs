@@ -437,6 +437,9 @@ namespace FallRush.Net
         /// the room to join (sent in hello v7).</summary>
         public static string RoomCode;
 
+        /// <summary>P7-UX (client): the server the play hub picked (matchmaking or a room); null = the usual resolution.</summary>
+        public static string HubServerUrl;
+
         /// <summary>P7-UX (client): the player's skill tier sent in hello v7 (0 Rookie, 1 Contender, 2 Champion).</summary>
         public static byte SkillTier = 1;
 
@@ -536,6 +539,9 @@ namespace FallRush.Net
                 configured = OverrideServerUrl;
             Target = NetTargets.ResolveServerTarget(Application.absoluteURL, configured, out var source, out var warning);
             TargetSource = source;
+            // P7-UX: the play hub's pick (matchmaking / a room) wins over ?server= (the old Quick Play URL)
+            if (!string.IsNullOrEmpty(HubServerUrl) && NetTargets.TryParseServerUrl(HubServerUrl, out var hub, out _))
+                Target = hub;
             if (warning != null)
                 Debug.LogWarning($"[net] {warning}");
 
