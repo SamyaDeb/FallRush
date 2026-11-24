@@ -41,6 +41,10 @@ namespace FallRush.Client
         private CapsuleMachineWidget _countdown;
         // panels
         private RectTransform _lobby, _deal, _results, _inter, _receipt, _champ;
+        private RectTransform _roomRow;
+        private TMP_Text _roomCode, _startLabel;
+        private Button _copy;
+        private float _copiedAt = -10f;
         private TMP_Text _lobbyStatus, _lobbyCount, _dealHead, _dealSeed, _interNext, _receiptHead, _receiptIds;
         private Button _start, _back, _vrfButton, _interLive;
         private RectTransform _vrfChip;
@@ -185,12 +189,26 @@ namespace FallRush.Client
 
         private void BuildLobby(RectTransform canvas)
         {
-            _lobbyCard = UiKit.MakeCard(canvas, UiKit.CardSize.M, UiKit.CardHue.Soda, "LOBBY", new Vector2(420f, 640f), UiIcon.Capsule);
+            _lobbyCard = UiKit.MakeCard(canvas, UiKit.CardSize.M, UiKit.CardHue.Soda, "LOBBY", new Vector2(420f, 680f), UiIcon.Capsule);
             _lobby = _lobbyCard.Root;
             _lobby.anchorMin = _lobby.anchorMax = _lobby.pivot = new Vector2(1f, 0.5f);
             _lobby.anchoredPosition = new Vector2(-18f, 0f);
             var body = _lobbyCard.Body;
             body.GetComponent<VerticalLayoutGroup>().spacing = 1;
+            // P7-UX (OC-46): a private room's header: the big code + copy / share the invite link
+            _roomRow = UiKit.Row(body, 46f, 8f);
+            var rl = UiKit.Label(_roomRow, "ROOM", 13, UiKit.Grape, FontStyle.Bold, 40);
+            rl.GetComponent<LayoutElement>().preferredWidth = 46f;
+            _roomCode = UiKit.Label(_roomRow, string.Empty, 34, UiKit.Ink, FontStyle.Bold, 44);
+            _roomCode.font = UiKit.Display;
+            _roomCode.characterSpacing = 6f;
+            _roomCode.GetComponent<LayoutElement>().preferredWidth = 140f;
+            _copy = UiKit.Button(_roomRow, "Copy invite", UiKit.Mint, CopyInvite);
+            var cle = _copy.GetComponent<LayoutElement>();
+            cle.preferredWidth = cle.minWidth = 150f;
+            cle.minHeight = cle.preferredHeight = 40f;
+            _copy.GetComponentInChildren<TMP_Text>().fontSize = 17;
+            _roomRow.gameObject.SetActive(false);
             _lobbyCount = UiKit.Label(body, string.Empty, 22, UiKit.Ink, FontStyle.Bold, 30);
             _lobbyCount.font = UiKit.Display;
             for (var i = 0; i < _lobbyRows.Length; i++)
@@ -207,6 +225,7 @@ namespace FallRush.Client
 
             _lobbyStatus = UiKit.Label(body, string.Empty, 17, UiKit.Ink, FontStyle.Normal, 64);
             _start = UiKit.Button(body, "Start now (host)", UiKit.SunYellow, () => ClientSim.Instance?.SendControl(ControlCmd.Start));
+            _startLabel = _start.GetComponentInChildren<TMP_Text>();
         }
 
         private static UiKit.CardHue ModeHue(string mode) => mode switch
@@ -905,6 +924,7 @@ namespace FallRush.Client
                         sub = "You won the crown!";
                     break;
                 case MatchPhase.Done:
+                    RecordTier(cs, m);
                     ShowReceipt(cs, m, now);
                     break;
                 case MatchPhase.Aborted:
@@ -975,6 +995,51 @@ namespace FallRush.Client
         /// its matches with the practice flag; the arena keeper records them, so those are not practice).</summary>
         private static bool IsPracticeMatch(MatchStateMessage m) => (m.Flags & MatchStateMessage.FlagPractice) != 0 && !RecordedMatch && DevMenu.Enabled;
 
+        /// <summary>P7-UX: copies the room's invite link (Web Share on phones), "Copied!" for 2 s.</summary>
+        private void CopyInvite()
+        {
+            var code = NetBootstrap.RoomCode;
+            if (string.IsNullOrEmpty(code))
+                return;
+            var url = WebShare.InviteUrl(code);
+            if (!WebShare.Share("Fall Rush", $"Join my Fall Rush room {code}", url))
+                WebShare.Copy(url);
+            _copiedAt = Time.unscaledTime;
+            UiKit.SetButtonText(_copy, "Copied!");
+            UiMotion.Bump((RectTransform)_copy.transform);
+            Invoke(nameof(ResetCopy), 2f);
+        }
+
+        private void ResetCopy() => UiKit.SetButtonText(_copy, "Copy invite");
+
+        private static string TierLabel(MatchStateMessage m) => $"{PlayerTier.Name} lobby";
+
+        private string _tierRecorded;
+
+        /// <summary>P7-UX (OC-47): this browser's match history for the skill tier (once per match, at the receipt).</summary>
+        private void RecordTier(ClientSim cs, MatchStateMessage m)
+        {
+            if (cs.MatchSlot == 255 || m.MatchId == null)
+                return;
+            var id = Sha256Hex(m.MatchId);
+            if (id == _tierRecorded)
+                return;
+            _tierRecorded = id;
+            if (!cs.TryGetSlotInfo(cs.MatchSlot, out var me))
+                return;
+            var survived = me.EliminatedRound > 0 ? me.EliminatedRound - 1 : m.RoundCount;
+            var final = me.EliminatedRound == 0 || me.EliminatedRound >= m.RoundCount;
+            PlayerTier.Record(id, survived, final, m.Champion == cs.MatchSlot);
+        }
+
+        private static string Sha256Hex(byte[] b)
+        {
+            var sb = new StringBuilder(b.Length * 2);
+            foreach (var x in b)
+                sb.Append(x.ToString("x2"));
+            return sb.ToString();
+        }
+
         /// <summary>P7-UX: out of the current round for good (no slot, eliminated, disconnected, or sitting this round out).</summary>
         private static bool OutOfRound(ClientSim cs, MatchStateMessage m)
         {
@@ -1032,11 +1097,31 @@ namespace FallRush.Client
             }
 
             _lobbyShown = shown;
+            var priv = (m.Flags & MatchStateMessage.FlagPrivate) != 0;
+            var host = cs.MatchSlot != 255 && m.HostSlot == cs.MatchSlot;
+            if (_roomRow.gameObject.activeSelf != priv)
+                _roomRow.gameObject.SetActive(priv);
+            var code = NetBootstrap.RoomCode ?? string.Empty;
+            if (priv && _roomCode.text != code)
+                _roomCode.text = code;
+            _lobbyCard.Title.text = priv ? "PRIVATE ROOM" : "QUICK MATCH";
             _sb.Clear();
-            _sb.Append("<b>Bots fill the empty slots</b>\n");
-            _sb.Append(m.Phase == MatchPhase.Countdown ? $"<size=26><color=#FF3EA5>Starting in {Secs((long)m.PhaseEndTick - now)}</color></size>" : "Waiting for a player…");
+            if (priv)
+            {
+                _sb.Append("<b>Send the invite to your friends</b>\n");
+                _sb.Append(host ? "Start when everyone is in · bots fill to 12" : "The host starts the match · bots fill to 12");
+            }
+            else
+            {
+                _sb.Append("<b>").Append(TierLabel(m)).Append("</b> · bots fill the empty seats\n");
+                _sb.Append(m.Phase == MatchPhase.Countdown ? $"<size=26><color=#FF3EA5>Starting in {Secs((long)m.PhaseEndTick - now)}</color></size>" : "Waiting for a player…");
+            }
+
             _lobbyStatus.text = _sb.ToString();
-            _start.gameObject.SetActive(cs.MatchSlot != 255 && m.HostSlot == cs.MatchSlot);
+            _start.gameObject.SetActive(host);
+            var sl = priv ? "START MATCH" : "Start now (host)";
+            if (_startLabel.text != sl)
+                _startLabel.text = sl;
         }
 
         /// <summary>

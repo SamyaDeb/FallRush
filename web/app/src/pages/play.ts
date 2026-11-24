@@ -1,5 +1,5 @@
 // /play: the Unity WebGL build (Brotli) full screen. Meanwhile, silently: a guest burner, gas, session key, chips
-// (faucet on the first visit), and Quick Play = the fullest open game server (/api/status). No popups.
+// (faucet on the first visit). The game's own hub picks the mode (P7-UX); ?quickplay=1 keeps the one-click flow. No popups.
 import { api } from '../lib/net';
 import { ensureGuest, wallet, chainFor } from '../lib/chain';
 declare const createUnityInstance: any;
@@ -18,9 +18,13 @@ export function play(root: HTMLElement) {
   // guest wallet in parallel with the download (Unity's own bundle instance reuses it: same localStorage)
   const guest = chainFor().then(() => ensureGuest(msg)).then((g) => { mark('guest'); msg(g.error ? `guest wallet: ${g.error} (you can still play)` : `guest wallet ready · ${g.chips ? Number(BigInt(g.chips) / 1000000n) + ' RUSH chips' : ''}`); return g; }).catch((e) => { msg('guest wallet: ' + e); });
   (async () => {
-    // Quick Play: the fullest open server; else any running one (you watch, then join the next lobby)
-    let server = new URLSearchParams(location.search).get('server');
-    if (!server) {
+    // P7-UX (OC-48): the game's own front end (title → character ring → play hub) picks the mode and the server
+    // (skill-tier matchmaking, rooms, ?room= invite links). The old one-click Quick Play stays for scripts and old
+    // links: ?quickplay=1 or ?server= (the fullest open server, as before).
+    const q0 = new URLSearchParams(location.search);
+    const legacy = q0.get('quickplay') === '1' || !!q0.get('server') || !!q0.get('autobet') || !!q0.get('bot');
+    let server = q0.get('server');
+    if (!server && legacy) {
       try {
         const s = await api('/status');
         const up = (s.servers ?? []).filter((x: any) => x.up && x.url);
@@ -31,7 +35,7 @@ export function play(root: HTMLElement) {
     mark('quickplay');
     const q = new URLSearchParams(location.search);
     if (server) q.set('server', server);
-    q.set('quickplay', '1');
+    if (legacy) q.set('quickplay', '1');
     try { const eq = JSON.parse(localStorage.getItem('fallrush.equip') ?? 'null'); const w = wallet(); if (eq?.asset && eq.wallet && (!w || w.burner === eq.wallet)) { q.set('shell', eq.asset); q.set('wallet', eq.wallet); } } catch { /* none */ }
     history.replaceState({}, '', '/play?' + q.toString());
     await chainFor().catch(() => {}); // the burner exists before Unity's own bundle instance starts (one burner); the rest of the guest setup runs in parallel
