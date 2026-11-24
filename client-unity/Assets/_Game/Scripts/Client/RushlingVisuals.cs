@@ -139,10 +139,13 @@ namespace FallRush.Client
             for (var f = 0; f < 2; f++)
                 _feet[f] = Node(f == 0 ? "FootL" : "FootR", transform, Vector3.zero);
 
-            // G4.8z dizzy swirls (were stun stars): one mesh, hidden until a stun starts; the ring spins.
-            _starsRoot = Node("Swirls", _squash, new Vector3(0f, 1.18f, 0f));
-            _starsR = Renderer("StunSwirls", _starsRoot, out var sf);
-            sf.sharedMesh = RushlingParts.StunSwirls();
+            // Dizzy stars (2026-11-24; were the G4.8z swirls): one mesh, hidden until a stun starts; the ring spins and bobs.
+            // The node keeps the name "Swirls" (Editor shots and tests look it up).
+            _starsRoot = Node("Swirls", _squash, new Vector3(0f, 1.2f, 0f));
+            _starsR = Renderer("DizzyStars", _starsRoot, out var sf);
+            sf.sharedMesh = RushlingParts.DizzyStars();
+            _starsR.shadowCastingMode = ShadowCastingMode.Off;
+            StarsBright();
             _starsRoot.gameObject.SetActive(false);
 
             // Noodle arms + mittens + peg feet: one world-space dynamic mesh (its own GameObject at the origin).
@@ -378,8 +381,20 @@ namespace FallRush.Client
             }
 
             _limbsR.SetPropertyBlock(_plainMpb);
-            _starsR.SetPropertyBlock(_plainMpb);
+            if (on)
+                _starsR.SetPropertyBlock(_plainMpb);
+            else
+                StarsBright();
             ApplyBody();
+        }
+
+        /// <summary>Dizzy stars draw unlit (always bright lemon, never shaded olive) with a thin ink outline.</summary>
+        private void StarsBright()
+        {
+            var b = new MaterialPropertyBlock();
+            b.SetFloat(UnlitId, 1f);
+            b.SetFloat(OutlineWidthId, 0.004f);
+            _starsR.SetPropertyBlock(b);
         }
 
         // ------------------------------------------------------------------ per frame (G1 animation set)
@@ -544,10 +559,9 @@ namespace FallRush.Client
                 _tumbleT = -1f;
                 _getUpT = 0f; // "get up" pop
                 GetUpThisFrame = true;
-                _angryUntil = _time + 0.9f;
                 _sq = -0.12f;
                 _sqV = 8f;
-                _starsLeft = Mathf.Max(_starsLeft, 0.5f);
+                _starsLeft = Mathf.Max(_starsLeft, DizzyTail); // woozy for a beat after getting up (visual only)
             }
 
             _lastStun = stun;
@@ -608,13 +622,18 @@ namespace FallRush.Client
                 _smugUntil = _time + 0.9f;
             }
 
+            // Dizzy tail: after the get-up the stars keep circling and the Rushling droops a little (control is back: the
+            // sim's stun is over, this is only the look).
+            var woozy = stun == 0 && _tumbleT < 0f && _starsLeft > 0f ? Mathf.Clamp01(_starsLeft / 0.8f) : 0f; // full until the last 0.8 s
+            sqTarget -= 0.07f * woozy;
             Spring(ref _sq, ref _sqV, sqTarget, 26f, 0.55f, dt);
             Spring2(ref _wob, ref _wobV, Vector2.zero, 16f, 0.22f, dt);
             var diveTarget = diving ? 1f : sliding ? 1.08f : 0f;
             Spring(ref _dive, ref _diveV, diveTarget, sliding || diving ? 16f : 13f, diving || sliding ? 1f : 0.42f, dt); // underdamped getting up: pops past upright
             if (_starsLeft > 0f)
                 _starsLeft -= dt;
-            var lidTarget = _starsLeft > 0f ? 25f : 0f;
+            // Tired "run-down capsule": the lid hangs open and flaps loosely while the stars circle.
+            var lidTarget = woozy > 0f ? 34f + (reduced ? 0f : Mathf.Sin(_time * 3.1f) * 7f) : _starsLeft > 0f ? 25f : 0f;
             Spring(ref _lidA, ref _lidV, lidTarget, 22f, 0.6f, dt);
 
             // ---- body pose ----
@@ -623,6 +642,11 @@ namespace FallRush.Client
             var waddleYaw = Mathf.Sin(_gait) * 5f * gaitK;
             var pitch = _lean.x + _wob.x + _dive * 82f;
             var roll = _lean.y + _wob.y + waddleRoll;
+            if (woozy > 0f && !reduced)
+            {
+                roll += Mathf.Sin(_time * Mathf.PI * 2f * 0.9f) * 8f * woozy; // slow, tired sway
+                pitch += 7f * woozy + Mathf.Sin(_time * Mathf.PI * 2f * 0.45f) * 3f * woozy; // slumped forward
+            }
             _hop = 0f;
 
             if (_stumbleT >= 0f && !reduced)
@@ -708,7 +732,7 @@ namespace FallRush.Client
 
             // ---- key ----
             _keyBoost = Mathf.Max(0f, _keyBoost - dt);
-            _keyAngle = Mathf.Repeat(_keyAngle + (60f + hspeed * 110f + _keyBoost * 900f) * (diving || sliding ? 3f : 1f) * dt, 360f);
+            _keyAngle = Mathf.Repeat(_keyAngle + (60f + hspeed * 110f + _keyBoost * 900f) * (diving || sliding ? 3f : 1f) * (1f - 0.9f * woozy) * dt, 360f); // tired: the wind-up key runs down
             ApplyBody();
 
             // ---- dizzy swirls ----
@@ -716,12 +740,21 @@ namespace FallRush.Client
             if (_starsRoot.gameObject.activeSelf != starsOn)
                 _starsRoot.gameObject.SetActive(starsOn);
             if (starsOn)
-                _starsRoot.localRotation = Quaternion.Euler(Mathf.Sin(_time * 5f) * 6f, -_time * 7f * Mathf.Rad2Deg, 0f);
+            {
+                // Classic orbit: the ring spins and wobbles, and bobs a little (reduced motion: still, no spin).
+                _starsRoot.localRotation = reduced ? Quaternion.Euler(8f, 0f, 0f) : Quaternion.Euler(10f + Mathf.Sin(_time * 5f) * 7f, -_time * 6f * Mathf.Rad2Deg, 0f);
+                _starsRoot.localPosition = new Vector3(0f, 1.2f + (reduced ? 0f : Mathf.Sin(_time * 9f) * 0.02f), 0f);
+                var outro = stun > 0 ? 1f : Mathf.Clamp01(_starsLeft / 0.3f); // shrink away in the last 0.3 s
+                var twinkle = reduced ? 1f : 1f + Mathf.Sin(_time * 14f) * 0.08f;
+                _starsRoot.localScale = Vector3.one * (Mathf.SmoothStep(0f, 1f, outro) * twinkle);
+            }
 
             // ---- face ----
             ProcMesh.Glyph g;
-            if (stun > 0 || _starsLeft > 0f || _tumbleT >= 0f)
+            if (stun > 0 || _tumbleT >= 0f || _starsLeft > DizzyTail - 0.8f)
                 g = ProcMesh.Glyph.Stunned;
+            else if (_starsLeft > 0f)
+                g = ProcMesh.Glyph.Sleepy; // tired, half-closed eyes while the stars wind down
             else if (_pose == Pose.Champion)
                 g = ProcMesh.Glyph.Champion;
             else if (_pose == Pose.Qualified)
@@ -771,6 +804,12 @@ namespace FallRush.Client
 
         private float _keyBoost;
         private float _angryUntil, _smugUntil;
+
+        /// <summary>Seconds the stars and woozy look stay after the get-up (visual only; the sim stun is 0.35–0.6 s).</summary>
+        public const float DizzyTail = 3.5f; // + the 0.35–0.6 s stun ≈ 4 s tired (user ask, 2026-11-24)
+
+        /// <summary>Starts (or extends) the dizzy stars for <paramref name="seconds"/> (respawn after a knock-off fall).</summary>
+        public void Dizzy(float seconds) => _starsLeft = Mathf.Max(_starsLeft, seconds);
 
         // ------------------------------------------------------------------ feet
 

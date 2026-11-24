@@ -72,7 +72,7 @@ try {
     let got = null; let k = 0;
     for (const end = Date.now() + MAX * 1000; Date.now() < end && !got;) {
       await shot(`t${String(Math.round(T())).padStart(4, '0')}`);
-      if (++k % 3 === 0) {
+      if (++k % 3 === 0 && !process.argv.includes('--no-stop')) { // --no-stop: shoot for the whole --max (other matches archiving do not end it)
         const m = await (await fetch(`${BASE}/api/matches?n=1`)).json().catch(() => null);
         got = (m?.matches ?? []).find((x) => x.match !== last && x.doneAt > Date.now() - MAX * 1000) ?? null;
       }

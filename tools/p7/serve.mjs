@@ -24,7 +24,10 @@ createServer(async (req, res) => {
   if (!p.startsWith(normalize(DIST)) || !existsSync(p) || statSync(p).isDirectory()) p = join(DIST, 'index.html');
   const st = statSync(p), type = TYPES[extname(p)] ?? 'application/octet-stream';
   const range = req.headers.range?.match(/bytes=(\d+)-(\d*)/);
-  const head = { 'content-type': type, 'accept-ranges': 'bytes', 'cache-control': p.includes('/unity/') ? 'public, max-age=3600' : 'no-cache' };
+  // the build file names never change: always revalidate (a rebuilt build must never come from the browser cache)
+  const etag = `"${st.size.toString(16)}-${Math.floor(st.mtimeMs).toString(16)}"`;
+  const head = { 'content-type': type, 'accept-ranges': 'bytes', 'cache-control': 'no-cache', etag, 'last-modified': st.mtime.toUTCString() };
+  if (!range && req.headers['if-none-match'] === etag) { res.writeHead(304, head); return res.end(); }
   if (range) {
     const a = Number(range[1]), b = range[2] ? Number(range[2]) : st.size - 1;
     res.writeHead(206, { ...head, 'content-range': `bytes ${a}-${b}/${st.size}`, 'content-length': b - a + 1 });

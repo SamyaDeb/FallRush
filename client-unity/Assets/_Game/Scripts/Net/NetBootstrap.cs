@@ -312,12 +312,27 @@ namespace FallRush.Net
         /// </summary>
         public static string PracticeMapArg()
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!PracticeAllowed)
+                return null;
             var v = GetArgValue("-fallrushPractice") ?? NetTargets.GetQueryParam(Application.absoluteURL, "practice");
             return string.IsNullOrEmpty(v) ? null : v;
+        }
+
+        /// <summary>
+        /// Practice (offline, no networking) runs in the Editor and development builds, and (2026-11-24, for local
+        /// playtests of every map) in a release WebGL build served from localhost / 127.0.0.1 only: never on the public site.
+        /// </summary>
+        public static bool PracticeAllowed
+        {
+            get
+            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                return true;
 #else
-            return null;
+                var u = Application.absoluteURL ?? string.Empty;
+                return u.StartsWith("http://localhost:", StringComparison.Ordinal) || u.StartsWith("http://127.0.0.1:", StringComparison.Ordinal);
 #endif
+            }
         }
 
         /// <summary>True while the DEV practice mode runs (no networking).</summary>
@@ -326,10 +341,10 @@ namespace FallRush.Net
         /// <summary>DEV: enter the practice mode on map <paramref name="key"/> (e.g. "BlockPartyDash"). No-op in release builds.</summary>
         public static void StartPractice(string key)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (!PracticeAllowed)
+                return;
             IsPractice = true;
             SceneManager.LoadScene("Map_" + key);
-#endif
         }
 
         private void Start()

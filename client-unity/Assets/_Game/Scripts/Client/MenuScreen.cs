@@ -261,13 +261,14 @@ namespace FallRush.Client
             Place((RectTransform)_wallet.transform, new Vector2(0f, 0f), new Vector2(24f, 30f), new Vector2(460f, 18f));
             _target = UiKit.Label(_hubGroup, string.Empty, 12, UiKit.Grey, FontStyle.Normal, 18);
             Place((RectTransform)_target.transform, new Vector2(0f, 0f), new Vector2(24f, 10f), new Vector2(460f, 18f));
-            _devPanel = UiKit.Panel(_hubGroup, new Vector2(420f, 330f), UiKit.CloudWhite);
-            Place(_devPanel, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(420f, 330f));
+            _devPanel = UiKit.Panel(_hubGroup, new Vector2(420f, 520f), UiKit.CloudWhite);
+            Place(_devPanel, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(420f, 520f));
             _walletButton = UiKit.Button(_devPanel, "Connect Wallet (dev)", UiKit.Mint, OnConnectWallet);
-            if (DevMenu.Enabled)
+            if (DevMenu.Enabled || NetBootstrap.PracticeAllowed)
             {
-                UiKit.Button(_devPanel, "Practice / tuning (dev)", UiKit.Grey, () => NetBootstrap.StartPractice("BlockPartyDash")).GetComponent<LayoutElement>().minHeight = 44;
-                UiKit.Button(_devPanel, "Practice: G4 sandbox (dev)", UiKit.Grey, () => NetBootstrap.StartPractice("Sandbox")).GetComponent<LayoutElement>().minHeight = 44;
+                // 2026-11-24: practice on every map (localhost / dev builds only, see NetBootstrap.PracticeAllowed)
+                foreach (var (label, key) in new[] { ("Capsule Run", "BlockPartyDash"), ("Goo Tower", "GooTower"), ("Star Fountain", "StarScramble"), ("Crumble Shelf", "CrumbleShelf"), ("Hazard sandbox", "Sandbox") })
+                    UiKit.Button(_devPanel, "Practice: " + label, UiKit.Grey, () => NetBootstrap.StartPractice(key)).GetComponent<LayoutElement>().minHeight = 40;
                 UiKit.Button(_devPanel, "Feel Lab (dev)", UiKit.Grey, () =>
                 {
                     System.AppDomain.CurrentDomain.SetData("fallrush.feellab", true);
@@ -275,7 +276,7 @@ namespace FallRush.Client
                 }).GetComponent<LayoutElement>().minHeight = 44;
                 if (OnChainEntry.Available)
                     UiKit.Button(_devPanel, "On-chain Final only (dev)", UiKit.Grey, () => OnChainEntry.Play()).GetComponent<LayoutElement>().minHeight = 44;
-                TopButton(bar, "Dev", () => _devPanel.gameObject.SetActive(!_devPanel.gameObject.activeSelf));
+                TopButton(bar, DevMenu.Enabled ? "Dev" : "Practice", () => _devPanel.gameObject.SetActive(!_devPanel.gameObject.activeSelf));
             }
 
             _devPanel.gameObject.SetActive(false);

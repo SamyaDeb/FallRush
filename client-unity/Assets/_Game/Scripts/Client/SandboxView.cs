@@ -20,6 +20,7 @@ namespace FallRush.Client
     public sealed class SandboxView : MonoBehaviour
     {
         private RushlingVisuals[] _rushlings;
+        private CheckpointMarkers _markers;
         private Nameplates _plates;
         private readonly string[] _plateText = new string[Protocol.MaxPlayers];
         private readonly string[] _plateName = new string[Protocol.MaxPlayers];
@@ -100,6 +101,7 @@ namespace FallRush.Client
         {
             _map = MapInfo.Current;
             WorldLook.OnMapLoaded();
+            _markers = CheckpointMarkers.Build(_map, transform); // 2026-11-24: flags on Goo Tower's respawn spots (visual only)
             var lit = _map != null ? _map.playerMaterial : null;
             var unlit = _map != null ? _map.unlitMaterial : null;
             _rushlings = new RushlingVisuals[Protocol.MaxPlayers];
@@ -275,22 +277,48 @@ namespace FallRush.Client
             for (var i = 0; i < Protocol.MaxPlayers; i++)
             {
                 var vis = _rushlings[i];
-                if (!cs.TrySample(i, out var feet, out var vel, out var flags, out var yaw, out var stun) ||
-                    (flags & MotorState.Respawning) != 0 || ReactiveViews.Current != null && ReactiveViews.Current.CapsuleHides(i))
+                var sampled = cs.TrySample(i, out var feet, out var vel, out var flags, out var yaw, out var stun);
+                var capsuled = ReactiveViews.Current != null && ReactiveViews.Current.CapsuleHides(i);
+                if (!sampled || (flags & MotorState.Respawning) != 0 || capsuled)
                 {
+                    // Dizzy hits (2026-11-24): falling off the course no longer vanishes in a poof. The Rushling keeps
+                    // tumbling down (stars on, visual only: the sim froze it at the fall line) until the respawn moves it.
+                    var falling = sampled && !capsuled && (flags & MotorState.Respawning) != 0 && cs.Phase == RoundPhase.Rush;
                     if (!_wasRespawning[i])
                     {
-                        vis.SetVisible(false);
                         _wasRespawning[i] = true;
-                        // G3.3: a knock-out leaves a poof (or a goo splash) where the Rushling vanished.
+                        _fallT[i] = -1f;
                         if (_wasVisible[i] && cs.Phase == RoundPhase.Rush)
                         {
                             var gooed = _map != null && _map.goo.Length > 0;
+                            GameAudio.Hits.KnockedOut(i == own, gooed); // own only
                             if (gooed)
-                                Fx.Splash(_lastFeet[i]);
-                            else
-                                Fx.Poof(_lastFeet[i]);
-                            GameAudio.Play(gooed ? GameAudio.Sfx.Goo : GameAudio.Sfx.CapsulePop, _lastFeet[i], i == own ? 1f : 0.6f);
+                                Fx.Splash(_lastFeet[i]); // goo eliminates: it still sinks out of sight
+                            else if (falling)
+                            {
+                                _fallT[i] = 0f;
+                                _fallFeet[i] = _lastFeet[i];
+                                _fallVel[i] = _lastVelS[i];
+                            }
+                        }
+
+                        if (_fallT[i] < 0f)
+                            vis.SetVisible(false);
+                    }
+
+                    if (_fallT[i] >= 0f)
+                    {
+                        if (!falling || _fallT[i] > KnockOffFallSecs)
+                        {
+                            _fallT[i] = -1f;
+                            vis.SetVisible(false); // out for good (an elimination), or the respawn is late
+                        }
+                        else
+                        {
+                            _fallT[i] += dt;
+                            _fallVel[i] += Vector3.down * (22f * dt);
+                            _fallFeet[i] += _fallVel[i] * dt;
+                            vis.Drive(_fallFeet[i], _fallVel[i], 0, yaw, 30, dt);
                         }
                     }
 
@@ -303,7 +331,13 @@ namespace FallRush.Client
 
                 if (_wasRespawning[i])
                 {
+                    var fell = _fallT[i] >= 0f;
+                    _fallT[i] = -1f;
+                    if (fell)
+                        vis.SetVisible(false); // reset the pose: it reappears upright at the checkpoint
                     vis.SetVisible(true);
+                    if (fell)
+                        vis.Dizzy(RushlingVisuals.DizzyTail); // still seeing stars
                     if (_photo == "silhouette")
                         vis.SetSilhouette(true);
                     _wasRespawning[i] = false;
@@ -316,12 +350,15 @@ namespace FallRush.Client
                     feet = held; // the claw carries it (visual only)
                 if (Time.unscaledTime >= _hitStopUntil[i])
                     vis.Drive(feet, vel, flags, yaw, stun, dt);
+                    if (i == own && (flags & MotorState.Grounded) != 0)
+                        _markers?.Touch(feet);
                 var camT = Camera.main != null ? Camera.main.transform.position : feet;
                 var d2 = (camT - feet).sqrMagnitude;
                 vis.SetOutline(i == own || d2 < (vis.Preset >= 0 ? 22f * 22f : 0f)); // G2.4: hull only near the camera
                 Juice(i, vis, feet, vel, i == own, cs);
                 _wasVisible[i] = true;
                 _lastFeet[i] = feet;
+                _lastVelS[i] = vel;
                 _feetNow[i] = feet;
                 _visibleNow[i] = true;
                 if (_photo == null)
@@ -430,6 +467,21 @@ namespace FallRush.Client
         private readonly float[] _slideFxAt = new float[Protocol.MaxPlayers];
         private readonly bool[] _wasVisible = new bool[Protocol.MaxPlayers];
         private readonly Vector3[] _lastFeet = new Vector3[Protocol.MaxPlayers];
+        private readonly Vector3[] _lastVelS = new Vector3[Protocol.MaxPlayers];
+
+        // Dizzy hits: the visual fall after leaving the course (−1 = none).
+        public const float KnockOffFallSecs = 1.4f;
+        private readonly float[] _fallT = NewFallTimers();
+        private readonly Vector3[] _fallFeet = new Vector3[Protocol.MaxPlayers];
+        private readonly Vector3[] _fallVel = new Vector3[Protocol.MaxPlayers];
+
+        private static float[] NewFallTimers()
+        {
+            var a = new float[Protocol.MaxPlayers];
+            for (var i = 0; i < a.Length; i++)
+                a[i] = -1f;
+            return a;
+        }
         private int _stepParity;
 
         /// <summary>Per-Rushling effects and sounds from the G1 juice hooks (visual / audio only).</summary>
@@ -468,10 +520,11 @@ namespace FallRush.Client
             {
                 Fx.Bonk(feet);
                 _hazardViews?.SquashBumperNear(feet); // G4.9: the pillow bumper squashes and wobbles (client-only)
-                GameAudio.Play(GameAudio.Sfx.Bonk, feet, vol, 0.9f + UnityEngine.Random.value * 0.2f);
-                _hitStopUntil[i] = Time.unscaledTime + 0.06f; // hit-stop: the visuals freeze ~60 ms (the sim never does)
-                if (own)
-                    GameAudio.Chirp(1, feet);
+                GameAudio.Hits.Stunned(own, feet); // dizzy hits: boing + birds, your own hits only
+                // Hit-stop: the visuals freeze ~60 ms (the sim never does), except inside a rolling ball (no collider):
+                // there a frozen body hides in the 2 m ball and reads as gone.
+                if (_hazardViews == null || !_hazardViews.BallNear(feet + Vector3.up * 0.6f, 0.6f))
+                    _hitStopUntil[i] = Time.unscaledTime + 0.06f;
             }
 
             if (vis.StumbleStartedThisFrame)
@@ -481,8 +534,8 @@ namespace FallRush.Client
                     GameAudio.Play(GameAudio.Sfx.Stumble, feet, vol);
             }
 
-            if (vis.GetUpThisFrame && near)
-                GameAudio.Chirp(3, feet);
+            if (vis.GetUpThisFrame)
+                GameAudio.Hits.GotUp(own, feet);
             if (vis.EmoteStartedThisFrame && near)
             {
                 GameAudio.Play(GameAudio.Sfx.Emote, feet, vol);

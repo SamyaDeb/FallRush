@@ -30,3 +30,8 @@
 2026-11-24T10:07:10Z web: switched to the P7 build (web.p6bak kept)
 2026-11-24T10:33:12Z build: node image fallrush-node:p7 + web.p7 staged (not live)
 2026-11-24T10:33:14Z web: switched to the P7 build (web.p6bak kept)
+2026-11-24T13:50:58Z gsimage: fallrush-gameserver:p7ux built, rooms dir + gs3 logs ready, GS_PUBLIC has gs3 (not live)
+2026-11-24T13:51:24Z arena3: gs2 on fallrush-gameserver:p7ux (healthy)
+2026-11-24T13:51:34Z arena2: gs1 on fallrush-gameserver:p7ux (healthy)
+2026-11-24T13:51:35Z gs3: host available memory 5588 MB
+2026-11-24T13:51:46Z gs3: up (Classic-only room server, 127.0.0.1:7779)
