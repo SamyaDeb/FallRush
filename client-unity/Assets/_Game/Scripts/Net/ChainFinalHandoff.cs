@@ -25,6 +25,11 @@ namespace FallRush.Net
     {
         public const string Msg = "fonc";
         public const float LiveTimeoutSeconds = 8f;
+        /// <summary>Submission (judge mode): rounds 1–3 take seconds, so the keeper is still recording them when the Final
+        /// loads (~18 s measured from roster lock to start_final): a judge match waits this long instead.</summary>
+        public const float JudgeTimeoutSeconds = 45f;
+        /// <summary>This handoff's wait (rollup mode); <see cref="LiveTimeoutSeconds"/> unless the server sets it.</summary>
+        public float TimeoutSeconds = LiveTimeoutSeconds;
 
         public static bool Enabled =>
             Array.IndexOf(Environment.GetCommandLineArgs(), "-fallrushOnchainFinal") >= 0 || Environment.GetEnvironmentVariable("GAMESERVER_ONCHAIN_FINAL") == "1";
@@ -180,7 +185,7 @@ namespace FallRush.Net
                 var t0 = DateTime.UtcNow;
                 long first = -1;
                 // live = the arena is RUNNING the Final (start_final done: WorldAcc round 4) and its tick advances
-                while ((DateTime.UtcNow - t0).TotalSeconds < LiveTimeoutSeconds)
+                while ((DateTime.UtcNow - t0).TotalSeconds < TimeoutSeconds)
                 {
                     byte[] a = null, w = null;
                     try
@@ -214,7 +219,7 @@ namespace FallRush.Net
                     await Task.Delay(300).ConfigureAwait(false);
                 }
 
-                throw new Exception($"arena {ArenaKey} not running the Final within {LiveTimeoutSeconds} s");
+                throw new Exception($"arena {ArenaKey} not running the Final within {TimeoutSeconds} s");
             }
             catch (Exception e)
             {

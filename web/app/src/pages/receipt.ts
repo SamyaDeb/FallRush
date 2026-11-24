@@ -46,7 +46,7 @@ export function receipt(root: HTMLElement, params: string[]) {
     const rounds = [0, 1, 2, 3].map((r) => ({
       map: MAPS[head?.deal?.maps?.[r] ?? r] ?? MAPS[r], mode: MODES[r],
       line: r < 3 ? (q[r] ? `${q[r]} of ${r === 0 ? players : q[r - 1] || '?'} advanced` : 'Classic round') : m.champion < 12 ? `${tag(m.champion)} wins` : aborted ? 'aborted' : 'in progress',
-      trust: r < 3 ? '● game server' : '◆ program',
+      trust: r < 3 ? (s?.judge ? '● fast-forwarded (judge mode)' : '● game server') : '◆ program',
     }));
     // assets (the Crown + the capsules the keeper archived)
     const assetIds = [...new Set([...(crown ? [crown] : []), ...((s?.assets ?? []) as string[])])];
@@ -90,7 +90,7 @@ export function receipt(root: HTMLElement, params: string[]) {
           <div class="row" style="margin-top:12px"><button class="btn small" id="dl">${icon('capsule')} Download card</button><a class="btn small mint" href="/replay/${id}" data-link>${icon('play')} Replay it yourself</a><button class="btn small ghost" id="share">Copy link</button></div>
         </div>
       </div>
-      <h3 style="margin-top:16px">The 4 rounds</h3>
+      <h3 style="margin-top:16px">The 4 rounds</h3>${s?.judge ? `<div class="muted" style="margin:-4px 0 8px">Judge mode: rounds 1–3 were <b>not played</b>. The game server fast-forwarded them so the judge reached the Final at once, and recorded the result on-chain as usual (●). The Final was played and computed by the program (◆).</div>` : ''}
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">${rounds.map((r, i) => `<div class="tile ${HUES[i]} enter" style="--i:${i + 1}"><div class="muted">${i === 3 ? 'FINAL' : 'ROUND ' + (i + 1)}</div><h3>${r.map}</h3><div>${r.line}</div><div class="muted">${r.mode} · ${r.trust}</div></div>`).join('')}</div>
       <h3 style="margin-top:16px">Minted to the players</h3>
       <div class="grid">${assetTiles || `<div class="muted">${aborted ? 'nothing minted (aborted)' : 'no asset minted for this match'}</div>`}</div>

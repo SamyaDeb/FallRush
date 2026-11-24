@@ -85,6 +85,10 @@ namespace FallRush.Client
             if (!_quickPlayed && NetTargets.GetQueryParam(Application.absoluteURL, "quickplay") == "1")
             {
                 _quickPlayed = true;
+                // submission (judge mode): /play?judge=1 gets a judge room from /api/judge and passes ?room=&server=
+                // with ?quickplay=1: join that room at once (no title, ring or hub click)
+                if (invite != null)
+                    NetBootstrap.RoomCode = invite;
                 Show(Page.Hub);
                 Invoke(nameof(Connect), 0.4f);
             }
