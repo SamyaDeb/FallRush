@@ -14,6 +14,7 @@ namespace FallRush.Client
         private const float StepDeg = 360f / 12f;
 
         private readonly RushlingVisuals[] _v = new RushlingVisuals[12];
+        private readonly bool[] _shown = { true, true, true, true, true, true, true, true, true, true, true, true };
         private Camera _cam;
         private Vector3 _centre, _centreTarget;
         private float _angle, _angleTarget;
@@ -74,6 +75,7 @@ namespace FallRush.Client
                     m.SetColor("_BaseColor", c);
                 if (m.HasProperty("_Color"))
                     m.SetColor("_Color", c);
+                m.SetShaderPassEnabled("SRPDefaultUnlit", false); // the toon outline hull (front-culled) drew a dark arc on the disc
                 r.sharedMaterial = m;
             }
 
@@ -82,8 +84,8 @@ namespace FallRush.Client
 
         private static Color Hex(int rgb) => UiKit.Hex(rgb);
 
-        /// <summary>Ring placement: centred under the title (pick) or right of the hub panel (solo).</summary>
-        public void Layout(bool solo, bool instant = false)
+        /// <summary>Ring placement: low under the title, centred and closer on the ring screen, right of the hub panel (solo).</summary>
+        public void Layout(bool solo, bool instant = false, bool pick = false)
         {
             _solo = solo;
             var f = _cam.transform.forward;
@@ -91,7 +93,7 @@ namespace FallRush.Client
             f = f.sqrMagnitude > 1e-4f ? f.normalized : Vector3.forward;
             var right = Vector3.Cross(Vector3.up, f);
             var basePos = _cam.transform.position + f * 8.6f + Vector3.down * 2.3f;
-            _centreTarget = solo ? basePos + right * 2.9f + f * 1.2f : basePos;
+            _centreTarget = solo ? basePos + right * 3.1f + f * 0.4f + Vector3.up * 0.9f : pick ? basePos + Vector3.up * 1.05f - f * 1.6f : basePos;
             if (instant)
                 _centre = _centreTarget;
         }
@@ -157,8 +159,12 @@ namespace FallRush.Client
                 // the back of the ring faces outwards (a crowd around a turntable), the front ones face the camera
                 var facing = Mathf.Abs(Mathf.DeltaAngle(a * Mathf.Rad2Deg, frontYaw)) < 70f ? yaw : a * Mathf.Rad2Deg;
                 var visible = !_solo || picked || _soloT < 0.5f;
-                if (_v[i].gameObject.activeSelf != visible)
-                    _v[i].gameObject.SetActive(visible);
+                if (_shown[i] != visible)
+                {
+                    _shown[i] = visible;
+                    _v[i].SetVisible(visible); // the noodle arms / key live outside the root: SetVisible hides every part
+                }
+
                 if (!visible)
                     continue;
                 _v[i].transform.localScale = Vector3.one * (picked ? Mathf.Lerp(1.15f, 1.6f, _soloT) : 0.92f);

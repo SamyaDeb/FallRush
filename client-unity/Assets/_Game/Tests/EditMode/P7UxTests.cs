@@ -94,7 +94,7 @@ namespace FallRush.Tests
             {
                 var one = UiKit.Keycap(root.transform, "B", 12, 20f);
                 var wide = UiKit.Keycap(root.transform, "Shift", 12, 20f);
-                Assert.AreEqual(20f, one.sizeDelta.x, 0.01f, "a one-letter key is square");
+                Assert.That(one.sizeDelta.x, Is.InRange(20f, 21.5f), "a one-letter key is (about) square");
                 Assert.Greater(wide.sizeDelta.x, one.sizeDelta.x);
                 Assert.AreEqual(20f, wide.sizeDelta.y, 0.01f);
             }

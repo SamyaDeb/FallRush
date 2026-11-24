@@ -65,6 +65,7 @@ namespace FallRush.Net
             _nm = nm;
             Director = new MatchDirector(sim.Core, this);
             ConfigureFromArgs();
+            NetBootstrap.RoomRefresh = PollRoom;
             nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Ready, OnReady);
             nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Control, OnControl);
             // The initial scene is the lobby; the director's first LoadMap finds it already loaded.

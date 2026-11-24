@@ -230,10 +230,10 @@ namespace FallRush.Client
                 Cursor.lockState = CursorLockMode.None;
             CursorPolicy.SetOpen("settings", _optionsOpen);
             CursorPolicy.Apply(_overlay.activeSelf);
-            var es = UnityEngine.EventSystems.EventSystem.current;
-            var pointerOverUi = es != null && es.IsPointerOverGameObject();
+            var clicked = mouse != null && mouse.leftButton.wasPressedThisFrame;
+            var pointerOverUi = clicked && CursorPolicy.OverUi(mouse.position.ReadValue());
             var otherPanel = CursorPolicy.AnyOpenExcept("settings");
-            if (CursorPolicy.MayLock(mouse != null && mouse.leftButton.wasPressedThisFrame && Cursor.lockState != CursorLockMode.Locked, pointerOverUi,
+            if (CursorPolicy.MayLock(clicked && Cursor.lockState != CursorLockMode.Locked, pointerOverUi,
                     otherPanel, CursorPolicy.Spectating, _overlay.activeSelf, probe))
             {
                 Cursor.lockState = CursorLockMode.Locked; // WebGL: pointer lock needs this user gesture

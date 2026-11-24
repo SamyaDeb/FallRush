@@ -157,8 +157,8 @@ namespace FallRush.Client
             UiKit.RoundButton(_pickGroup, UiIcon.None, "▶", UiKit.Magenta, 76f, () => Turn(1), Color.white);
             Place((RectTransform)_pickGroup.GetChild(_pickGroup.childCount - 1), new Vector2(0.5f, 0.5f), new Vector2(330f, 10f), new Vector2(76f, 76f));
 
-            var card = UiKit.MakeCard(_pickGroup, UiKit.CardSize.M, UiKit.CardHue.Grape, "MY RUSHLING", new Vector2(520f, 206f), UiIcon.Capsule);
-            Place(card.Root, new Vector2(0.5f, 0f), new Vector2(0f, 20f), new Vector2(520f, 206f));
+            var card = UiKit.MakeCard(_pickGroup, UiKit.CardSize.M, UiKit.CardHue.Grape, "MY RUSHLING", new Vector2(520f, 196f), UiIcon.Capsule);
+            Place(card.Root, new Vector2(0.5f, 0f), new Vector2(0f, 14f), new Vector2(520f, 196f));
             var top = UiKit.Row(card.Body, 40f, 10f, TextAnchor.MiddleCenter);
             _presetSwatch = UiKit.Dot(top, Color.white, 22f);
             _presetName = UiKit.Label(top, string.Empty, 32, UiKit.Ink, FontStyle.Bold, 40);
@@ -171,7 +171,7 @@ namespace FallRush.Client
             sle.preferredWidth = sle.minWidth = 180f;
             sle.minHeight = 52f;
             var keys = UiKit.Row(_pickGroup, 26f, 10f, TextAnchor.MiddleCenter);
-            Place(keys, new Vector2(0.5f, 0f), new Vector2(0f, 236f), new Vector2(420f, 26f));
+            Place(keys, new Vector2(1f, 0f), new Vector2(-20f, 20f), new Vector2(240f, 26f));
             UiKit.KeyHint(keys, "A D", "Turn", 14, 24f);
             UiKit.KeyHint(keys, "Enter", "Select", 14, 24f);
             ShowPreset();
@@ -236,7 +236,7 @@ namespace FallRush.Client
 
             // right: your Rushling (the ring in solo mode) + its name plate + change
             var plate = UiKit.MakeCard(_hubGroup, UiKit.CardSize.S, UiKit.CardHue.Lemon, "YOU", new Vector2(330f, 92f), UiIcon.Crown);
-            Place(plate.Root, new Vector2(1f, 0f), new Vector2(-300f, 120f), new Vector2(330f, 92f));
+            Place(plate.Root, new Vector2(1f, 0f), new Vector2(-310f, 128f), new Vector2(330f, 92f));
             var pr = UiKit.Row(plate.Body, 50f, 10f);
             _hubName = UiKit.Label(pr, string.Empty, 22, UiKit.Ink, FontStyle.Bold, 46);
             _hubName.alignment = TextAlignmentOptions.Left;
@@ -370,7 +370,7 @@ namespace FallRush.Client
             SetGroup(_pickGroup, s == Page.Pick);
             SetGroup(_hubGroup, s == Page.Hub);
             SetGroup(_busyGroup, s == Page.Busy);
-            _ring.Layout(s == Page.Hub || s == Page.Busy);
+            _ring.Layout(s == Page.Hub || s == Page.Busy, false, s == Page.Pick);
             if (s == Page.Title)
             {
                 UiMotion.SlideIn(_logo, new Vector2(0f, 160f));
@@ -476,7 +476,8 @@ namespace FallRush.Client
             if (_hubName == null)
                 return;
             var p = CosmeticPresets.Get(GameSettings.CosmeticPreset);
-            _hubName.text = $"{GameSettings.PlayerName}\n<size=15><color=#7B2FF7>{p.Name}</color></size>";
+            var nm = string.IsNullOrWhiteSpace(GameSettings.PlayerName) ? "Guest" : GameSettings.PlayerName;
+            _hubName.text = $"{nm}\n<size=15><color=#7B2FF7>{p.Name}</color></size>";
             _hubTier.text = $"Your tier: <color=#7B2FF7>{PlayerTier.Name}</color>";
             _hubTierInfo.text = PlayerTier.Tier < 2 ? $"{PlayerTier.ToNext} pts to {PlayerTier.Names[PlayerTier.Tier + 1]} · rounds +1, Finals +4, crowns +10" : $"Top tier · {PlayerTier.Crowns} crowns";
             for (var i = 0; i < 3; i++)

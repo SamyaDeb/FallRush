@@ -592,7 +592,7 @@ namespace FallRush.Client
             var go = new GameObject("Keycap", typeof(RectTransform), typeof(LayoutElement));
             go.transform.SetParent(parent, false);
             var rt = (RectTransform)go.transform;
-            var w = Mathf.Max(height, key.Length * fontSize * 0.62f + 10f);
+            var w = Mathf.Max(height, key.Length * fontSize * 0.74f + 12f);
             var le = go.GetComponent<LayoutElement>();
             le.minWidth = le.preferredWidth = w;
             le.minHeight = le.preferredHeight = height;

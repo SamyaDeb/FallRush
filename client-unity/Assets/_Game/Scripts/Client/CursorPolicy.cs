@@ -66,6 +66,33 @@ namespace FallRush.Client
         /// <summary>The mouse orbits the camera: locked, or a spectator holding the right button over the game.</summary>
         public static bool Orbit(bool locked, bool spectating, bool rightHeld, bool overUi) => locked || spectating && rightHeld && !overUi;
 
+        private static readonly List<UnityEngine.EventSystems.RaycastResult> s_Hits = new List<UnityEngine.EventSystems.RaycastResult>(8);
+        private static UnityEngine.EventSystems.PointerEventData s_Ped;
+        private static UnityEngine.EventSystems.EventSystem s_PedOwner;
+
+        /// <summary>
+        /// Is a UI element under <paramref name="screenPos"/> right now? A fresh raycast at the click position: the event
+        /// system's IsPointerOverGameObject uses last frame's pointer, so a fast move + click in one frame (or a scripted
+        /// click) read "not over UI", took the pointer lock and the button never got its click.
+        /// </summary>
+        public static bool OverUi(Vector2 screenPos)
+        {
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (es == null)
+                return false;
+            if (es.IsPointerOverGameObject())
+                return true;
+            if (s_Ped == null || s_PedOwner != es)
+            {
+                s_Ped = new UnityEngine.EventSystems.PointerEventData(es);
+                s_PedOwner = es;
+            }
+            s_Ped.position = screenPos;
+            s_Hits.Clear();
+            es.RaycastAll(s_Ped, s_Hits);
+            return s_Hits.Count > 0;
+        }
+
         /// <summary>Applies the free rule now (called by the match view every frame).</summary>
         public static void Apply(bool overlay)
         {

@@ -437,6 +437,9 @@ namespace FallRush.Net
         /// the room to join (sent in hello v7).</summary>
         public static string RoomCode;
 
+        /// <summary>P7-UX (server): re-reads the room file now (set by ServerMatch).</summary>
+        public static System.Action RoomRefresh;
+
         /// <summary>P7-UX (client): the server the play hub picked (matchmaking or a room); null = the usual resolution.</summary>
         public static string HubServerUrl;
 
@@ -466,6 +469,10 @@ namespace FallRush.Net
 
             // P7-UX (OC-46): a private room admits only its code; a room code for a room that is not here is refused too
             // (the invite expired), so a friend never lands in a stranger's public lobby by mistake
+            // the room file may have been written a moment ago (the host connects ~0.6 s after /api/room; the server polls
+            // the file once a second): re-read it before judging a code it does not know yet
+            if (hello.RoomCode != null && hello.RoomCode != RoomCode)
+                RoomRefresh?.Invoke();
             var room = RoomCode;
             if (room != null && hello.RoomCode != room)
             {
