@@ -1,6 +1,6 @@
 # 03 — Technical Architecture
 
-**Status:** v2 (2026-11-18). Replaces `fall-rush-docs/03-TECHNICAL-ARCHITECTURE.md`.
+**Status:** v2 (2026-11-18). Replaces `archive/v1-spec/03-TECHNICAL-ARCHITECTURE.md`.
 
 ---
 
@@ -59,7 +59,7 @@ fall-rush/
   packages/shared/       TS: protocol types, deal.ts, ruleset/map_pool JSON + hashes, IDL types
   infra/                 Dockerfiles, docker-compose (local + prod), nginx site configs
   docs/                  this documentation (v2)
-  fall-rush-docs/        original v1 spec (frozen, reference only)
+  docs/archive/v1-spec/  original v1 spec (frozen, reference only)
 ```
 
 ## 5. Shared constants & hashing

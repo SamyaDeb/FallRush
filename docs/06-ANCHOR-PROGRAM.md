@@ -1,6 +1,6 @@
 # 06 — Anchor Program Specification: `fall_rush`
 
-**Status:** v2 (2026-11-18). Replaces `fall-rush-docs/06-ANCHOR-PROGRAMS.md`.
+**Status:** v2 (2026-11-18). Replaces `archive/v1-spec/06-ANCHOR-PROGRAMS.md`.
 **Toolchain:** see 07 §1 (Anchor 1.0.2 + ER SDK 0.16.2 + session-keys 3.1.1).
 
 **What it does:** the program records the competitive lifecycle of a match. It does not simulate physics. It enforces:

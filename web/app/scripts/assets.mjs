@@ -14,7 +14,7 @@ for (const f of readdirSync(join(sa, 'chain')).filter((f) => f.endsWith('.json')
 mkdirSync(join(app, 'public/maps'), { recursive: true });
 for (const m of ['CrumbleShelf', 'Lobby']) cpSync(join(root, `maps/${m}.mapblob`), join(app, `public/maps/${m}.mapblob`));
 import('node:child_process').then(({ execFileSync }) => {
-  try { execFileSync('sips', ['-Z', '256', join(root, 'Fall Rush  Logo.png'), '--out', join(app, 'public/logo.png')], { stdio: 'ignore' }); }
-  catch { cpSync(join(root, 'Fall Rush  Logo.png'), join(app, 'public/logo.png')); }
+  try { execFileSync('sips', ['-Z', '256', join(root, 'docs/media/logo.png'), '--out', join(app, 'public/logo.png')], { stdio: 'ignore' }); }
+  catch { cpSync(join(root, 'docs/media/logo.png'), join(app, 'public/logo.png')); }
 });
 console.log('assets copied');

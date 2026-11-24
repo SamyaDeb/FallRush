@@ -4,7 +4,7 @@
 
 Built for **MagicBlock Solana Blitz V10** (Entertainment Finance). Window: Nov 20 – **Nov 27, 2026, 14:00 UTC**.
 
-**Status:** v2, 2026-11-18. The original v1 spec lives in `../fall-rush-docs/`; it is frozen and kept for reference only. v2 supersedes it wherever they differ. Doc 15 records the user's decisions.
+**Status:** v2, 2026-11-18. The original v1 spec lives in `archive/v1-spec/`; it is frozen and kept for reference only. v2 supersedes it wherever they differ. Doc 15 records the user's decisions.
 
 ## Reading order
 

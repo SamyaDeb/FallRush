@@ -1,16 +1,40 @@
 # Fall Rush
 
-**A 3D knockout party game whose Final runs on a MagicBlock Ephemeral Rollup.** 12 wind-up capsule toys, 4 chaotic rounds, one crown, and spectators who bet and drop chaos in real time. Every match leaves a receipt on Solana that anyone can replay.
+**Watch. Bet. Drop chaos. Own.** A 3D knockout party game for 12 players. Its Final runs on Solana, inside a MagicBlock Ephemeral Rollup, 30 times a second. Spectators bet on it live from their phones and pay to drop chaos into it. The program settles every market itself, and the champion's Crown lands in their wallet.
 
-### ▶ [Play now: fallrush.fun](https://fallrush.fun) · 🎬 [Demo video](<VIDEO_URL>) · 🔎 [Proof: every system, one explorer link each](PROOF.md)
+### ▶ [Play: fallrush.fun](https://fallrush.fun) · ⚡ [Judge mode: straight to the on-chain Final](https://fallrush.fun/play?judge=1) · 🎬 [Demo video](<VIDEO_URL>) · 🔎 [Proof: one explorer link per system](PROOF.md)
 
-![Fall Rush: the on-chain Final with spectator Chaos Drops](docs/media/hero.jpg)
+![The on-chain Final with a spectator's Chaos Drop](docs/media/hero.jpg)
 
-- **Play in one click**: no wallet, no popups. A guest wallet and a MagicBlock **session key** sign every move, bet and drop.
-- **The Final is on-chain**: the `fall_rush` program steps the physics of *Lid Flip* at 30 Hz inside a **MagicBlock Ephemeral Rollup**, decides who is out, settles the markets and mints the Crown.
-- **Entertainment finance**: spectators bet on **Rush Markets** (live odds, a **sealed** Champion market on a **Private ER**), buy **Chaos Drops** that hit the Final, and the winners keep **assets they own** (the Crown Capsule and VRF-rolled capsules, Metaplex Core).
+> Rounds 1–3 run on our server and are recorded on-chain. The Final's physics runs on Solana, in a MagicBlock Ephemeral Rollup, 30 times a second. Replay any match and compare it with the on-chain receipt.
 
-Built for the **MagicBlock Solana Blitz V10** (theme: Entertainment Finance). Devnet; RUSH chips are test chips with no real-money value.
+Devnet test chips; real money only after a legal review.
+
+## The loop
+
+| | What you do | What happens on-chain |
+|---|---|---|
+| **Compete** | 3 finalists fight on *Lid Flip*, the Final | The `fall_rush` program steps the physics (`tick()`, 30 Hz) and decides who falls |
+| **Trade** | Bet on Rush Markets from `/live`; odds move as the Final plays | Pari-mutuel markets settled by the program; the Champion market is **sealed** in a Private ER (TEE) so nobody can front-run it |
+| **Influence** | Pay chips to drop chaos (Lid Frenzy, Bumper Rain, Wind Gust, Sweeper Rush) into the Final you bet on | The drop enters the same World the program steps: map-wide, telegraphed ~0.77 s ahead, at most 3 per round, 5 s apart, never aimed at a player |
+| **Win and own** | Collect payouts, cash out, keep the Crown | Chips cash out to the RUSH SPL token; a Magic Action mints the Crown and VRF capsules (Metaplex Core) to the wallet when the match commits |
+
+## What runs where
+
+| Part | Runs on | Trust |
+|---|---|---|
+| Lobby, rounds 1–3 (*Capsule Run*, *Goo Tower*, *Star Fountain*) | Our game server (WebSocket) | Results **recorded** on-chain by the game authority (● on the receipt) |
+| Match deal (maps, modifiers, hazard seeds) | MagicBlock VRF | Verifiable randomness |
+| The Final (*Lid Flip*), 3 players | `fall_rush` program in the Ephemeral Rollup | **Computed** on-chain (◆); inputs signed by session keys |
+| Markets, Chaos Drops, payouts, receipt | `fall_rush` program | Computed on-chain, committed to Solana |
+| Sealed Champion bets | MagicBlock Private ER (TEE) | Hidden until close; checked against on-chain commitments |
+| Crown + capsules, Seasons, RUSH cash-out | Solana devnet | Minted by a Magic Action / the program |
+
+**Try it as a judge:** open [fallrush.fun/play?judge=1](https://fallrush.fun/play?judge=1). Rounds 1–3 are fast-forwarded for you (the receipt says so), and you are one of the 3 finalists in the on-chain Final within about a minute. Scan the QR code in the corner with your phone to bet and drop chaos into your own Final. The normal [full match](https://fallrush.fun/play) is the default.
+
+**Program (devnet):** [`4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4`](https://explorer.solana.com/address/4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4?cluster=devnet) · RUSH mint [`3s8Kstqi…QccEw`](https://explorer.solana.com/address/3s8KstqicXn1kgFyWPVq3AZXkMprDtEtT7BNTxtQccEw?cluster=devnet)
+
+**Built** 20–27 Nov 2026 for **MagicBlock Solana Blitz V10** (Entertainment Finance). The design and planning docs in `docs/` were written before the event, on 18 Nov.
 
 ---
 
@@ -18,8 +42,8 @@ Built for the **MagicBlock Solana Blitz V10** (theme: Entertainment Finance). De
 
 | MagicBlock feature | What Fall Rush does with it | Where |
 |---|---|---|
-| **Ephemeral Rollup** (devnet-as) | The program **is** the game server for the Final: a timed task calls `tick()` 30 times a second; `tick()` runs `rush-core` (our integer physics) as sBPF, ~200k CU per tick | `programs/fall_rush/src/sim.rs`, `tools/keeper` |
-| **Session keys** | A guest wallet signs once; a session key signs every input batch, bet and Chaos Drop. No wallet popup during play | `packages/chain/src/session.ts` |
+| **Ephemeral Rollup** (devnet-as) | The program **is** the game server for the Final: a timed task calls `tick()` 30 times a second; `tick()` runs `rush-core` (our integer physics) as sBPF: p95 ~188k, worst case ~254k CU per tick | `programs/fall_rush/src/sim.rs`, `tools/keeper` |
+| **Session keys** | A guest wallet signs once; a session key signs every Final input batch, bet and Chaos Drop. No wallet popup during play | `packages/chain/src/session.ts` |
 | **VRF** | Seeds the on-chain Final (hazards, bots) and rolls the capsule rarity per player | `request_deal` / `deal_callback`, `request_capsules` |
 | **Private Ephemeral Rollup (TEE)** | The **sealed Champion market**: picks go to a private book that nobody, including us, can read until the market closes; stakes + sha256 commitments go to the public rollup; reveals are checked against the commitments (with a commit-reveal fallback) | `packages/chain/src/sealed.ts`, `tools/keeper/p6.ts` |
 | **Magic Actions** | When the Match is committed and undelegated back to Solana, a Magic Action in the same transaction **mints the Crown and the capsules** (fee payer: the validator) | `finalize_match` |
@@ -72,8 +96,8 @@ flowchart LR
 Every archived match can be re-simulated tick by tick and compared byte for byte with the Worlds the rollup produced:
 
 ```bash
-git clone <this repo> && cd fall-rush
-node tools/p7/replay-check.mjs <match address>                      # Node 20+, no install
+git clone https://github.com/SamyaDeb/FallRush && cd FallRush
+node tools/p7/replay-check.mjs <match address>                      # Node 24, no install
 # e.g. node tools/p7/replay-check.mjs G43jUdkySw27WegtCFnsNEQhgeqMTnFq2WreD1yGkWWg
 # → {"pairs": 3837, "byteExact": 3837, "finalTranscriptInLastWorld": true, "pass": true}  replay = on-chain ✓
 ```

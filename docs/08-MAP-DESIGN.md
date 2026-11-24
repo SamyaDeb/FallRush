@@ -1,6 +1,6 @@
 # 08 — Map Design & Obstacle Kit
 
-**Status:** v2 (2026-11-18). Replaces `fall-rush-docs/08-MAP-DESIGN.md`.
+**Status:** v2 (2026-11-18). Replaces `archive/v1-spec/08-MAP-DESIGN.md`.
 
 **Related docs:**
 - 01-GDD §4–9

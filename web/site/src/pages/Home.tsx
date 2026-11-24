@@ -73,7 +73,7 @@ export default function Home() {
   useEffect(restoreSound, []);
 
   useEffect(() => {
-    document.title = 'Fall Rush — the provably fair knockout party game';
+    document.title = 'Fall Rush — the knockout party game with a Final on Solana';
   }, []);
 
   // lazy-load the 3D bundle after first paint

@@ -1,6 +1,6 @@
 # 02 — Product Requirements (Hackathon MVP)
 
-**Status:** v2 (2026-11-18). Replaces `fall-rush-docs/02-PRD.md`. Scope fits the Blitz V10 window (doc 14).
+**Status:** v2 (2026-11-18). Replaces `archive/v1-spec/02-PRD.md`. Scope fits the Blitz V10 window (doc 14).
 
 ## 1. Objective
 

@@ -15,7 +15,7 @@ export function home(root: HTMLElement) {
   <div class="card hue-grape"><div class="ribbon">${icon('bolt')} HOW IT RUNS ON MAGICBLOCK</div><div class="grid">
     <div class="tile hue-soda"><h3>Ephemeral Rollup</h3><span class="muted">The Final (Lid Flip) is simulated by the <code>fall_rush</code> program at 30 Hz on <code>devnet-as</code>; a timed task calls <code>tick()</code>.</span><div class="row" style="margin-top:6px"><a href="${explorer('address', PROGRAM)}" target="_blank">program</a><a href="${explorer('address', VALIDATOR)}" target="_blank">validator</a></div></div>
     <div class="tile hue-lemon"><h3>VRF</h3><span class="muted">MagicBlock VRF seeds the on-chain Final and rolls the capsule rarity.</span></div>
-    <div class="tile hue-apple"><h3>Session keys</h3><span class="muted">A guest wallet signs once; a session key signs every move, bet and Chaos Drop. No popups.</span></div>
+    <div class="tile hue-apple"><h3>Session keys</h3><span class="muted">A guest wallet signs once; a session key signs your Final moves, bets and Chaos Drops. No popups.</span></div>
     <div class="tile hue-bubble"><h3>Private ER + Magic Actions</h3><span class="muted">Sealed Champion bets live in a TEE-backed Private Ephemeral Rollup; the Crown and capsules are minted by a Magic Action as the Match returns to Solana.</span><div class="row" style="margin-top:6px"><a href="${explorer('address', RUSH_MINT)}" target="_blank">RUSH mint</a></div></div>
   </div><p class="muted" style="margin-bottom:0">Rounds 1–3 run on the Classic game server (recorded on-chain ●); the Final is program-computed ◆. Devnet test chips only (no real-money value).</p></div>`;
   let stop = false, first = true;

@@ -12,10 +12,10 @@ import { esc } from '../lib/chain';
 const MAPS = ['Capsule Run', 'Goo Tower', 'Star Fountain', 'Lid Flip'];
 const MODES = ['Race', 'Survival', 'Skill', 'Final'];
 const HUES = ['hue-soda', 'hue-grape', 'hue-lemon', 'hue-bubble'];
-const SIG_LABELS: [string, string, boolean][] = [
+const SIG_LABELS: [string, string, boolean | 'tee'][] = [
   ['create', 'create_match (Solana)', false], ['delegate', 'delegate the Match to the rollup', false], ['openMarkets', 'open the Rush Markets', true],
-  ['requestDeal', 'MagicBlock VRF deal request', true], ['escrowOpen', 'sealed escrow open', true], ['bookOpen', 'private book open (TEE)', false],
-  ['startFinal', 'start the on-chain Final', true], ['sealedClose', 'sealed market close', true], ['bookClose', 'private book close (TEE)', false],
+  ['requestDeal', 'MagicBlock VRF deal request', true], ['escrowOpen', 'sealed escrow open', true], ['bookOpen', 'private book open (TEE)', 'tee'],
+  ['startFinal', 'start the on-chain Final', true], ['sealedClose', 'sealed market close', true], ['bookClose', 'private book close (TEE)', 'tee'],
   ['sealedFinish', 'sealed reveal + settle', true], ['writeReceipt', 'write_receipt (rollup)', true], ['commitEcon', 'commit the economy', true],
   ['requestCapsules', 'capsule VRF request', true], ['endSim', 'end the simulation', true], ['finalize', 'finalize: commit + undelegate + Magic Action', true],
 ];
@@ -104,7 +104,7 @@ export function receipt(root: HTMLElement, params: string[]) {
       <details class="drawer"><summary>${small(icon('link'))} Proof: explorer links &amp; hashes</summary><div><dl>
         <dt>Match account</dt><dd><a target="_blank" href="${explorer('address', id)}" class="mono">${id}</a> (Solana) · <a target="_blank" href="${explorer('address', id, true)}">on the rollup</a></dd>
         <dt>Program</dt><dd><a target="_blank" href="${explorer('address', PROGRAM)}" class="mono">${PROGRAM}</a></dd>
-        ${SIG_LABELS.filter(([k]) => sig[k]).map(([k, label, er]) => `<dt>${label}</dt><dd><a target="_blank" href="${explorer('tx', sig[k], er)}" class="mono">${short(sig[k])}</a></dd>`).join('')}
+        ${SIG_LABELS.filter(([k]) => sig[k]).map(([k, label, er]) => er === 'tee' ? `<dt>${label}</dt><dd><span class="mono" title="${esc(sig[k])}">${short(sig[k])}</span> <span class="muted">(on the private rollup, devnet-tee: not readable from a public explorer)</span></dd>` : `<dt>${label}</dt><dd><a target="_blank" href="${explorer('tx', sig[k], er)}" class="mono">${short(sig[k])}</a></dd>`).join('')}
         ${(s?.sealed?.reveals ?? []).map((x: string, i: number) => `<dt>sealed reveal ${i + 1}</dt><dd><a target="_blank" href="${explorer('tx', x, true)}" class="mono">${short(x)}</a></dd>`).join('')}
         ${Object.entries(s?.seasons ?? {}).flatMap(([k, v]: [string, any]) => (v.sigs ?? []).map((x: string) => `<dt>season ${seasonName(Number(k))}</dt><dd><a target="_blank" href="${explorer('tx', x)}" class="mono">${short(x)}</a></dd>`)).join('')}
         <dt>trust</dt><dd>${rc.trust & 1 ? '● rounds 1–3 recorded by the game authority (Classic server) · ' : ''}${rc.trust & 2 ? '◆ the Final computed by the program (rush-core on the rollup)' : ''} · core v${rc.coreVersion & 0xff}</dd>

@@ -16,7 +16,7 @@ The `fall_rush` program on a MagicBlock Ephemeral Rollup accepts results only wh
 - for roster slots,
 - with counts consistent with the committed ruleset.
 
-The match deal comes from MagicBlock VRF and is verified on-chain. Results are committed to Solana every round.
+The match deal comes from MagicBlock VRF and is verified on-chain. Rounds 1–3 are decided by the game server and recorded on-chain; the Final is computed on-chain by the program (doc 19).
 
 **This is not trustless verification of physics.** Never claim "fully on-chain", "trustless gameplay" or "cheat-proof".
 

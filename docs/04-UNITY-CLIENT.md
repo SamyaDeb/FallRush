@@ -1,6 +1,6 @@
 # 04 — Unity Client & Game Server (shared C# project)
 
-**Status:** v2 (2026-11-18). Replaces `fall-rush-docs/04-UNITY-CLIENT.md`.
+**Status:** v2 (2026-11-18). Replaces `archive/v1-spec/04-UNITY-CLIENT.md`.
 
 **One Unity project, two builds:**
 - the **WebGL client** (desktop builds optional);
