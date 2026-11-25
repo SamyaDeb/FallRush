@@ -535,3 +535,46 @@ fn seasons_record_achievements_trophy() {
     assert!(record(&mut t, st, test_id, &[bk]).is_err(), "closed season refuses records");
     println!("seasons: record {rcu} CU (3 wallets), idempotent, tampered copies refused, achievements, boards; test season closed, trophy {tcu} CU: OK");
 }
+
+/// harden #12 (4): `start_final` (hybrid) refreshes the WorldAcc round phase, so the stale ENDED of the last match
+/// does not make the Final look rushed: sealed Champion commits, plain Champion and FinalWinner bets are accepted
+/// before the first tick, and `CLOSE` (permissionless) is refused until the RUSH tick.
+#[test]
+fn start_final_round_phase_keeps_final_window_open() {
+    let mut t = T::new();
+    let (a, b) = (t.wallet(), t.wallet());
+    let ak = a.pubkey();
+    // a real lobby blob in the arena's lobby slot (start_final resets the World on it)
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let blob = std::fs::read(root.join("maps/Lobby.mapblob")).unwrap();
+    let mut d = vec![0u8; 80];
+    d[..8].copy_from_slice(b"FRMAPBLB");
+    d[40..44].copy_from_slice(&(blob.len() as u32).to_le_bytes());
+    d[44] = 1;
+    d[48..80].copy_from_slice(&[5u8; 32]);
+    d.extend_from_slice(&blob);
+    t.svm.set_account(t.maps[4], Account { lamports: 1_000_000_000, data: d, owner: PID, executable: false, rent_epoch: 0 }).unwrap();
+    // Classic rounds 1–3 done: finalists 3, 7, 9; arena in LOBBY; the WorldAcc still holds the last match (ENDED)
+    t.patch_match(|d| { d[M_ROUND] = 3; d[M_STATUS] = 4; for s in 0..12 { if ![3usize, 7, 9].contains(&s) { d[M_SLOTS + 4 * s] = 3; d[M_SLOTS + 4 * s + 1] = 2; } } });
+    t.write_arena(1, 0, &[]);
+    t.write_world(9000, 4, 4, 8000);
+    let mut data = d8("global", "start_final").to_vec();
+    data.extend_from_slice(&[3, 7, 9]);
+    let ix = Instruction { program_id: PID, accounts: vec![AccountMeta::new_readonly(t.auth.pubkey(), true), w(t.arena), w(t.world), w(t.m), ro(t.maps[4])], data };
+    let au = t.auth.insecure_clone();
+    t.send(&[ix], &[&au]).unwrap();
+    let wd = t.svm.get_account(&t.world).unwrap().data;
+    assert_eq!((wd[139], wd[199]), (4, 0), "round 4, round phase WAITING (not the stale ENDED)");
+    // before the first tick: the Final's windows are open
+    t.commit(&a, 10 * ONE, commitment(3, 10 * ONE, &[1u8; 16], &ak)).unwrap();
+    let accs = vec![w(chips_of(&b.pubkey())), w(t.markets[1]), ro(t.m), ro(t.arena), ro(t.world)];
+    t.econ(&b, op::PLACE_BET, 7, 5 * ONE, accs).unwrap();
+    let accs = vec![w(chips_of(&b.pubkey())), w(t.markets[0]), ro(t.m), ro(t.arena), ro(t.world)];
+    t.econ(&b, op::PLACE_BET, 9, 5 * ONE, accs).unwrap();
+    assert!(t.close().is_err(), "sealed window not closable before RUSH");
+    // the RUSH tick closes them as before
+    t.write_world(9001, 4, 3, 9001);
+    assert!(t.commit(&a, 10 * ONE, [1; 32]).is_err(), "closed at RUSH");
+    t.close().unwrap();
+    println!("start_final: round_phase WAITING; sealed commit + Champion + FinalWinner open until RUSH: OK");
+}

@@ -317,7 +317,8 @@ pub fn bet_window(mk: &Market, m: &Match, f: FinalView, outcome: u8) -> Result<(
             let open = if r == 1 {
                 m.current_round == 0 && matches!(m.status, MatchStatus::Created | MatchStatus::Dealing | MatchStatus::Dealt)
             } else {
-                m.current_round == r - 1 && m.status == MatchStatus::RoundResolved
+                // harden #12: a round that cannot be played (≤ 1 alive: the director crowns the champion) never opens
+                m.current_round == r - 1 && m.status == MatchStatus::RoundResolved && m.count_slots(SLOT_ALIVE) >= 2
             };
             require!(open, FallRushError::MarketClosed);
             require!(st == SLOT_ALIVE, FallRushError::SlotNotAlive);
@@ -373,18 +374,25 @@ pub fn settle(mk: &mut Market, m: &Match) -> Result<bool> {
             }
             _ => {
                 let r = mk.round;
-                let done = m.current_round > r || (m.current_round == r && matches!(m.status, MatchStatus::RoundResolved | MatchStatus::Completed));
-                require!(done, FallRushError::RoundNotResolved);
-                let mut s = 0;
-                while s < (m.player_count as usize).min(MAX_SLOTS_E) {
-                    let x = m.slots[s];
-                    if x.state != SLOT_EMPTY && !(x.state == SLOT_ELIMINATED && x.round <= r) {
-                        winners |= 1 << s;
+                if m.status == MatchStatus::Completed && m.current_round < r {
+                    // harden #12: the match ended early (champion crowned before round r), so round r is never
+                    // played: refund every bet (winners = 0 → refund = 1, NO_WINNER) instead of blocking the
+                    // receipt and finalize forever
+                    lab = label::NO_WINNER;
+                } else {
+                    let done = m.current_round > r || (m.current_round == r && matches!(m.status, MatchStatus::RoundResolved | MatchStatus::Completed));
+                    require!(done, FallRushError::RoundNotResolved);
+                    let mut s = 0;
+                    while s < (m.player_count as usize).min(MAX_SLOTS_E) {
+                        let x = m.slots[s];
+                        if x.state != SLOT_EMPTY && !(x.state == SLOT_ELIMINATED && x.round <= r) {
+                            winners |= 1 << s;
+                        }
+                        s += 1;
                     }
-                    s += 1;
+                    // fullchain: in a `start_sim` match the program computed the round (◆), else the authority recorded it (●)
+                    lab = if sim::chain_all(m) { label::PROGRAM } else { label::AUTHORITY };
                 }
-                // fullchain: in a `start_sim` match the program computed the round (◆), else the authority recorded it (●)
-                lab = if sim::chain_all(m) { label::PROGRAM } else { label::AUTHORITY };
             }
         }
     }
@@ -1161,6 +1169,75 @@ fn mint_one<'info>(accs: &'info [AccountInfo<'info>], what: u8) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn zero_match() -> Match {
+        let z = vec![0u8; Match::INIT_SPACE];
+        Match::deserialize(&mut &z[..]).unwrap()
+    }
+
+    /// A fullchain match after round `r` with the given slots alive (the rest of 12 eliminated in round 1).
+    fn match_after(r: u8, status: MatchStatus, alive: &[usize]) -> Match {
+        let mut m = zero_match();
+        m.flags = sim::MATCH_SIM_STARTED;
+        m.player_count = 12;
+        m.current_round = r;
+        m.status = status;
+        m.champion_slot = 255;
+        for s in 0..12 {
+            m.slots[s] = if alive.contains(&s) { SlotResult { state: SLOT_ALIVE, round: r, placement: 0, reason: 0 } } else { SlotResult { state: SLOT_ELIMINATED, round: 1, placement: 0, reason: 1 } };
+        }
+        m
+    }
+
+    fn qualify(r: u8) -> Market {
+        let mut mk: Market = bytemuck::Zeroable::zeroed();
+        mk.status = mstatus::OPEN;
+        mk.kind = mkind::QUALIFY + r - 1;
+        mk.round = r;
+        mk
+    }
+
+    /// harden #12: a Qualify(r) market of a match crowned before round r refunds (NO_WINNER) instead of failing
+    /// forever (which blocked the receipt and finalize).
+    #[test]
+    fn qualify_of_unplayed_round_refunds() {
+        let mut mk = qualify(3);
+        add_bet(&mut mk, &Pubkey::new_unique(), 3, 5 * ONE_RUSH).unwrap();
+        add_bet(&mut mk, &Pubkey::new_unique(), 5, 2 * ONE_RUSH).unwrap();
+        // round 2 resolved, two alive: round 3 still to come → not settleable yet
+        let m = match_after(2, MatchStatus::RoundResolved, &[3, 5]);
+        assert!(settle(&mut mk, &m).is_err());
+        // champion crowned at round 2: refund
+        let mut m = match_after(2, MatchStatus::Completed, &[3]);
+        m.champion_slot = 3;
+        assert!(settle(&mut mk, &m).unwrap());
+        assert_eq!((mk.refund, mk.winners, mk.label, mk.status), (1, 0, label::NO_WINNER, mstatus::SETTLED));
+        assert_eq!(owed(&mk, 0), 5 * ONE_RUSH);
+        assert_eq!(owed(&mk, 1), 2 * ONE_RUSH);
+        // unchanged: a played round settles from the results
+        let mut q2 = qualify(2);
+        add_bet(&mut q2, &Pubkey::new_unique(), 3, ONE_RUSH).unwrap();
+        assert!(settle(&mut q2, &m).unwrap());
+        assert_eq!((q2.refund, q2.winners, q2.label), (0, 1 << 3, label::PROGRAM));
+        // an empty unplayed market goes straight to PAID
+        let mut q3 = qualify(3);
+        assert!(settle(&mut q3, &m).unwrap());
+        assert_eq!(q3.status, mstatus::PAID);
+    }
+
+    /// harden #12: Qualify(r ≥ 2) never opens when ≤ 1 player is alive (the director crowns instead of playing r).
+    #[test]
+    fn qualify_window_needs_two_alive() {
+        let mk = qualify(3);
+        let one = match_after(2, MatchStatus::RoundResolved, &[3]);
+        assert!(bet_window(&mk, &one, FinalView::default(), 3).is_err());
+        assert!(bet_window(&mk, &one, FinalView::default(), 255).is_err(), "sealed path too");
+        let two = match_after(2, MatchStatus::RoundResolved, &[3, 5]);
+        bet_window(&mk, &two, FinalView::default(), 3).unwrap();
+        let q1 = qualify(1);
+        let pre = match_after(0, MatchStatus::Dealt, &[0, 1, 2, 3]);
+        bet_window(&q1, &pre, FinalView::default(), 0).unwrap();
+    }
 
     #[test]
     fn rarity_distribution_within_1pct_over_10k_seeds() {

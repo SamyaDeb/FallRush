@@ -530,3 +530,136 @@ fn receipt_and_core_rewards() {
     assert!(s.contains("Rushling Capsule (Epic)") && s.contains("rarity") && s.contains("Epic"), "capsule metadata");
     println!("receipt + Crown + capsules (Metaplex Core CPI, {cu} CU for the Crown): OK");
 }
+
+const SIM_STARTED: u8 = 0x20;
+const MAGIC_PROGRAM: Pubkey = Pubkey::from_str_const("Magic11111111111111111111111111111111111111");
+const MAGIC_CONTEXT: Pubkey = Pubkey::from_str_const("MagicContext1111111111111111111111111111111");
+
+impl T {
+    /// `finalize_match` (commit + undelegate through the Magic program, which LiteSVM does not have: a stand-in
+    /// executable sits at its id, so the call gets past the program's own checks and then the CPI fails).
+    fn finalize(&mut self) -> Result<u64, String> {
+        if self.svm.get_account(&MAGIC_PROGRAM).map_or(true, |a| !a.executable) {
+            let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+            self.svm.add_program(MAGIC_PROGRAM, &std::fs::read(root.join("crates/target/deploy/rush_core_sbf_check.so")).expect("cargo build-sbf of rush-core-sbf-check")).unwrap();
+        }
+        let ix = Instruction {
+            program_id: PID,
+            accounts: vec![AccountMeta::new(self.auth.pubkey(), true), ro(pda(&[b"config"], &PID)), w(self.m), ro(MAGIC_PROGRAM), w(MAGIC_CONTEXT)],
+            data: d8("global", "finalize_match").to_vec(),
+        };
+        let a = self.auth.insecure_clone();
+        self.send(&[ix], &[&a])
+    }
+
+    fn receipt(&mut self) -> Result<u64, String> {
+        let mut accs = vec![w(self.m), ro(self.arena), ro(self.world), ro(self.dq)];
+        accs.extend(self.markets.iter().map(|k| ro(*k)));
+        accs.extend(self.maps.iter().map(|k| ro(*k)));
+        let au = self.auth.insecure_clone();
+        self.econ(&au, op::WRITE_RECEIPT, 0, 0, accs)
+    }
+}
+
+/// A fullchain match after round 2 with only `alive` left in (the others out in round 1).
+fn after_round2(t: &mut T, status: u8, alive: &[usize]) {
+    let alive = alive.to_vec();
+    t.patch_match(move |d| {
+        d[M_FLAGS] |= SIM_STARTED;
+        d[M_ROUND] = 2;
+        d[M_STATUS] = status;
+        for s in 0..12 {
+            if !alive.contains(&s) {
+                d[M_SLOTS + 4 * s] = 3;
+                d[M_SLOTS + 4 * s + 1] = 1;
+            }
+        }
+    });
+}
+
+/// harden #12 (1): a fullchain match crowned at round 2 (≤ 1 alive) with bets on Qualify(3): the unplayed round's
+/// market refunds (NO_WINNER) and is PAID, so the receipt is written and `finalize_match` gets past ReceiptNotReady.
+#[test]
+fn early_champion_refunds_unplayed_qualify() {
+    let mut t = T::new();
+    let (a, b) = (t.wallet(), t.wallet());
+    let (ak, bk) = (a.pubkey(), b.pubkey());
+    // ROUND_RESULT of round 2 (two alive): Qualify(3) open, the market maker and a player bet
+    after_round2(&mut t, ST_ROUND_RESOLVED, &[3, 5]);
+    t.bet(&a, 4, 3, 40 * ONE).unwrap();
+    t.bet(&b, 4, 5, 15 * ONE).unwrap();
+    let (a0, b0) = (t.balance(&ak), t.balance(&bk));
+    assert!(t.settle(4, &[ak, bk]).is_err(), "round 3 still to come: not settleable");
+    // slot 5 falls out at the end of round 2: the director crowns slot 3 (round 3 is never played)
+    t.patch_match(|d| { d[M_STATUS] = ST_COMPLETED; d[M_CHAMP] = 3; d[M_SLOTS + 4 * 5] = 3; d[M_SLOTS + 4 * 5 + 1] = 2; d[M_SLOTS + 4 * 3 + 2] = 1; });
+    assert!(t.finalize().unwrap_err().contains("ReceiptNotReady"), "no receipt yet");
+    for k in 0..5 {
+        t.settle(k, &[ak, bk]).unwrap();
+    }
+    assert_eq!((t.balance(&ak) - a0, t.balance(&bk) - b0), (40 * ONE, 15 * ONE), "Qualify(3) refunds every bet");
+    assert_eq!(t.market_u8(4, MK_STATUS), 3, "Qualify(3) PAID");
+    assert_eq!(t.market_u8(4, MK_LABEL), 5, "NO_WINNER");
+    t.receipt().unwrap();
+    assert_eq!(t.svm.get_account(&t.m).unwrap().data[M_RECEIPT] & 1, 1, "receipt written");
+    let e = t.finalize().err().unwrap_or_default();
+    assert!(!e.contains("ReceiptNotReady") && !e.contains("InvalidStatus") && !e.contains("ConstraintAddress"), "finalize passes the program's checks (only the Magic CPI is not real in LiteSVM): {e}");
+    assert!(e.is_empty() || e.contains(&MAGIC_PROGRAM.to_string()), "it failed inside the Magic CPI: {e}");
+    // the next match on the arena opens its markets (no MarketBusy cascade)
+    t.m = t.create_match();
+    t.write_arena(sim_running(), 0, &[]);
+    t.open_markets().unwrap();
+    println!("early champion at round 2: Qualify(3) refunded (NO_WINNER, PAID), receipt written, finalize past ReceiptNotReady, next match opens: OK");
+}
+
+/// harden #12 (2): Qualify(3) never opens when round 2 leaves ≤ 1 player alive.
+#[test]
+fn qualify_bet_needs_two_alive() {
+    let mut t = T::new();
+    let a = t.wallet();
+    after_round2(&mut t, ST_ROUND_RESOLVED, &[3]);
+    assert!(t.bet(&a, 4, 3, ONE).unwrap_err().contains("MarketClosed"), "one alive: Qualify(3) closed");
+    t.patch_match(|d| { d[M_SLOTS + 4 * 5] = 1; d[M_SLOTS + 4 * 5 + 1] = 2; });
+    t.bet(&a, 4, 3, ONE).unwrap();
+    println!("Qualify(3) refused with 1 alive, open with 2: OK");
+}
+
+/// harden #12 (5): a `submit_input` batch for already-run ticks succeeds but does not clobber ring[t + 16].
+#[test]
+fn submit_input_past_ticks_skipped() {
+    let mut t = T::new();
+    t.write_world(100, 1, 3, 0);
+    let p = Keypair::new();
+    t.svm.airdrop(&p.pubkey(), 1_000_000_000).unwrap();
+    let ib = pda(&[b"input", &[ARENA_ID], &[4]], &PID);
+    let mut d = vec![0u8; 8 + 240];
+    d[..8].copy_from_slice(&d8("account", "InputBuf"));
+    d[8..40].copy_from_slice(t.arena.as_ref());
+    d[40..72].copy_from_slice(p.pubkey().as_ref());
+    d[8 + 104] = 4;
+    t.svm.set_account(ib, Account { lamports: 10_000_000, data: d, owner: PID, executable: false, rent_epoch: 0 }).unwrap();
+    let submit = |t: &mut T, start: u32, v: u8| {
+        let mut data = d8("global", "submit_input").to_vec();
+        data.push(4);
+        data.extend_from_slice(&start.to_le_bytes());
+        data.extend_from_slice(&[v, v, 0, 1, v, v, 0, 1, v, v, 0, 1]);
+        let ix = Instruction { program_id: PID, accounts: vec![AccountMeta::new_readonly(p.pubkey(), true), w(ib), ro(t.world), ro(PID)], data };
+        let pk = p.insecure_clone();
+        t.send(&[ix], &[&pk])
+    };
+    let entry = |t: &T, tick: u32| {
+        let d = t.svm.get_account(&ib).unwrap().data;
+        let o = 8 + 112 + 8 * (tick as usize % 16);
+        (u32::from_le_bytes(d[o..o + 4].try_into().unwrap()), d[o + 4])
+    };
+    submit(&mut t, 108, 20).unwrap(); // ticks 108..=110 queued (the default lead 8)
+    submit(&mut t, 92, 100).unwrap(); // late: 92..=94 share the ring entries of 108..=110
+    for tk in 108..=110 {
+        assert_eq!(entry(&t, tk), (tk, 20), "future input kept");
+    }
+    submit(&mut t, 100, 50).unwrap(); // tick 100 already ran: only 101, 102 written
+    assert_eq!(entry(&t, 100).0, 0);
+    assert_eq!(entry(&t, 101), (101, 50));
+    assert_eq!(entry(&t, 102), (102, 50));
+    assert!(submit(&mut t, 91, 1).is_err(), "window unchanged: start < tick - 8 refused");
+    println!("submit_input: late batch accepted, queued future inputs kept: OK");
+}
