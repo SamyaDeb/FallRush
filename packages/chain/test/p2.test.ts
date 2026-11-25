@@ -8,7 +8,7 @@ import { parseWorldAccount } from '../src/wire.ts';
 import { syntheticFinalists, toP2Batch, pickSlot, customCode } from '../src/p2.ts';
 import { encodeInputBatch } from '../src/wire.ts';
 import { bytesToHex } from '../src/b58.ts';
-import { sessionTokenV2Pda, SESSION_KEYS_PROGRAM_ID } from '../src/session.ts';
+import { sessionTokenV2Pda, SESSION_KEYS_PROGRAM_ID, encodeSessionTokenV2 } from '../src/session.ts';
 import { FakeClock, MockConn, memKV, flush } from './helpers/fake.ts';
 import { EventLog, Stats, WorldIntake } from '../src/intake.ts';
 import devnet from '../config/devnet.json' with { type: 'json' };
@@ -103,7 +103,7 @@ test('synthetic finalists = tools/keeper/run.ts recordRounds13', async () => {
 });
 
 // ---- the join flow against a scripted rollup ------------------------------------------------------------------
-interface Sim { arena: Uint8Array; match: Uint8Array | null; tokenOnBase: boolean; joins: Transaction[]; inputs: Transaction[]; base: Transaction[] }
+interface Sim { arena: Uint8Array; match: Uint8Array | null; tokenOnBase: boolean; joins: Transaction[]; inputs: Transaction[]; base: Transaction[]; /** runs before a join_lobby lands (another tab's join racing this one) */ onJoin?: (slot: number) => void; /** base-layer accounts by address (session tokens) */ baseAccs?: Map<string, Uint8Array> }
 
 async function setup(patch: (c: typeof devnet) => void = () => {}) {
   const clock = new FakeClock();
@@ -126,6 +126,7 @@ async function setup(patch: (c: typeof devnet) => void = () => {}) {
       else if (disc === cfg.rollup.p2.joinLobby.discriminator) {
         sim.joins.push(tx);
         const slot = ix.data[8];
+        sim.onJoin?.(slot);
         const dv = new DataView(sim.arena.buffer);
         const mask = dv.getUint16(1412, true);
         if ((mask >> slot) & 1) m.statuses.set(sig, { err: { InstructionError: [0, { Custom: 6023 }] } });
@@ -136,6 +137,7 @@ async function setup(patch: (c: typeof devnet) => void = () => {}) {
     m.getAccountInfo = async (pk: PublicKey) => {
       if (pk.equals(arenaPk)) return { data: sim.arena };
       if (matchPk && pk.equals(matchPk) && sim.match) return { data: sim.match };
+      if (!isEr && sim.baseAccs?.has(pk.toBase58())) return { data: sim.baseAccs.get(pk.toBase58())! };
       if (!isEr && sim.tokenOnBase && pk.toBase58() !== arenaPk.toBase58()) return null;
       return null;
     };
@@ -332,4 +334,82 @@ test('stop() cancels a pending join: it resolves "stopped" and polls no more', a
   chain.stop();
   const r = JSON.parse(await until(clock, jp, 50, 1000));
   assert.deepEqual([r.ok, r.error], [false, 'stopped']);
+});
+
+test('two tabs, one burner, simultaneous pre-join: the other tab wins slot 3, this tab\'s join_lobby (slot 5) fails → spectates', async () => {
+  const { clock, chain, sim, setMatch } = await setup((c) => { c.rollup.p2.useSession = false; });
+  const me = new PublicKey(JSON.parse(chain.wallet()).burner);
+  const id = createHash('sha256').update('match-T2').digest().subarray(0, 16);
+  const matchPk = pda([Buffer.from('match'), id]);
+  setMatch(matchPk);
+  sim.match = matchAcc(new Uint8Array(id));
+  sim.arena = arenaAcc({ match: matchPk, status: 1 }); // lobby, empty roster: both tabs see it free
+  // the other tab's join_lobby lands first: the wallet is at slot 3 and slot 5's join fails (mask bit set → 6023)
+  sim.onJoin = () => { sim.arena.set(me.toBytes(), 616 + 32 * 3); const dv = new DataView(sim.arena.buffer); dv.setUint16(1412, dv.getUint16(1412, true) | (1 << 3) | (1 << 5), true); sim.onJoin = undefined; };
+  const jp = chain.join(JSON.stringify({ name: 'tab2', full: true, slot: 5, match: Buffer.from(id).toString('hex') }));
+  await clock.advance(2000);
+  new Uint8Array(sim.arena.buffer)[1409] = 2; // start_sim
+  const r = JSON.parse(await until(clock, jp));
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(r.slot, 255, 'must not drive the other tab\'s slot 3');
+  assert.equal(r.spectating, true);
+  assert.equal(sim.joins.length, 1);
+  assert.ok(evs(chain).some((x) => x.stage === 'otherTab' && x.slot === 3 && x.want === 5));
+  chain.stop();
+});
+
+// harden review: the session margin (900 s) and the keep-signer path had no test (the mock served no token)
+async function sessionAged(leftSec: number) {
+  const env = await setup();
+  const { clock, chain, sim, init, setMatch } = env;
+  const me = new PublicKey(init.burner);
+  const id1 = createHash('sha256').update('match-S1').digest().subarray(0, 16);
+  const m1 = pda([Buffer.from('match'), id1]);
+  setMatch(m1);
+  sim.match = matchAcc(new Uint8Array(id1));
+  sim.arena = arenaAcc({ match: m1, status: 1 });
+  const jp = chain.join(JSON.stringify({ name: 'a', full: true, slot: 2, match: Buffer.from(id1).toString('hex') }));
+  await clock.advance(4000);
+  new Uint8Array(sim.arena.buffer)[1409] = 2;
+  const r1 = JSON.parse(await until(clock, jp));
+  assert.equal(r1.slot, 2, JSON.stringify(r1));
+  assert.equal(sim.base.length, 1, 'the first join creates the session');
+  const sx = sim.base[0].instructions[sim.base[0].instructions.length - 1];
+  const validUntil = Number(sx.data.readBigInt64LE(11));
+  const sess = new PublicKey(JSON.parse(chain.wallet()).sessionPubkey);
+  const token = sessionTokenV2Pda(new PublicKey(SESSION_KEYS_PROGRAM_ID), PROGRAM, sess, me);
+  sim.baseAccs = new Map([[token.toBase58(), encodeSessionTokenV2({ authority: me, targetProgram: PROGRAM, sessionSigner: sess, feePayer: me, validUntil: BigInt(validUntil) })]]);
+  // hours later: the token has `leftSec` left; the next match's lobby opens
+  clock.wall = (validUntil - leftSec) * 1000 - clock.t;
+  const id2 = createHash('sha256').update('match-S2').digest().subarray(0, 16);
+  const m2 = pda([Buffer.from('match'), id2]);
+  setMatch(m2);
+  sim.match = matchAcc(new Uint8Array(id2));
+  return { ...env, me, id2, m2, sess };
+}
+
+test('session margin: a token with 600 s left (shorter than a match + margin) is renewed before join_lobby', async () => {
+  const { clock, chain, sim, id2, m2, sess } = await sessionAged(600);
+  sim.arena = arenaAcc({ match: m2, status: 1 });
+  const jp = chain.join(JSON.stringify({ name: 'a', full: true, slot: 4, match: Buffer.from(id2).toString('hex') }));
+  await clock.advance(4000);
+  new Uint8Array(sim.arena.buffer)[1409] = 2;
+  const r = JSON.parse(await until(clock, jp));
+  assert.equal(r.slot, 4, JSON.stringify(r));
+  assert.equal(sim.base.length, 2, 'a new session was created (old margin 60 s reused it)');
+  assert.notEqual(JSON.parse(chain.wallet()).sessionPubkey, sess.toBase58(), 'fresh signer');
+  chain.stop();
+});
+
+test('session keep: a wallet already seated in the lobby reuses its token (600 s left) and never rotates the signer', async () => {
+  const { clock, chain, sim, me, id2, m2, sess } = await sessionAged(600);
+  sim.arena = arenaAcc({ match: m2, status: 1, humanMask: 1 << 4, wallets: Object.assign(new Array(12).fill(null), { 4: me }) });
+  const jp = chain.join(JSON.stringify({ name: 'a', full: true, slot: 4, match: Buffer.from(id2).toString('hex') }));
+  await clock.advance(2000);
+  new Uint8Array(sim.arena.buffer)[1409] = 2;
+  const r = JSON.parse(await until(clock, jp));
+  assert.equal(r.slot, 4, JSON.stringify(r));
+  assert.equal(sim.base.length, 1, 'no new session: the slot\'s InputBuf owner is the current signer');
+  assert.equal(JSON.parse(chain.wallet()).sessionPubkey, sess.toBase58());
+  chain.stop();
 });

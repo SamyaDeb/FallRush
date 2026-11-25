@@ -11,7 +11,8 @@ export const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (ch) => (
 let chain: Api | null = null;
 export const J = async (p: Promise<string> | string) => JSON.parse(await p);
 /** harden #8: a versioned /chain/ URL (the bundle, configs, rush_core.wasm): a deploy changes it, so no stale CDN copy */
-export const chainUrl = (file: string) => `/chain/${file}?v=${__CHAIN_V__}`;
+export const CHAIN_V = typeof __CHAIN_V__ === 'string' ? __CHAIN_V__ : 'dev'; // review: outside vite (an esbuild/Node harness) it is undefined
+export const chainUrl = (file: string) => `/chain/${file}?v=${CHAIN_V}`;
 
 function load(): Promise<Api> {
   if (!loading) loading = new Promise((ok, fail) => {

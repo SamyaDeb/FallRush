@@ -377,13 +377,20 @@ export class RollupTransport implements Transport {
     this.rawOpen(s, k, this.erGen);
   }
 
-  /** harden #9: page visible again / network back: reopen every raw socket now and restart the backoff. */
+  /**
+   * harden #9: page visible again / network back: reopen every SILENT raw socket now and restart the backoff.
+   * harden review: a socket that still delivers is kept (a desktop tab switch fires visibilitychange while the sockets
+   * are healthy; closing them would cost a ~0.5–1 s World gap, a LAGGING blip and a rebase on every alt-tab).
+   */
   reopenAllRaw(why: string) {
     if (this.stopped || !this.rc.rawWs) return;
     const now = this.clock.now();
+    const stall = this.rc.rawStallMs ?? 600;
     for (const s of this.subs.values()) {
       if (!s.raw) continue;
-      for (let k = 0; k < s.raw.length; k++) this.rawReopen(s, k, now, why);
+      let n = 0;
+      for (let k = 0; k < s.raw.length; k++) if (now - (s.rawLast![k] ?? 0) > stall) { this.rawReopen(s, k, now, why); n++; }
+      if (!n) continue;
       s.rawBackoffMs = 2 * RAW_REOPEN_FIRST_MS; s.rawNextAllMs = now + RAW_REOPEN_FIRST_MS;
       void this.pollOne(s);
     }
@@ -794,6 +801,10 @@ export class RollupTransport implements Transport {
         const d = await this.readEr(arena);
         a = d ? decodeArena(d, c) : a;
         const mine = a ? a.wallets.findIndex((k) => k.equals(me)) : -1;
+        // harden review: two tabs on one burner both get the pre-join at roster lock, both see an empty roster and both
+        // send join_lobby; the loser's fails (AlreadyJoined / slot taken) and the roster now shows the wallet at the
+        // winner's slot. Same rule as step 2: a whole-match tab the server seated elsewhere watches instead
+        if (mine >= 0 && args.full && args.slot !== undefined && mine !== want && !args.spectate) { slot = 255; otherTab = true; this.jev('otherTab', { slot: mine, want }); break; }
         if (mine >= 0) { slot = mine; break; }
         if (code === (c.errors?.slotTaken ?? 6023) && args.slot === undefined && attempt < 12) { this.jev('slotTaken', { slot: want }); continue; }
         return { ok: false, error: 'join_lobby failed: ' + safeJson(r.err) };

@@ -314,7 +314,7 @@ test('raw sockets: a 5 s chain stall reopens ≤ 4 sockets (no 600 ms churn); on
   } finally { chain.stop(); restore(); }
 });
 
-test('raw sockets: page visible again / online reopens every socket at once; stop() removes the listeners', async () => {
+test('raw sockets: page visible again / online reopens every silent socket at once (healthy ones kept); stop() removes the listeners', async () => {
   const { chain, clock, restore, deliver, fire, listeners } = await rawSetup();
   try {
     chain.subscribe('$world');
@@ -322,9 +322,18 @@ test('raw sockets: page visible again / online reopens every socket at once; sto
     for (let i = 0; i < 5; i++) { deliver(); await clock.advance(100); }
     events(chain);
     const n0 = MockWS.instances.length;
+    // harden review: healthy sockets (a desktop alt-tab) are kept: no World gap
+    fire('visibilitychange');
+    assert.equal(MockWS.instances.length, n0);
+    assert.equal(reopens(events(chain)).length, 0);
+    // a locked phone: the sockets died silently (no close); the watchdog's timers did not run while hidden
+    for (const ws of MockWS.instances) ws.readyState = 2;
+    clock.t += 700; // time passed without the 250 ms timers firing (tab suspended)
     fire('visibilitychange');
     assert.equal(MockWS.instances.length, n0 + 2);
     assert.deepEqual(reopens(events(chain)).map((e) => e.how), ['visible', 'visible']);
+    for (const ws of MockWS.instances) ws.readyState = 2;
+    clock.t += 700;
     fire('online');
     assert.equal(MockWS.instances.length, n0 + 4);
     chain.stop();
