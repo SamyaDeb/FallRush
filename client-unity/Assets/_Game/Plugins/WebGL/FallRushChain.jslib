@@ -2,7 +2,7 @@
 // Loaded lazily by on-chain play only (a <script> tag), so Classic play never fetches it. All calls are synchronous
 // polls; async bundle calls (init, join) park their result for the next poll.
 mergeInto(LibraryManager.library, {
-  $FRC: { state: 0, err: null, join: null, joining: false, econ: {} },
+  $FRC: { state: 0, err: null, join: null, joining: false, econ: {}, gen: 0 },
 
   // P4 economy: one async bundle call per id; the reply is parked until C# takes it
   fr_econ__deps: ['$FRC'],
@@ -58,9 +58,12 @@ mergeInto(LibraryManager.library, {
   fr_join__deps: ['$FRC'],
   fr_join: function (argsPtr) {
     var a = UTF8ToString(argsPtr);
+    // harden #13: each join (and each fr_stop) starts a new generation; a result from an older one (a join still pending
+    // when the session stopped, or the first join when C# re-joins as a spectator) is dropped, not handed to the next
+    var g = ++FRC.gen;
     FRC.join = null; FRC.joining = true;
-    window.FallRushChain.join(a).then(function (r) { FRC.join = r; FRC.joining = false; })
-      .catch(function (e) { FRC.join = JSON.stringify({ ok: false, err: String(e) }); FRC.joining = false; });
+    window.FallRushChain.join(a).then(function (r) { if (g !== FRC.gen) return; FRC.join = r; FRC.joining = false; })
+      .catch(function (e) { if (g !== FRC.gen) return; FRC.join = JSON.stringify({ ok: false, err: String(e) }); FRC.joining = false; });
   },
 
   fr_join_result__deps: ['$FRC'],
@@ -118,5 +121,5 @@ mergeInto(LibraryManager.library, {
   // fullchain (production canary): stop() drops the bundle's transport, so the next session must boot it again (state 0);
   // before, fr_boot returned early ("already booted") and the next match's join ran against a stopped transport
   fr_stop__deps: ['$FRC'],
-  fr_stop: function () { if (window.FallRushChain) window.FallRushChain.stop(); FRC.state = 0; FRC.join = null; FRC.joining = false; },
+  fr_stop: function () { if (window.FallRushChain) window.FallRushChain.stop(); FRC.state = 0; FRC.join = null; FRC.joining = false; FRC.gen++; },
 });

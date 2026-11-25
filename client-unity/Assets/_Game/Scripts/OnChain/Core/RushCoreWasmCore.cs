@@ -49,7 +49,9 @@ namespace FallRush.OnChain
             if (_booted)
                 return;
             _booted = true;
-            rcw_boot(UnityEngine.Application.streamingAssetsPath + "/rush_core.wasm");
+            // harden #13: ?v=<build GUID> as the chain bundle (BundleChainTransport.Connect): the CDN keeps StreamingAssets
+            // for hours, so a deploy must change the URL (else a new build predicts with the previous rush-core)
+            rcw_boot(UnityEngine.Application.streamingAssetsPath + "/rush_core.wasm?v=" + UnityEngine.Application.buildGUID);
         }
 
         /// <summary>0 loading, 1 ready, −1 failed.</summary>

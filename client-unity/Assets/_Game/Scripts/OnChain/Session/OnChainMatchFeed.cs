@@ -46,10 +46,12 @@ namespace FallRush.OnChain
         private uint _seq;
         private double _endedAt = double.NaN;
         private uint _roundKey;
+        private byte _roundIndex = 255;
 
         public void Reset()
         {
             _lastPhase = 255;
+            _roundIndex = 255;
             _outMask = 0;
             _resultSent = false;
             _endedAt = double.NaN;
@@ -69,9 +71,15 @@ namespace FallRush.OnChain
             NewEvents.Clear();
             var phase = w.Phase;
             var key = w.RushTick ^ (uint)w.HazardSeed;
-            if (key != _roundKey && (phase == WorldView.PhaseIntro || phase == WorldView.PhaseCountdown))
+            // harden #13: fullchain also resets on a new round index in any phase (a tab hidden across the intro skips
+            // the intro / countdown Worlds: the bundle keeps only the newest ~2 s): else the round's result never fires
+            var newRound = Full && w.RoundIndex != _roundIndex;
+            if (Full)
+                _roundIndex = w.RoundIndex;
+            if (newRound || key != _roundKey && (phase == WorldView.PhaseIntro || phase == WorldView.PhaseCountdown))
             {
-                _roundKey = key;
+                if (phase == WorldView.PhaseIntro || phase == WorldView.PhaseCountdown)
+                    _roundKey = key;
                 _outMask = 0;
                 _doneMask = _qualMask = 0;
                 _resultSent = false;

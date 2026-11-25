@@ -93,7 +93,7 @@ namespace FallRush.Client
         private struct LobbyRow { public RectTransform Root; public Image Conn, Swatch; public TMP_Text Name, Tag; }
         private struct TableRow { public RectTransform Root, Face; public Image Dot, Hi; public TMP_Text Name, R1, R2, R3, R4, Survived, Note; public int Slot; }
         private struct ResultRow { public RectTransform Root; public Image Hi; public TMP_Text Word, Name; }
-        private struct DealCard { public RectTransform Slot, Root; public UiKit.Card Card; public Image ModeIcon; public TMP_Text Map, Mode, Target, Odds; public bool Shown; }
+        private struct DealCard { public RectTransform Slot, Root; public UiKit.Card Card; public Image ModeIcon; public TMP_Text Map, Mode, Target, Odds; public bool Shown, Pending; }
 
         private void Start()
         {
@@ -1215,6 +1215,9 @@ namespace FallRush.Client
         {
             _want = _deal;
             var dealt = m.Phase == MatchPhase.Dealt;
+            // harden #13: a whole on-chain match (pre-joined, all:true) is dealt by the arena from Match.vrf_seed, not by
+            // this server message's local seed: hide its maps / modifiers until the on-chain feed drives the screens
+            var chainPending = OnChainDealPending != null && OnChainDealPending();
             _dealMachine.Spin(!dealt);
             _dealHead.text = dealt ? $"{m.PlayerCount} players · {m.RoundCount} rounds · one crown" : "The Chaos Capsule machine is dealing…";
             var reveal = dealt ? Mathf.Clamp(Mathf.FloorToInt((Time.unscaledTime - _dealtAt) / 0.4f) + 1, 0, m.RoundCount) : 0; // the Classic deal phase is short: 0.4 s apart
@@ -1231,7 +1234,23 @@ namespace FallRush.Client
                 if (c.Slot.gameObject.activeSelf != inMatch)
                     c.Slot.gameObject.SetActive(inMatch);
                 var shown = inMatch && r < reveal;
-                if (shown && !c.Shown)
+                if (shown && c.Shown && c.Pending != chainPending)
+                    c.Shown = false; // the on-chain deal took over (or the pending state changed): render the card again
+                if (shown && !c.Shown && chainPending)
+                {
+                    var fin = r == m.RoundCount - 1;
+                    c.Card.SetHue(fin ? ModeHue("Final") : UiKit.CardHue.Apple);
+                    c.ModeIcon.sprite = UiIcons.Get(fin ? UiIcons.ForMode("Final") : UiIcon.Capsule);
+                    c.ModeIcon.color = UiKit.CardRim(fin ? ModeHue("Final") : UiKit.CardHue.Apple);
+                    c.Map.text = "Dealt on-chain";
+                    c.Mode.text = fin ? "FINAL · on-chain" : "MagicBlock VRF";
+                    c.Target.text = fin ? "1 wins the crown" : $"{m.Targets[r]} advance";
+                    c.Card.Title.text = fin ? "FINAL" : $"ROUND {r + 1}";
+                    UiMotion.SlideIn(c.Root, new Vector2(-70f, -24f));
+                    c.Shown = true;
+                    c.Pending = true;
+                }
+                else if (shown && !c.Shown)
                 {
                     var map = m.Maps[r];
                     var mode = MapPoolV1.ModeOf(map).ToString();
@@ -1244,6 +1263,7 @@ namespace FallRush.Client
                     c.Card.Title.text = r == m.RoundCount - 1 ? "FINAL" : $"ROUND {r + 1}";
                     UiMotion.SlideIn(c.Root, new Vector2(-70f, -24f));
                     c.Shown = true;
+                    c.Pending = false;
                 }
                 else if (!shown && c.Shown)
                 {
@@ -1261,7 +1281,13 @@ namespace FallRush.Client
 
             var deal = _chain.Deal;
             var p = DealProvider != null ? DealProvider() : default;
-            if (!string.IsNullOrEmpty(p.Url))
+            if (chainPending)
+            {
+                _vrfUrl = null;
+                SetChip(_vrfText, "Dealing on-chain · MagicBlock VRF…");
+                _vrfButton.gameObject.SetActive(false);
+            }
+            else if (!string.IsNullOrEmpty(p.Url))
             {
                 _vrfUrl = p.Url;
                 SetChip(_vrfText, $"VRF ✓ MagicBlock VRF seeds the on-chain Final · {Short(p.Signature)}");
@@ -1275,8 +1301,14 @@ namespace FallRush.Client
                 _vrfButton.gameObject.SetActive(false);
             }
 
-            _dealSeed.text = $"seed {deal.SeedHex.Substring(0, 16)}…  ·  match {Sha256.Hex(m.MatchId).Substring(0, 16)}…";
+            var seedLine = chainPending ? $"seed: Match.vrf_seed (on-chain)  ·  match {Sha256.Hex(m.MatchId).Substring(0, 16)}…" : $"seed {deal.SeedHex.Substring(0, 16)}…  ·  match {Sha256.Hex(m.MatchId).Substring(0, 16)}…";
+            if (_dealSeed.text != seedLine)
+                _dealSeed.text = seedLine;
         }
+
+        /// <summary>harden #13: set by the on-chain layer (FallRush.OnChain): true while a whole on-chain match is
+        /// pre-joined but its feed does not drive the screens yet (the server's deal is not the arena's). Null in Classic.</summary>
+        public static System.Func<bool> OnChainDealPending;
 
         private static void SetChip(TMP_Text t, string s)
         {

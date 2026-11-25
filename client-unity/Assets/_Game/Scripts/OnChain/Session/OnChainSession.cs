@@ -67,8 +67,11 @@ namespace FallRush.OnChain
 
         // stats
         public long Updates, Batches, BatchesRejected, BatchesUnconfirmed, Resyncs, Lagged;
-        /// <summary>P3-J: the arena rejected our session key (revoked or expired SessionTokenV2).</summary>
-        public bool SessionExpired;
+        /// <summary>P3-J: the arena rejected our session key (revoked or expired SessionTokenV2). harden #13: only on
+        /// SessionInvalid (confirm status 5 / 6027), cleared once an input lands again (<see cref="SessionHealth"/>).</summary>
+        public bool SessionExpired => _health.Expired;
+        private readonly SessionHealth _health = new SessionHealth();
+        private readonly JoinSupervisor _joinSup = new JoinSupervisor();
         private long _acceptedBatches;
         private long _updatesMark, _batchesMark;
         public float UpdatesPerSec, BatchesPerSec, ConfirmP50, ConfirmP95;
@@ -90,6 +93,8 @@ namespace FallRush.OnChain
         private static void Install()
         {
             OnChainEntry.Play = () => Begin(ChainConfig.FromArgs());
+            // harden #13: the Deal screen hides the server's local-seed deal while a whole on-chain match is pre-joined
+            MatchHud.OnChainDealPending = () => Instance != null && Instance.DealPendingOnChain;
             SceneManager.sceneLoaded -= OnSceneLoaded;
             SceneManager.sceneLoaded += OnSceneLoaded;
             OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
@@ -208,6 +213,19 @@ namespace FallRush.OnChain
         public bool ServerConfirmed;
         private bool _handedBack;
 
+        /// <summary>harden #13: a whole on-chain match whose feed does not drive the screens yet: the game server's Deal
+        /// screen shows its own local-seed deal, while the arena deals from <c>Match.vrf_seed</c>.</summary>
+        public bool DealPendingOnChain
+        {
+            get
+            {
+                if (!FullMatch || _handedBack || !isActiveAndEnabled)
+                    return false;
+                var cs = ClientSim.Instance;
+                return cs == null || !ReferenceEquals(cs.Feed, this);
+            }
+        }
+
         public double PresentTick => _pred != null && _pred.HasState && OwnPlaying ? _pred.Present + _frac : double.NaN;
 
         private bool OwnPlaying
@@ -250,6 +268,23 @@ namespace FallRush.OnChain
             }
 
             var j = _tx.Joined;
+            // harden #13: a confirmed whole match whose join failed / hangs: re-join once as a spectator, then give up
+            // (before, this returned here for good: a frozen hold for the whole match, no timeout ran)
+            switch (_joinSup.Step(now, FullMatch, ServerConfirmed, j != null, _tx.Error))
+            {
+                case JoinSupervisor.Action.RejoinSpectate:
+                    Debug.LogWarning($"[onchain] whole match: no on-chain join {(_tx.Error != null ? "(" + _tx.Error + ")" : $"in {JoinSupervisor.RejoinSeconds:F0} s")} after the server's confirmation; re-joining as a spectator");
+                    Spectate = true;
+                    WantSlot = -1;
+                    _tx.Join(NetBootstrap.ClientName(), -1, true, MatchHex, FullMatch);
+                    return;
+                case JoinSupervisor.Action.GiveUp:
+                    Debug.LogWarning($"[onchain] whole match: the spectator join failed too ({_tx.Error ?? "timeout"}); leaving the arena");
+                    OnChainNotice.Show("Could not join on-chain: watch this match on /live");
+                    End();
+                    return;
+            }
+
             if (j == null)
                 return;
             if ((!_sceneRequested || j.slot != _ownSlot && j.slot < 255) && (MatchHex == null || ServerConfirmed))
@@ -303,12 +338,10 @@ namespace FallRush.OnChain
             _tx.DrainConfirms(_confirms);
             foreach (var c in _confirms)
             {
-                if (c.Status == 5 || c.Status == 3 && Batches > 10 && SessionExpired == false && _acceptedBatches > 0)
-                {
-                    // the program refused our session key (revoked / expired token): inputs no longer count
-                    SessionExpired = true;
+                // the program refused our session key (SessionInvalid 6027: revoked / expired token): inputs no longer
+                // count. harden #13: only status 5 raises the banner; an accepted batch clears it
+                if (_health.OnConfirm(c.Status))
                     Debug.LogWarning("[onchain] session expired / revoked: inputs rejected (status " + c.Status + ")");
-                }
 
                 if (c.Status == 0)
                     _acceptedBatches++;
@@ -650,18 +683,16 @@ namespace FallRush.OnChain
                 if (_applied < view.Tick)
                 {
                     _lateWindow++;
-                    // P3-J: 2 s of our ticks never applied at the maximum lead = the arena refuses our key (a revoked /
-                    // expired SessionTokenV2 is not always reported back as a clean confirm status)
-                    if (++_lateStreak >= 60 && _extraLead >= MaxExtraLead && !SessionExpired)
-                    {
-                        SessionExpired = true;
-                        Debug.LogWarning($"[onchain] session expired / revoked: no input applied for {_lateStreak} ticks (applied_tick {_applied}, tick {view.Tick})");
-                    }
+                    // harden #13: 2 s of our ticks never applied at the maximum lead is lateness (a player far from the
+                    // ER validator), not proof of an expired key: log it, no "Session expired" banner (status 5 only)
+                    if (++_lateStreak == 60 && _extraLead >= MaxExtraLead)
+                        Debug.LogWarning($"[onchain] no input applied for {_lateStreak} ticks at the maximum lead +{_extraLead} (applied_tick {_applied}, tick {view.Tick})");
                 }
                 else
                 {
                     _onTimeWindow++;
                     _lateStreak = 0;
+                    _health.OnSentTick(_applied, view.Tick); // an input landed again: the key works
                 }
             }
             if (key != _arenaKey && view.Phase != WorldView.PhaseSandbox)

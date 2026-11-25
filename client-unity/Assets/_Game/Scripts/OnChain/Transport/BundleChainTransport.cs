@@ -87,9 +87,10 @@ namespace FallRush.OnChain
 
         public void Join(string name, int slot, bool spectate, string match = null, bool full = false)
         {
-            var n = (name ?? "Rushling").Replace("\"", "").Replace("\\", "");
-            _pendingJoin = $"{{\"name\":\"{n}\",\"spectate\":{(spectate ? "true" : "false")}{(slot >= 0 ? ",\"slot\":" + slot : "")}{(string.IsNullOrEmpty(match) ? "" : ",\"match\":\"" + match + "\"")}{(full ? ",\"full\":true" : "")}}}";
+            var n = ChainJson.JoinName(name); // harden #13: escape control characters too (a bad name broke the join JSON)
+            _pendingJoin = $"{{\"name\":\"{n}\",\"spectate\":{(spectate ? "true" : "false")}{(slot >= 0 ? ",\"slot\":" + slot : "")}{(string.IsNullOrEmpty(match) ? "" : ",\"match\":\"" + ChainJson.Escape(match) + "\"")}{(full ? ",\"full\":true" : "")}}}";
             _joinSent = false;
+            Error = null; // harden #13: a re-join (spectate after a failed join) reports its own result
         }
 
         public uint SendInputs(byte[] batch, int len) => Connected ? fr_send_inputs(batch, len) : 0;

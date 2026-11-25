@@ -158,8 +158,9 @@ namespace FallRush.OnChain
 
         public void Join(string name, int slot, bool spectate, string match = null, bool full = false)
         {
-            var n = (name ?? "Rushling").Replace("\"", "").Replace("\\", "");
+            var n = ChainJson.JoinName(name); // harden #13: escape control characters too (a bad name broke the join JSON)
             _joinJson = $"{{\"t\":\"join\",\"name\":\"{n}\",\"spectate\":{(spectate ? "true" : "false")}{(slot >= 0 ? ",\"slot\":" + slot : "")}{(string.IsNullOrEmpty(match) ? "" : ",\"match\":\"" + match + "\"")}{(full ? ",\"full\":true" : "")}}}";
+            Error = null; // harden #13: a re-join (spectate after a failed join) reports its own result
             Enqueue(Encoding.UTF8.GetBytes(_joinJson), true);
         }
 
