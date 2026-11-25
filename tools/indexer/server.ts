@@ -99,9 +99,19 @@ async function authorityKey(): Promise<PublicKey | null> {
   const a = st?.servers?.find((x: any) => x.keeper?.authority)?.keeper?.authority;
   try { return a ? new PublicKey(a) : null; } catch { return null; }
 }
+// review: /api/health is the container healthcheck (5 s timeout, then the watchdog restarts the indexer): the balance
+// reads run in parallel and are capped; a slow (429-retrying) RPC answers with the last cached value, which the
+// background read refreshes when it lands
+const capped = <T,>(p: Promise<T>, ms: number, dflt: T) => Promise.race([p, new Promise<T>((r) => setTimeout(() => r(dflt), ms))]);
+const cachedOf = (k: PublicKey | null) => (k ? balCache.get(k.toBase58())?.v ?? -1 : null);
 async function health() {
-  const [funderL, authority] = [await funderLamports(), await authorityKey()];
-  const b = { funderLamports: funderL, authorityLamports: await lamportsOf(authority), treasuryLamports: await lamportsOf(TREASURY) };
+  const authority = await capped(authorityKey(), 2000, null);
+  const [funderL, authorityL, treasuryL] = await Promise.all([
+    capped(funderLamports(), 1500, funderCache.v ?? (funder ? -1 : null)),
+    capped(lamportsOf(authority), 1500, cachedOf(authority)),
+    capped(lamportsOf(TREASURY), 1500, cachedOf(TREASURY)),
+  ]);
+  const b = { funderLamports: funderL, authorityLamports: authorityL, treasuryLamports: treasuryL };
   const low = lowFlags(b, LOW);
   return { ok: true, funder: funder?.publicKey.toBase58() ?? null, authority: authority?.toBase58() ?? null, treasury: TREASURY.toBase58(), ...b, lowBalance: low.any, low, matches: matchDirs().length };
 }

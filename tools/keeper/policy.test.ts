@@ -244,3 +244,9 @@ test("stallRecover: the drive stops at once when the server gave up", async () =
   assert.equal(r.gaveUp, true);
   assert.equal(sent, 3);
 });
+
+test("review: the default top-up target clears the treasury low flag (a topped-up treasury never reads low)", () => {
+  assert.ok(P.TREASURY_TOPUP_DEFAULT > P.LOW_DEFAULTS.treasury);
+  const top = P.treasuryTopUp(5_000_000, 3, P.TREASURY_TOPUP_DEFAULT);
+  assert.equal(P.lowBalance({ authorityLamports: null, treasuryLamports: 5_000_000 + top, funderLamports: null }).treasury, false);
+});

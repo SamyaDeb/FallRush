@@ -41,7 +41,8 @@ const SEASONS = process.env.SEASONS !== "0"; // P6: record finalized matches int
 const SEASON_COPY_WAIT_S = Number(process.env.SEASON_COPY_WAIT_S ?? 60);
 // harden #1: treasury top-up before a finalize that mints (target), low-balance thresholds (lamports), the guest funder
 // to watch (pubkey only; its key stays in the indexer), balance poll period
-const TREASURY_TOPUP_LAMPORTS = Number(process.env.TREASURY_TOPUP_LAMPORTS ?? 60_000_000);
+// review: the default top-up target sits above the 0.1 SOL low threshold (60M left the flag on after every top-up)
+const TREASURY_TOPUP_LAMPORTS = Number(process.env.TREASURY_TOPUP_LAMPORTS ?? P.TREASURY_TOPUP_DEFAULT);
 const LOW = {
   authority: Number(process.env.LOW_AUTHORITY_LAMPORTS ?? P.LOW_DEFAULTS.authority),
   treasury: Number(process.env.LOW_TREASURY_LAMPORTS ?? P.LOW_DEFAULTS.treasury),
@@ -170,7 +171,8 @@ function mmWatcher(matchPda: PublicKey, tiers: (string | undefined)[], mlog: any
           // judge mode: rounds 1–3 are fast-forwarded (not played), so the qualify markets get no seeded pools.
           // harden #7 (policy.mmSeeds): Qualify(2/3) only with ≥ 2 alive and a human alive; FinalWinner in full mode too
           const finalMode = (m.flags & 0x40) !== 0 || (full && (m.flags & 0x20) !== 0);
-          const wi = finalMode && !done.has("final") ? await er.getAccountInfo(world, "processed") : null;
+          // review: the World is read only near the Final (full mode sets 0x20 for the whole match: no 2.5 req/s from R1)
+          const wi = finalMode && !done.has("final") && ((m.flags & 0x40) !== 0 || m.currentRound >= 3) ? await er.getAccountInfo(world, "processed") : null;
           const plan = P.mmSeeds({ status: s, currentRound: m.currentRound, flags: m.flags, alive }, { judge, full, humanSlots, worldRound: wi?.data[139], worldPhase: wi?.data[199] });
           for (const x of plan) await seed(x.tag, x.k, alive);
         }
@@ -450,6 +452,10 @@ async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog
   // harden #4: only the arena's own match is ended here (a recovered older match must never stop the current one)
   if (a.status === 2 && a.matchAccount.toBase58() === matchPda.toBase58()) {
     const wd = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
+    // review: a World still running this match while its Match is not final (e.g. a transient null erMatch made
+    // driveMatch skip runFinal) is never stopped here: throw, the caller retries and resumes it (an abort that is
+    // wanted went through ensureFinal(force) first, which stops the arena)
+    if (wd.phase < DONE && !(m && ["completed", "aborted"].includes(statusName(m)))) throw new Error("finish: the World still runs this match (not final): retry");
     if (wd.phase >= DONE) out.sigs.endSim = (await act("end_sim", async () => sendEr([await pe.methods.endSim().accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "end_sim"), mlog)).sig;
     else out.sigs.abortArena = (await act("abort_arena", async () => sendEr([await pe.methods.abortArena().accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "abort_arena"), mlog)).sig;
   }
@@ -458,9 +464,10 @@ async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog
     stage("finalize");
     // harden #1: the Magic Action pays Core asset rent from the global treasury PDA: top it up first when it cannot
     // cover what this match owes; if the top-up fails, finalize plainly (the keeper's mint_rewards is the retry)
+    // review: also before a plain finalize (the keeper's mint_rewards pays the same rent from the same treasury)
     let useAction = ACTION;
-    if (ACTION) {
-      const owed = P.owedCount(await E.matchReceipt(er, matchPda));
+    const owed = P.owedCount(await E.matchReceipt(er, matchPda));
+    if (owed > 0) {
       const tb = await base.getBalance(E.epda.treasury(), "confirmed").catch(() => -1);
       const top = P.treasuryTopUp(tb, owed, TREASURY_TOPUP_LAMPORTS);
       out.treasury = { before: tb, owed, topUp: top };

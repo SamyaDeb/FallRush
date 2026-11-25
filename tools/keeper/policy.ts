@@ -7,6 +7,8 @@ export const LAMPORTS_PER_SOL = 1_000_000_000;
 /** Core asset rent paid by the treasury per minted Crown / capsule (measured 3.84M–3.88M; 4.2M leaves margin). */
 export const ASSET_RENT_LAMPORTS = 4_200_000;
 export const TREASURY_FLOOR_LAMPORTS = 20_000_000;
+/** review: the default top-up target: above the 0.1 SOL low threshold, so a topped-up treasury never reads "low". */
+export const TREASURY_TOPUP_DEFAULT = 150_000_000;
 
 /** Assets the receipt still owes (Crown + one capsule per seeded human slot not minted yet). */
 export function owedCount(r: { flags: number; champion: number; humanMask: number; mintedMask: number } | null | undefined): number {
