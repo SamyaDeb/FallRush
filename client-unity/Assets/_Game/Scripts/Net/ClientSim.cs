@@ -729,6 +729,9 @@ namespace FallRush.Net
                 return true;
             }
 
+            if (Feed != null && Feed.OverridesServer && slotId != OwnSlot && Feed.TrySampleRemote(slotId, out feet, out vel, out flags, out yaw, out stun))
+                return true;
+
             if (!Remote.Sample(slotId, out var f, out var rv, out var near))
                 return false;
             feet = new Vector3(f.X, f.Y, f.Z);
@@ -770,6 +773,7 @@ namespace FallRush.Net
         {
             Feed = null;
             FeedReset();
+            Remote.Tuning = Interpolation.Profile.Classic; // smooth run: back to the game server's interpolation
             if (ServerMatch != null)
             {
                 Match = ServerMatch;

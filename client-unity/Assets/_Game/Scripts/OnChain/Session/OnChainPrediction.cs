@@ -17,6 +17,10 @@ namespace FallRush.OnChain
     /// <c>smoothingMs</c> (120 ms); over <c>snapMeters</c> (2 m) it snaps.</item>
     /// </list>
     /// One batched core call per World update (<see cref="IRushCore.Run"/>).
+    /// <para>Smooth run (2026-11-25): the same steps also keep every other slot's predicted record (rush-core steps the
+    /// whole World anyway), so bots, whose brain runs inside step and is exact, are drawn at the predicted present
+    /// instead of from late, bursty Worlds. Each slot has its own correction offset (decays over smoothingMs, snaps over
+    /// snapMeters), like the own player.</para>
     /// </summary>
     public sealed class OnChainPrediction : IDisposable
     {
@@ -32,6 +36,16 @@ namespace FallRush.OnChain
         private readonly byte[] _out = new byte[64 * 12 * 36];
         private readonly byte[] _auth = new byte[36];
         private readonly float _smoothing, _snap;
+        public readonly uint BotMask;
+        /// <summary>Slots whose records rush-core writes out each tick: every active slot (before: the own slot only).</summary>
+        private readonly uint _outMask;
+        private const int Slots = 12;
+        private readonly byte[] _all = new byte[Hist * Slots * 36];
+        private readonly uint[] _allTick = new uint[Hist];
+        private readonly Vector3[] _offAll = new Vector3[Slots];
+        private readonly Vector3[] _beforeAll = new Vector3[Slots];
+        private readonly byte[] _authAll = new byte[Slots * 36];
+        public long SlotCorrections, SlotSnaps;
 
         public uint Present { get; private set; }
         public bool HasState { get; private set; }
@@ -50,6 +64,8 @@ namespace FallRush.OnChain
             Slot = slot;
             _smoothing = Mathf.Max(1f, smoothingMs) / 1000f;
             _snap = snapMeters;
+            BotMask = botMask;
+            _outMask = (activeMask | (1u << slot)) & 0xFFFu;
             _h = core.Init(map, RushCoreAbi.Cfg(rate, activeMask, botMask, 0));
             if (_h < 0)
                 throw new InvalidOperationException("rc_init failed for the prediction world");
@@ -87,6 +103,8 @@ namespace FallRush.OnChain
             var i = (int)(tick % Hist);
             _recTick[i] = tick;
             Buffer.BlockCopy(_out, (k * 12 + Slot) * 36, _rec, i * 36, 36);
+            _allTick[i] = tick;
+            Buffer.BlockCopy(_out, k * 12 * 36, _all, i * Slots * 36, Slots * 36);
         }
 
         /// <summary>Advances the predicted World to <paramref name="tick"/> (one step per tick, ≤ 64).</summary>
@@ -97,7 +115,7 @@ namespace FallRush.OnChain
             var n = (int)Math.Min(64, tick - Present);
             for (var k = 0; k < n; k++)
                 PutTick(k, Present + 1 + (uint)k);
-            _core.Run(_h, null, 0, n, _inputs, 1u << Slot, _out);
+            _core.Run(_h, null, 0, n, _inputs, _outMask, _out);
             for (var k = 0; k < n; k++)
                 Keep(k, Present + 1 + (uint)k);
             Present += (uint)n;
@@ -112,6 +130,11 @@ namespace FallRush.OnChain
             var view = new WorldView(world, offset, len);
             view.PlayerRecord(Slot, _auth, 0);
             var before = HasState ? RenderFeet(1f) : Vector3.zero;
+            for (var s = 0; s < Slots; s++)
+            {
+                view.PlayerRecord(s, _authAll, s * 36);
+                _beforeAll[s] = HasState && RawSlot(s, 1f, out var bf) ? bf : new Vector3(float.NaN, 0f, 0f);
+            }
             var i = (int)(w % Hist);
             if (HasState && _recTick[i] == w)
             {
@@ -139,10 +162,12 @@ namespace FallRush.OnChain
             for (var k = 0; k < n; k++)
                 PutTick(k, w + 1 + (uint)k);
             var buf = offset == 0 ? world : Slice(world, offset, len);
-            _core.Run(_h, buf, len, n, _inputs, 1u << Slot, _out);
+            _core.Run(_h, buf, len, n, _inputs, _outMask, _out);
             // the authoritative record itself
             _recTick[i] = w;
             Buffer.BlockCopy(_auth, 0, _rec, i * 36, 36);
+            _allTick[i] = w;
+            Buffer.BlockCopy(_authAll, 0, _all, i * Slots * 36, Slots * 36);
             for (var k = 0; k < n; k++)
                 Keep(k, w + 1 + (uint)k);
             Present = w + (uint)n;
@@ -155,7 +180,27 @@ namespace FallRush.OnChain
             {
                 HasState = true;
                 RenderOffset = Vector3.zero;
+                Array.Clear(_offAll, 0, Slots);
                 return;
+            }
+
+            // every other slot: carry the rebase jump into its offset (decays in UpdateSmoothing), snap past snapMeters
+            for (var s = 0; s < Slots; s++)
+            {
+                if (s == Slot || float.IsNaN(_beforeAll[s].x) || !RawSlot(s, 1f, out var af))
+                {
+                    _offAll[s] = Vector3.zero;
+                    continue;
+                }
+                var o = _offAll[s] + _beforeAll[s] - af;
+                if (o.magnitude > _snap)
+                {
+                    SlotSnaps++;
+                    o = Vector3.zero;
+                }
+                else if ((_beforeAll[s] - af).sqrMagnitude > 0.005f * 0.005f)
+                    SlotCorrections++;
+                _offAll[s] = o;
             }
 
             var after = RenderFeet(1f);
@@ -187,6 +232,57 @@ namespace FallRush.OnChain
             if (RenderOffset.sqrMagnitude < 1e-6f)
                 RenderOffset = Vector3.zero;
         }
+
+        /// <summary>Decays the other slots' correction offsets (call once per frame).</summary>
+        public void UpdateSlotSmoothing(float dt)
+        {
+            var k = Mathf.Exp(-dt / (_smoothing / 3f));
+            for (var s = 0; s < Slots; s++)
+            {
+                var o = _offAll[s] * k;
+                _offAll[s] = o.sqrMagnitude < 1e-6f ? Vector3.zero : o;
+            }
+        }
+
+        /// <summary>A slot's predicted feet between the two newest ticks, without its offset; false = no record.</summary>
+        private bool RawSlot(int slot, float frac, out Vector3 feet)
+        {
+            feet = Vector3.zero;
+            if (slot < 0 || slot >= Slots)
+                return false;
+            var a = (int)(Present % Hist);
+            if (_allTick[a] != Present)
+                return false;
+            var pa = Pos(_all, (a * Slots + slot) * 36);
+            var b = (int)((Present + Hist - 1) % Hist);
+            feet = _allTick[b] != Present - 1 ? pa : Vector3.Lerp(Pos(_all, (b * Slots + slot) * 36), pa, Mathf.Clamp01(frac));
+            return true;
+        }
+
+        /// <summary>A slot's render feet at the predicted present (with its correction offset).</summary>
+        public bool RenderSlot(int slot, float frac, out Vector3 feet)
+        {
+            if (!HasState || !RawSlot(slot, frac, out feet))
+            {
+                feet = Vector3.zero;
+                return false;
+            }
+            feet += _offAll[slot];
+            return true;
+        }
+
+        /// <summary>A slot's newest predicted record (velocity, flags, yaw, stun, respawn ticks).</summary>
+        public void NewestSlot(int slot, out Vector3 vel, out byte flags, out byte yaw, out byte stun, out byte respawn)
+        {
+            var o = ((int)(Present % Hist) * Slots + slot) * 36;
+            vel = new Vector3(BitConverter.ToInt32(_all, o + 12), BitConverter.ToInt32(_all, o + 16), BitConverter.ToInt32(_all, o + 20)) * 0.001f;
+            yaw = _all[o + 24];
+            flags = _all[o + 25];
+            stun = _all[o + 26];
+            respawn = _all[o + 34];
+        }
+
+        public bool IsBot(int slot) => slot >= 0 && slot < Slots && (BotMask & (1u << slot)) != 0;
 
         public int CorrectionsSince(double now, double seconds)
         {

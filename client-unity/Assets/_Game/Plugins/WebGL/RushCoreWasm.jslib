@@ -86,12 +86,14 @@ mergeInto(LibraryManager.library, {
     for (var k = 0; k < n; k++) {
       x['rc_step'](h, (inputs && inputsLen >= (k + 1) * 72) ? RCW.I + k * 72 : 0);
       if (!outPlayers || !slotMask) continue;
+      var pv = null; // smooth run: every active slot is written now; one view per tick (rc_player does not grow memory)
       for (var s = 0; s < 12; s++) {
         if (((slotMask >>> s) & 1) === 0) continue;
         var o = (k * 12 + s) * 36;
         if (o + 36 > outLen) continue;
         x['rc_player'](h, s, RCW.P);
-        HEAPU8.set(new Uint8Array(x['memory'].buffer, RCW.P, 36), outPlayers + o);
+        if (!pv || pv.buffer !== x['memory'].buffer) pv = new Uint8Array(x['memory'].buffer, RCW.P, 36);
+        HEAPU8.set(pv, outPlayers + o);
       }
     }
     return n;

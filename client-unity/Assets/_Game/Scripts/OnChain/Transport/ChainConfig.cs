@@ -31,6 +31,12 @@ namespace FallRush.OnChain
         public int rate = 30;
         public float smoothingMs = 120f;
         public float snapMeters = 2f;
+        /// <summary>Smooth run: remote players on the on-chain interpolation profile (else the Classic 100–150 ms buffer).</summary>
+        public bool smoothRemotes = true;
+        /// <summary>Smooth run: bots drawn from the own prediction (exact, live) instead of late Worlds.</summary>
+        public bool predictBots = true;
+        /// <summary>Smooth run: other humans drawn from the prediction too (live, corrected on input changes). Off by default.</summary>
+        public bool predictHumans;
         /// <summary>No World for this long → "! LAGGING" / chip Pending.</summary>
         public float lagMs = 300f;
         public float pollSeconds = 1f;
@@ -56,6 +62,14 @@ namespace FallRush.OnChain
             var win = GetArg("-fallrushOnchainWindow") ?? NetTargets.GetQueryParam(Application.absoluteURL, "window");
             if (int.TryParse(win, out var wv) && wv >= 8 && wv <= 13)
                 c.inputWindow = wv;
+            // smooth run playtest switch: ?smooth=0 old behaviour, 1 default (bots predicted + on-chain buffer), 2 + humans predicted
+            var sm = GetArg("-fallrushSmooth") ?? NetTargets.GetQueryParam(Application.absoluteURL, "smooth");
+            if (int.TryParse(sm, out var smv) && smv >= 0 && smv <= 2)
+            {
+                c.smoothRemotes = smv >= 1;
+                c.predictBots = smv >= 1;
+                c.predictHumans = smv >= 2;
+            }
             return c;
         }
 
