@@ -48,11 +48,11 @@ Wallets topped up from user-funded devnet SOL: game authority 1.01 → 4.01, gue
 | 10:36–10:37 | keepers redeployed with the rotation fix (deploy gate) | healthy |
 | 10:37–10:45 | **final production canary** (browser, judge, arena 2): match `DNXpj1VxtL2euef4REfs8Z9pqJ76FTF6EmS5HCGtrMEs` | joined the whole match, 1.000× real time, 0 restarts, finalize via Magic Action, capsule minted, replay byte-exact |
 
-**Live WebGL client**: another session (dizzy2) deployed its own WebGL build at 09:54 UTC, after this run's 09:36 web deploy.
-The live client is therefore the dizzy2 build (2e25593290d8); harden's Unity commits 0f3d3c0 + 46ff8ee (on-chain Deal
-screen, honest session banner, join supervision → spectate) are merged in `main` e07c624 but **not live**: one WebGL build
-from `main` is needed, blocked by disk (1.6–3.8 GB free, a build needs ~5 GB). Everything else of harden is live and works
-with that client (the final canary above ran on it). The stale staged `web.hd` on the VPS was renamed `web.hd-stale-nodizzy`.
+**Live WebGL client** (updated 11:30 UTC): the live client is build `bac27696a4f1` (deployed 11:19 UTC by the "smooth"
+session), built from main after `e07c624`: it contains harden's Unity commits 0f3d3c0 + 46ff8ee (on-chain Deal screen,
+honest session banner, join supervision → spectate) together with the dizzy2 and smooth client fixes. Checked file by
+file (MatchHud.cs, OnChainSupervision.cs, OnChainNotice.cs identical to 46ff8ee; OnChainSession.cs = 46ff8ee + smooth).
+So every part of this run is live. The stale staged `web.hd` on the VPS was renamed `web.hd-stale-nodizzy`.
 
 ## 5. Found by the load tests
 - **Task rotation blocked the keeper's loop**: rotating the 2 timed tasks awaited `schedule_ticks` with 20 tries × 15 s; when

@@ -281,7 +281,7 @@ namespace FallRush.Client
                 var sampled = cs.TrySample(i, out var feet, out var vel, out var flags, out var yaw, out var stun);
                 var capsuled = ReactiveViews.Current != null && ReactiveViews.Current.CapsuleHides(i);
                 if (i == own && HitDebugOverlay.Enabled)
-                    HitDebugOverlay.Own(sampled, flags, capsuled, stun, cs, feet, vis.StunStartedThisFrame);
+                    HitDebugOverlay.Own(sampled, flags, capsuled, stun, cs, feet, Time.unscaledTime >= _hitStopUntil[i] && vis.StunStartedThisFrame);
                 if (!sampled || (flags & MotorState.Respawning) != 0 || capsuled)
                 {
                     // Dizzy hits (2026-11-24): falling off the course no longer vanishes in a poof. The Rushling keeps
@@ -357,14 +357,21 @@ namespace FallRush.Client
                 vis.SetGrey(_claw != null && _claw.IsGrey(i));
                 if (_claw != null && _claw.Holding(i, out var held))
                     feet = held; // the claw carries it (visual only)
-                if (Time.unscaledTime >= _hitStopUntil[i])
+                // dizzy2 (2026-11-25, ?debughits=1 showed "hits 266" + Dizzy every 17 ms): during the 60 ms hit-stop Drive
+                // is skipped, so the visual's per-frame events (StunStartedThisFrame …) are stale from the frame that started
+                // the hit. Juice re-read them every frame: a new "hit" each frame re-armed the hit-stop forever (the body
+                // froze at the hazard while the real Rushling moved on = "vanished") and replayed the dizzy sound at 60 Hz
+                // (the "creepy vibration"). Juice now runs only on frames where Drive ran.
+                var drove = Time.unscaledTime >= _hitStopUntil[i];
+                if (drove)
                     vis.Drive(feet, vel, flags, yaw, stun, dt);
                     if (i == own && (flags & MotorState.Grounded) != 0)
                         _markers?.Touch(feet);
                 var camT = Camera.main != null ? Camera.main.transform.position : feet;
                 var d2 = (camT - feet).sqrMagnitude;
                 vis.SetOutline(i == own || d2 < (vis.Preset >= 0 ? 22f * 22f : 0f)); // G2.4: hull only near the camera
-                Juice(i, vis, feet, vel, i == own, cs);
+                if (drove)
+                    Juice(i, vis, feet, vel, i == own, cs);
                 _wasVisible[i] = true;
                 _lastFeet[i] = feet;
                 _lastVelS[i] = vel;
