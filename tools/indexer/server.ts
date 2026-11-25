@@ -1,6 +1,6 @@
 // P5 indexer / archive + small web API (container fallrush-indexer; stateless helper, anyone can run it).
 //   GET  /api/status              every game server + its arena keeper (players, phase, arena, match PDA), cached 1 s
-//   GET  /api/matches             the archived matches, newest first (summary fields)
+//   GET  /api/matches             the archived matches, newest first (summary fields) + counts {total, finalOnChain, allOnChain}
 //   GET  /api/match/:id           one match: the keeper summary (signatures, markets, drops, receipt) + tx lists
 //   GET  /api/replay/:id/:file    world2.bin | ticks.json | classic.jsonl | keeper.jsonl (the replay's inputs)
 //   GET  /api/season?id=&wallet=  P6: the on-chain Season board (+ a PlayerSeason) and the same boards rebuilt from the archive
@@ -138,12 +138,14 @@ function brief(id: string) {
   const s = summaryOf(id);
   if (!s) return null;
   const rc = s.receipt ?? {};
+  // fullchain: receipt trust bit 4 (econ.rs trust::ALL_PROGRAM) = every round computed by the program (its Final too)
+  const allOnChain = ((Number(rc.trust) || 0) & 4) !== 0;
   return {
     match: id, arena: s.arena, doneAt: s.doneAt, startedAt: s.startedAt, champion: rc.champion, humanMask: rc.humanMask, flags: rc.flags, mintedMask: rc.mintedMask,
-    finalOnChain: !!s.final, realTime: s.final?.realTime, drops: s.drops?.count ?? 0, pools: [0, 1, 2, 3, 4].map((k) => s[`market${k}`]?.pool ?? "0"),
+    finalOnChain: !!s.final || allOnChain, allOnChain, trust: rc.trust, realTime: s.final?.realTime, drops: s.drops?.count ?? 0, pools: [0, 1, 2, 3, 4].map((k) => s[`market${k}`]?.pool ?? "0"),
     finalizeMode: s.finalizeMode, replay: existsSync(join(ARCHIVE, id, "world2.bin")), judge: !!s.judge,
     // P6: aborted (status 6) / no human and no on-chain Final (hidden from the default lists), sealed bets
-    status: rc.status, aborted: rc.status === 6, hidden: !rc.humanMask && !s.final, sealed: s.sealed ? { n: s.sealed.n ?? 0, revealed: s.sealed.revealed ?? 0, forfeits: s.sealed.forfeits ?? 0 } : null,
+    status: rc.status, aborted: rc.status === 6, hidden: !rc.humanMask && !s.final && !allOnChain, sealed: s.sealed ? { n: s.sealed.n ?? 0, revealed: s.sealed.revealed ?? 0, forfeits: s.sealed.forfeits ?? 0 } : null,
   };
 }
 
@@ -463,7 +465,8 @@ createServer(async (req, res) => {
       // P6: matches with no human and no on-chain Final (aborted bot-only lobbies) only with ?all=1
       const all = u.searchParams.get("all") === "1";
       const xs = matchDirs().map((d) => brief(d.id)).filter((x): x is NonNullable<ReturnType<typeof brief>> => !!x && (all || !x.hidden));
-      return send(res, 200, { ok: true, matches: xs.slice(0, Number(u.searchParams.get("n") ?? 50)) });
+      const counts = { total: xs.length, finalOnChain: xs.filter((x) => x.finalOnChain).length, allOnChain: xs.filter((x) => x.allOnChain).length };
+      return send(res, 200, { ok: true, counts, matches: xs.slice(0, Number(u.searchParams.get("n") ?? 50)) });
     }
     if (p === "/season") {
       const id = Number(u.searchParams.get("id") ?? isoWeek(Date.now() / 1000));

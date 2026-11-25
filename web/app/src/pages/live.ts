@@ -1,9 +1,10 @@
 // /live/:arena — the on-chain Final drawn from the WorldAcc subscription (rush_core.wasm decodes the same World the
 // program steps), the live odds of every Rush Market, Bet + Chaos Drop buttons (session key, no popup), event feed,
-// chain chip. During rounds 1–3: the Classic server's status + the Qualify markets.
+// chain chip. During rounds 1–3: the Classic server's status + the Qualify markets. fullchain: a full on-chain match
+// (World version 2, or the World in rounds 1–3) is drawn round by round on the World's own map, every round ◆.
 import { api, ARENAS, ER_HTTP, accounts, subscribe, explorer, short, rush, PROGRAM } from '../lib/net';
-import { decodeWorldAcc, decodeArena, decodeMatch, MARKET_NAMES, LABELS, odds, DROPS, DROP_PRICE } from '../lib/decode';
-import { CoreWorld } from '../lib/core';
+import { decodeWorldAcc, decodeArena, decodeMatch, MARKET_NAMES, LABELS, odds, DROPS, DROP_PRICE, TICKS_LINE } from '../lib/decode';
+import { CoreWorld, ROUND_MAP } from '../lib/core';
 import { draw } from '../lib/view2d';
 import { chainFor, ensureGuest, J, esc } from '../lib/chain';
 import { icon, type IconName } from '../lib/icons';
@@ -51,6 +52,10 @@ export function live(root: HTMLElement, params: string[]) {
     const feed = (t: string) => { const d = document.createElement('div'); d.innerHTML = `<span class="muted">${new Date().toLocaleTimeString()}</span> ${t}`; $('#feed').prepend(d); while ($('#feed').children.length > 80) $('#feed').lastChild!.remove(); };
     const cw = await CoreWorld.create('CrumbleShelf');
     const lobby = await CoreWorld.create('Lobby');
+    // fullchain: one handle whose map follows the World (lobby → the 4 round maps); null on a pre-fullchain wasm
+    const chainW = await CoreWorld.createChain().catch(() => null);
+    // a full on-chain match: a start_sim World (version 2), or the World itself in rounds 1–3 (hybrid: lobby until the Final)
+    const allOnChain = (x: typeof wa) => !!x && (x.world[0] === 2 || (x.round >= 1 && x.round <= 3));
     let wa: ReturnType<typeof decodeWorldAcc> | null = null, humans = 0, lastPhase = '', bannerUntil = 0, banner = '';
     let state: any = null, arena: ReturnType<typeof decodeArena> | null = null, match: ReturnType<typeof decodeMatch> | null = null;
     if (stop) return; // beta audit: left the page during the awaits: never open the World socket (it reconnected forever)
@@ -166,10 +171,12 @@ export function live(root: HTMLElement, params: string[]) {
         humans = arena?.humanMask ?? 0;
         const md = arena && arena.match !== '11111111111111111111111111111111' ? (await accounts(ER_HTTP, [arena.match]))[0] : null;
         match = md ? decodeMatch(md) : null;
-        const finalOn = wa && wa.round === 4 && arena?.status === 2;
-        $('#phase').textContent = finalOn ? `On-chain Final · ${wa!.roundPhase < 3 ? 'get ready' : wa!.roundPhase === 3 ? 'RUSH!' : 'ended'}` : sv?.inMatch ? `Classic round ${sv.round}/3 on ${sv.id.toUpperCase()}` : sv?.up ? 'Lobby open — join from /play' : 'arena idle';
+        const roundOn = !!wa && wa.round >= 1 && wa.round <= 4 && arena?.status === 2, full = roundOn && allOnChain(wa);
+        const finalOn = roundOn && wa!.round === 4;
+        const rp = wa ? (wa.roundPhase < 3 ? 'get ready' : wa.roundPhase === 3 ? 'RUSH!' : 'ended') : '';
+        $('#phase').textContent = full ? `◆ On-chain round ${wa!.round}/4 · ${ROUND_MAP[wa!.round - 1]}${wa!.round === 4 ? ' (Final)' : ''} · ${rp}` : finalOn ? `On-chain Final · ${rp}` : sv?.inMatch ? `Classic round ${sv.round}/3 on ${sv.id.toUpperCase()}` : sv?.up ? 'Lobby open — join from /play' : 'arena idle';
         $('#classic').innerHTML = `${sv?.up ? `${Number(sv.humans)} human(s) on ${esc(String(sv.id).toUpperCase())} · server phase ${esc(sv.phase)}` : ''}${match ? ` · match <a target="_blank" href="${explorer('address', arena!.match, true)}">${short(arena!.match)}</a> ${['Created', 'Dealing', 'Dealt', 'Round active', 'Round resolved', 'Completed', 'Aborted'][match.status]}` : ''}`;
-        const ph = `${finalOn}-${wa?.roundPhase}-${sv?.round}`;
+        const ph = `${finalOn}-${full ? wa!.round : ''}-${wa?.roundPhase}-${sv?.round}`;
         if (ph !== lastPhase) { lastPhase = ph; feed($('#phase').textContent!); }
         // markets
         const ms = (state.markets ?? []) as any[];
@@ -196,10 +203,15 @@ export function live(root: HTMLElement, params: string[]) {
       if (stop) return;
       const cv = root.querySelector('#cv') as HTMLCanvasElement | null;
       if (cv && wa) {
-        const w = wa.round === 4 ? cw : lobby;
-        if (w.set(wa.world)) draw(cv, w, { humans, banner: Date.now() < bannerUntil ? banner : undefined, label: `tick ${wa.tick} · ${wa.round === 4 ? 'Final (Lid Flip)' : 'lobby'}` });
+        const full = chainW && allOnChain(wa);
+        const w = full ? chainW! : wa.round === 4 ? cw : lobby;
+        if (w.set(wa.world)) {
+          const r = full ? chainW!.round() : null;
+          const where = r ? (r.round >= 1 && r.roundIndex >= 1 ? `round ${r.round} (${ROUND_MAP[r.mapKey] ?? '?'})` : 'lobby') : wa.round === 4 ? 'Final (Lid Flip)' : 'lobby';
+          draw(cv, w, { humans, banner: Date.now() < bannerUntil ? banner : undefined, label: `tick ${wa.tick} · ${where}` });
+        }
         // beta audit: rebuilt at most twice a second (every frame made its links unclickable and cost battery)
-        if (Date.now() - chipAt > 500) chipAt = Date.now(), $('#chip').innerHTML = `ER devnet-as · World <a target="_blank" href="${explorer('address', A.world, true)}">${short(A.world)}</a> · tick ${wa.tick} · core v${wa.coreVersion & 0xff} · ws ${$('#chip').dataset.ws ?? ''} · <a target="_blank" href="${explorer('address', PROGRAM)}">program</a>`;
+        if (Date.now() - chipAt > 500) chipAt = Date.now(), $('#chip').innerHTML = `ER devnet-as · World <a target="_blank" href="${explorer('address', A.world, true)}">${short(A.world)}</a> · tick ${wa.tick} · core v${wa.coreVersion & 0xff} · ws ${$('#chip').dataset.ws ?? ''} · <a target="_blank" href="${explorer('address', PROGRAM)}">program</a>${allOnChain(wa) ? `<br>◆ every round computed by the program · ${TICKS_LINE}` : ''}`;
       }
       requestAnimationFrame(frame);
     };

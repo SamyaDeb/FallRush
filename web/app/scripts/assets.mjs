@@ -8,11 +8,13 @@ const root = join(app, '../..');
 const sa = join(root, 'client-unity/Assets/StreamingAssets');
 mkdirSync(join(app, 'public/chain'), { recursive: true });
 cpSync(join(sa, 'fallrush-chain.js'), join(app, 'public/chain/fallrush-chain.js'));
-cpSync(join(sa, 'rush_core.wasm'), join(app, 'public/chain/rush_core.wasm'));
+// fullchain: RUSH_CORE_WASM=<path> overrides the Unity copy (e.g. crates/target/wasm32-unknown-unknown/release/rush_core_wasm.wasm)
+cpSync(process.env.RUSH_CORE_WASM || join(sa, 'rush_core.wasm'), join(app, 'public/chain/rush_core.wasm'));
 cpSync(join(sa, 'fallrush-tee.js'), join(app, 'public/chain/fallrush-tee.js')); // P6: TEE attestation (on demand)
 for (const f of readdirSync(join(sa, 'chain')).filter((f) => f.endsWith('.json'))) cpSync(join(sa, 'chain', f), join(app, 'public/chain', f));
 mkdirSync(join(app, 'public/maps'), { recursive: true });
-for (const m of ['CrumbleShelf', 'Lobby']) cpSync(join(root, `maps/${m}.mapblob`), join(app, `public/maps/${m}.mapblob`));
+// fullchain: every round map (the replay / live view of a full on-chain match follows the World's map)
+for (const m of ['BlockPartyDash', 'GooTower', 'StarScramble', 'CrumbleShelf', 'Lobby']) cpSync(join(root, `maps/${m}.mapblob`), join(app, `public/maps/${m}.mapblob`));
 import('node:child_process').then(({ execFileSync }) => {
   try { execFileSync('sips', ['-Z', '256', join(root, 'docs/media/logo.png'), '--out', join(app, 'public/logo.png')], { stdio: 'ignore' }); }
   catch { cpSync(join(root, 'docs/media/logo.png'), join(app, 'public/logo.png')); }

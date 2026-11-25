@@ -59,11 +59,11 @@
 | isqrt_i64 | 90 |
 | normalize_q15 | 267 |
 | map.collider(i) decode | 329 |
-| capsule_sweep down 100 mm at spawn | 8558 |
-| raycast down 3 m at spawn | 3423 |
-| penetration at spawn | 2393 |
-| gather 1x2x1 m box at spawn | 2416 |
-| capsule_sweep fwd 300 mm at spawn | 2707 |
+| capsule_sweep down 100 mm at spawn | 8576 |
+| raycast down 3 m at spawn | 3434 |
+| penetration at spawn | 2411 |
+| gather 1x2x1 m box at spawn | 2425 |
+| capsule_sweep fwd 300 mm at spawn | 2716 |
 | sin_q15 | 27 |
 | i64 / i64 | 33 |
 | u64 / u64 | 12 |
@@ -73,9 +73,9 @@
 | x*7/1000 (const) | 27 |
 | div_round(x, 1000) | 38 |
 | near() by shape | count, mean, max |
-| shape 1 | 122 colliders, mean 787, max 1095 |
+| shape 1 | 122 colliders, mean 770, max 1095 |
 | shape 2 | 7 colliders, mean 6845, max 6865 |
-| tilted (general) OBBs | 17 colliders, max 1095 |
+| tilted (general) OBBs | 11 colliders, max 1095 |
 
 ## BlockPartyDash (127 colliders)
 | op | CU / call |

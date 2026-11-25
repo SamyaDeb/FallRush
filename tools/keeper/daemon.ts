@@ -417,6 +417,7 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
   status.match = matchPda.toBase58(); status.matchHex = matchHex; status.dealSig = null; // P7: the VRF deal's request tx (the Deal screen links it)
   const a0: any = await arenaAcc();
   const maps: PublicKey[] = a0.maps;
+  out.maps = maps.map((k) => k.toBase58()); // fullchain: the sealed map blobs this match ran on (replay --sealed)
   const lines = jsonl ? readLines(jsonl) : [];
   const h = lines.find((l) => l.type === "match");
   // submission (judge mode): the Classic server fast-forwarded rounds 1–3 (labelled on the receipt; no Season record)
