@@ -68,5 +68,57 @@ namespace FallRush.Tests
             Assert.That(a.ChainNow(now) - b.ChainNow(now), Is.LessThan(0.7), "60 ms cap vs 40 ms");
             Assert.That(a.ChainNow(now), Is.EqualTo(1030 + 1.8).Within(0.2));
         }
-    }
+    
+        /// <summary>Input run 3: a steady 30/s chain whose Worlds arrive 0.2–1.5 s late with 3 s gaps (production pattern).</summary>
+        private static double Worst(bool disciplined, out bool wentBack)
+        {
+            var c = new OnChainClock(30) { RttMs = 80f, Disciplined = disciplined, NominalRateOnly = disciplined };
+            var rng = new System.Random(7);
+            var worst = 0.0;
+            wentBack = false;
+            var last = double.MinValue;
+            var pending = new System.Collections.Generic.List<(double at, uint tick)>();
+            var lastAt = 0.0;
+            for (var t = 0.0; t < 60.0; t += 1.0 / 60)
+            {
+                // the chain: tick = 30·t; every 0.1 s a World leaves, delivered 0.2–1.5 s later, except during 3 s gaps
+                var inGap = (int)(t / 6) % 2 == 1 && t % 6 < 3;
+                if (((int)(t * 60)) % 6 == 0 && !inGap)
+                {
+                    // one ordered stream (as the socket): a World never arrives before an older one
+                    lastAt = System.Math.Max(lastAt, t + 0.2 + rng.NextDouble() * 1.3);
+                    pending.Add((lastAt, (uint)(t * 30)));
+                }
+                pending.Sort((a, b) => a.at.CompareTo(b.at));
+                while (pending.Count > 0 && pending[0].at <= t)
+                {
+                    c.OnWorld(pending[0].tick, pending[0].at);
+                    pending.RemoveAt(0);
+                }
+                if (!c.HasData)
+                    continue;
+                var est = c.ChainNow(t);
+                if (t > 10)
+                {
+                    worst = System.Math.Max(worst, System.Math.Abs(est - t * 30));
+                    if (est < last - 1e-6)
+                        wentBack = true;
+                }
+                last = est;
+            }
+            return worst;
+        }
+
+        [Test]
+        public void DisciplinedClockRidesThroughLateBurstyWorlds()
+        {
+            var raw = Worst(false, out var rawBack);
+            var disc = Worst(true, out var discBack);
+            TestContext.WriteLine($"worst error: raw {raw:F1} ticks (back {rawBack}), disciplined {disc:F1} ticks (back {discBack})");
+            Assert.IsTrue(rawBack, "the bug: the raw estimate stepped backwards");
+            Assert.IsFalse(discBack, "the disciplined clock never runs backwards");
+            Assert.That(disc, Is.LessThan(raw), "closer to the chain than the raw estimate");
+            Assert.That(disc, Is.LessThan(20), "within 20 ticks of the real chain tick");
+        }
+}
 }

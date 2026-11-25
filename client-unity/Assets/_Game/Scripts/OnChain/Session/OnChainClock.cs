@@ -33,8 +33,21 @@ namespace FallRush.OnChain
 
         public OnChainClock(int rate) => _rate = rate;
 
+        // input run 3: the disciplined clock (see ChainNow)
+        private bool _discInit;
+        private double _discOff, _discAt; // the disciplined clock's tick at _discAt
+        /// <summary>Largest forward / backward slew of the disciplined clock (fraction of real time) and the snap threshold (ticks).</summary>
+        public double SlewUp = 0.20, SlewDown = 0.01, SnapTicks = 90; // a World can only arrive after its tick: the raw estimate is a lower bound, so it pulls the clock up fast and down barely
+        public long Snaps;
+        /// <summary>false = the raw estimate (the old behaviour; tests and A/B).</summary>
+        public bool Disciplined = true;
+        /// <summary>Input run 3: the rollup runs exactly <c>rate</c> ticks/s; a rate measured from bunched, late arrivals
+        /// read 15–20/s in gaps and walked the estimate seconds off. Only the local stack (20/s) needs the measured rate.</summary>
+        public bool NominalRateOnly;
+
         public void Reset()
         {
+            _discInit = false;
             _n = _i = 0;
             LastRecvAt = double.NaN;
             NewestTick = 0;
@@ -63,6 +76,8 @@ namespace FallRush.OnChain
         /// </summary>
         public double Rate(double now)
         {
+            if (NominalRateOnly)
+                return _rate;
             int lo = -1, hi = -1;
             for (var k = 0; k < _n; k++)
             {
@@ -82,8 +97,48 @@ namespace FallRush.OnChain
             return r < 5 || r > _rate * 0.85 ? _rate : r;
         }
 
-        /// <summary>The chain's current tick (fractional) at <paramref name="now"/>.</summary>
+        /// <summary>
+        /// The chain's current tick (fractional) at <paramref name="now"/>. Input run 3 (2026-11-25): disciplined. The
+        /// arena runs a steady 30 ticks/s (measured from the account: +15 per 0.5 s), but its Worlds reach the browser late
+        /// and in bursts (lateness p95 up to 4.8 s, update gaps of seconds). The raw estimate (freshest World of the last
+        /// 2 s) then jumped back when the fresh samples aged out, the prediction found itself ahead of the target, and
+        /// AdvanceAndSend resynced every frame without sending inputs (229 resyncs in 10 s at 60 fps; inputs applied 13 %).
+        /// Now the clock runs on wall time and the raw estimate only steers it: forward ≤ 20 %, backward ≤ 1 % of real
+        /// time, a snap only past 3 s (a new match / a long outage).
+        /// </summary>
         public double ChainNow(double now)
+        {
+            var raw = RawChainNow(now);
+            if (!Disciplined || _n == 0)
+                return raw;
+            if (!_discInit || Math.Abs(raw - Project(now)) > SnapTicks)
+            {
+                if (_discInit)
+                    Snaps++;
+                _discInit = true;
+                _discOff = raw; // the clock's tick at _discAt
+                _discAt = now;
+                return raw;
+            }
+
+            if (now <= _discAt)
+                return _discOff;
+            // integrate: advance at the chain rate, then steer toward the raw estimate within the slew limits, so a
+            // rate re-estimate or an aged-out sample can never step it back
+            var rate = Rate(now);
+            var dt = now - _discAt;
+            var pred = _discOff + rate * dt;
+            var err = raw - pred;
+            pred += err > 0 ? Math.Min(err, SlewUp * rate * dt) : Math.Max(err, -SlewDown * rate * dt);
+            _discOff = pred;
+            _discAt = now;
+            return pred;
+        }
+
+        private double Project(double now) => _discOff + Rate(now) * Math.Max(0, now - _discAt);
+
+        /// <summary>The raw estimate: freshest World of the last 2 s + a capped one-way delay.</summary>
+        public double RawChainNow(double now)
         {
             if (_n == 0)
                 return 0;

@@ -143,8 +143,9 @@ namespace FallRush.OnChain
         {
             Cfg ??= ChainConfig.FromArgs();
             Cfg.ApplyRollupDefaults(); // input run: window 13 / T+5 on the rollup (?window=8 = the old behaviour)
+            _clockNominal = Cfg.target == "devnet";
             _createdAt = ClientSim.Now;
-            _clock = new OnChainClock(Cfg.rate) { LagMs = Cfg.lagMs };
+            _clock = new OnChainClock(Cfg.rate) { LagMs = Cfg.lagMs, NominalRateOnly = _clockNominal };
             _prevFrameRate = Application.targetFrameRate;
             Application.targetFrameRate = 60; // on-chain play: leave CPU to the chain link (a relay may share the machine)
             _core = RushCoreAbi.Create();
@@ -773,6 +774,7 @@ namespace FallRush.OnChain
         }
 
         private uint _applied;
+        private bool _clockNominal;
         private bool _resultLogged;
         // P3-K: adaptive extra input lead (client-side delay tuning): +1 tick when our inputs arrive late (the arena's
         // applied_tick for that slot is behind a tick we sent), −1 after LeadHoldSeconds without any late input (floor +1 once late); ≤ MaxExtraLead.
