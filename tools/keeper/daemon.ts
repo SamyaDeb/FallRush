@@ -33,14 +33,14 @@ const ACTION = process.env.ACTION === "1"; // P5 0.3: finalize with the post-und
 const ACTION_WAIT_S = Number(process.env.ACTION_WAIT_S ?? 60);
 const SEALED = process.env.SEALED !== "0"; // P6: sealed Champion bets (escrow + private book on the TEE)
 const SEASONS = process.env.SEASONS !== "0"; // P6: record finalized matches into the seasons
-const KILL_AT = process.env.KILL_AT ?? "";
+const KILL_AT = process.env.KILL_AT ?? ""; // test hook (P5 0.5): exit(9) right after this stage
 // fullchain (docs/proof/fullchain/CONTRACT.md): ONCHAIN_ALL=1 + the server's header `onchainAll` → the whole match on
 // the rollup (start_sim: the program computes all 4 rounds); off (default) = the hybrid flow, unchanged
 const ONCHAIN_ALL = process.env.ONCHAIN_ALL === "1";
 const FULL_TASKS = Number(process.env.FULL_TASKS ?? 2);
 const CRANK_RATE = Number(process.env.CRANK_RATE ?? 50);
 const ROTATE_MS = Number(process.env.ROTATE_MS ?? 8000);
-const FULL_WAIT_HUMANS_S = Number(process.env.FULL_WAIT_HUMANS_S ?? 10); // test hook (P5 0.5): exit(9) right after this stage
+const FULL_WAIT_HUMANS_S = Number(process.env.FULL_WAIT_HUMANS_S ?? 20); // a first join (session + gas) measured 8.5 s on production
 const DONE = 11;
 const BOOT = Date.now();
 const STATE_FILE = join(ARCHIVE, `keeper-${NET}-arena${ARENA}.json`);
@@ -516,7 +516,7 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
       for (;;) {
         const ar: any = await arenaAcc();
         let n = 0; for (let s = 0; s < N; s++) if ((Number(ar.humanMask) >> s) & 1) n++;
-        if (n >= want || Date.now() - t0 >= (judge ? Math.max(FULL_WAIT_HUMANS_S, 20) : FULL_WAIT_HUMANS_S) * 1000) { out.humans = { want, joined: n, ms: Date.now() - t0 }; break; }
+        if (n >= want || Date.now() - t0 >= (judge ? Math.max(FULL_WAIT_HUMANS_S, 30) : FULL_WAIT_HUMANS_S) * 1000) { out.humans = { want, joined: n, ms: Date.now() - t0 }; break; }
         if (serverAllState(jsonl) === "fallback") break;
         await sleep(200);
       }

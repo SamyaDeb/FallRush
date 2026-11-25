@@ -22,6 +22,21 @@ namespace FallRush.OnChain
 
         private static ClientSim _hooked;
 
+        /// <summary>Replays a <c>fonc</c> once the previous <see cref="OnChainSession"/> is destroyed (≤ 60 frames).</summary>
+        private sealed class Later : MonoBehaviour
+        {
+            public void Replay(string json) => StartCoroutine(Run(json));
+
+            private System.Collections.IEnumerator Run(string json)
+            {
+                for (var i = 0; i < 60 && OnChainSession.Instance != null; i++)
+                    yield return null;
+                if (OnChainSession.Instance == null)
+                    OnFonc(json);
+                Destroy(gameObject);
+            }
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Install()
         {
@@ -77,7 +92,19 @@ namespace FallRush.OnChain
             if (f.t == "final_prejoin")
             {
                 if (OnChainSession.Instance != null)
+                {
+                    // fullchain (production canary): the previous whole match's session can still be up when the next
+                    // match's pre-join arrives; it dropped the pre-join and the player's slot ran as a bot. End the
+                    // stale session and replay this pre-join once it is gone (Destroy lands at the end of the frame).
+                    var old = OnChainSession.Instance;
+                    if (f.all && !string.IsNullOrEmpty(f.match) && old.MatchHex != f.match)
+                    {
+                        Debug.Log($"[onchain] pre-join for match {f.match}: ending the previous match's session ({old.MatchHex})");
+                        old.End();
+                        new GameObject("onchain-prejoin-later").AddComponent<Later>().Replay(json);
+                    }
                     return;
+                }
                 Debug.Log($"[onchain] pre-join: {cfg.target} arena {f.arena} match {f.match}, slot {slot}");
                 var s = OnChainSession.StartFinal(cfg, cs.ServerMatch, slot);
                 s.MatchHex = f.match;
