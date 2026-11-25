@@ -47,7 +47,7 @@ GAMESERVER_ONCHAIN_ALL=1 bash scripts/m1-macserver.sh start -fallrushBots 12 -fa
 # the load tool exits after MATCHES matches (0 = every criterion passed)
 wait $LOAD; RC=$?; LOAD=
 echo "load tool exit $RC (0 = pass)"
-for _ in $(seq 1 600); do D=$(grep -l '"doneAt"' "$ARCH"/*/summary.json 2>/dev/null | wc -l | tr -d ' '); [[ "$D" -ge "$MATCHES" ]] && break; kill -0 $KEEPER 2>/dev/null || break; sleep 1; done
+for _ in $(seq 1 600); do D=$(python3 -c "import json,glob;print(sum(1 for f in glob.glob('$ARCH/*/summary.json') if (lambda s: s.get('doneAt') and not s.get('resumed'))(json.load(open(f)))))" 2>/dev/null || echo 0); [[ "$D" -ge "$MATCHES" ]] && break; kill -0 $KEEPER 2>/dev/null || break; sleep 1; done
 # the keeper's own view (crankGated / crank counters, humans want/joined) before cleanup stops it
 curl -s --max-time 5 "http://127.0.0.1:3198/status" > "$OUT/keeper-status.json" 2>/dev/null
 echo "crank_gate events: $(grep -c '"crank_gate"' "$OUT/keeper.log" 2>/dev/null)" | tee "$OUT/crank-gate.txt"

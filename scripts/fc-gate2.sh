@@ -28,7 +28,7 @@ GAMESERVER_ONCHAIN_ALL=1 bash scripts/m1-macserver.sh start -fallrushBots 12 -fa
   -fallrushOnchainArena "$ARENA" -fallrushOnchainWorld "$WORLD" -fallrushOnchainAll
 # wait for N archived summaries with doneAt (a full match ≈ 7–9 min + setup)
 for _ in $(seq 1 $(( N * 900 ))); do
-  D=$(grep -l '"doneAt"' "$ARCH"/*/summary.json 2>/dev/null | wc -l | tr -d ' ')
+  D=$(python3 -c "import json,glob;print(sum(1 for f in glob.glob('$ARCH/*/summary.json') if (lambda s: s.get('doneAt') and not s.get('resumed'))(json.load(open(f)))))" 2>/dev/null || echo 0)
   [[ "$D" -ge "$N" ]] && break
   kill -0 $KEEPER 2>/dev/null || { echo "keeper exited"; break; }
   sleep 1

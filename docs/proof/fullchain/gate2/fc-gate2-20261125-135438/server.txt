@@ -1,0 +1,13 @@
+[gs] fullchain: whole matches run on the arena (GAMESERVER_ONCHAIN_ALL=1); per-match fallback = Classic
+[gs] on-chain match: handing match 1 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 4 (10.3 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=B modifier=TurboToys seed=0x4a6fee0ea9dcac93 start=1064 qualify=8/12 intro=60 countdown=90 timer=4500 rush@1064 participants=12
+[gs] on-chain match result from the arena director: champion 5 order 5,1,2,3,8,6,7,11,0,4,9,10
+[gs] on-chain match: handing match 2 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 5 (9.4 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=A modifier=MoonBounce seed=0x5a1fc1f7a49a8d27 start=14275 qualify=8/12 intro=60 countdown=90 timer=4500 rush@14275 participants=12
+[gs] on-chain match result from the arena director: champion 4 order 4,6,9,0,5,2,7,10,1,3,8,11
+[gs] on-chain match: handing match 3 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 11 (10.4 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=B modifier=None seed=0xa2bf1e8b2445c743 start=29156 qualify=8/12 intro=60 countdown=90 timer=4500 rush@29156 participants=12
+[gs] on-chain match result from the arena director: champion 8 order 8,7,11,9,10,1,3,6,0,2,4,5

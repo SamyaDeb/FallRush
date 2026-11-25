@@ -1,0 +1,3 @@
+23yjQhHv9SBBr8V1DUZNeY7agGNhVLgCAuwk1WtrAEfc: replay = on-chain ✓
+9rkEmVxnHwNNMdux4me6Nq5RdhUr2j8nbByP2WXJxG8o: 
+replays byte-exact: 1 / 2 (want ≥ 1, all)

@@ -295,12 +295,13 @@ async function ensureFinal(matchPda: PublicKey, reason: number, force: boolean, 
 
 async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog: string, full = false, gaveUp: () => string | false = () => false, firstStartedAt: number | null = null) {
   const tickMetas = tickAccounts(arena, matchPda, maps);
-  const schedule = async () => act("schedule_ticks", async () => sendEr([cu(400_000), await pe.methods.scheduleTicks(new BN(INTERVAL_MS), new BN(2_000_000)).accountsPartial({ payer: wallet.publicKey, arena }).remainingAccounts(tickMetas).instruction()], [wallet], "schedule_ticks"), mlog);
+  const schedule = async (tries = 20) => act("schedule_ticks", async () => sendEr([cu(400_000), await pe.methods.scheduleTicks(new BN(INTERVAL_MS), new BN(2_000_000)).accountsPartial({ payer: wallet.publicKey, arena }).remainingAccounts(tickMetas).instruction()], [wallet], "schedule_ticks", tries), mlog);
   const cancel = async (taskId: any) => act("cancel_ticks", async () => sendEr([await pe.methods.cancelTicks(taskId).accountsPartial({ payer: wallet.publicKey }).remainingAccounts([{ pubkey: MAGIC_CONTEXT, isSigner: false, isWritable: true }]).instruction()], [wallet], "cancel_ticks", 3), mlog);
-  const scheduleOne = async () => { await schedule(); return (await arenaAcc()).taskId.toString() as string; };
+  const scheduleOne = async (tries = 20) => { await schedule(tries); return (await arenaAcc()).taskId.toString() as string; };
   // harden #5: everything started here (tasks, the World subscription, the crank) is stopped in the finally below,
   // whatever throws: a retry never runs a second crank / appender next to a leaked one
   const tasks: string[] = [];
+  let rotation: Promise<void> | null = null; // the background task rotation (see the loop)
   let sub: number | null = null;
   let crank: ReturnType<typeof startCrank> | null = null;
   let crankStats: any = null;
@@ -317,6 +318,9 @@ async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, ml
     // fullchain: N parallel timed tasks + the keeper crank (crank(budget), 1.4M CU) + task rotation + per-round commits
     for (let k = 1; k < (full ? FULL_TASKS : 1); k++) tasks.push(await scheduleOne());
     let rotatedAt = Date.now(), lastGaveUpCheck = 0;
+    // harden (load test 2026-11-25): the rotation ran INSIDE the loop and awaited sendEr (20 tries x 15 s per schedule):
+    // when the rollup was slow to confirm schedule_ticks the loop blocked 10+ min (no DONE check, no deadline). It now
+    // runs beside the loop with 3 tries; the stall path waits for it; cleanup awaits it (no task leaks after cleanup).
     const committed = new Set<number>();
     let lastSnapKey = "";
     // followups (CRANK_GATE): the slot clock as the keeper sees it — the slot each tick started at (World last_slot,
@@ -388,12 +392,14 @@ async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, ml
       if (crank) { status.crankSent = crank.stats.sent; status.crankGated = crank.stats.gated; if (CRANK_GATE) { const g = P.gateTotals(gs, now); status.crankGate = { ...status.crankGate, ...g }; status.crankGateOpenMs = g.openMs; } }
       const prog = `${w.tick}:${w.partPending}`;
       if (prog !== lastProg) { lastProg = prog; lastExecAt = now; }
-      if (full && now - rotatedAt > ROTATE_MS) {
+      if (full && !rotation && now - rotatedAt > ROTATE_MS) {
         // a task that hit an over-budget execution is gone for good: keep FULL_TASKS fresh ones running
         rotatedAt = now;
-        const old = tasks.splice(0);
-        for (let k = 0; k < FULL_TASKS; k++) { try { tasks.push(await scheduleOne()); } catch {} }
-        for (const t of old) await cancel(new BN(t)).catch(() => {});
+        rotation = (async () => {
+          const old = tasks.splice(0);
+          for (let k = 0; k < FULL_TASKS; k++) { try { tasks.push(await scheduleOne(3)); } catch {} }
+          for (const t of old) await cancel(new BN(t)).catch(() => {});
+        })().catch(() => {}).finally(() => { rotation = null; rotatedAt = Date.now(); });
       }
       if (full && w.round >= 1 && !committed.has(w.round) && (w.phase === 7 || w.phase === 8 || w.phase >= 9)) {
         // each resolved round's results to Solana (commit_round: once per round, any payer)
@@ -401,14 +407,14 @@ async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, ml
         const r = w.round;
         act(`commit_round_${r}`, async () => sendEr([await pe.methods.commitRound(r).accountsPartial({ payer: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "commit_round", 10), mlog).catch(() => committed.delete(r));
       }
-      if (now - lastExecAt > STALL_MS) {
+      if (now - lastExecAt > STALL_MS && !rotation) {
         restarts++;
         log({ ev: "stall", ms: now - lastExecAt, tick: w.tick });
         // harden #5 (policy.stallRecover): never throws; full mode only re-schedules (the crank keeps driving)
         const ixTick = !full || STALL_FLOOD_FULL ? await pe.methods.tick().remainingAccounts(tickMetas).instruction().catch(() => null) : null;
         const rs = await P.stallRecover({
           cancel: (t) => cancel(new BN(t)),
-          schedule: scheduleOne,
+          schedule: () => scheduleOne(3),
           blockhash: async () => (await er.getLatestBlockhash("processed")).blockhash,
           sendTick: (bh, nonce) => {
             const tx = new Transaction().add(cu(1_400_000 - (nonce % 64)), ixTick!);
@@ -425,6 +431,7 @@ async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, ml
       if (now - lastCu > 15_000) { lastCu = now; sampleCu(world).then((xs) => cus.push(...xs.map((x) => x.cu))).catch(() => {}); }
     }
   } finally {
+    if (rotation) await (rotation as Promise<void>).catch(() => {});
     crankStats = await P.cleanupFinal({
       crank,
       unsubscribe: async () => { if (sub != null) await er.removeAccountChangeListener(sub); },
