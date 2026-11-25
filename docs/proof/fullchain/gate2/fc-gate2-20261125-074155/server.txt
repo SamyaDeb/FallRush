@@ -1,0 +1,17 @@
+[gs] fullchain: whole matches run on the arena (GAMESERVER_ONCHAIN_ALL=1); per-match fallback = Classic
+[gs] on-chain match: handing match 1 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 1 (7.1 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=A modifier=None seed=0xdf90d635e113f1dd start=967 qualify=8/12 intro=60 countdown=90 timer=4500 rush@967 participants=12
+[gs] on-chain match result from the arena director: champion 9 order 9,0,11,3,6,2,4,7,1,5,8,10
+[gs] on-chain match: handing match 2 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 8 (19.5 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=B modifier=TurboToys seed=0x501633e97a4d47b1 start=16655 qualify=8/12 intro=60 countdown=90 timer=4500 rush@16655 participants=12
+[gs] on-chain match World: The operation was canceled.
+[gs] on-chain match World: The operation was canceled.
+[gs] on-chain match World: The operation was canceled.
+[gs] on-chain match World: The operation was canceled.
+[gs] on-chain match result from the arena director: champion 4 order 4,3,7,0,5,1,2,11,6,8,9,10
+[gs] on-chain match: handing match 3 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 3 (8.5 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=A modifier=TinyTilt seed=0x25fabcc79a71d6e1 start=31852 qualify=8/12 intro=60 countdown=90 timer=4500 rush@31852 participants=12
+[gs] on-chain match result from the arena director: champion 7 order 7,3,4,2,6,8,9,11,0,1,5,10

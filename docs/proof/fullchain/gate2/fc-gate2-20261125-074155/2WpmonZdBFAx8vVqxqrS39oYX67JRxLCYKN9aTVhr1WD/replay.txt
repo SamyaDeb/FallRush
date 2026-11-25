@@ -1,0 +1,60 @@
+{
+ "match": "/Users/samya/Downloads/FallRush-fullchain/.m1-logs/fc-gate2-20261125-074155-archive/2WpmonZdBFAx8vVqxqrS39oYX67JRxLCYKN9aTVhr1WD//world2.bin",
+ "mode": "full",
+ "worldVersions": [
+  2
+ ],
+ "trust": 6,
+ "wasm": "client-unity/Assets/StreamingAssets/rush_core.wasm",
+ "maps": {
+  "BlockPartyDash": "71e871b165477fd4",
+  "GooTower": "5966a1cacd37d150",
+  "StarScramble": "9ca114e137e10cb3",
+  "CrumbleShelf": "8ecf31f663c6ea3f",
+  "Lobby": "943cbda4597a360a"
+ },
+ "snapshots": 25920,
+ "ticks": [
+  32,
+  13333
+ ],
+ "pairs": 24214,
+ "byteExact": 24214,
+ "fullTickPairs": 5622,
+ "midTickPairs": 18592,
+ "gaps": 1705,
+ "mapLoads": 4,
+ "perRound": {
+  "r0": {
+   "pairs": 275,
+   "byteExact": 275
+  },
+  "r1": {
+   "pairs": 13197,
+   "byteExact": 13197
+  },
+  "r2": {
+   "pairs": 3871,
+   "byteExact": 3871
+  },
+  "r3": {
+   "pairs": 3926,
+   "byteExact": 3926
+  },
+  "r4": {
+   "pairs": 2945,
+   "byteExact": 2945
+  }
+ },
+ "firstMismatch": null,
+ "dropsIngested": 0,
+ "lastWorld": {
+  "round": 4,
+  "directorPhase": 11
+ },
+ "transcriptInLastWorld": true,
+ "error": null,
+ "seconds": 0.948,
+ "pass": true
+}
+replay = on-chain ✓
