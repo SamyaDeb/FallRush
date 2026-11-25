@@ -283,12 +283,18 @@ namespace FallRush.Client
                 {
                     // Dizzy hits (2026-11-24): falling off the course no longer vanishes in a poof. The Rushling keeps
                     // tumbling down (stars on, visual only: the sim froze it at the fall line) until the respawn moves it.
-                    var falling = sampled && !capsuled && (flags & MotorState.Respawning) != 0 && cs.Phase == RoundPhase.Rush;
+                    // dizzy2 (2026-11-25, user: "got hit … it vanishes"): also in the lobby / sandbox (free play respawns
+                    // too, it used to vanish there), and for a player who drops out of the snapshot mid-fall (knocked
+                    // out in an on-chain round: out players leave the World's player list at once) — it still tumbles
+                    // down from where it was instead of blinking out.
+                    var phaseFalls = cs.Phase == RoundPhase.Rush || cs.Phase == RoundPhase.Sandbox || cs.Phase == RoundPhase.Waiting;
+                    var droppedMidFall = !sampled && (_fallT[i] >= 0f || _wasVisible[i] && _lastVelS[i].y < -1.5f);
+                    var falling = !capsuled && phaseFalls && (sampled ? (flags & MotorState.Respawning) != 0 : droppedMidFall);
                     if (!_wasRespawning[i])
                     {
                         _wasRespawning[i] = true;
                         _fallT[i] = -1f;
-                        if (_wasVisible[i] && cs.Phase == RoundPhase.Rush)
+                        if (_wasVisible[i] && (cs.Phase == RoundPhase.Rush || falling))
                         {
                             var gooed = _map != null && _map.goo.Length > 0;
                             GameAudio.Hits.KnockedOut(i == own, gooed); // own only
@@ -318,7 +324,7 @@ namespace FallRush.Client
                             _fallT[i] += dt;
                             _fallVel[i] += Vector3.down * (22f * dt);
                             _fallFeet[i] += _fallVel[i] * dt;
-                            vis.Drive(_fallFeet[i], _fallVel[i], 0, yaw, 30, dt);
+                            vis.Drive(_fallFeet[i], _fallVel[i], 0, sampled ? yaw : _lastYaw[i], 30, dt);
                         }
                     }
 
@@ -359,6 +365,7 @@ namespace FallRush.Client
                 _wasVisible[i] = true;
                 _lastFeet[i] = feet;
                 _lastVelS[i] = vel;
+                _lastYaw[i] = yaw;
                 _feetNow[i] = feet;
                 _visibleNow[i] = true;
                 if (_photo == null)
@@ -468,6 +475,7 @@ namespace FallRush.Client
         private readonly bool[] _wasVisible = new bool[Protocol.MaxPlayers];
         private readonly Vector3[] _lastFeet = new Vector3[Protocol.MaxPlayers];
         private readonly Vector3[] _lastVelS = new Vector3[Protocol.MaxPlayers];
+        private readonly byte[] _lastYaw = new byte[Protocol.MaxPlayers]; // dizzy2: an unsampled faller keeps its facing
 
         // Dizzy hits: the visual fall after leaving the course (−1 = none).
         public const float KnockOffFallSecs = 1.4f;
@@ -530,7 +538,7 @@ namespace FallRush.Client
             if (vis.StumbleStartedThisFrame)
             {
                 Fx.Dust(feet, 0.7f);
-                if (near)
+                if (near && !vis.Dazed) // dizzy2: a knocked Rushling's hard landing is part of the hit, not a warble
                     GameAudio.Play(GameAudio.Sfx.Stumble, feet, vol);
             }
 

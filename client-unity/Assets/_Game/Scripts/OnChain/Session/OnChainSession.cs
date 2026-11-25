@@ -671,11 +671,13 @@ namespace FallRush.OnChain
         private uint _applied;
         private bool _resultLogged;
         // P3-K: adaptive extra input lead (client-side delay tuning): +1 tick when our inputs arrive late (the arena's
-        // applied_tick for that slot is behind a tick we sent), −1 after 10 s without any late input; ≤ MaxExtraLead.
+        // applied_tick for that slot is behind a tick we sent), −1 after LeadHoldSeconds without any late input (floor +1 once late); ≤ MaxExtraLead.
         private readonly HashSet<uint> _sentTicks = new HashSet<uint>();
         private int _lateWindow, _onTimeWindow, _extraLead, _lateStreak;
         private double _leadAt, _lastLateAt = -1;
         public int ExtraLead => _extraLead;
+        /// <summary>dizzy2: seconds without a late input before the extra lead steps down (was 10).</summary>
+        public const double LeadHoldSeconds = 45.0;
         /// <summary>The program accepts stamps ≤ World.tick + 8; a batch ends 2 ticks after its first stamp (T+3+x+2 ≤ +8).</summary>
         /// <summary>The extra lead's cap: the batch's first tick (T + lead + extra) must stay inside the arena's window
         /// with 2 ticks of margin (window 8 → 3, as P3; window 12 → 7).</summary>
@@ -691,7 +693,11 @@ namespace FallRush.OnChain
                 _lastLateAt = now;
                 _extraLead = Math.Min(MaxExtraLead, _extraLead + 1);
             }
-            else if (_extraLead > 0 && _lastLateAt >= 0 && now - _lastLateAt > 10.0)
+            // dizzy2 (2026-11-25, user: "sometimes jump not working"): a late batch is a tick the arena never sees —
+            // the predicted jump is undone by the next World. Backing off after 10 s brought the lates (and the lost
+            // jumps) straight back every 10 s. Hold the lead 45 s, and once lates were seen never go below +1. The
+            // lead costs no input feel (own movement is predicted locally), only a slightly longer replay.
+            else if (_extraLead > (_lastLateAt >= 0 ? 1 : 0) && _lastLateAt >= 0 && now - _lastLateAt > LeadHoldSeconds)
             {
                 _extraLead--;
                 _lastLateAt = now;
