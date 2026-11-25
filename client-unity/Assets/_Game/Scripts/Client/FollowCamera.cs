@@ -98,7 +98,7 @@ namespace FallRush.Client
 
             var deocc = go.AddComponent<CinemachineDeoccluder>();
             deocc.CollideAgainst = gameplayMask;
-            deocc.MinimumDistanceFromTarget = 0.8f;
+            deocc.MinimumDistanceFromTarget = MinCameraDistance; // dizzy2: was 0.8 m (the camera could end up inside a knocked Rushling)
             deocc.AvoidObstacles = new CinemachineDeoccluder.ObstacleAvoidance
             {
                 Enabled = true,
@@ -112,6 +112,7 @@ namespace FallRush.Client
                 DampingWhenOccluded = 0.1f,
             };
 
+            fc._baseDamping = ts.PositionDamping;
             fc._offset = go.AddComponent<CinemachineCameraOffset>();
             fc._offset.ApplyAfter = CinemachineCore.Stage.Aim;
             fc._vcam = vcam;
@@ -128,6 +129,18 @@ namespace FallRush.Client
             if (!GameSettings.ReducedMotion)
                 _kick = 1f;
         }
+
+        /// <summary>
+        /// dizzy2 (2026-11-25, user: "got hit … it vanishes"): a knock throws the own Rushling 2–3 m, often back towards the
+        /// camera, which lagged behind on its position damping and was allowed 0.8 m from the target (chest): it ended up
+        /// inside the body and the Rushling vanished from view. Now the camera keeps ≥ <see cref="MinCameraDistance"/> and
+        /// tracks the target without damping for <see cref="KnockFollowSecs"/> after an own hit.
+        /// </summary>
+        public const float MinCameraDistance = 1.6f, KnockFollowSecs = 0.8f;
+        private float _knockFollow;
+        private Vector3 _baseDamping;
+
+        public void Knocked() => _knockFollow = KnockFollowSecs;
 
         /// <summary>Short camera shake (hazard hit); ignored with reduced motion.</summary>
         public void Shake(float amplitude)
@@ -172,6 +185,18 @@ namespace FallRush.Client
                 {
                     va.Value = Mathf.MoveTowards(va.Value, want, dt * 40f);
                     _orbit.VerticalAxis = va;
+                }
+            }
+
+            if (_orbit != null)
+            {
+                _knockFollow = Mathf.Max(0f, _knockFollow - dt);
+                var want = _knockFollow > 0f ? Vector3.zero : _baseDamping;
+                var tsNow = _orbit.TrackerSettings;
+                if (tsNow.PositionDamping != want)
+                {
+                    tsNow.PositionDamping = want;
+                    _orbit.TrackerSettings = tsNow;
                 }
             }
 
