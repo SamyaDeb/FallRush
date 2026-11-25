@@ -44,6 +44,16 @@ Wallets topped up from user-funded devnet SOL: game authority 1.01 → 4.01, gue
 | 09:39 | **incident**: the new "server abandoned" detector aborted a healthy judge canary match 31 s in (refunds + finalize worked). Cause: the Classic server records ABORT whenever a browser drops its game-server socket, while the player keeps playing on-chain (a real player's match at 09:15–09:23 had the same server ABORT and finished fine on-chain under the old keeper) | detector switched off (env at 09:42, code default off in 34fd51a, redeployed 09:45) |
 | 09:47–09:53 | **production canary** (browser, `/play?judge=1`, arena 2): match `Ep74zGZRpuoeU3FGor9Ud35SP3oiWApqpgRpuYCJN2Uj` | joined for the whole match, all 4 maps, 0.998× real time, settle + receipt + capsule + finalize via Magic Action (1.6 s to Solana), replay byte-exact |
 
+| 10:26–10:34 | 5-player load test with the final keeper (rotation off the loop), dev arena 7: match `23yjQhHv…` | 0.999× real time, 0 restarts, settle + receipt + capsule + finalize, replay byte-exact |
+| 10:36–10:37 | keepers redeployed with the rotation fix (deploy gate) | healthy |
+| 10:37–10:45 | **final production canary** (browser, judge, arena 2): match `DNXpj1VxtL2euef4REfs8Z9pqJ76FTF6EmS5HCGtrMEs` | joined the whole match, 1.000× real time, 0 restarts, finalize via Magic Action, capsule minted, replay byte-exact |
+
+**Live WebGL client**: another session (dizzy2) deployed its own WebGL build at 09:54 UTC, after this run's 09:36 web deploy.
+The live client is therefore the dizzy2 build (2e25593290d8); harden's Unity commits 0f3d3c0 + 46ff8ee (on-chain Deal
+screen, honest session banner, join supervision → spectate) are merged in `main` e07c624 but **not live**: one WebGL build
+from `main` is needed, blocked by disk (1.6–3.8 GB free, a build needs ~5 GB). Everything else of harden is live and works
+with that client (the final canary above ran on it). The stale staged `web.hd` on the VPS was renamed `web.hd-stale-nodizzy`.
+
 ## 5. Found by the load tests
 - **Task rotation blocked the keeper's loop**: rotating the 2 timed tasks awaited `schedule_ticks` with 20 tries × 15 s; when
   the rollup was slow to confirm, the loop stopped for 10+ min (no end-of-match check, no deadline). Longer matches (humans
