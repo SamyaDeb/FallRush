@@ -775,6 +775,7 @@ namespace FallRush.OnChain
 
         private uint _applied;
         private bool _clockNominal;
+        private readonly OnChainReactiveFeed _rxFeed = new OnChainReactiveFeed();
         private bool _resultLogged;
         // P3-K: adaptive extra input lead (client-side delay tuning): +1 tick when our inputs arrive late (the arena's
         // applied_tick for that slot is behind a tick we sent), −1 after LeadHoldSeconds without any late input (floor +1 once late); ≤ MaxExtraLead.
@@ -839,6 +840,9 @@ namespace FallRush.OnChain
 
         private void AfterWorlds(ClientSim cs, double now)
         {
+            // star run: the arena's reactive state (stars taken / dropped, crumble tiles, falling blocks) → the views
+            if (_hasNewest)
+                _rxFeed.Apply(_newest, 0, _newestTick, cs.Hazards?.Reactive);
             cs.FeedRaceState(in _feed.Race);
             if (_feed.HasRound && (!cs.Round.HasValue || !SameRound(cs.Round.Value, _feed.Round)))
                 cs.FeedRound(in _feed.Round);
