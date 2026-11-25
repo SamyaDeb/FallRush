@@ -16,6 +16,7 @@
 //   rc_free(h)
 //   rc_lids(h, out_ptr, cap) -> n                P5 views: every lid of every LID_FLIP grid at the World's tick, 9 B each {x i32, z i32, state u8}
 //   rc_sweepers(h, out_ptr, cap) -> n            P5 views: 20 B each {pivot_x, pivot_z, arm, cos_q15, sin_q15} i32
+//   rc_hazards(h, out_ptr, cap) -> n             live board: moving / reactive hazards + live stars, 24 B each (see the fn)
 //
 // fullchain (a whole match through the director, the chain's `start_sim`; additive, the exports above are unchanged):
 //   rc_chain_map(h, slot, ptr, len) -> i32       registers the map blob of program map slot 0..=3 (deal ids 0 Capsule Run,
@@ -399,6 +400,124 @@ pub unsafe extern "C" fn rc_sweepers(h: i32, out_ptr: *mut u8, cap: u32) -> u32 
                 out[n * 20 + j * 4..n * 20 + j * 4 + 4].copy_from_slice(&v.to_le_bytes());
             }
             n += 1;
+        }
+        n as u32
+    })
+    .unwrap_or(0)
+}
+
+/// Live board (web /live, /replay): every moving / reactive hazard and every live star at the World's current tick,
+/// read-only (the same pose the step uses; nothing in the World changes). 24 B per record:
+/// `{kind u8, idx u8, state u8, 0, x i32, y i32, z i32, a i32, b i32}` (mm). Kinds:
+/// 1 platform (a,b = half x,z) · 2 gate door (a,b = half x,z; state 1 = lifted) · 3 mallet head (a = head radius,
+/// b = swing axis) · 4 rolling ball (a = radius) · 5 falling block (a,b = half x,z; state 1 = gone) · 6 goo plane
+/// (y = surface; a,b = half x,z) · 7 turn table (a = radius, b = phase16) · 8 bumper (a = radius) · 9 spring pad
+/// (a,b = half x,z) · 10 conveyor (a,b = half x,z) · 11 star (a = value; state 1 = golden) · 12 dropped star.
+///
+/// # Safety
+/// `out_ptr` → `cap` writable bytes.
+#[no_mangle]
+pub unsafe extern "C" fn rc_hazards(h: i32, out_ptr: *mut u8, cap: u32) -> u32 {
+    use rush_core::hazards::{self as hzm, defs::HazardType};
+    if out_ptr.is_null() {
+        return 0;
+    }
+    let out = std::slice::from_raw_parts_mut(out_ptr, cap as usize);
+    with(h, |c| {
+        let Ok(map) = MapView::new(&c.map) else { return 0 };
+        let cfg = c.w.motor_config(&c.params);
+        let tick = c.w.tick;
+        let sc = world::pose_scene(&c.w, &map, &cfg, tick);
+        let mut hz = c.w.hazards(&map);
+        hz.ph = Some(&sc.phases);
+        let t60 = c.w.t60(tick);
+        let t30 = hzm::t30(t60);
+        let mut n = 0usize;
+        let mut put = |kind: u8, idx: usize, state: u8, x: i32, y: i32, z: i32, a: i32, b: i32| -> bool {
+            if (n + 1) * 24 > out.len() {
+                return false;
+            }
+            let o = &mut out[n * 24..n * 24 + 24];
+            o[0] = kind;
+            o[1] = idx.min(255) as u8;
+            o[2] = state;
+            o[3] = 0;
+            for (j, v) in [x, y, z, a, b].iter().enumerate() {
+                o[4 + j * 4..8 + j * 4].copy_from_slice(&v.to_le_bytes());
+            }
+            n += 1;
+            true
+        };
+        for i in 0..hz.count(HazardType::MovingPlatform) {
+            let d = hz.platform(i);
+            let p = hzm::platform_center(&d, t60);
+            put(1, i, 0, p.x, p.y, p.z, d.half_x, d.half_z);
+        }
+        for i in 0..hz.count(HazardType::GateDoor) {
+            let d = hz.door(i);
+            let lift = hzm::door_lift(&d, t30);
+            put(2, i, (lift > d.lift / 2) as u8, d.center_x, d.center_y + lift, d.center_z, d.half_x, d.half_z);
+        }
+        for i in 0..hz.count(HazardType::MalletSwing) {
+            let d = hz.mallet(i);
+            let (p, _) = hzm::mallet_head(&d, t60);
+            put(3, i, 0, p.x, p.y, p.z, d.head_radius, d.swing_axis);
+        }
+        for i in 0..hz.count(HazardType::RollingBall) {
+            let d = hz.ball(i);
+            for j in 0..hzm::ball_max_alive(&d).clamp(0, 8) {
+                if let Some((p, _)) = hzm::ball_pos(&d, t60, j) {
+                    put(4, i, 0, p.x, p.y, p.z, d.radius, 0);
+                }
+            }
+        }
+        for i in 0..hz.count(HazardType::FallingBlock) {
+            let d = hz.block(i);
+            let gone = i < sc.block_solid.len() * 64 && (sc.block_solid[i / 64] >> (i % 64)) & 1 == 0;
+            put(5, i, gone as u8, d.center_x, d.center_y, d.center_z, d.half_x, d.half_z);
+        }
+        for i in 0..hz.count(HazardType::GooPlane) {
+            let d = hz.goo(i);
+            put(6, i, 0, d.center_x, hzm::goo_y(&d, t60), d.center_z, d.half_x, d.half_z);
+        }
+        for i in 0..hz.count(HazardType::TurnTable) {
+            let d = hz.turn_table(i);
+            put(7, i, 0, d.center_x, d.center_y, d.center_z, d.radius, hzm::turn_table_phase(&d, t60));
+        }
+        for i in 0..hz.count(HazardType::Bumper) {
+            let d = hz.bumper(i);
+            put(8, i, 0, d.center_x, d.center_y, d.center_z, d.radius, 0);
+        }
+        for i in 0..hz.count(HazardType::SpringPad) {
+            let d = hz.pad(i);
+            put(9, i, 0, d.center_x, d.center_y, d.center_z, d.half_x, d.half_z);
+        }
+        for i in 0..hz.count(HazardType::Conveyor) {
+            let d = hz.conveyor(i);
+            put(10, i, 0, d.center_x, d.center_y, d.center_z, d.half_x, d.half_z);
+        }
+        if hz.count(HazardType::StarPickup) > 0 {
+            let f = hz.star_field(0);
+            let mut live = [0i32; 96];
+            let k = rush_core::rules::timed::live_stars(&c.w, &f, c.w.hazard_seed, t30, &mut live);
+            for &id in live.iter().take(k) {
+                if let Some(s) = hzm::star_slot(&f, c.w.hazard_seed, id) {
+                    let p = hzm::star_anchor(&f, &hz, s.anchor, t60);
+                    put(11, s.anchor as usize, (id >= hzm::STAR_GOLDEN_BASE) as u8, p.x, p.y, p.z, s.value, 0);
+                }
+            }
+            let rate = 60 / c.w.rate.max(1) as i64;
+            let max = c.w.rx.drops.len() as u32;
+            let first = (c.w.rx.drop_count as u32).saturating_sub(max);
+            for d in first..c.w.rx.drop_count as u32 {
+                let e = c.w.rx.drops[(d % max) as usize];
+                let age60 = tick.wrapping_sub(e.tick) as i64 * rate;
+                if e.taken || age60 >= 2 * f.drop_life_ticks as i64 {
+                    continue;
+                }
+                let p = hzm::drop_pos(&f, e.pos, d + 1, hzm::t30(age60));
+                put(12, e.slot as usize, 0, p.x, p.y, p.z, 1, 0);
+            }
         }
         n as u32
     })

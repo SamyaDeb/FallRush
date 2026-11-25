@@ -15,7 +15,7 @@ export function home(root: HTMLElement) {
   <div class="card hue-tang"><div class="ribbon">${icon('check')} RECENT MATCHES <span class="sub">every one has a receipt</span></div><div id="matches" class="scroll" style="min-height:120px"><span class="muted">loading…</span></div></div>
   <div class="card hue-grape"><div class="ribbon">${icon('bolt')} HOW IT RUNS ON MAGICBLOCK</div><div class="grid">
     <div class="tile hue-soda"><h3>Ephemeral Rollup</h3><span class="muted">The Final (Lid Flip) is simulated by the <code>fall_rush</code> program at 30 Hz on <code>devnet-as</code>; a timed task calls <code>tick()</code>.</span><div class="row" style="margin-top:6px"><a href="${explorer('address', PROGRAM)}" target="_blank">program</a><a href="${explorer('address', VALIDATOR)}" target="_blank">validator</a></div></div>
-    <div class="tile hue-lemon"><h3>VRF</h3><span class="muted">MagicBlock VRF seeds the on-chain Final and rolls the capsule rarity.</span></div>
+    <div class="tile hue-lemon"><h3>VRF</h3><span class="muted">MagicBlock VRF seeds the on-chain match and rolls the capsule rarity.</span></div>
     <div class="tile hue-apple"><h3>Session keys</h3><span class="muted">A guest wallet signs once; a session key signs your Final moves, bets and Chaos Drops. No popups.</span></div>
     <div class="tile hue-bubble"><h3>Private ER + Magic Actions</h3><span class="muted">Sealed Champion bets live in a TEE-backed Private Ephemeral Rollup; the Crown and capsules are minted by a Magic Action as the Match returns to Solana.</span><div class="row" style="margin-top:6px"><a href="${explorer('address', RUSH_MINT)}" target="_blank">RUSH mint</a></div></div>
   </div><p class="muted" style="margin-bottom:0">All 4 rounds are program-computed ◆ (if the rollup is unavailable, the Classic game server plays the match and records it on-chain ●). Devnet test chips only (no real-money value).</p></div>`;
@@ -28,7 +28,7 @@ export function home(root: HTMLElement) {
       el.innerHTML = (s.servers ?? []).map((x: any, i: number) => `<div class="tile ${i % 2 ? 'hue-grape' : 'hue-soda'} ${first ? 'enter' : ''}" style="--i:${i}">
         <h3>${x.id.toUpperCase()} <span class="chip ${x.up ? (x.inMatch ? 'pink' : 'mint') : ''}">${x.up ? (x.inMatch ? 'in a match' : 'lobby open') : 'offline'}</span></h3>
         <div>${x.up ? `${x.humans} human${x.humans === 1 ? '' : 's'} · ${x.inMatch ? 'round ' + x.round + '/4' : 'bots fill the empty slots'}` : '—'}</div>
-        <div class="muted">arena ${x.arena ?? '?'} · keeper ${x.keeper?.stage ?? '?'}${x.keeper?.stage === 'final' && x.keeper?.worldTick != null ? ' · Final tick ' + x.keeper.worldTick : ''}</div>
+        <div class="muted">arena ${x.arena ?? '?'} · keeper ${x.keeper?.stage ?? '?'}${(x.keeper?.stage === 'final' || x.keeper?.stage === 'onchain_match') && x.keeper?.worldTick != null ? ' · on-chain tick ' + x.keeper.worldTick : ''}</div>
         <div class="row" style="margin-top:8px"><a class="btn small" href="/play" data-link>Play</a><a class="btn small mint" href="/live/${x.arena}" data-link>Watch</a></div></div>`).join('') || '<span class="muted">no arena online</span>';
       const ss = await api('/season').catch(() => null);
       const sv = ss?.onChain;

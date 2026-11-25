@@ -1,6 +1,6 @@
 commit e6f2b9fc9a5acf915482ac07b7c7597b5a1ba9e7 (fullchain worktree crates/, World v2 = WORLD_VERSION_CHAIN decode)
-built_utc 2026-11-25T00:02:18Z
+built_utc 2026-11-25T00:02:18Z  (wasm rebuilt 2026-11-26 for the live board: + rc_hazards, read-only; sim bytes unchanged, replay-check 19339/19339)
 rc_version 0x10002
-wasm_sha256 5f69a7d9aa6dfc62ad789d32bcfd604ee68f30a12fa91f0739d9282e487490a5
-wasm_bytes 324835
+wasm_sha256 958388d549682c4c053bfdf14bc699114b9c625dabd549f7c2c5b3ee8d2b0c5c
+wasm_bytes 330420
 bundle_sha256 cd73b62f9f771cd142ba337511388f3b8d21eab6fd9644e1fd05dae96bee2b6b
