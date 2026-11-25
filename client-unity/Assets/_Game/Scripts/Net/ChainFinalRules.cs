@@ -32,6 +32,17 @@ namespace FallRush.Net
             _h = handoff;
         }
 
+        /// <summary>
+        /// fullchain: the whole match runs on the arena (<see cref="ChainFinalHandoff.All"/>). The server holds its round 1
+        /// with these rules until the arena's director has a champion (<see cref="ChainFinalHandoff.ResultOrder"/>: the
+        /// champion first, the others by elimination round); the director then ends the match after this one round
+        /// (one qualifier = the champion). <see cref="TimedOut"/> = the arena's match failed (ABORTED / gone / stalled),
+        /// not the round timer (a full match runs many minutes past it).
+        /// </summary>
+        public ChainFinalRules(IRoundRules inner, ChainFinalHandoff handoff, bool all) : this(inner, handoff) => All = all;
+
+        public readonly bool All;
+
         public string Mode => _inner.Mode;
         public RoundPhase Phase => _h.ResultOrder != null ? RoundPhase.Ended : _inner.Phase == RoundPhase.Ended ? RoundPhase.Rush : _inner.Phase;
         public bool IsOver => _h.ResultOrder != null;
@@ -79,7 +90,14 @@ namespace FallRush.Net
         public void EndTick(SimCore sim, uint tick)
         {
             _h.Poll();
-            if (_inner.Phase != RoundPhase.Ended)
+            if (All)
+            {
+                if (_inner.Phase != RoundPhase.Ended)
+                    _inner.EndTick(sim, tick);
+                if (_h.ChainFailed)
+                    TimedOut = true;
+            }
+            else if (_inner.Phase != RoundPhase.Ended)
                 _inner.EndTick(sim, tick); // phases + timer; nobody moves, so nobody falls
             else if (_h.ResultOrder == null)
             {

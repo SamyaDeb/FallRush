@@ -31,6 +31,11 @@ namespace FallRush.OnChain
         /// <summary>Hybrid pre-join: the Classic match id (hex) whose arena lobby to join.</summary>
         public string MatchHex;
         public bool Spectate;
+        /// <summary>fullchain: the arena plays the whole match (rounds 1–4, <c>fonc</c> <c>"all":true</c>): the map follows
+        /// the World's <c>map_key</c> (scene + prediction blob per round), the feed reads the World's director, and the
+        /// screens go back to the game server only when its match returns to the lobby.</summary>
+        public bool FullMatch;
+        private byte _mapId = 255;
 
         private IRushCore _core;
         private IChainTransport _tx;
@@ -145,8 +150,9 @@ namespace FallRush.OnChain
             _adapter.Emulator = Cfg.target == "emu";
             _extraLead = Cfg.target == "emu" ? 0 : 2; // rollup: P0.5 saw inputs applied at T+2 (p50) / T+6 (p95)
             _tx.Connect(Cfg);
-            _tx.Join(NetBootstrap.ClientName(), WantSlot, Spectate, MatchHex);
+            _tx.Join(NetBootstrap.ClientName(), WantSlot, Spectate, MatchHex, FullMatch);
             _feed.Base = BaseMatch;
+            _feed.Full = FullMatch;
             _panel = NetTargets.GetQueryParam(Application.absoluteURL, "hud") == "1" || Array.Exists(Environment.GetCommandLineArgs(), a => a == "-fallrushHud");
             var auto = OnChainAutoPlay.Arg();
             if (auto > 0)
@@ -233,6 +239,7 @@ namespace FallRush.OnChain
             if (kb != null && kb.f3Key.wasPressedThisFrame)
                 _panel = !_panel;
             _tx.Pump(now);
+            _feed.Full = FullMatch; // fullchain: may be set by the server's confirmation after Start
             _clock.RttMs = _tx.RttMs;
             if (_tx.Error != null)
                 _status = _tx.Error;
@@ -268,6 +275,12 @@ namespace FallRush.OnChain
                 if (sm0 != null && (sm0.Phase >= MatchPhase.Champion || sm0.Phase == MatchPhase.LobbyOpen) && _resultLogged == false && _joinedAt >= 0 && now - _joinedAt > 20)
                 {
                     Debug.Log("[onchain] the server ran the Final itself (no final_onchain): leaving the arena");
+                    End();
+                }
+                else if (FullMatch && sm0 != null && sm0.Phase == MatchPhase.RoundActive)
+                {
+                    // fullchain fallback: the server plays this match itself (Classic round running, no final_onchain)
+                    Debug.Log("[onchain] the server plays the match itself (no final_onchain): leaving the arena");
                     End();
                 }
 
@@ -337,6 +350,32 @@ namespace FallRush.OnChain
             if (_startedAt < 0)
                 _startedAt = now;
             var sm = cs != null ? cs.ServerMatch : null;
+            if (FullMatch && ServerConfirmed)
+            {
+                // fullchain: the arena's screens (rounds 1–4, champion, receipt) until the server's match is back in the
+                // lobby (its one held round ends with the arena's champion); its round-1 placements are not shown
+                if (sm != null && sm.Phase == MatchPhase.LobbyOpen && _joinedAt >= 0)
+                {
+                    Debug.Log("[onchain] whole match over: the server is back in the lobby; leaving the arena");
+                    End();
+                    return;
+                }
+
+                if (sm != null && sm.Phase == MatchPhase.Aborted && !_resultLogged)
+                {
+                    End();
+                    return;
+                }
+
+                if (!_hasNewest && _joinedAt >= 0 && now - _joinedAt > SwitchTimeoutSeconds)
+                {
+                    Debug.LogWarning($"[onchain] whole match: no World from {Cfg.url} in {SwitchTimeoutSeconds} s; back to the game server");
+                    End();
+                }
+
+                return;
+            }
+
             if (sm != null && sm.Phase >= MatchPhase.Champion && sm.Phase != MatchPhase.Aborted)
             {
                 if (!_handedBack)
@@ -441,6 +480,22 @@ namespace FallRush.OnChain
             if (_sceneRequested)
                 return;
             _sceneRequested = true;
+            if (FullMatch)
+            {
+                // fullchain: the World says which map (lobby, then each round's); FollowWorldMap loads it
+                if (!WorldAccLayout.CoreMatches(j.coreVersion, _core.Version))
+                {
+                    CoreMismatch = true;
+                    _status = $"arena core v{j.coreVersion & 0xFFFF} != client core v{_core.Version & 0xFFFF}: update the client";
+                    Debug.LogError($"[onchain] {_status}");
+                    return;
+                }
+
+                _status = $"joined {j.arena} slot {(j.slot < 12 ? j.slot.ToString() : "spectator")} (whole match)";
+                Debug.Log($"[onchain] {_status}");
+                return;
+            }
+
             _mapKey = string.IsNullOrEmpty(j.map) ? "CrumbleShelf" : j.map;
             var asset = Resources.Load<TextAsset>("feellab/" + _mapKey);
             if (asset == null)
@@ -464,6 +519,38 @@ namespace FallRush.OnChain
             if (SceneManager.GetActiveScene().name != scene)
                 SceneManager.LoadScene(scene);
         }
+
+        /// <summary>
+        /// fullchain: at each map change of the World (lobby → round 1 … round 4): that map's blob for the prediction (a
+        /// new core world on the next World) and its scene.
+        /// </summary>
+        private void FollowWorldMap(byte mapId)
+        {
+            if (mapId == _mapId)
+                return;
+            var key = MapPoolV1.KeyOf(mapId);
+            var asset = Resources.Load<TextAsset>("feellab/" + key);
+            if (asset == null)
+            {
+                _status = $"no map blob for {key}";
+                Debug.LogWarning($"[onchain] {_status} (map id {mapId})");
+                return;
+            }
+
+            _mapId = mapId;
+            _mapKey = key;
+            _map = asset.bytes;
+            _pred?.Dispose(); // re-init on this map at the next World (AfterWorlds)
+            _pred = null;
+            _pending = 0;
+            var scene = NetBootstrap.SceneForMap(mapId);
+            Debug.Log($"[onchain] whole match: map {key} (id {mapId}) → {scene}");
+            if (SceneManager.GetActiveScene().name != scene)
+                SceneManager.LoadScene(scene);
+        }
+
+        /// <summary>fullchain: the scene name for a World map id (tests).</summary>
+        public static string SceneForWorldMap(byte mapId) => NetBootstrap.SceneForMap(mapId);
 
         private int _dropsSeen;
         /// <summary>P4: a Chaos Drop appeared in the World (kind, trigger tick).</summary>
@@ -521,6 +608,8 @@ namespace FallRush.OnChain
             }
             if (_hasNewest && view.Tick <= _newestTick)
                 return; // old / duplicate (a poll reply)
+            if (FullMatch && !CoreMismatch)
+                FollowWorldMap(view.MapKey);
             _feed.OnWorld(in view, m.RecvAt);
             // P4: the drop queue for the hazard views (Lid Frenzy lids, Sweeper Rush) and the economy HUD
             var vv = view;
@@ -613,6 +702,7 @@ namespace FallRush.OnChain
             Debug.Log("[onchain] new arena: resetting the feed and the prediction");
             _feed.Reset();
             _resultLogged = false;
+            _mapId = 255;
             _pred?.Dispose();
             _pred = null;
             _pending = 0;
@@ -650,6 +740,17 @@ namespace FallRush.OnChain
             var view = new WorldView(_newest, 0, _newestLen);
             if (_ownSlot >= 12 || !view.Active(_ownSlot) || _map == null)
                 return;
+            if (FullMatch)
+            {
+                var d = view.Director;
+                if (d.Valid && d.Running && d.Round >= 1 && d.InRoster(_ownSlot) && !d.Alive(_ownSlot))
+                {
+                    // fullchain: eliminated in an earlier round (still active in the World): spectate, no prediction
+                    _pred?.Dispose();
+                    _pred = null;
+                    return;
+                }
+            }
             if (_pred == null)
             {
                 var bots = 0u;

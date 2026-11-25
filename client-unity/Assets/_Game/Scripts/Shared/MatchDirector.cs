@@ -113,6 +113,12 @@ namespace FallRush.Shared
         /// <summary>The bot mix the roster lock uses.</summary>
         public int BotMix => PrivateRoom ? Math.Max(0, Math.Min(2, RoomBotMix)) : LobbyTier;
         /// <summary>Dev: play only these maps (one round each; the last round crowns 1). Null = the deal's four rounds.</summary>
+        /// <summary>fullchain (null = off): while it returns true the director stays in DEALT (the server is deciding
+        /// whether the arena plays this whole match).</summary>
+        public Func<bool> HoldDealt;
+        /// <summary>fullchain (null = off): true = this match runs on the arena; a judge match does not fast-forward
+        /// rounds 1–3 (the server only holds round 1 until the arena's champion is known).</summary>
+        public Func<bool> ChainAll;
         public byte[] PlanOverride;
         public int VariantOverride = -1, ModifierOverride = -1;
         /// <summary>The next match's 32-byte seed (M4: <c>-fallrushSeed</c> or random; M6: the VRF output).</summary>
@@ -409,7 +415,7 @@ namespace FallRush.Shared
                     break;
 
                 case MatchPhase.Dealt:
-                    if (tick >= PhaseEndTick)
+                    if (tick >= PhaseEndTick && (HoldDealt == null || !HoldDealt()))
                         EnterRoundIntro(1, tick);
                     break;
 
@@ -668,7 +674,7 @@ namespace FallRush.Shared
 
         private void EnterRoundIntro(int r, uint tick)
         {
-            if (JudgeMatch && r < RoundCount)
+            if (JudgeMatch && r < RoundCount && (ChainAll == null || !ChainAll()))
             {
                 FastForwardRound(r, tick);
                 return;

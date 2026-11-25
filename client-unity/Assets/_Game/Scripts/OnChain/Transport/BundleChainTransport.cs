@@ -82,10 +82,10 @@ namespace FallRush.OnChain
             fr_boot(sa + "/fallrush-chain.js", sa + "/chain/" + cfg.bundleConfig, url);
         }
 
-        public void Join(string name, int slot, bool spectate, string match = null)
+        public void Join(string name, int slot, bool spectate, string match = null, bool full = false)
         {
             var n = (name ?? "Rushling").Replace("\"", "").Replace("\\", "");
-            _pendingJoin = $"{{\"name\":\"{n}\",\"spectate\":{(spectate ? "true" : "false")}{(slot >= 0 ? ",\"slot\":" + slot : "")}{(string.IsNullOrEmpty(match) ? "" : ",\"match\":\"" + match + "\"")}}}";
+            _pendingJoin = $"{{\"name\":\"{n}\",\"spectate\":{(spectate ? "true" : "false")}{(slot >= 0 ? ",\"slot\":" + slot : "")}{(string.IsNullOrEmpty(match) ? "" : ",\"match\":\"" + match + "\"")}{(full ? ",\"full\":true" : "")}}}";
             _joinSent = false;
         }
 

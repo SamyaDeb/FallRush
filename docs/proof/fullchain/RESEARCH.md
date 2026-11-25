@@ -85,3 +85,13 @@ devnet after the upgrade.
 One sender lands ~108 tx/s with no errors. With today's 1000-unit slices Capsule Run needs ~7 per tick (too many);
 with a slice budget sized for 1.4M CU (~1.2–1.5 per tick, LiteSVM s10000) 30 Hz needs ~40–45 tx/s, under the ceiling.
 UNVERIFIED until the upgrade: that the rollup sustains that rate when each tx uses ~1M CU.
+
+## 10. GATE 1 — PASSED (2026-11-25, program 411b61fa, World v2, 2 tasks + crank, arena 7, current Goo blob)
+| match | R1 Capsule Run | R2 Goo Tower | R3 Star Fountain | R4 Final | whole | restarts |
+|---|---|---|---|---|---|---|
+| 7w8Am8A4…VRfj | 1.00× | 1.00× | 0.99× | 1.00× | 1.0003× | 0 |
+| 86pL554E…w4zD | 1.00× | 1.00× | 1.00× | 1.00× | 1.0001× | 0 |
+| 2cDu1tuj…1cJD | 1.00× (3 stalls) | 1.00× | 1.00× | 1.00× | 0.9997× | 3 |
+Crank: ~19–23k sends per match, 0–12 send errors; budget mostly 6000. Motor-cap freezes 5–10 per match.
+Replay of match 1 (`replay-check.mjs …/world.bin --sealed`): replay = on-chain ✓.
+Hybrid regression on the upgraded program: 1.000×, 0 restarts, 5 markets settled (fc-hybrid-regress).

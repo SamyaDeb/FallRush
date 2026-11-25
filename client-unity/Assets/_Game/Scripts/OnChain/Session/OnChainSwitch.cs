@@ -11,7 +11,14 @@ namespace FallRush.OnChain
     /// </summary>
     public static class OnChainSwitch
     {
-        [Serializable] private sealed class Fonc { public string t, net, arena, match, url; public RosterEntry[] slot_map; }
+        [Serializable] private sealed class Fonc { public string t, net, arena, match, url; public bool all; public RosterEntry[] slot_map; }
+
+        /// <summary>fullchain: does this <c>fonc</c> hand over the whole match (<c>"all":true</c>)?</summary>
+        public static bool IsWholeMatch(string json)
+        {
+            try { return JsonUtility.FromJson<Fonc>(json)?.all == true; }
+            catch { return false; }
+        }
 
         private static ClientSim _hooked;
 
@@ -74,16 +81,20 @@ namespace FallRush.OnChain
                 Debug.Log($"[onchain] pre-join: {cfg.target} arena {f.arena} match {f.match}, slot {slot}");
                 var s = OnChainSession.StartFinal(cfg, cs.ServerMatch, slot);
                 s.MatchHex = f.match;
+                s.FullMatch = f.all; // fullchain: join for rounds 1–4
                 return;
             }
 
             if (OnChainSession.Instance != null)
             {
                 OnChainSession.Instance.ServerConfirmed = true; // pre-joined: the server confirms the on-chain Final
+                if (f.all)
+                    OnChainSession.Instance.FullMatch = true;
                 return;
             }
-            Debug.Log($"[onchain] switch: Final on {f.arena} ({cfg.url}), {(slot >= 0 ? "playing slot " + slot : "spectating")}");
-            OnChainSession.StartFinal(cfg, cs.ServerMatch, slot);
+            Debug.Log($"[onchain] switch: {(f.all ? "whole match" : "Final")} on {f.arena} ({cfg.url}), {(slot >= 0 ? "playing slot " + slot : "spectating")}");
+            var st = OnChainSession.StartFinal(cfg, cs.ServerMatch, slot);
+            st.FullMatch = f.all;
         }
     }
 }

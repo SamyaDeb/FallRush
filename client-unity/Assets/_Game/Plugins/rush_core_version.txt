@@ -1,6 +1,6 @@
-commit 8cf4be294344cb2b5d00fb4bbdaf819562f2a923 (p4 worktree; working tree may be ahead)
-built_utc 2026-11-23T13:38:24Z
+commit e6f2b9fc9a5acf915482ac07b7c7597b5a1ba9e7 (fullchain worktree crates/, World v2 = WORLD_VERSION_CHAIN decode)
+built_utc 2026-11-25T00:02:18Z
 rc_version 0x10002
-wasm_sha256 cdd139b44bedc5cd19e3ab3372e8ba30d1cb4d60d3f1d4707f6078b08a837519
-wasm_bytes 320510
-bundle_sha256 6a4bf4a5f3d65bb06f74e753c37a80913d7cda0231613a0db8aa55067995c510
+wasm_sha256 5f69a7d9aa6dfc62ad789d32bcfd604ee68f30a12fa91f0739d9282e487490a5
+wasm_bytes 324835
+bundle_sha256 cd73b62f9f771cd142ba337511388f3b8d21eab6fd9644e1fd05dae96bee2b6b

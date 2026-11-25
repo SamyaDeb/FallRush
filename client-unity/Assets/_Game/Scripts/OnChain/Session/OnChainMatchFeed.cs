@@ -10,6 +10,10 @@ namespace FallRush.OnChain
     /// snapshots (<see cref="PlayerState"/>), <see cref="RoundParams"/>, <see cref="RaceStateMessage"/>, round events
     /// (from World diffs: phase, OUT, the result) and a <see cref="MatchStateMessage"/> for the Final (round 4 of 4:
     /// intro → active → result 6 s → champion 8 s → receipt). Pure (no Unity objects); tested in EditMode.
+    /// <para>fullchain (<see cref="Full"/>): a whole match on the arena (<c>start_sim</c>, World v2). The match state comes
+    /// from the World's director (<see cref="FallRush.Shared.ChainDirector"/>): phase, round 1–4, deal, targets, roster,
+    /// alive / eliminated per round, champion; per-round qualify / eliminate events; finished racers. Off = the Final
+    /// path below, unchanged.</para>
     /// </summary>
     public sealed class OnChainMatchFeed
     {
@@ -30,6 +34,11 @@ namespace FallRush.OnChain
         public MatchStateMessage Base;
         public int OwnSlot = 255;
         public byte MatchSerial = 200;
+        /// <summary>fullchain: the World runs the whole match (rounds 1–4 from its director).</summary>
+        public bool Full;
+        /// <summary>fullchain: places per slot per round (1-based; 0 = not ranked), from each round's result.</summary>
+        private readonly byte[][] _places = new byte[12][];
+        private uint _doneMask, _qualMask;
 
         private byte _lastPhase = 255;
         private uint _outMask;
@@ -44,6 +53,9 @@ namespace FallRush.OnChain
             _outMask = 0;
             _resultSent = false;
             _endedAt = double.NaN;
+            _doneMask = _qualMask = 0;
+            for (var s = 0; s < 12; s++)
+                _places[s] = null;
             HasRound = false;
             NewEvents.Clear();
             MatchSerial++;
@@ -61,9 +73,13 @@ namespace FallRush.OnChain
             {
                 _roundKey = key;
                 _outMask = 0;
+                _doneMask = _qualMask = 0;
                 _resultSent = false;
                 _endedAt = double.NaN;
             }
+
+            var dir = Full ? w.Director : default;
+            var dirOn = Full && dir.Valid && dir.Running && dir.Round >= 1;
 
             // ---- players (out players leave the snapshot: they spectate, as in a Classic Final)
             PlayerCount = 0;
@@ -76,8 +92,12 @@ namespace FallRush.OnChain
                 var outNow = !free && w.Out(s);
                 if (!inRound || outNow)
                     continue;
+                if (free && dirOn && dir.InRoster(s) && !dir.Alive(s))
+                    continue; // fullchain: eliminated in an earlier round (still active in the World): spectates
                 byte race = 0;
-                if (phase == WorldView.PhaseEnded && w.HasResult)
+                if (Full)
+                    race = RaceByte(in w, s);
+                else if (phase == WorldView.PhaseEnded && w.HasResult)
                     race = w.Champion == s ? PlayerState.RaceQualified : PlayerState.RaceEliminated;
                 Players[PlayerCount++] = new PlayerState
                 {
@@ -100,7 +120,7 @@ namespace FallRush.OnChain
                     MapId = w.MapKey,
                     Variant = w.Variant,
                     Modifier = w.Modifier,
-                    RoundIndex = 4,
+                    RoundIndex = Full ? w.RoundIndex : (byte)4,
                     HazardSeed = w.HazardSeed,
                     RoundStartTick = w.RoundStart,
                     QualifyCount = w.QualifyCount,
@@ -123,7 +143,55 @@ namespace FallRush.OnChain
                 Emit(RaceEventType.Out, w.OutTick(s), (byte)s, w.OutReason(s));
             }
 
-            if (phase == WorldView.PhaseEnded && w.HasResult && !_resultSent)
+            if (Full && !free)
+            {
+                // fullchain: finished racers (Capsule Run / Star Fountain DONE) and early qualifiers, as Classic emits them
+                for (var s = 0; s < 12; s++)
+                {
+                    if (!w.Active(s) || !w.InRound(s))
+                        continue;
+                    if (w.Done(s) && (_doneMask >> s & 1) == 0)
+                    {
+                        _doneMask |= 1u << s;
+                        Emit(RaceEventType.Finished, w.Tick, (byte)s, w.Place(s));
+                    }
+
+                    if (w.SlotQualifiedFlag(s) && (_qualMask >> s & 1) == 0 && !(phase == WorldView.PhaseEnded && w.HasResult))
+                    {
+                        _qualMask |= 1u << s;
+                        Emit(RaceEventType.Qualified, w.Tick, (byte)s, Popcount(_qualMask));
+                    }
+                }
+            }
+
+            if (Full && phase == WorldView.PhaseEnded && w.HasResult && !_resultSent)
+            {
+                _resultSent = true;
+                _endedAt = now;
+                var q = 0;
+                for (var k = 0; k < w.ResultCount && k < 12; k++)
+                {
+                    var s = w.ResultOrder(k);
+                    if (s >= 12)
+                        continue;
+                    if (w.RoundIndex >= 1 && w.RoundIndex <= 4)
+                        (_places[s] ??= new byte[4])[w.RoundIndex - 1] = (byte)(k + 1);
+                    if (w.ResultQualifiedAt(k))
+                    {
+                        q++;
+                        if ((_qualMask >> s & 1) == 0)
+                        {
+                            _qualMask |= 1u << s;
+                            Emit(RaceEventType.Qualified, w.Tick, s, Popcount(_qualMask));
+                        }
+                    }
+                    else
+                        Emit(RaceEventType.Eliminated, w.Tick, s, k + 1);
+                }
+
+                Emit(RaceEventType.RoundEnd, w.Tick, 255, q);
+            }
+            else if (phase == WorldView.PhaseEnded && w.HasResult && !_resultSent)
             {
                 _resultSent = true;
                 _endedAt = now;
@@ -160,6 +228,30 @@ namespace FallRush.OnChain
             Match = BuildMatch(in w, now);
         }
 
+        /// <summary>fullchain: the Classic race byte (checkpoint + finished / qualified / eliminated) from the World's
+        /// slot rules; at the round's result, its qualify bit by rank.</summary>
+        public static byte RaceByte(in WorldView w, int s)
+        {
+            var b = (byte)(Math.Min(15, (int)w.Checkpoint(s)) & PlayerState.RaceCheckpointMask);
+            if (w.Done(s))
+                b |= PlayerState.RaceFinished;
+            var q = w.SlotQualifiedFlag(s);
+            var e = w.SlotEliminatedFlag(s);
+            if (w.Phase == WorldView.PhaseEnded && w.HasResult)
+                for (var k = 0; k < w.ResultCount && k < 12; k++)
+                    if (w.ResultOrder(k) == s)
+                    {
+                        q = w.ResultQualifiedAt(k);
+                        e = !q;
+                    }
+
+            if (q)
+                b |= PlayerState.RaceQualified;
+            if (e)
+                b |= PlayerState.RaceEliminated;
+            return b;
+        }
+
         private void Emit(RaceEventType t, uint tick, byte slot, int arg) =>
             NewEvents.Add(new RaceEvent { Seq = ++_seq, Type = t, Tick = tick, Slot = slot, Arg = arg });
 
@@ -174,6 +266,13 @@ namespace FallRush.OnChain
         /// <summary>The match phase now: the World's round phase, then the result / champion / receipt timeline.</summary>
         public MatchPhase PhaseAt(in WorldView w, double now)
         {
+            if (Full)
+            {
+                var d = w.Director;
+                if (d.Valid && d.Phase <= ChainDirector.Aborted)
+                    return (MatchPhase)d.Phase; // rush-core director::phase = MatchPhase, 0…12
+            }
+
             switch (w.Phase)
             {
                 case WorldView.PhaseRush:
@@ -188,6 +287,8 @@ namespace FallRush.OnChain
 
         private MatchStateMessage BuildMatch(in WorldView w, double now)
         {
+            if (Full && w.Director.Valid)
+                return BuildFullMatch(in w, now);
             var b = Base;
             var m = new MatchStateMessage
             {
@@ -281,6 +382,85 @@ namespace FallRush.OnChain
 
             m.Slots = slots.ToArray();
             m.PlayerCount = (byte)slots.Count;
+            return m;
+        }
+
+        /// <summary>fullchain: the match screen of a whole on-chain match, from the World's director.</summary>
+        private MatchStateMessage BuildFullMatch(in WorldView w, double now)
+        {
+            var b = Base;
+            var d = w.Director;
+            var m = new MatchStateMessage
+            {
+                Phase = PhaseAt(in w, now),
+                PhaseStartTick = d.PhaseStart,
+                PhaseEndTick = d.PhaseEnd,
+                ServerTick = w.Tick,
+                Round = d.Round,
+                RoundCount = d.RoundCount > 0 ? d.RoundCount : (byte)4,
+                LoadSerial = (byte)(b?.LoadSerial ?? 0),
+                Flags = 0,
+                HostSlot = b != null ? b.HostSlot : (byte)255,
+                OwnSlot = (byte)OwnSlot,
+                Champion = d.HasChampion ? d.ChampionSlot : (byte)255,
+                MatchSerial = b?.MatchSerial ?? MatchSerial,
+                PlayerCount = d.PlayerCount,
+                EventCount = d.EventCount,
+            };
+            if (b != null)
+                Buffer.BlockCopy(b.MatchId, 0, m.MatchId, 0, 16); // the keeper creates the Match with the server's id
+            d.Seed(m.Seed); // the arena's VRF seed (≠ the Classic seed)
+            d.Transcript(m.Transcript);
+            if (b == null)
+                Buffer.BlockCopy(m.Seed, 0, m.MatchId, 0, 16);
+            for (var r = 0; r < 4; r++)
+            {
+                m.Maps[r] = d.Map(r);
+                m.Variants[r] = d.Variant(r);
+                m.Modifiers[r] = d.Modifier(r);
+                m.Targets[r] = d.Target(r);
+            }
+
+            var slots = new List<MatchSlotInfo>(12);
+            for (var s = 0; s < 12; s++)
+            {
+                if (!d.InRoster(s) && !w.Active(s))
+                    continue;
+                MatchSlotInfo bs = default;
+                var inBase = false;
+                if (b != null)
+                    foreach (var x in b.Slots)
+                        if (x.Slot == s)
+                        {
+                            bs = x;
+                            inBase = true;
+                        }
+
+                var bot = d.InRoster(s) ? d.Bot(s) : w.IsBot(s);
+                var info = new MatchSlotInfo
+                {
+                    Slot = (byte)s,
+                    Name = inBase ? bs.Name : Names[s] ?? (bot ? $"Bot {s}" : $"Player {s}"),
+                    Places = _places[s] != null ? (byte[])_places[s].Clone() : new byte[4],
+                    Preset = inBase ? bs.Preset : (byte)s,
+                    Tier = inBase ? bs.Tier : default,
+                    Reason = (ElimReason)d.ElimReason(s),
+                    EliminatedRound = (byte)d.ElimRound(s),
+                };
+                byte f = MatchSlotInfo.Active | MatchSlotInfo.Connected;
+                if (d.InRoster(s))
+                    f |= MatchSlotInfo.Rostered;
+                if (bot)
+                    f |= MatchSlotInfo.Bot;
+                if (d.InRoster(s) ? d.Alive(s) : w.Active(s))
+                    f |= MatchSlotInfo.Alive;
+                info.Flags = f;
+                slots.Add(info);
+            }
+
+            m.Slots = slots.ToArray();
+            if (m.PlayerCount == 0)
+                m.PlayerCount = (byte)slots.Count;
             return m;
         }
     }

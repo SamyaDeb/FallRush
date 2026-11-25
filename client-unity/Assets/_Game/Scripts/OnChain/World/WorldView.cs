@@ -21,7 +21,7 @@ namespace FallRush.OnChain
         // rush-core rules::phase / mapblob::mode / SlotRules flags
         public const byte PhaseWaiting = 0, PhaseIntro = 1, PhaseCountdown = 2, PhaseRush = 3, PhaseEnded = 4, PhaseSandbox = 5;
         public const byte ModeFinal = 4;
-        public const byte SlotIn = 1, SlotOut = 2, SlotDone = 4;
+        public const byte SlotIn = 1, SlotOut = 2, SlotDone = 4, SlotQualified = 8, SlotEliminated = 16;
         public const byte PlayerActive = 1, PlayerBot = 2;
 
         private readonly byte[] _b;
@@ -35,7 +35,15 @@ namespace FallRush.OnChain
             Length = length;
         }
 
-        public bool Valid => _b != null && Length == Size && _o + Length <= _b.Length && _b[_o] == 1;
+        /// <summary>World version 1 (the Final, Classic replays) or 2 (fullchain: a whole match through <c>start_sim</c>;
+        /// same layout, rush_core::world::WORLD_VERSION_CHAIN).</summary>
+        public bool Valid => _b != null && Length == Size && _o + Length <= _b.Length && (_b[_o] == 1 || _b[_o] == 2);
+
+        /// <summary>The World's version byte (1 or 2).</summary>
+        public byte Version => U8(0);
+
+        /// <summary>fullchain: the on-chain director (match phase, round, roster, champion) inside this World.</summary>
+        public FallRush.Shared.ChainDirector Director => new FallRush.Shared.ChainDirector(_b, _o);
 
         private byte U8(int o) => _b[_o + o];
         private ushort U16(int o) => (ushort)(_b[_o + o] | _b[_o + o + 1] << 8);
@@ -74,6 +82,10 @@ namespace FallRush.OnChain
         public byte OutReason(int s) => U8(P(s) + SlotRulesInPlayer + 15);
         public bool InRound(int s) => (RulesFlags(s) & SlotIn) != 0;
         public bool Out(int s) => (RulesFlags(s) & SlotOut) != 0;
+        public bool Done(int s) => (RulesFlags(s) & SlotDone) != 0;
+        public bool SlotQualifiedFlag(int s) => (RulesFlags(s) & SlotQualified) != 0;
+        public bool SlotEliminatedFlag(int s) => (RulesFlags(s) & SlotEliminated) != 0;
+        public byte Checkpoint(int s) => U8(P(s) + SlotRulesInPlayer + 1);
 
         /// <summary>The 36-B <c>rc_player</c> record of <paramref name="slot"/> (motor 33 B + flags, respawn, last step).</summary>
         public void PlayerRecord(int slot, byte[] dst, int dstOffset) => Buffer.BlockCopy(_b, _o + P(slot), dst, dstOffset, 36);
@@ -105,6 +117,9 @@ namespace FallRush.OnChain
 
         /// <summary>The Final's champion (first of the result order), or 255 before the result.</summary>
         public byte Champion => HasResult && ResultCount > 0 ? ResultOrder(0) : (byte)255;
+
+        /// <summary>Is the player at result rank <paramref name="k"/> qualified (<c>RoundResult::qualified_at</c>)?</summary>
+        public bool ResultQualifiedAt(int k) => (ResultQualified >> k & 1) != 0;
 
         public uint ActiveMask
         {

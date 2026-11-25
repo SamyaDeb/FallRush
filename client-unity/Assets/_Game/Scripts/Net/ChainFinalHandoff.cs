@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Net.Http;
 using System.Text;
@@ -33,6 +34,38 @@ namespace FallRush.Net
 
         public static bool Enabled =>
             Array.IndexOf(Environment.GetCommandLineArgs(), "-fallrushOnchainFinal") >= 0 || Environment.GetEnvironmentVariable("GAMESERVER_ONCHAIN_FINAL") == "1";
+
+        /// <summary>
+        /// fullchain (docs/proof/fullchain/CONTRACT.md §1, OFF by default): <c>-fallrushOnchainAll</c> / env
+        /// <c>GAMESERVER_ONCHAIN_ALL=1</c>, on top of a rollup handoff (<see cref="Enabled"/> + net devnet/local): the whole
+        /// match (rounds 1–4) runs on the arena (<c>start_sim</c>); per-match fallback = the Classic match.
+        /// </summary>
+        public static bool AllEnabled =>
+            Enabled && (Array.IndexOf(Environment.GetCommandLineArgs(), "-fallrushOnchainAll") >= 0 || Environment.GetEnvironmentVariable("GAMESERVER_ONCHAIN_ALL") == "1");
+
+        /// <summary>fullchain: how long the server waits (from roster lock) for the arena to run this match. The keeper
+        /// creates + delegates the Match, waits for the VRF deal and the humans' joins (≤ 10 s / judge 20 s), then
+        /// start_sim: more than the Final's 8 s. Env <c>GAMESERVER_ONCHAIN_ALL_TIMEOUT</c> (seconds) overrides both.</summary>
+        public const float AllTimeoutSeconds = 60f, AllJudgeTimeoutSeconds = 90f;
+
+        public static float AllTimeout(bool judge)
+        {
+            var v = ServerSim.ArgStr("-fallrushOnchainAllTimeout", "GAMESERVER_ONCHAIN_ALL_TIMEOUT");
+            if (!string.IsNullOrEmpty(v) && float.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) && f > 0)
+                return f;
+            return judge ? AllJudgeTimeoutSeconds : AllTimeoutSeconds;
+        }
+
+        /// <summary>fullchain: this handoff is a whole match (<see cref="BeginAll"/>), not the Final.</summary>
+        public bool All { get; private set; }
+        /// <summary>fullchain, while live: the arena's director phase / round (−1 before the first read).</summary>
+        public int ChainPhase { get; private set; } = -1;
+        public int ChainRound { get; private set; }
+        /// <summary>fullchain: the arena's match ended without a champion (ABORTED, left the arena, or stalled).</summary>
+        public bool ChainFailed { get; private set; }
+        public string ChainFailWhy { get; private set; }
+        /// <summary>fullchain: no World tick progress for this long while live = the match is dead (keeper / tasks gone).</summary>
+        public const float AllStallSeconds = 120f;
 
         /// <summary>The arena's control URL (emulator HTTP) and the URL clients connect to.</summary>
         public readonly string ControlUrl, ClientUrl;
@@ -73,6 +106,7 @@ namespace FallRush.Net
         /// <summary>Starts the handoff for <paramref name="roster"/> (the alive slots: slot, name, bot).</summary>
         public void Begin(string matchHex, ulong seed, (int slot, string name, bool bot)[] roster)
         {
+            All = false;
             Phase = State.Deciding;
             StartedAt = Time.realtimeSinceStartup;
             ResultOrder = null;
@@ -158,6 +192,229 @@ namespace FallRush.Net
             return sb.Append("]}").ToString();
         }
 
+        /// <summary>
+        /// fullchain, at roster lock: waits (≤ <see cref="TimeoutSeconds"/>) until the arena runs THIS match (Arena status
+        /// running, <c>Arena.match_account</c> = a Match whose <c>match_id</c> is <paramref name="matchHex"/>, the World's
+        /// director past ROSTER_LOCKED and its tick advancing). Live → <see cref="Message"/> (<c>final_onchain</c> with
+        /// <c>"all":true</c> and every roster slot); else <see cref="State.Failed"/> (the server plays the match on Classic).
+        /// </summary>
+        public void BeginAll(string matchHex, (int slot, string name, bool bot)[] roster)
+        {
+            All = true;
+            Phase = State.Deciding;
+            StartedAt = Time.realtimeSinceStartup;
+            ResultOrder = null;
+            ResultReasons = null;
+            ChainPhase = -1;
+            ChainRound = 0;
+            ChainFailed = false;
+            ChainFailWhy = null;
+            _verifiedMatch = null;
+            var slots = new StringBuilder();
+            for (var i = 0; i < roster.Length; i++)
+            {
+                var r = roster[i];
+                if (i > 0)
+                    slots.Append(',');
+                slots.Append("{\"slot\":").Append(r.slot).Append(",\"name\":\"").Append((r.name ?? "").Replace("\"", "").Replace("\\", "")).Append("\",\"kind\":\"").Append(r.bot ? "bot" : "human").Append("\"}");
+            }
+
+            _ = RunRollupAll(matchHex, slots.ToString());
+        }
+
+        private string _verifiedMatch;
+
+        /// <summary>fullchain: is the arena's current Match (<c>Arena.match_account</c>) the one with <paramref name="matchHex"/>?</summary>
+        private async Task<bool> ArenaRunsMatch(byte[] arena, string matchHex)
+        {
+            if (arena == null || arena.Length < ArenaMatch + 32)
+                return false;
+            var key = Base58Encode(arena, ArenaMatch, 32);
+            if (key == _verifiedMatch)
+                return true;
+            var m = await ReadAccount(ErUrl, key).ConfigureAwait(false);
+            if (m == null || m.Length < MatchId + 16 || !SameId(m, MatchId, matchHex))
+                return false;
+            _verifiedMatch = key;
+            return true;
+        }
+
+        public static bool SameId(byte[] b, int offset, string hex)
+        {
+            if (hex == null || hex.Length != 32 || b == null || b.Length < offset + 16)
+                return false;
+            for (var i = 0; i < 16; i++)
+                if (b[offset + i] != byte.Parse(hex.Substring(i * 2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture))
+                    return false;
+            return true;
+        }
+
+        private async Task RunRollupAll(string matchHex, string slots)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(WorldKey))
+                    throw new Exception("-fallrushOnchainWorld (the arena's WorldAcc address) is required in rollup mode");
+                var t0 = DateTime.UtcNow;
+                long first = -1;
+                while ((DateTime.UtcNow - t0).TotalSeconds < TimeoutSeconds)
+                {
+                    byte[] a = null, w = null;
+                    var ours = false;
+                    try
+                    {
+                        a = await ReadAccount(ErUrl, ArenaKey).ConfigureAwait(false);
+                        if (a != null && a.Length > ArenaStatus && a[ArenaStatus] == 2)
+                        {
+                            ours = await ArenaRunsMatch(a, matchHex).ConfigureAwait(false);
+                            if (ours)
+                                w = await ReadAccount(ErUrl, WorldKey).ConfigureAwait(false);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogWarning($"[gs] on-chain match liveness read: {e.Message} (retrying)");
+                    }
+
+                    var d = w != null ? new ChainDirector(w, WaWorld) : default;
+                    if (ours && w != null && d.Valid && d.Running)
+                    {
+                        var tick = BitConverter.ToUInt32(w, WaTick);
+                        ChainPhase = d.Phase;
+                        ChainRound = d.Round;
+                        if (first >= 0 && tick > first)
+                        {
+                            Arena = ArenaKey;
+                            Message = $"{{\"t\":\"final_onchain\",\"net\":\"{Net}\",\"arena\":\"{ArenaKey}\",\"match\":\"{matchHex}\",\"url\":\"\",\"all\":true,\"slot_map\":[{slots}]}}";
+                            _lastTick = tick;
+                            _lastTickAt = DateTime.UtcNow;
+                            Phase = State.Live;
+                            Debug.Log($"[gs] on-chain match live on {Net}: arena {ArenaKey} director phase {d.Phase} round {d.Round} tick {tick} ({(DateTime.UtcNow - t0).TotalSeconds:F1} s)");
+                            return;
+                        }
+
+                        if (first < 0)
+                            first = tick;
+                    }
+
+                    await Task.Delay(300).ConfigureAwait(false);
+                }
+
+                throw new Exception($"arena {ArenaKey} not running match {matchHex} within {TimeoutSeconds} s");
+            }
+            catch (Exception e)
+            {
+                Error = e.Message;
+                Phase = State.Failed;
+                Debug.LogWarning($"[gs] on-chain match handoff failed ({e.Message}): the server plays the match (Classic)");
+            }
+        }
+
+        private uint _lastTick;
+        private DateTime _lastTickAt;
+        private volatile byte[] _arenaNow;
+        private int _allPolls;
+
+        /// <summary>fullchain, while live: follows the arena's director; the result at DONE (or CHAMPION once the
+        /// arena has left this match), a failure at ABORTED / another match / no progress.</summary>
+        private void TryAllResult(byte[] w, byte[] a)
+        {
+            if (w == null || w.Length < WaWorld + ChainDirector.InWorld + ChainDirector.Size)
+                return;
+            var d = new ChainDirector(w, WaWorld);
+            var tick = BitConverter.ToUInt32(w, WaTick);
+            if (tick != _lastTick)
+            {
+                _lastTick = tick;
+                _lastTickAt = DateTime.UtcNow;
+            }
+
+            ChainPhase = d.Phase;
+            ChainRound = d.Round;
+            var left = a != null && a.Length > ArenaStatus && (a[ArenaStatus] != 2 || _verifiedMatch == null || Base58Encode(a, ArenaMatch, 32) != _verifiedMatch);
+            if (d.Phase == ChainDirector.Aborted)
+            {
+                Fail($"the arena aborted the match (reason {d.LastAbort})");
+                return;
+            }
+
+            if (d.HasChampion && (d.Phase == ChainDirector.Done || left) && d.TryResult(out var order, out var reasons))
+            {
+                ResultOrder = order;
+                ResultReasons = new ElimReason[reasons.Length];
+                for (var k = 0; k < reasons.Length; k++)
+                    ResultReasons[k] = (ElimReason)reasons[k];
+                ResultTicks = tick;
+                Phase = State.Done;
+                Debug.Log($"[gs] on-chain match result from the arena director: champion {order[0]} order {string.Join(",", order)}");
+                return;
+            }
+
+            if (left)
+                Fail("the arena left this match without a champion");
+            else if ((DateTime.UtcNow - _lastTickAt).TotalSeconds > AllStallSeconds)
+                Fail($"no World progress for {AllStallSeconds} s (tick {tick})");
+        }
+
+        private void Fail(string why)
+        {
+            if (ChainFailed)
+                return;
+            ChainFailed = true;
+            ChainFailWhy = why;
+            Debug.LogWarning("[gs] on-chain match: " + why + "; aborting the server's match");
+        }
+
+        private async Task PollAll()
+        {
+            try
+            {
+                await Task.Delay(500).ConfigureAwait(false);
+                _world = await ReadAccount(ErUrl, WorldKey).ConfigureAwait(false);
+                if (_allPolls++ % 4 == 0)
+                    _arenaNow = await ReadAccount(ErUrl, ArenaKey).ConfigureAwait(false); // 0.5 Hz: still this match?
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[gs] on-chain match World: " + e.Message);
+            }
+            finally
+            {
+                _polling = false;
+            }
+        }
+
+        private const string B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+        /// <summary>Base58 (Bitcoin alphabet) of <paramref name="len"/> bytes at <paramref name="offset"/>.</summary>
+        public static string Base58Encode(byte[] b, int offset, int len)
+        {
+            var digits = new List<int>(48); // base 58, least significant first
+            for (var i = 0; i < len; i++)
+            {
+                var carry = (int)b[offset + i];
+                for (var j = 0; j < digits.Count; j++)
+                {
+                    carry += digits[j] << 8;
+                    digits[j] = carry % 58;
+                    carry /= 58;
+                }
+
+                while (carry > 0)
+                {
+                    digits.Add(carry % 58);
+                    carry /= 58;
+                }
+            }
+
+            var sb = new StringBuilder(48);
+            for (var i = 0; i < len && b[offset + i] == 0; i++)
+                sb.Append('1');
+            for (var j = digits.Count - 1; j >= 0; j--)
+                sb.Append(B58[digits[j]]);
+            return sb.ToString();
+        }
+
         private static async Task<byte[]> ReadAccount(string url, string key)
         {
             var req = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getAccountInfo\",\"params\":[\"" + key + "\",{\"encoding\":\"base64\",\"commitment\":\"processed\"}]}";
@@ -175,6 +432,8 @@ namespace FallRush.Net
         // World @208 (rush_core::World: round state @1768: phase +1, result +52 {n, order[12], qualified u16, reasons[12]},
         // has_result +137).
         private const int ArenaStatus = 1409, WaTick = 128, WaPart = 136, WaRound = 139, WaWorld = 208, RoundState = 1768;
+        // fullchain: Arena.match_account @40 (disc 8 + authority 32); Match.match_id @10 (disc 8, version, bump)
+        private const int ArenaMatch = 40, MatchId = 10;
 
         private async Task RunRollup(string matchHex, string slots)
         {
@@ -279,6 +538,24 @@ namespace FallRush.Net
         {
             if (Phase != State.Live || ResultOrder != null)
                 return;
+            if (All)
+            {
+                var w = _world;
+                if (w != null)
+                {
+                    _world = null;
+                    var a = _arenaNow;
+                    _arenaNow = null;
+                    TryAllResult(w, a);
+                }
+
+                if (_polling || ChainFailed || ResultOrder != null || string.IsNullOrEmpty(WorldKey))
+                    return;
+                _polling = true;
+                _ = PollAll();
+                return;
+            }
+
             if (Rollup)
             {
                 var w = _world;
@@ -335,6 +612,22 @@ namespace FallRush.Net
             Phase = phase;
             ResultOrder = order;
             ResultReasons = reasons;
+        }
+
+        /// <summary>Tests: a full-match handoff whose arena match failed (ABORTED / gone / stalled).</summary>
+        public void ForceChainFailedForTest(string why)
+        {
+            All = true;
+            Phase = State.Live;
+            Fail(why);
+        }
+
+        /// <summary>Tests: feeds one WorldAcc / Arena read to the full-match result logic (as <see cref="Poll"/> does).</summary>
+        public void FeedAllForTest(byte[] worldAcc, byte[] arena)
+        {
+            All = true;
+            Phase = State.Live;
+            TryAllResult(worldAcc, arena);
         }
 
         private void TryResult(string json)
