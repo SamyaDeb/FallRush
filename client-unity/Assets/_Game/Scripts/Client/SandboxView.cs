@@ -99,6 +99,7 @@ namespace FallRush.Client
 
         private void Start()
         {
+            HitDebugOverlay.Init(); // dizzy2: ?debughits=1 only
             _map = MapInfo.Current;
             WorldLook.OnMapLoaded();
             _markers = CheckpointMarkers.Build(_map, transform); // 2026-11-24: flags on Goo Tower's respawn spots (visual only)
@@ -279,6 +280,8 @@ namespace FallRush.Client
                 var vis = _rushlings[i];
                 var sampled = cs.TrySample(i, out var feet, out var vel, out var flags, out var yaw, out var stun);
                 var capsuled = ReactiveViews.Current != null && ReactiveViews.Current.CapsuleHides(i);
+                if (i == own && HitDebugOverlay.Enabled)
+                    HitDebugOverlay.Own(sampled, flags, capsuled, stun, cs, feet, vis.StunStartedThisFrame);
                 if (!sampled || (flags & MotorState.Respawning) != 0 || capsuled)
                 {
                     // Dizzy hits (2026-11-24): falling off the course no longer vanishes in a poof. The Rushling keeps
