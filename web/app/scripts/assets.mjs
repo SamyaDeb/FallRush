@@ -1,6 +1,6 @@
 // Copies the shared chain bundle, its configs, rush_core.wasm and the map blobs into public/ (same files the Unity
 // build ships in StreamingAssets), so the web pages decode and sign exactly like the game.
-import { cpSync, mkdirSync, readdirSync } from 'node:fs';
+import { cpSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const app = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -15,6 +15,8 @@ for (const f of readdirSync(join(sa, 'chain')).filter((f) => f.endsWith('.json')
 mkdirSync(join(app, 'public/maps'), { recursive: true });
 // fullchain: every round map (the replay / live view of a full on-chain match follows the World's map)
 for (const m of ['BlockPartyDash', 'GooTower', 'StarScramble', 'CrumbleShelf', 'Lobby']) cpSync(join(root, `maps/${m}.mapblob`), join(app, `public/maps/${m}.mapblob`));
+// live board: the static map art of rounds 1–3 (scripts/bake-boards.mjs)
+await import('./bake-boards.mjs').then(({ bake }) => { for (const m of ['BlockPartyDash', 'GooTower', 'StarScramble']) writeFileSync(join(app, `public/maps/${m}.board.json`), JSON.stringify(bake(m))); });
 import('node:child_process').then(({ execFileSync }) => {
   try { execFileSync('sips', ['-Z', '256', join(root, 'docs/media/logo.png'), '--out', join(app, 'public/logo.png')], { stdio: 'ignore' }); }
   catch { cpSync(join(root, 'docs/media/logo.png'), join(app, 'public/logo.png')); }

@@ -64,9 +64,43 @@ export class CoreWorld {
     const d = new DataView(this.e.memory.buffer, this.buf, 9 * n);
     return Array.from({ length: n }, (_, i) => ({ x: d.getInt32(9 * i, true), z: d.getInt32(9 * i + 4, true), s: d.getUint8(9 * i + 8) }));
   }
+  /** Live board: moving / reactive hazards + live stars at the World's tick (rc_hazards, 24 B each; [] on an older wasm). */
+  hazards(): Hz[] {
+    if (!this.e.rc_hazards) return [];
+    const n = this.e.rc_hazards(this.h, this.buf, Math.min(this.cap, 24 * 240));
+    const d = new DataView(this.e.memory.buffer, this.buf, 24 * n);
+    return Array.from({ length: n }, (_, i) => {
+      const o = 24 * i;
+      return { k: d.getUint8(o), i: d.getUint8(o + 1), s: d.getUint8(o + 2), x: d.getInt32(o + 4, true), y: d.getInt32(o + 8, true), z: d.getInt32(o + 12, true), a: d.getInt32(o + 16, true), b: d.getInt32(o + 20, true) };
+    });
+  }
   sweepers() {
     const n = this.e.rc_sweepers(this.h, this.buf, 20 * 8);
     const d = new DataView(this.e.memory.buffer, this.buf, 20 * n);
     return Array.from({ length: n }, (_, i) => ({ px: d.getInt32(20 * i, true), pz: d.getInt32(20 * i + 4, true), arm: d.getInt32(20 * i + 8, true), c: d.getInt32(20 * i + 12, true) / 32768, s: d.getInt32(20 * i + 16, true) / 32768 }));
   }
 }
+
+/** rc_hazards record kinds (crates/rush-core-wasm/src/abi.rs). */
+export const HZ = { PLATFORM: 1, DOOR: 2, MALLET: 3, BALL: 4, BLOCK: 5, GOO: 6, TABLE: 7, BUMPER: 8, SPRING: 9, CONVEYOR: 10, STAR: 11, DROPPED: 12 } as const;
+export interface Hz { k: number; i: number; s: number; x: number; y: number; z: number; a: number; b: number }
+
+/** Read-only view of the canonical World bytes (rush_core World::to_bytes; offsets as client-unity WorldView.cs):
+ *  header 22 B, 12 players × 115 B (SlotRules at +46), reactive @1402, round state @1768. */
+export const SF = { IN: 1, OUT: 2, DONE: 4, QUALIFIED: 8, ELIMINATED: 16 } as const;
+export interface Slot { active: boolean; bot: boolean; rf: number; cp: number; place: number; score: number; height: number; stun: number; y: number }
+export function worldInfo(b: Uint8Array) {
+  const d = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  const ok = b.length >= 1910;
+  const slots: Slot[] = Array.from({ length: 12 }, (_, s) => {
+    const o = 22 + s * 115, r = o + 46;
+    if (!ok) return { active: false, bot: false, rf: 0, cp: 0, place: 0, score: 0, height: 0, stun: 0, y: 0 };
+    return { active: (b[o + 33] & 1) !== 0, bot: (b[o + 33] & 2) !== 0, rf: b[r], cp: b[r + 1], place: b[r + 10], score: d.getInt32(r + 16, true), height: d.getInt32(r + 24, true), stun: b[o + 26], y: d.getInt32(o + 4, true) };
+  });
+  return {
+    version: b[0], tick: ok ? d.getUint32(1, true) : 0, mapKey: b[7],
+    mode: ok ? b[1768] : 0, phase: ok ? b[1769] : 0, rushTick: ok ? d.getUint32(1774, true) : 0, rushEnd: ok ? d.getUint32(1778, true) : 0,
+    qualifyCount: ok ? b[1787] : 0, qualifiedCount: ok ? b[1788] : 0, slots,
+  };
+}
+export type WorldInfo = ReturnType<typeof worldInfo>;

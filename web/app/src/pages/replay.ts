@@ -4,7 +4,7 @@
 // fullchain: a full on-chain match (receipt trust bit 4) replays all 4 rounds with the chain-exact step; the view
 // follows the World's round map.
 import { api, short, explorer } from '../lib/net';
-import { draw } from '../lib/view2d';
+import { draw } from '../lib/board';
 import { verifyMatch } from '../lib/verify';
 import { icon } from '../lib/icons';
 import { esc } from '../lib/chain';

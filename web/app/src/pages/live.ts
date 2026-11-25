@@ -5,7 +5,7 @@
 import { api, ARENAS, ER_HTTP, accounts, subscribe, explorer, short, rush, PROGRAM } from '../lib/net';
 import { decodeWorldAcc, decodeArena, decodeMatch, MARKET_NAMES, LABELS, odds, DROPS, DROP_PRICE, TICKS_LINE } from '../lib/decode';
 import { CoreWorld, ROUND_MAP } from '../lib/core';
-import { draw } from '../lib/view2d';
+import { LiveBoard, SHELL } from '../lib/board';
 import { chainFor, ensureGuest, J, esc } from '../lib/chain';
 import { icon, type IconName } from '../lib/icons';
 import { countUp, restart } from '../lib/motion';
@@ -32,7 +32,7 @@ export function live(root: HTMLElement, params: string[]) {
     if (!A || stop) return;
     root.insertAdjacentHTML('beforeend', `
       <div class="two">
-        <div><div class="card hue-soda" style="margin-top:0"><div class="ribbon">${icon('tiles')} <span id="phase">…</span></div><canvas class="view" id="cv"></canvas><div id="chip" class="muted mono" style="margin-top:8px;min-height:36px"></div></div></div>
+        <div><div class="card hue-soda stage" style="margin-top:0"><div class="ribbon">${icon('tiles')} <span id="phase">…</span></div><canvas class="view board" id="cv" aria-label="live map: tap a player to bet"></canvas><div class="rankstrip" id="rank" aria-label="live order: tap a player to bet"></div><div class="muted tiny" id="tip">tap a player on the map to follow and bet</div><div id="chip" class="muted mono" style="margin-top:8px;min-height:36px"></div></div></div>
         <div>
           <div class="card" style="margin-top:0"><div id="classic" class="muted"></div><div id="me" class="muted" style="margin-top:4px"></div><div id="yourbet"></div></div>
           <div class="card hue-bubble"><div class="ribbon">${icon('bolt')} CHAOS DROPS <span class="sub">≤ 3 per Final · telegraphed 0.77 s</span></div><div class="drops" id="drops"></div><div class="muted" id="dropinfo" style="margin-top:8px">map-wide · telegraphed 0.77 s · ≤ 3 per round</div></div>
@@ -41,8 +41,62 @@ export function live(root: HTMLElement, params: string[]) {
       <div class="card hue-lemon"><div class="ribbon">${icon('chip')} RUSH MARKETS <span class="sub">shared pool, 0 % fee · odds = pool ÷ the stake on that pick</span></div>
         <div class="row" style="margin-bottom:6px"><span class="muted">stake</span><div class="stepper"><button id="sm" aria-label="less">–</button><output id="amtv">10 RUSH</output><button id="sp" aria-label="more">+</button></div><input id="amt" type="hidden" value="10"><span class="muted" id="ready"></span></div>
         <div id="markets"></div></div>
-      <div class="card"><div class="ribbon" style="--rim:#6b628a">Event feed</div><div class="feed" id="feed"></div></div>`);
+      <div class="card"><div class="ribbon" style="--rim:#6b628a">Event feed</div><div class="feed" id="feed"></div></div>
+      <div class="sheet" id="sheet" hidden><div class="sheet-card" role="dialog" aria-modal="true"><button class="sheet-x" id="sheetx" aria-label="close">×</button><div id="sheetbody"></div></div></div>`);
     const $ = (q: string) => root.querySelector(q) as HTMLElement;
+    // live board: the viewer's pick (follow / your bet) glows, the camera follows it, its moments buzz the phone
+    const board = new LiveBoard($('#cv') as HTMLCanvasElement);
+    let pick: number | null = null, sheetSlot: number | null = null;
+    const pickKey = () => `fr-pick-${id}-${arena?.match ?? ''}`;
+    const setPick = (s: number | null) => { pick = s; try { s == null ? localStorage.removeItem(pickKey()) : localStorage.setItem(pickKey(), String(s)); } catch { /* private mode */ } };
+    const oddsFor = (sl: number): string | null => {
+      for (const m of (state?.markets ?? []) as any[]) {
+        if (m.status !== 1 || (m.k === 0 && sealed?.open)) continue;
+        const o = odds({ pool: BigInt(m.pool), stake: m.stake.map((x: string) => BigInt(x)) } as any, sl);
+        if (o) return 'x' + o.toFixed(1);
+      }
+      return null;
+    };
+    const closeSheet = () => { sheetSlot = null; $('#sheet').hidden = true; };
+    $('#sheetx').onclick = closeSheet;
+    $('#sheet').onclick = (e) => { if (e.target === $('#sheet')) closeSheet(); };
+    const renderSheet = () => {
+      if (sheetSlot == null) return;
+      const sl = sheetSlot, row = board.rank.find((r) => r.slot === sl);
+      const ms = ((state?.markets ?? []) as any[]).filter((m) => m.status >= 1);
+      const rows = ms.map((m) => {
+        const btn = root.querySelector(`#markets button[data-k="${m.k}"][data-o="${sl}"]`) as HTMLButtonElement | null;
+        const o = odds({ pool: BigInt(m.pool), stake: m.stake.map((x: string) => BigInt(x)) } as any, sl);
+        const open = !!btn && !btn.disabled;
+        return `<div class="srow"><span><b>${MARKET_NAMES[m.k]}</b>${m.k === 0 && sealed?.open ? ' <span class="chip sealed">sealed</span>' : ''}</span><span class="x">${o ? 'x' + o.toFixed(1) : '—'}</span><button class="btn small ${open ? 'pink' : ''}" data-sk="${m.k}" ${open ? '' : 'disabled'}>${open ? `Bet ${STAKES[stakeIx]}` : 'closed'}</button></div>`;
+      }).join('');
+      $('#sheetbody').innerHTML = `<div class="shead"><span class="sdot" style="--c:${SHELL[sl]}">${sl + 1}</span><div><b>Player #${sl + 1}</b>${(humans >> sl) & 1 ? ' <span class="chip pink">human</span>' : ' <span class="chip">bot</span>'}<div class="muted">${row ? `${esc(row.metric)} · ${row.state === 'out' ? 'out' : row.state === 'q' || row.state === 'done' ? 'through ✓' : 'in the round'}` : 'not in this round'}</div></div></div>
+        <div class="row" style="margin:8px 0"><button class="btn small ${pick === sl ? 'grape' : 'mint'}" id="sfollow">${pick === sl ? '★ following' : 'Follow #' + (sl + 1)}</button><span class="spacer"></span><div class="stepper" aria-label="stake"><button data-st="-1" aria-label="less">–</button><output>${STAKES[stakeIx]} RUSH</output><button data-st="1" aria-label="more">+</button></div></div>
+        ${rows || '<div class="muted">no market open for this arena right now: they open with the next match</div>'}
+        <div class="muted tiny" style="margin-top:6px">${ready ? 'bets sign with your session key: no popup' : setupFailed ? 'betting unavailable (see above)' : 'setting up your guest wallet…'} · Qualify markets open between rounds, the Final + Champion before the Final</div>`;
+      ($('#sfollow') as HTMLButtonElement).onclick = () => { setPick(pick === sl ? null : sl); renderSheet(); };
+      $('#sheetbody').querySelectorAll<HTMLButtonElement>('[data-st]').forEach((b) => (b.onclick = () => { setStake(Number(b.dataset.st)); renderSheet(); }));
+      $('#sheetbody').querySelectorAll<HTMLButtonElement>('[data-sk]').forEach((b) => (b.onclick = () => {
+        const mb = root.querySelector(`#markets button[data-k="${b.dataset.sk}"][data-o="${sl}"]`) as HTMLButtonElement | null;
+        if (mb && !mb.disabled) { b.disabled = true; b.textContent = 'sending…'; setPick(sl); mb.click(); setTimeout(renderSheet, 1600); }
+      }));
+    };
+    const openSheet = (sl: number) => { sheetSlot = sl; $('#sheet').hidden = false; renderSheet(); try { navigator.vibrate?.(8); } catch { /* */ } };
+    ($('#cv') as HTMLCanvasElement).addEventListener('click', (e) => { const sl = board.hit(e.offsetX, e.offsetY); if (sl != null) openSheet(sl); });
+    $('#rank').onclick = (e) => { const b = (e.target as HTMLElement).closest('[data-slot]') as HTMLElement | null; if (b) openSheet(Number(b.dataset.slot)); };
+    let rankAt = 0;
+    const renderRank = () => {
+      const rows = board.rank.filter((r) => r.state !== 'out');
+      $('#rank').innerHTML = rows.map((r, i) => `<button class="rk ${pick === r.slot ? 'mine' : ''} ${r.state === 'q' || r.state === 'done' ? 'thru' : ''}" data-slot="${r.slot}"><span class="sdot" style="--c:${SHELL[r.slot]}">${r.slot + 1}</span><span class="m">${board.round >= 0 && board.round < 3 ? `${i + 1}. ` : ''}${esc(r.metric)}</span>${oddsFor(r.slot) ? `<span class="o">${oddsFor(r.slot)}</span>` : ''}</button>`).join('');
+      $('#tip').textContent = pick != null ? `following #${pick + 1} · tap any player to bet` : 'tap a player on the map to follow and bet';
+    };
+    const moment = (sl: number, kind: string) => {
+      if (sl !== pick) return;
+      const pat: Record<string, number[]> = { qualified: [40, 60, 40, 60, 120], out: [220], star: [18], bonk: [30, 40, 30] };
+      try { navigator.vibrate?.(pat[kind] ?? 20); } catch { /* */ }
+      if (kind === 'qualified') toast(`Your pick #${sl + 1} qualified!`, 'check');
+      if (kind === 'out') toast(`Your pick #${sl + 1} is out`, 'bolt');
+    };
     let stakeIx = 0;
     const setStake = (d: number) => { stakeIx = Math.max(0, Math.min(STAKES.length - 1, stakeIx + d)); ($('#amt') as HTMLInputElement).value = String(STAKES[stakeIx]); $('#amtv').textContent = `${STAKES[stakeIx]} RUSH`; restart($('#amtv'), 'bump'); };
     $('#sm').onclick = () => setStake(-1); $('#sp').onclick = () => setStake(1);
@@ -60,6 +114,8 @@ export function live(root: HTMLElement, params: string[]) {
     let state: any = null, arena: ReturnType<typeof decodeArena> | null = null, match: ReturnType<typeof decodeMatch> | null = null;
     if (stop) return; // beta audit: left the page during the awaits: never open the World socket (it reconnected forever)
     unsub.push(subscribe(A.world, (d) => { wa = decodeWorldAcc(d); }, (st) => { $('#chip').dataset.ws = st; }));
+    // live board: the socket only pushes changes, so an idle arena never drew: read the World once
+    accounts(ER_HTTP, [A.world]).then(([d]) => { if (d && !wa) wa = decodeWorldAcc(d); }).catch(() => { /* the socket will fill it */ });
     // guest wallet for betting (no popup); spectating works without it
     let ready = false, setupFailed = false;
     // beta audit: a failed setup (RPC busy, gas limit) gets a Retry button instead of a spinner that never ends
@@ -99,6 +155,7 @@ export function live(root: HTMLElement, params: string[]) {
         if (!attested) { attested = true; J(c.econ('teeAttest', JSON.stringify({ base: '/chain/' }))).then((a) => { teeOk = a.ok; feed(a.ok ? `TEE attested in this browser (Intel TDX quote, ${a.ms} ms)` : `<span class="muted">TEE attestation not verified: ${String(a.error).slice(0, 80)}</span>`); }); }
         const r = await J(c.econ('sealedBet', JSON.stringify({ outcome: Number(b.dataset.o), amount: amt })));
         feed(r.ok ? `<b>you</b> sealed ${amt} RUSH on a Champion pick (pick ${r.pick?.ok ? 'in the private book' : '<span class="bad">not in the book: you will reveal it yourself</span>'}, ${r.ms + (r.pick?.ms ?? 0)} ms) · <a target="_blank" href="${explorer('tx', r.sig, true)}">commit tx</a>` : `<span class="bad">sealed bet refused</span> ${esc(String(r.error).slice(0, 120))}`);
+        if (r.ok) setPick(Number(b.dataset.o));
         if (r.ok) yourBet(`you bet <b>${amt} RUSH on #${Number(b.dataset.o) + 1}</b> to be Champion · sealed ${icon('lock').replace('<svg', '<svg style="width:16px;height:16px;vertical-align:-3px"')} until the market closes`); else restart(b, 'shake');
         setTimeout(() => (b.disabled = false), 1200);
         return;
@@ -109,6 +166,7 @@ export function live(root: HTMLElement, params: string[]) {
       const unconfirmed = !r.ok && /unconfirmed/i.test(String(r.error));
       feed(r.ok ? `<b>you</b> bet ${amt} RUSH on slot ${Number(b.dataset.o) + 1} · ${MARKET_NAMES[Number(b.dataset.k)]} ${r.session ? '(session key)' : ''} · <a target="_blank" href="${explorer('tx', r.sig, true)}">tx</a>` : unconfirmed ? `<span class="muted">bet sent, not confirmed yet: watch the pool before betting again</span>` : `<span class="bad">bet refused</span> ${esc(String(r.error).slice(0, 120))}`);
       if (unconfirmed) { setTimeout(() => (b.disabled = false), 6000); return; }
+      if (r.ok) setPick(Number(b.dataset.o));
       if (r.ok) { yourBet(`you bet <b>${amt} RUSH on #${Number(b.dataset.o) + 1}</b> · ${MARKET_NAMES[Number(b.dataset.k)]} · <a target="_blank" href="${explorer('tx', r.sig, true)}">tx</a>`); restart(b, 'bump'); } else restart(b, 'shake');
       setTimeout(() => (b.disabled = false), 1200);
     };
@@ -171,6 +229,7 @@ export function live(root: HTMLElement, params: string[]) {
         humans = arena?.humanMask ?? 0;
         const md = arena && arena.match !== '11111111111111111111111111111111' ? (await accounts(ER_HTTP, [arena.match]))[0] : null;
         match = md ? decodeMatch(md) : null;
+        if (pick == null) { try { const v = localStorage.getItem(pickKey()); if (v != null) pick = Number(v); } catch { /* */ } }
         const roundOn = !!wa && wa.round >= 1 && wa.round <= 4 && arena?.status === 2, full = roundOn && allOnChain(wa);
         const finalOn = roundOn && wa!.round === 4;
         const rp = wa ? (wa.roundPhase < 3 ? 'get ready' : wa.roundPhase === 3 ? 'RUSH!' : 'ended') : '';
@@ -186,6 +245,7 @@ export function live(root: HTMLElement, params: string[]) {
         const slots: number[] = match ? match.slots.map((x, i) => (x === 1 || x === 2) && i < match!.players ? i : -1).filter((i) => i >= 0) : [];
         $('#ready').textContent = ready ? '' : setupFailed ? '' : '(setting up your guest wallet…)';
         renderMarkets(ms.filter((m) => m.status >= 1), slots);
+        renderSheet();
         const dq = state.drops;
         if (dq && prevDrops >= 0 && dq.count > prevDrops) { const b = dq.buys[dq.count - 1]; banner = `${DROPS[b.kind]}!`; bannerUntil = Date.now() + 2500; feed(`Chaos Drop <b>${DROPS[b.kind]}</b> by ${short(b.by)}`); toast(`${b.by === state.wallet ? 'You' : short(b.by)} dropped ${DROPS[b.kind]}!`, DROP_ICON[b.kind] ?? 'bolt'); restart(root.querySelector(`button[data-drop="${b.kind}"] .ring`), 'flash'); }
         if (dq) prevDrops = dq.count;
@@ -208,7 +268,9 @@ export function live(root: HTMLElement, params: string[]) {
         if (w.set(wa.world)) {
           const r = full ? chainW!.round() : null;
           const where = r ? (r.round >= 1 && r.roundIndex >= 1 ? `round ${r.round} (${ROUND_MAP[r.mapKey] ?? '?'})` : 'lobby') : wa.round === 4 ? 'Final (Lid Flip)' : 'lobby';
-          draw(cv, w, { humans, banner: Date.now() < bannerUntil ? banner : undefined, label: `tick ${wa.tick} · ${where}` });
+          const idle = !arena || arena.status !== 2 ? 'NEXT MATCH SOON' : undefined;
+          board.draw(w, { humans, pick, idle, odds: oddsFor, onMoment: moment, banner: Date.now() < bannerUntil ? banner : undefined, label: `tick ${wa.tick} · ${where}` });
+          if (Date.now() - rankAt > 300) { rankAt = Date.now(); renderRank(); }
         }
         // beta audit: rebuilt at most twice a second (every frame made its links unclickable and cost battery)
         if (Date.now() - chipAt > 500) chipAt = Date.now(), $('#chip').innerHTML = `ER devnet-as · World <a target="_blank" href="${explorer('address', A.world, true)}">${short(A.world)}</a> · tick ${wa.tick} · core v${wa.coreVersion & 0xff} · ws ${$('#chip').dataset.ws ?? ''} · <a target="_blank" href="${explorer('address', PROGRAM)}">program</a>${allOnChain(wa) ? `<br>◆ every round computed by the program · ${TICKS_LINE}` : ''}`;
