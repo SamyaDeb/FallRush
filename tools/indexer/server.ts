@@ -90,7 +90,7 @@ async function status() {
       return {
         id, url: GS_PUBLIC[id] ?? null, up: !!sv, arena: k.arena, arenaKey: k.arenaKey, world: k.world,
         keeper: { stage: k.stage, since: k.since, alive: Date.now() - (k.heartbeat ?? 0) < 30_000, match: k.match, dealSig: k.dealSig ?? null, worldTick: k.worldTick, worldPhase: k.worldPhase, worldRound: k.worldRound, last: k.last },
-        phase: sv?.phase ?? "offline", inMatch: sv?.inMatch ?? false, round: sv?.round ?? 0, humans: sv?.humans ?? 0, size: sv?.size ?? 12, matchHex: sv?.match ?? "", served: sv?.completed ?? 0,
+        phase: sv?.phase ?? "offline", inMatch: sv?.inMatch ?? false, round: sv?.round ?? 0, humans: sv?.humans ?? 0, size: sv?.size ?? 12, matchHex: sv?.match ?? "", served: sv?.completed ?? 0, onchainAll: !!sv && "onchainAll" in sv,
         room: !!sv?.room, lobbyTier: sv?.lobbyTier ?? null, conns: sv?.conns ?? null,
       };
     } catch (e: any) { return { id, url: GS_PUBLIC[id] ?? null, up: false, phase: "offline", error: String(e?.message ?? e).slice(0, 120) }; }
@@ -421,7 +421,7 @@ async function roomInfo(code: string, ip: string) {
   if (!r) { roomMiss[ip].push(Date.now()); return { code: 404, body: { ok: false, error: "no room with that code (it may have ended)" } }; }
   const st = await status();
   const sv: any = st.servers.find((x: any) => x.id === r.gs);
-  return { code: 200, body: { ok: true, code: r.code, url: sv?.url ?? null, gs: r.gs, onchainFinal: !sv?.classic, phase: sv?.phase ?? "offline", humans: sv?.humans ?? 0, inMatch: !!sv?.inMatch, expiresAt: r.expiresAt } };
+  return { code: 200, body: { ok: true, code: r.code, url: sv?.url ?? null, gs: r.gs, onchainFinal: !sv?.classic, onchainAll: !!sv?.onchainAll, phase: sv?.phase ?? "offline", humans: sv?.humans ?? 0, inMatch: !!sv?.inMatch, expiresAt: r.expiresAt } };
 }
 const TIERS = ["Rookie", "Contender", "Champion"];
 /** Skill-tier matchmaking over the public servers: same-tier lobby → empty server → nearest-tier lobby → watch the emptiest. */
