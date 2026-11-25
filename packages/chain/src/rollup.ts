@@ -101,10 +101,26 @@ export class ConfirmPoller {
       this.inFlight = false;
     }
   }
-  stop() { this.ctx.clock.clearInterval(this.timer); }
+  /** harden #9: a stopped transport resolves every pending wait (a join awaiting its confirm must not hang forever). */
+  stop() {
+    this.ctx.clock.clearInterval(this.timer);
+    const now = this.ctx.clock.now();
+    for (const p of this.pending.values()) p.resolve?.({ ok: false, err: 'stopped', ms: now - p.sentMs });
+    this.pending.clear();
+  }
 }
 
-interface Sub { addr: string; pk: PublicKey; id: number | null; lastWsMs: number; nextResubMs: number; stalls: number; polling: boolean; raw?: any[]; rawLast?: number[] }
+interface Sub {
+  addr: string; pk: PublicKey; id: number | null; lastWsMs: number; nextResubMs: number; stalls: number; polling: boolean; raw?: any[]; rawLast?: number[];
+  /** harden #9: all raw sockets silent → reopen them all at rawNextAllMs, then wait rawBackoffMs (2/4/8 s, cap 10 s) */
+  rawNextAllMs?: number; rawBackoffMs?: number;
+}
+
+/** harden #9: backoff of the all-sockets-silent reopen (1, 2, 4, 8 s, then every 10 s) */
+export const RAW_REOPEN_FIRST_MS = 1000;
+export const RAW_REOPEN_CAP_MS = 10_000;
+/** harden #9: a reused session must outlive one whole match (≈ 6–7 min) with room to spare */
+export const SESSION_REUSE_MARGIN_SEC = 900;
 
 export class RollupTransport implements Transport {
   readonly kind = 'rollup' as const;
@@ -131,6 +147,7 @@ export class RollupTransport implements Transport {
   private joinPromise: Promise<JoinResult> | null = null;
   receipt: Record<string, unknown> = {};
   private clock: Clock;
+  private unlisten: (() => void)[] = [];
 
   constructor(ctx: Ctx, factory: ConnFactory) {
     this.ctx = ctx; this.factory = factory; this.clock = ctx.clock;
@@ -160,7 +177,23 @@ export class RollupTransport implements Transport {
     const c = this.clock;
     this.timers.push(c.setInterval(() => { void this.refreshBlockhash(); }, this.rc.blockhashRefreshMs ?? 10000));
     this.timers.push(c.setInterval(() => { void this.pollAccounts(); }, this.rc.accountPollMs ?? 1000));
-    if (this.rc.rawWs) this.timers.push(c.setInterval(() => { const now = this.clock.now(); for (const x of this.subs.values()) this.rawWatch(x, now); }, 250));
+    if (this.rc.rawWs) {
+      this.timers.push(c.setInterval(() => { const now = this.clock.now(); for (const x of this.subs.values()) this.rawWatch(x, now); }, 250));
+      // harden #9: a phone that comes back from the lock screen / a laptop back online reopens its sockets at once
+      // (iOS closes WebSockets in the background; the backoff alone could wait up to 10 s)
+      const g = globalThis as any;
+      const doc = g.document;
+      if (doc?.addEventListener) {
+        const onVis = () => { if (doc.visibilityState === 'visible') this.reopenAllRaw('visible'); };
+        doc.addEventListener('visibilitychange', onVis);
+        this.unlisten.push(() => doc.removeEventListener('visibilitychange', onVis));
+      }
+      if (typeof g.addEventListener === 'function' && g.document) {
+        const onOnline = () => this.reopenAllRaw('online');
+        g.addEventListener('online', onOnline);
+        this.unlisten.push(() => g.removeEventListener('online', onOnline));
+      }
+    }
     this.timers.push(c.setInterval(() => { void this.rttProbe(); }, this.rc.rttPollMs ?? 2000));
     void this.rttProbe();
   }
@@ -303,6 +336,7 @@ export class RollupTransport implements Transport {
         const now = this.clock.now();
         s.rawLast![k] = now;
         s.lastWsMs = now;
+        s.rawNextAllMs = 0; s.rawBackoffMs = 0; // harden #9: delivering again: reset the all-silent backoff
         if (s.stalls) { s.stalls = 0; this.backoff.reset(); }
         this.ctx.intake.ingest(toU8(Buffer.from(b64, 'base64')), 'ws');
       } catch (e) { this.ctx.events.push({ type: 'error', where: 'rawWs', why: errMsg(e) }); }
@@ -310,17 +344,55 @@ export class RollupTransport implements Transport {
     ws.onerror = () => { /* rawWatch reopens it */ };
   }
 
-  /** Reopens a raw socket that has been silent for rawStallMs (default 600 ms). */
+  /**
+   * Raw socket watchdog (every 250 ms). While another socket of the sub still delivers, a socket silent for rawStallMs
+   * (default 600 ms) is reopened at once. When EVERY socket is silent (an outage, a locked phone, an idle arena) they
+   * are all reopened with an exponential backoff (1 s after the last notification, then every 2, 4, 8, 10, 10… s:
+   * at +1, +3, +7, +15, +25 s), reset on the first notification.
+   * harden #9: this replaces the old 10 s cut-off that never reopened after a longer outage (the client then lived on
+   * the 1 Hz backup poll for the rest of the match) and the 600 ms per-socket churn during a chain stall.
+   */
   private rawWatch(s: Sub, now: number) {
     if (!s.raw) return;
-    if (now - s.lastWsMs > 10_000) return; // the arena is idle (no ticks): the backup poll covers it, no churn
     const stall = this.rc.rawStallMs ?? 600;
-    for (let k = 0; k < s.raw.length; k++) {
-      if (now - (s.rawLast![k] ?? 0) <= stall) continue;
-      try { s.raw[k].close(); } catch { /* closed */ }
-      this.ctx.stats.reconnects++;
-      this.ctx.events.push({ type: 'wsReconnect', transport: 'rollup', how: 'rawReopen', socket: k, silentMs: Math.round(now - (s.rawLast![k] ?? 0)) });
-      this.rawOpen(s, k, this.erGen);
+    if (now - s.lastWsMs <= stall) {
+      s.rawNextAllMs = 0; s.rawBackoffMs = 0;
+      for (let k = 0; k < s.raw.length; k++) {
+        if (now - (s.rawLast![k] ?? 0) <= stall) continue;
+        this.rawReopen(s, k, now, 'rawReopen');
+      }
+      return;
+    }
+    if (!s.rawNextAllMs) { s.rawBackoffMs = 2 * RAW_REOPEN_FIRST_MS; s.rawNextAllMs = s.lastWsMs + RAW_REOPEN_FIRST_MS; }
+    if (now < s.rawNextAllMs) return;
+    for (let k = 0; k < s.raw.length; k++) this.rawReopen(s, k, now, 'rawBackoff');
+    s.rawNextAllMs = now + s.rawBackoffMs!;
+    s.rawBackoffMs = Math.min(RAW_REOPEN_CAP_MS, s.rawBackoffMs! * 2);
+  }
+
+  private rawReopen(s: Sub, k: number, now: number, how: string) {
+    try { s.raw![k].close(); } catch { /* closed */ }
+    this.ctx.stats.reconnects++;
+    this.ctx.events.push({ type: 'wsReconnect', transport: 'rollup', how, socket: k, silentMs: Math.round(now - (s.rawLast![k] ?? 0)) });
+    this.rawOpen(s, k, this.erGen);
+  }
+
+  /**
+   * harden #9: page visible again / network back: reopen every SILENT raw socket now and restart the backoff.
+   * harden review: a socket that still delivers is kept (a desktop tab switch fires visibilitychange while the sockets
+   * are healthy; closing them would cost a ~0.5–1 s World gap, a LAGGING blip and a rebase on every alt-tab).
+   */
+  reopenAllRaw(why: string) {
+    if (this.stopped || !this.rc.rawWs) return;
+    const now = this.clock.now();
+    const stall = this.rc.rawStallMs ?? 600;
+    for (const s of this.subs.values()) {
+      if (!s.raw) continue;
+      let n = 0;
+      for (let k = 0; k < s.raw.length; k++) if (now - (s.rawLast![k] ?? 0) > stall) { this.rawReopen(s, k, now, why); n++; }
+      if (!n) continue;
+      s.rawBackoffMs = 2 * RAW_REOPEN_FIRST_MS; s.rawNextAllMs = now + RAW_REOPEN_FIRST_MS;
+      void this.pollOne(s);
     }
   }
 
@@ -380,6 +452,7 @@ export class RollupTransport implements Transport {
 
   // ---- join ----------------------------------------------------------------------------------------------------
   async join(args: JoinArgs): Promise<JoinResult> {
+    if (this.stopped) return { ok: false, error: 'stopped' };
     if (this.rc.p2) {
       // idempotent for the same match (relay re-joins, Unity reconnects); a pre-join for ANOTHER match starts over
       // (fullchain production canary: the second whole match of a page returned the first match's join, no join_lobby,
@@ -597,18 +670,26 @@ export class RollupTransport implements Transport {
     try { const i = await this.er.getAccountInfo(pk, this.cm); return i ? toU8(i.data) : null; } catch { return null; }
   }
 
-  /** A SessionTokenV2 for (burner, session signer, this program) that exists on the base layer and is valid ≥ 60 s. */
-  private async ensureSession(): Promise<boolean> {
+  /**
+   * A SessionTokenV2 for (burner, session signer, this program) that exists on the base layer and stays valid for
+   * SESSION_REUSE_MARGIN_SEC more seconds (harden #9: 900 s, longer than a whole match, so a token
+   * does not expire mid-match). `keep` (the wallet already holds a slot of a lobby / running match: its InputBuf
+   * owner is the current signer) reuses any still-valid token and never rotates, else the player is locked out.
+   */
+  private async ensureSession(keep = false): Promise<boolean> {
     const w = this.ctx.wallet;
     const nowSec = Math.floor(this.clock.wallMs() / 1000);
     const m = w.sessionMeta;
-    if (m.token && m.authority === w.burner.publicKey.toBase58() && m.validUntil > nowSec + 60) {
+    const margin = keep ? 0 : SESSION_REUSE_MARGIN_SEC;
+    if (m.token && m.authority === w.burner.publicKey.toBase58() && m.validUntil > nowSec + margin) {
       try {
         const acc = await this.base.getAccountInfo(new PublicKey(m.token), 'confirmed');
         const t = acc ? decodeSessionTokenV2(toU8(acc.data)) : null;
-        if (t && t.sessionSigner.equals(w.session.publicKey) && !isExpired(t, nowSec + 60)) { this.jev('session', { state: 'reused', token: m.token }); return true; }
+        if (t && t.sessionSigner.equals(w.session.publicKey) && !isExpired(t, nowSec + margin)) { this.jev('session', { state: 'reused', token: m.token, ...(keep ? { keep: true } : {}) }); return true; }
       } catch { /* fall through: create */ }
     }
+    if (keep && m.token && m.authority === w.burner.publicKey.toBase58() && m.validUntil > nowSec) { this.jev('session', { state: 'reused', token: m.token, keep: true, unverified: true }); return true; }
+    if (this.stopped) return false;
     this.jev('session', { state: 'creating' });
     const r = await this.session('create', { force: true });
     if (r.ok) { this.receipt.sessionSig = r.sig; this.receipt.sessionToken = r.token; return true; }
@@ -620,6 +701,7 @@ export class RollupTransport implements Transport {
   private async sendErConfirmed(ix: TransactionInstruction, kind: string, retryMs: number): Promise<{ ok: boolean; sig: string; err?: unknown }> {
     const t0 = this.clock.now();
     for (let n = 0; ; n++) {
+      if (this.stopped) return { ok: false, sig: '', err: 'stopped' };
       let sig = '', err: unknown;
       try {
         if (n > 0) await this.refreshBlockhash();
@@ -631,7 +713,7 @@ export class RollupTransport implements Transport {
         err = r.err;
       } catch (e) { err = errMsg(e); }
       const s = typeof err === 'string' ? err : safeJson(err);
-      if (!/pending|AccountNotFound|cloner|timeout|Blockhash/i.test(s) || this.clock.now() - t0 > retryMs) return { ok: false, sig, err };
+      if (this.stopped || !/pending|AccountNotFound|cloner|timeout|Blockhash/i.test(s) || this.clock.now() - t0 > retryMs) return { ok: false, sig, err: this.stopped ? 'stopped' : err };
       await sleep(this.clock, 600);
     }
   }
@@ -642,9 +724,15 @@ export class RollupTransport implements Transport {
     const arena = new PublicKey(cfg.addresses.arena);
     const watch = c.watchMs ?? 250;
     const t0 = this.clock.now();
+    const STOPPED: JoinResult = { ok: false, error: 'stopped' };
     try {
-      // 1. session key (base layer), else the burner signs
-      const tok = c.useSession === false ? false : await this.ensureSession();
+      // 1. session key (base layer), else the burner signs. harden #9: a wallet that already holds a slot of the
+      //    arena's lobby / running match keeps its signer (the slot's InputBuf owner); else the token must outlive a match
+      const me0 = w.burner.publicKey;
+      const pre = c.useSession === false ? null : await this.readEr(arena).then((d) => (d ? decodeArena(d, c) : null));
+      const seated = !!pre && pre.wallets.some((k) => k.equals(me0)) && (pre.status === c.arenaStatus.lobby || pre.status === c.arenaStatus.running);
+      const tok = c.useSession === false ? false : await this.ensureSession(seated);
+      if (this.stopped) return STOPPED;
       this.player = tok ? w.session : w.burner;
       this.joinedWithToken = tok;
       const me = w.burner.publicKey;
@@ -663,14 +751,23 @@ export class RollupTransport implements Transport {
       let a = null as ReturnType<typeof decodeArena>;
       let slot: number | null = null;
       let announced = false;
+      let otherTab = false;
       for (;;) {
+        if (this.stopped) return STOPPED;
         const d = await this.readEr(arena);
         a = d ? decodeArena(d, c) : null;
         if (a) {
           const mine = a.wallets.findIndex((k) => k.equals(me));
-          if (mine >= 0 && ours(a) && (a.status === c.arenaStatus.lobby || a.status === c.arenaStatus.running)) { slot = mine; this.jev('alreadyJoined', { slot }); break; }
+          if (mine >= 0 && ours(a) && (a.status === c.arenaStatus.lobby || a.status === c.arenaStatus.running)) {
+            // harden #9 (two tabs, one burner): the server seated THIS tab at args.slot, but the wallet already plays
+            // another slot (the other tab): watch instead of taking over that slot (both tabs would drive one Rushling)
+            if (args.full && args.slot !== undefined && args.slot !== mine && !args.spectate) { slot = 255; otherTab = true; this.jev('otherTab', { slot: mine, want: args.slot }); break; }
+            slot = mine; this.jev('alreadyJoined', { slot }); break;
+          }
           if (a.status === c.arenaStatus.lobby && ours(a)) break;
-          if (wantMatch && a.status === c.arenaStatus.running && ours(a)) { slot = 255; this.jev('missedLobby', { match: wantMatch.toBase58() }); break; } // started without us: spectate
+          // started without us: spectate. harden #9: also a viewer / late joiner with no match id (spectate or a whole
+          // on-chain match): before, only a hybrid join (wantMatch) broke here and the rest waited ~15 min for a lobby
+          if ((wantMatch || args.spectate || args.full) && a.status === c.arenaStatus.running && ours(a)) { slot = 255; this.jev('missedLobby', { match: a.matchAccount.toBase58() }); break; }
           if (!announced) { announced = true; this.jev('waitingLobby', { arenaStatus: a.status }); }
         }
         if (this.clock.now() - t0 > (c.lobbyTimeoutMs ?? 900000)) return { ok: false, error: 'lobby did not open' };
@@ -684,11 +781,12 @@ export class RollupTransport implements Transport {
       if (args.spectate) slot = 255;
       const readMatch = async () => { const d = await this.readEr(matchPk); return d ? decodeMatch(d, c) : null; };
       for (let attempt = 0; slot === null; attempt++) {
+        if (this.stopped) return STOPPED;
         let want = args.slot ?? null;
         if (want === null) {
           if (!finalists) {
             let m = await readMatch();
-            while (!m || m.roundTargets[0] === 0) { if (this.clock.now() - t0 > (c.lobbyTimeoutMs ?? 900000)) return { ok: false, error: 'match not readable' }; await sleep(this.clock, watch); m = await readMatch(); }
+            while (!m || m.roundTargets[0] === 0) { if (this.stopped) return STOPPED; if (this.clock.now() - t0 > (c.lobbyTimeoutMs ?? 900000)) return { ok: false, error: 'match not readable' }; await sleep(this.clock, watch); m = await readMatch(); }
             finalists = await syntheticFinalists(m.matchId, m.playerCount, m.roundTargets);
             this.jev('finalists', { finalists });
           }
@@ -697,11 +795,16 @@ export class RollupTransport implements Transport {
         }
         const ix = buildInstruction(c.joinLobby, this.refs({ slot: want, cosmetic: c.cosmetic ?? 0, wallet: me, player: this.player.publicKey, sessionToken: tok ? (this.refs().sessionToken as PublicKey) : undefined }));
         const r = await this.sendErConfirmed(ix, 'join', c.joinRetryMs ?? 10000);
+        if (this.stopped) return STOPPED;
         if (r.ok) { slot = want; this.receipt.joinSig = r.sig; break; }
         const code = customCode(r.err);
         const d = await this.readEr(arena);
         a = d ? decodeArena(d, c) : a;
         const mine = a ? a.wallets.findIndex((k) => k.equals(me)) : -1;
+        // harden review: two tabs on one burner both get the pre-join at roster lock, both see an empty roster and both
+        // send join_lobby; the loser's fails (AlreadyJoined / slot taken) and the roster now shows the wallet at the
+        // winner's slot. Same rule as step 2: a whole-match tab the server seated elsewhere watches instead
+        if (mine >= 0 && args.full && args.slot !== undefined && mine !== want && !args.spectate) { slot = 255; otherTab = true; this.jev('otherTab', { slot: mine, want }); break; }
         if (mine >= 0) { slot = mine; break; }
         if (code === (c.errors?.slotTaken ?? 6023) && args.slot === undefined && attempt < 12) { this.jev('slotTaken', { slot: want }); continue; }
         return { ok: false, error: 'join_lobby failed: ' + safeJson(r.err) };
@@ -710,6 +813,7 @@ export class RollupTransport implements Transport {
       if (slot !== 255) this.jev('lobbyJoined', { slot, sig: this.receipt.joinSig ?? null, player: this.player.publicKey.toBase58(), withSessionToken: tok });
       // 4. wait for start_final
       for (;;) {
+        if (this.stopped) return STOPPED;
         if (a && a.status === c.arenaStatus.running) break;
         if (a && a.status !== c.arenaStatus.lobby) return { ok: false, error: 'arena left the lobby without starting (status ' + a.status + ')' };
         if (this.clock.now() - t0 > (c.startTimeoutMs ?? 900000)) return { ok: false, error: 'start_final timeout' };
@@ -720,6 +824,7 @@ export class RollupTransport implements Transport {
       // 5. roster = the finalists (Match slots alive after round 3), human when the arena's human_mask says so;
       //    fullchain (args.full, start_sim): the whole roster (slots 0..playerCount-1), nobody is demoted to spectator
       const m = await readMatch();
+      if (this.stopped) return STOPPED;
       let fin: number[];
       if (args.full) {
         fin = m ? Array.from({ length: m.playerCount }, (_, i) => i) : [];
@@ -743,6 +848,7 @@ export class RollupTransport implements Transport {
       const map = args.full ? (args.map ?? worldMap ?? 'Lobby') : (args.map ?? this.rc.join?.map ?? 'CrumbleShelf');
       const res: JoinResult = { ok: true, slot: slot!, arena: arena.toBase58(), map, rate: this.rc.join?.rate ?? 30, coreVersion, roster, world: cfg.addresses.world };
       (res as Record<string, unknown>).match = matchPk.toBase58();
+      if (otherTab) { res.spectating = true; res.reason = 'wallet already playing in another tab'; }
       this.joined = res;
       this.jev('started', { slot, match: matchPk.toBase58(), finalists: fin, ms: Math.round(this.clock.now() - t0) });
       return res;
@@ -1005,6 +1111,7 @@ export class RollupTransport implements Transport {
 
   stop(): void {
     this.stopped = true;
+    for (const u of this.unlisten.splice(0)) { try { u(); } catch { /* gone */ } }
     for (const t of this.timers) this.clock.clearInterval(t);
     this.erPoller.stop(); this.basePoller.stop();
     for (const s of this.subs.values()) this.detach(s);

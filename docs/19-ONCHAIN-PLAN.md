@@ -25,7 +25,7 @@ Anything not measured by us is marked **UNVERIFIED**.
 A Rust crate, **`rush-core`**, holds the whole game simulation with integer maths only: the motor, collisions, hazards, round rules and bots. It is compiled **to sBPF** inside the `fall_rush` program, where it is the authority, and **to WASM** inside Unity WebGL, for client prediction. Same source and integer maths means the client and the chain agree **bit for bit, by construction**.
 
 On the Ephemeral Rollup:
-- a **timed task** (the rollup's built-in scheduler, "crank" in the SDK) calls `tick()` 20 times a second;
+- a **timed task** (the rollup's built-in scheduler, "crank" in the SDK; a Hydra crank since MagicBlock core 2.0.4, failed executions retried, RESEARCH.md §1) calls `tick()` 20 times a second;
 - players write **their own input accounts** with session keys;
 - browsers **subscribe to the `World` account**;
 - the program itself decides eliminations, settles **Rush Markets**, applies **Chaos Drops** and, at the end, commits a receipt to Solana. A follow-up call on Solana ("Magic Action" in the SDK) then mints the **Crown Capsule** and the **VRF capsule drops** and pays out.
@@ -659,6 +659,7 @@ Render only; no map, rules or hash change. Kept for last (user call). Nothing he
   - Fees: rollup transactions are free; commits are limited to 10 per delegation unless a fee payer is set up.
 - **Platform features:**
   - Timed tasks: `ScheduleTask` (ms interval, about 10 ms granularity, fee-free; task ids shared across programs on 1.1.1).
+    Update (2026-11-25, `docs/proof/fullchain/RESEARCH.md` §1): devnet-as now runs MagicBlock core 2.0.4, where a legacy `ScheduleTask` runs as a Hydra crank and a failed execution is retried, not removed (on 1.1.1 one failure ended the task). A delegated account without a fee payer stops committing after 10 commits.
   - Follow-up calls on Solana: `MagicIntentBundleBuilder` + `#[action]`, not atomic with the commit per the docs.
   - Ephemeral SPL Token v0.1.0.
   - Private rollups: TDX on `devnet-tee`, Permission Program `ACLseo…`.

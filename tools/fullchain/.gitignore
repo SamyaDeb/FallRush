@@ -1,0 +1,2 @@
+# load test output (tools/fullchain/load.ts); keys live in .keys/ (ignored by the root .gitignore)
+.load/

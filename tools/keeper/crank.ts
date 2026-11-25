@@ -4,12 +4,17 @@
 // The slice size never changes the simulation (RESEARCH §1), so the budget adapts freely: when the World makes no
 // progress for STUCK_MS (a slice over 1.4M CU fails at the same point every time), the budget halves (floor 1,000 =
 // the timed task's slice, one player always fits); after UP_MS of progress it doubles back (cap 9,000).
+// followups (CRANK_GATE): an optional `gate` (policy.gateStep in daemon.ts) closes the crank while the World keeps up
+// with real time on the timed tasks alone; a closed gate sends nothing (no burst when it reopens, and the pause never
+// reads as "stuck"). It only changes which transactions land, never the simulation.
 import { Transaction, Connection, Keypair, TransactionInstruction } from "@solana/web3.js";
 import { cu, sleep } from "./lib.ts";
 
 export const BUDGETS = [6000, 4500, 2250, 1000]; // LiteSVM Capsule Run 12p max per execution: 6000 → 1.43M (rare), 4500 → 1.38M
 
-export type CrankStats = { sent: number; ok: number; err: number; skipped: number; down: number; up: number; msAt: Record<number, number> };
+export type CrankStats = { sent: number; ok: number; err: number; skipped: number; down: number; up: number; msAt: Record<number, number>;
+  /** sends not made because the gate was closed (CRANK_GATE=1; 0 otherwise) */
+  gated: number; gate?: object };
 export const MAX_INFLIGHT = Number(process.env.CRANK_MAX_INFLIGHT ?? 64);
 
 export function startCrank(o: {
@@ -24,9 +29,13 @@ export function startCrank(o: {
   stuckMs?: number;
   upMs?: number;
   log?: (o: object) => void;
+  /** CRANK_GATE: true = send (the World is behind real time / stalled); absent = always send (today's behaviour) */
+  gate?: () => boolean;
+  /** the gate's own counters (opens / closes / open ms), merged into the stats as `gate` on stop */
+  gateStats?: () => object;
 }) {
   const rate = o.rate ?? 50, stuckMs = o.stuckMs ?? 250, upMs = o.upMs ?? 1000;
-  const st: CrankStats = { sent: 0, ok: 0, err: 0, skipped: 0, down: 0, up: 0, msAt: {} };
+  const st: CrankStats = { sent: 0, ok: 0, err: 0, skipped: 0, down: 0, up: 0, msAt: {}, gated: 0 };
   let inflight = 0;
   let run = true;
   const done = (async () => {
@@ -34,12 +43,27 @@ export function startCrank(o: {
     for (const b of BUDGETS) ixs[b] = await o.ix(b);
     let level = 0, levelAt = Date.now();
     let bh = (await o.er.getLatestBlockhash("processed")).blockhash, bhAt = Date.now(), nonce = 0;
-    let lastProg = o.progress(), lastProgAt = Date.now(), t0 = Date.now(), sent0 = 0;
+    let lastProg = o.progress(), lastProgAt = Date.now(), t0 = Date.now(), sent0 = 0, wasOpen = true, closedAt = 0;
     while (run) {
       const now = Date.now();
       if (now - bhAt > 1500) { o.er.getLatestBlockhash("processed").then((x) => { bh = x.blockhash; }).catch(() => {}); bhAt = now; }
       const p = o.progress();
       if (p !== lastProg) { lastProg = p; lastProgAt = now; }
+      if (o.gate) {
+        let open = true;
+        try { open = o.gate(); } catch { open = true; } // fail open
+        if (!open) {
+          // closed: no sends; on reopen the rate clock restarts (no catch-up burst) and the budget level and its stuck
+          // detector resume as if the pause never happened. `gated` = the sends the closed time would have made
+          if (wasOpen) {
+            st.msAt[BUDGETS[level]] = (st.msAt[BUDGETS[level]] ?? 0) + (now - levelAt); // msAt = sending time
+            closedAt = now; wasOpen = false;
+          }
+          await sleep(3);
+          continue;
+        }
+        if (!wasOpen) { st.gated += Math.floor(((now - closedAt) / 1000) * rate); wasOpen = true; lastProgAt = now; levelAt = now; t0 = now; sent0 = 0; }
+      }
       if (now - lastProgAt > stuckMs && level < BUDGETS.length - 1) {
         st.msAt[BUDGETS[level]] = (st.msAt[BUDGETS[level]] ?? 0) + (now - levelAt);
         level++; levelAt = now; lastProgAt = now; st.down++;
@@ -62,7 +86,8 @@ export function startCrank(o: {
       }
       await sleep(3);
     }
-    st.msAt[BUDGETS[level]] = (st.msAt[BUDGETS[level]] ?? 0) + (Date.now() - levelAt);
+    if (wasOpen) st.msAt[BUDGETS[level]] = (st.msAt[BUDGETS[level]] ?? 0) + (Date.now() - levelAt);
+    else st.gated += Math.floor(((Date.now() - closedAt) / 1000) * rate);
   })();
-  return { stats: st, stop: async () => { run = false; await done; return st; } };
+  return { stats: st, stop: async () => { run = false; await done; if (o.gateStats) { try { st.gate = o.gateStats(); } catch {} } return st; } };
 }

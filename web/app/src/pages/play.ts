@@ -36,6 +36,19 @@ export function play(root: HTMLElement) {
     if (q0.get('judge') === '1') {
       (root.querySelector('#msg') as HTMLElement).textContent = 'judge mode: reserving an on-chain arena…';
       judge = await api('/judge', {}).catch((e) => ({ ok: false, error: String(e) }));
+      // followups: 409 busy "keeper" = an on-chain arena is still finishing (settle → finalize) the last match: no
+      // error, retry after the indexer's retryInS (bounded: ~3 min, then the normal error with Try again)
+      for (let tries = 0; judge && !judge.ok && judge.busy === 'keeper' && tries < 36 && root.isConnected; tries++) {
+        const waitS = Math.min(30, Math.max(2, Number(judge.retryInS) || 5));
+        for (let left = waitS; left > 0 && root.isConnected; left--) {
+          (root.querySelector('#msg') as HTMLElement).textContent = `judge mode: arena finishing the last match… retrying in ${left}s`;
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+        if (!root.isConnected) return;
+        (root.querySelector('#msg') as HTMLElement).textContent = 'judge mode: arena finishing the last match… retrying';
+        judge = await api('/judge', {}).catch((e) => ({ ok: false, error: String(e) }));
+      }
+      if (!root.isConnected) return;
       if (!judge?.ok) {
         (root.querySelector('#msg') as HTMLElement).innerHTML = `judge mode: ${String(judge?.error ?? 'unavailable').replace(/[&<>"']/g, '')}<br><a href="/play?judge=1">Try again</a> · <a href="/play">Play the full match</a> · <a href="/live">Watch on /live</a>`;
         return;

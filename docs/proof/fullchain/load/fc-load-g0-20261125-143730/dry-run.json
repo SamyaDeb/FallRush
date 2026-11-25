@@ -1,0 +1,108 @@
+{
+ "dryRun": true,
+ "arena": 7,
+ "arenaPda": "3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3",
+ "worldPda": "5e6BG7aod9wft3R36yR72gWJSKjHgdgpLv1YJbDzBDPf",
+ "n": 11,
+ "browsers": 0,
+ "lead": 5,
+ "rawSockets": 2,
+ "slotPlan": [
+  11,
+  10,
+  9,
+  8,
+  7,
+  6,
+  5,
+  4,
+  3,
+  2,
+  1
+ ],
+ "reserve": [],
+ "submitInput": {
+  "programId": "4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4",
+  "keys": 4,
+  "dataLen": 25,
+  "dataHex": "38b89a5bad3f158a0bd20400003a7f00a13a7f00a03a7f00a0"
+ },
+ "ratePerClient": "10 tx/s (3 ticks/tx at 30 Hz)",
+ "expectedInputTxPerS": 110,
+ "syntheticRounds": [
+  {
+   "round": 1,
+   "ticks": 300,
+   "wallS": 10,
+   "samples": 101,
+   "realTime": 1,
+   "rushRealTime": 1,
+   "execPerS": 150,
+   "notDuePerS": 90,
+   "ranPerS": 60,
+   "notDueShare": 0.6,
+   "lagMaxTicks": 0,
+   "lagP95Ticks": 0,
+   "appliedRatio": 1
+  },
+  {
+   "round": 2,
+   "ticks": 300,
+   "wallS": 10,
+   "samples": 101,
+   "realTime": 1,
+   "rushRealTime": 1,
+   "execPerS": 150,
+   "notDuePerS": 90,
+   "ranPerS": 60,
+   "notDueShare": 0.6,
+   "lagMaxTicks": 0,
+   "lagP95Ticks": 0,
+   "appliedRatio": 1
+  },
+  {
+   "round": 3,
+   "ticks": 300,
+   "wallS": 10,
+   "samples": 101,
+   "realTime": 1,
+   "rushRealTime": 1,
+   "execPerS": 150,
+   "notDuePerS": 90,
+   "ranPerS": 60,
+   "notDueShare": 0.6,
+   "lagMaxTicks": 0,
+   "lagP95Ticks": 0,
+   "appliedRatio": 1
+  },
+  {
+   "round": 4,
+   "ticks": 291,
+   "wallS": 9.7,
+   "samples": 98,
+   "realTime": 1,
+   "rushRealTime": 1,
+   "execPerS": 150,
+   "notDuePerS": 90,
+   "ranPerS": 60,
+   "notDueShare": 0.6,
+   "lagMaxTicks": 0,
+   "lagP95Ticks": 0,
+   "appliedRatio": 1
+  }
+ ],
+ "syntheticVerdict": {
+  "pass": true,
+  "inconclusive": false,
+  "toolSaturated": false,
+  "realTime": true,
+  "rounds": 4,
+  "inputP95": true,
+  "joined": true,
+  "criteria": {
+   "minRealTime": 0.99,
+   "maxInputP95Ms": 400,
+   "expectedHumans": 11
+  }
+ }
+}

@@ -1,0 +1,1 @@
+[keeper a7] 2026-11-25T10:26:01.669Z start_sim {"humans":{"want":0,"min":5,"target":5,"joined":5,"ms":330}}

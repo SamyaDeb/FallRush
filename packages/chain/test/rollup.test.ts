@@ -6,7 +6,7 @@ import { readDrainEntries } from '../src/wire.ts';
 import { bytesToHex } from '../src/b58.ts';
 import { sessionTokenV2Pda, SESSION_KEYS_PROGRAM_ID, encodeSessionTokenV2 } from '../src/session.ts';
 import { isClonerError } from '../src/rollup.ts';
-import { FakeClock, MockConn, memKV, worldAcc, flush } from './helpers/fake.ts';
+import { FakeClock, MockConn, MockWS, memKV, worldAcc, flush } from './helpers/fake.ts';
 import devnet from './fixtures/generic-rollup.json' with { type: 'json' };
 
 const PROGRAM = Keypair.fromSeed(new Uint8Array(32).fill(11)).publicKey;
@@ -235,4 +235,108 @@ test('RTT probe + stats shape', async () => {
   const st = JSON.parse(chain.stats());
   for (const k of ['updatesPerSec', 'inputBatchesPerSec', 'confirmP50', 'confirmP95', 'rttMs', 'gaps', 'polls', 'reconnects', 'lastTick']) assert.ok(k in st, k);
   assert.equal(st.transport, 'rollup');
+});
+
+// ---- harden #9: raw World sockets reopen after a long outage (backoff), no churn during a stall, visible/online ----
+async function rawSetup() {
+  MockWS.reset();
+  const g = globalThis as any;
+  const listeners: Record<string, (() => void)[]> = {};
+  const target = { addEventListener: (t: string, f: () => void) => { (listeners[t] ??= []).push(f); }, removeEventListener: (t: string, f: () => void) => { listeners[t] = (listeners[t] ?? []).filter((x) => x !== f); } };
+  const saved = { WebSocket: g.WebSocket, document: g.document, addEventListener: g.addEventListener, removeEventListener: g.removeEventListener };
+  g.WebSocket = MockWS;
+  g.document = { visibilityState: 'visible', ...target };
+  g.addEventListener = target.addEventListener; g.removeEventListener = target.removeEventListener;
+  const env = await setup(cfg((c) => { (c.rollup as any).rawWs = true; (c.rollup as any).rawSockets = 2; }));
+  const restore = () => { Object.assign(g, saved); if (saved.document === undefined) delete g.document; if (saved.WebSocket === undefined) delete g.WebSocket; if (saved.addEventListener === undefined) { delete g.addEventListener; delete g.removeEventListener; } MockWS.reset(); };
+  const fire = (t: string) => { for (const f of listeners[t] ?? []) f(); };
+  let tick = 100;
+  /** the rollup streams one World: every open socket that is still subscribed gets it (only current sockets count) */
+  const deliver = () => { const b64 = Buffer.from(worldAcc(tick++)).toString('base64'); for (const ws of MockWS.instances) if (ws.readyState === 1) ws.text({ jsonrpc: '2.0', method: 'accountNotification', params: { result: { value: { data: [b64, 'base64'] } } } }); };
+  return { ...env, restore, fire, deliver, listeners };
+}
+const reopens = (ev: Record<string, unknown>[]) => ev.filter((e) => e.type === 'wsReconnect');
+
+test('raw sockets: an 11 s outage is followed by a reopen (backoff 1/2/4/8 s) and live Worlds within 15 s', async () => {
+  const { chain, clock, restore, deliver, er } = await rawSetup();
+  try {
+    er().account = worldAcc(99);
+    chain.subscribe('$world');
+    await flush();
+    assert.equal(MockWS.instances.length, 2, 'two raw sockets');
+    for (let i = 0; i < 20; i++) { deliver(); await clock.advance(100); }
+    events(chain);
+    // the network drops for 11 s: sockets die, new sockets never connect, nothing is delivered
+    MockWS.autoOpen = false;
+    for (const ws of MockWS.instances) ws.close();
+    const out0 = clock.now();
+    await clock.advance(11_000);
+    const during = reopens(events(chain));
+    assert.ok(during.length > 0 && during.length <= 6, 'backoff reopens during the outage (at +1, +3, +7 s): ' + during.length);
+    assert.ok(during.every((e) => e.how === 'rawBackoff'));
+    // network back
+    MockWS.autoOpen = true;
+    const before = JSON.parse(chain.stats()).lastTick;
+    let back = -1;
+    for (let t = 0; t < 15_000 && back < 0; t += 100) {
+      const at = clock.now();
+      deliver();
+      await clock.advance(100);
+      if (JSON.parse(chain.stats()).lastTick > before) back = at - out0;
+    }
+    assert.ok(back > 0 && back <= 15_000, 'Worlds flow again within 15 s of the outage start: ' + back);
+    // and the backoff resets: delivering sockets, no more reopens
+    events(chain);
+    for (let i = 0; i < 30; i++) { deliver(); await clock.advance(100); }
+    assert.equal(reopens(events(chain)).length, 0);
+  } finally { chain.stop(); restore(); }
+});
+
+test('raw sockets: a 5 s chain stall reopens ≤ 4 sockets (no 600 ms churn); one silent socket is still reopened at once', async () => {
+  const { chain, clock, restore, deliver } = await rawSetup();
+  try {
+    chain.subscribe('$world');
+    await flush();
+    for (let i = 0; i < 20; i++) { deliver(); await clock.advance(100); }
+    events(chain);
+    await clock.advance(5000); // the rollup stops streaming (no network fault)
+    const stall = reopens(events(chain));
+    assert.ok(stall.length <= 4, 'reopen churn during a 5 s stall: ' + stall.length);
+    for (let i = 0; i < 10; i++) { deliver(); await clock.advance(100); }
+    events(chain);
+    // socket 0 goes silent while socket 1 delivers: socket 0 is reopened after rawStallMs (600 ms)
+    const s0 = MockWS.instances.filter((w) => w.readyState === 1)[0];
+    s0.readyState = 2; // stops receiving (half-open)
+    for (let i = 0; i < 10; i++) { deliver(); await clock.advance(100); }
+    const one = reopens(events(chain));
+    assert.equal(one.length, 1);
+    assert.equal(one[0].how, 'rawReopen');
+  } finally { chain.stop(); restore(); }
+});
+
+test('raw sockets: page visible again / online reopens every silent socket at once (healthy ones kept); stop() removes the listeners', async () => {
+  const { chain, clock, restore, deliver, fire, listeners } = await rawSetup();
+  try {
+    chain.subscribe('$world');
+    await flush();
+    for (let i = 0; i < 5; i++) { deliver(); await clock.advance(100); }
+    events(chain);
+    const n0 = MockWS.instances.length;
+    // harden review: healthy sockets (a desktop alt-tab) are kept: no World gap
+    fire('visibilitychange');
+    assert.equal(MockWS.instances.length, n0);
+    assert.equal(reopens(events(chain)).length, 0);
+    // a locked phone: the sockets died silently (no close); the watchdog's timers did not run while hidden
+    for (const ws of MockWS.instances) ws.readyState = 2;
+    clock.t += 700; // time passed without the 250 ms timers firing (tab suspended)
+    fire('visibilitychange');
+    assert.equal(MockWS.instances.length, n0 + 2);
+    assert.deepEqual(reopens(events(chain)).map((e) => e.how), ['visible', 'visible']);
+    for (const ws of MockWS.instances) ws.readyState = 2;
+    clock.t += 700;
+    fire('online');
+    assert.equal(MockWS.instances.length, n0 + 4);
+    chain.stop();
+    assert.equal((listeners.visibilitychange ?? []).length + (listeners.online ?? []).length, 0);
+  } finally { restore(); }
 });

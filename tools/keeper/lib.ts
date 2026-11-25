@@ -14,8 +14,13 @@ export const EP = NET === "local"
   ? { base: "http://localhost:8899", er: "http://localhost:7799", erWs: "ws://localhost:7800", validator: new PublicKey("mAGicPQYBMvcYveUZA5F5UNNwyHvfYh5xkLS2Fr1mev"), vrfQueue: new PublicKey("Sc9MJUngNbQXSXGP3F67KvKwVnhaYn6kcioxXNVowYT") }
   // submission: SOLANA_RPC_URL (e.g. a private devnet RPC) overrides the public base-layer endpoint; the rollup stays MagicBlock's
   : { base: process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", er: "https://devnet-as.magicblock.app", erWs: "wss://devnet-as.magicblock.app", validator: new PublicKey("MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57"), vrfQueue: new PublicKey("5hBR571xnXppuCPveTrctfTU7tJLSN94nq7kv7FRK5Tc") };
-export const base = new Connection(EP.base, { commitment: "confirmed" });
-export const er = new Connection(EP.er, { commitment: "processed", wsEndpoint: EP.erWs });
+// harden: every RPC request gets a deadline. A request that never returned froze runFinal's loop after round 4 in the
+// arena-7 load test (09:29:41 UTC 2026-11-25: no log, no World read, no deadline check for 10 min); web3.js has no
+// request timeout of its own. A timed-out request throws like any RPC error and every caller already retries.
+export const RPC_TIMEOUT_MS = Number(process.env.RPC_TIMEOUT_MS ?? 15_000);
+const timedFetch = ((url: any, init?: any) => fetch(url, { ...init, signal: AbortSignal.timeout(RPC_TIMEOUT_MS) })) as any;
+export const base = new Connection(EP.base, { commitment: "confirmed", fetch: timedFetch });
+export const er = new Connection(EP.er, { commitment: "processed", wsEndpoint: EP.erWs, fetch: timedFetch });
 const loadKp = (p: string) => Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(p, "utf8"))));
 /** The game authority that signs (and pays for) the sim instructions: on devnet the config's game authority
  * (~/.config/fall-rush/devnet-game-authority.json, as scripts/devnet-lifecycle.ts; override GAME_AUTHORITY_KEYPAIR),

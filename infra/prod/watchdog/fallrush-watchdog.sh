@@ -7,6 +7,10 @@ set -uo pipefail
 LOG=/opt/fallrush/logs/watchdog.log; STATE=/opt/fallrush/logs/watchdog.state
 SERVICES="fallrush-web fallrush-indexer fallrush-gs1 fallrush-gs2 fallrush-gs3 fallrush-keeper-1 fallrush-keeper-2"
 MAX_FAILS=3
+# harden #3: a keeper mid-match (stage onchain_match, heartbeat < 60 s: the process is alive, only a stage limit or a
+# slow /health tripped) gets 5 failed checks (~5 min) before a restart: a restart mid-race freezes the World for the
+# keeper's boot time and then fast-forwards it (shQHm8: 2-4x)
+KEEPER_MIDMATCH_MAX_FAILS=5
 mkdir -p /opt/fallrush/logs
 [ -f "$LOG" ] && [ "$(stat -c %s "$LOG")" -gt 1048576 ] && mv -f "$LOG" "$LOG.1"
 declare -A FAILS; [ -f "$STATE" ] && while read -r k v; do FAILS[$k]=$v; done < "$STATE"
@@ -27,16 +31,36 @@ check() { # $1 = service → exit 0 when healthy
     fallrush-keeper-2) curl -sf --max-time 5 http://127.0.0.1:3113/health | grep -q '"ok":true' ;;
   esac
 }
+# the failure budget of one service: 5 for a keeper that is alive inside an on-chain match, else MAX_FAILS
+max_fails() { # $1 = service
+  local port
+  case "$1" in fallrush-keeper-1) port=3111 ;; fallrush-keeper-2) port=3113 ;; *) echo "$MAX_FAILS"; return ;; esac
+  curl -s --max-time 5 "http://127.0.0.1:$port/status" 2>/dev/null | python3 -c 'import json,sys,time
+try:
+  s=json.load(sys.stdin); live=s.get("stage")=="onchain_match" and time.time()*1000-s.get("heartbeat",0)<60000
+except Exception: live=False
+print(sys.argv[1] if live else sys.argv[2])' "$KEEPER_MIDMATCH_MAX_FAILS" "$MAX_FAILS" 2>/dev/null || echo "$MAX_FAILS"
+}
 line="$(now)"
 for s in $SERVICES; do
   if check "$s"; then FAILS[$s]=0; line+=" $s=ok"
   else
     FAILS[$s]=$(( ${FAILS[$s]:-0} + 1 )); line+=" $s=FAIL${FAILS[$s]}"
-    if [ "${FAILS[$s]}" -ge "$MAX_FAILS" ]; then
+    lim=$MAX_FAILS; [ "${FAILS[$s]}" -ge "$MAX_FAILS" ] && lim=$(max_fails "$s")
+    if [ "${FAILS[$s]}" -ge "$lim" ]; then
       case "$s" in fallrush-*) echo "$(now) restart $s after ${FAILS[$s]} failed checks" >> "$LOG"; docker restart "$s" >> "$LOG" 2>&1; FAILS[$s]=0 ;; esac
     fi
   fi
 done
+# harden #1: the wallets the game spends from (indexer /api/health: authority, treasury, guest funder): a low balance
+# is a FAIL line in the log, never a restart (a top-up is an ops action)
+LOWB=$(curl -s --max-time 8 http://127.0.0.1:3110/api/health 2>/dev/null | python3 -c 'import json,sys
+try: h=json.load(sys.stdin)
+except Exception: sys.exit(0)
+low=h.get("low") or {}
+xs=["%s:%s" % (k, h.get(k+"Lamports")) for k in ("authority","treasury","funder") if low.get(k)]
+print(",".join(xs))' 2>/dev/null || true)
+[ -n "$LOWB" ] && line+=" balances=FAIL(low $LOWB)"
 # one compact line per minute only when something failed, plus a heartbeat every 30 min
 if [[ "$line" == *FAIL* ]] || [ "$(date -u +%M)" = "00" ] || [ "$(date -u +%M)" = "30" ]; then echo "$line" >> "$LOG"; fi
 : > "$STATE"; for s in $SERVICES; do echo "$s ${FAILS[$s]:-0}" >> "$STATE"; done

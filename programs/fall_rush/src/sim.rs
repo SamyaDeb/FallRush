@@ -326,6 +326,11 @@ fn tick_inner(accs: &[AccountInfo], budget: u32) -> u8 {
     if wa.arena != accs[0].key() || arena.match_account != accs[3].key() {
         return tick_code::BAD_ACCOUNTS;
     }
+    // harden #12: an aborted match (Classic fallback) never ticks again, so a leaked task or a permissionless crank
+    // cannot move it on. One byte of the Borsh layout (MATCH_STATUS_OFFSET, pinned by a test), no deserialize.
+    if match_aborted(&accs[3]) {
+        return tick_code::NOT_RUNNING;
+    }
     let mut k = 0;
     while k < MAP_SLOTS {
         if accs[4 + k].key() != arena.maps[k] {
@@ -505,6 +510,21 @@ pub fn world_round_start(wa: &WorldAcc) -> u32 {
     u32::from_le_bytes([wa.world[18], wa.world[19], wa.world[20], wa.world[21]])
 }
 
+/// Byte offset of `Match::status` in the account data: discriminator 8 + version 1 + bump 1 + match_id 16 (every field
+/// before it is fixed-size; `tests::match_status_offset` pins it against the Borsh serialisation).
+pub const MATCH_STATUS_OFFSET: usize = 8 + 1 + 1 + 16;
+
+/// True when `info` is a program-owned `Match` whose status byte reads `Aborted`.
+fn match_aborted(info: &AccountInfo) -> bool {
+    if info.owner != &crate::ID {
+        return false;
+    }
+    match info.try_borrow_data() {
+        Ok(d) => d.len() > MATCH_STATUS_OFFSET && d[MATCH_STATUS_OFFSET] == MatchStatus::Aborted as u8,
+        Err(_) => false,
+    }
+}
+
 /// Writes the director's state into the `Match` account: round, alive / eliminated / champion, transcript, deal,
 /// status. Done on director phase changes only (a `Match` deserialize is ≈ 10k CU).
 fn mirror_match(info: &AccountInfo, w: &World) {
@@ -520,6 +540,10 @@ fn mirror_match(info: &AccountInfo, w: &World) {
         Ok(m) => m,
         Err(_) => return,
     };
+    // harden #12: Aborted is final (the markets refunded under ABORTED; Classic decided the match)
+    if m.status == MatchStatus::Aborted {
+        return;
+    }
     let d = &w.dir;
     if m.flags & MATCH_FINAL_MODE != 0 {
         mirror_final(&mut m, w);
@@ -527,6 +551,7 @@ fn mirror_match(info: &AccountInfo, w: &World) {
         let _ = m.try_serialize(&mut out);
         return;
     }
+    let was_completed = m.status == MatchStatus::Completed;
     m.current_round = d.round;
     m.player_count = d.player_count.max(m.player_count);
     m.transcript_hash = d.transcript;
@@ -558,6 +583,10 @@ fn mirror_match(info: &AccountInfo, w: &World) {
         }
         _ => m.status,
     };
+    // harden #12: fullchain keeps Completed sticky (a later phase never reopens a crowned match)
+    if was_completed {
+        m.status = MatchStatus::Completed;
+    }
     if m.status == MatchStatus::Completed && m.completed_at == 0 {
         m.completed_at = Clock::get().map(|c| c.unix_timestamp).unwrap_or(0);
     }
@@ -606,6 +635,12 @@ pub fn submit_input(ib: &mut InputBuf, owner: &Pubkey, world_tick: u32, lead: u3
     let mut k = 0;
     while k < INPUT_BATCH {
         let t = start + k as u32;
+        // harden #12: a tick the World already ran can never be latched (tick part 0 latches world_tick + 1), and
+        // its ring entry is the one of tick t + RING: skip it so a late batch never clobbers a queued future input
+        if t <= world_tick {
+            k += 1;
+            continue;
+        }
         let e = &mut ib.ring[t as usize % RING];
         e.tick = t;
         let raw = [batch[k * 4], batch[k * 4 + 1], batch[k * 4 + 2], batch[k * 4 + 3]];
@@ -667,6 +702,8 @@ pub fn start_sim(arena: &mut Arena, wa: &mut WorldAcc, m: &Match, lobby: &[u8]) 
     wa.results_round = 255;
     wa.phase = w.dir.phase;
     wa.round = w.dir.round;
+    // harden #12: the round phase of the new World (the lobby's), not the last match's stale value
+    wa.round_phase = w.round.phase;
     arena.status = arena_status::RUNNING;
     arena.matches_run = arena.matches_run.wrapping_add(1);
     stamp_match(arena, wa);
@@ -717,6 +754,9 @@ pub fn start_final(arena: &mut Arena, wa: &mut WorldAcc, m: &mut Match, lobby: &
     wa.results_round = 255;
     wa.phase = w.dir.phase;
     wa.round = w.dir.round;
+    // harden #12: the round phase of the new World (WAITING), not the last match's ENDED / SANDBOX, so the
+    // Final's markets and sealed window stay open until the RUSH tick
+    wa.round_phase = w.round.phase;
     m.flags |= MATCH_SIM_STARTED | MATCH_FINAL_MODE;
     arena.status = arena_status::RUNNING;
     arena.matches_run = arena.matches_run.wrapping_add(1);
@@ -770,3 +810,117 @@ const _: () = assert!(core::mem::offset_of!(WorldAcc, input_lead) + 8 == 198);
 const _: () = assert!(core::mem::offset_of!(WorldAcc, round_phase) + 8 == 199);
 const _: () = assert!(core::mem::offset_of!(WorldAcc, world) + 8 == 208);
 const _: () = assert!(core::mem::size_of::<Arena>() + 8 == 1432);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn zero_match() -> Match {
+        let z = vec![0u8; Match::INIT_SPACE];
+        Match::deserialize(&mut &z[..]).unwrap()
+    }
+
+    /// harden #12: `tick_inner` reads `Match::status` by raw offset; pin it against the Borsh serialisation.
+    #[test]
+    fn match_status_offset() {
+        let mut m = zero_match();
+        m.version = 0xAA;
+        m.bump = 0xBB;
+        m.match_id = [0xCC; 16];
+        m.flags = 0xDD;
+        let mut buf = vec![0u8; 8 + Match::INIT_SPACE];
+        for st in [MatchStatus::Created, MatchStatus::RoundActive, MatchStatus::Completed, MatchStatus::Aborted] {
+            m.status = st;
+            let mut out: &mut [u8] = &mut buf[..];
+            m.try_serialize(&mut out).unwrap();
+            assert_eq!(buf[MATCH_STATUS_OFFSET], st as u8);
+            assert_eq!(buf[MATCH_STATUS_OFFSET - 1], 0xCC, "match_id ends right before status");
+            assert_eq!(buf[MATCH_STATUS_OFFSET + 1], 0xDD, "flags right after status");
+        }
+        assert_eq!(MatchStatus::Aborted as u8, 6);
+    }
+
+    /// Runs `mirror_match` on a serialised `Match` (program-owned, writable) and returns it deserialised.
+    fn mirrored(m: &Match, phase: u8, round: u8) -> Match {
+        let mut w = heap_world();
+        w.dir.phase = phase;
+        w.dir.round = round;
+        w.dir.champion = 255;
+        let mut data = vec![0u8; 8 + Match::INIT_SPACE];
+        let mut out: &mut [u8] = &mut data[..];
+        m.try_serialize(&mut out).unwrap();
+        let key = Pubkey::new_unique();
+        let owner = crate::ID;
+        let mut lamports = 1u64;
+        let info = AccountInfo::new(&key, false, true, &mut lamports, &mut data[..], &owner, false);
+        mirror_match(&info, &w);
+        let d = info.try_borrow_data().unwrap();
+        Match::try_deserialize(&mut &d[..]).unwrap()
+    }
+
+    /// harden #12: a tick's mirror never rewrites an Aborted Match (full and Final mode) and never reopens a
+    /// crowned full-mode match; a normal phase change is still mirrored.
+    #[test]
+    fn mirror_keeps_aborted_and_completed() {
+        use rush_core::rules::director::phase as dp;
+        let mut m = zero_match();
+        m.flags = MATCH_SIM_STARTED;
+        m.player_count = 12;
+        m.current_round = 1;
+        m.status = MatchStatus::RoundResolved;
+        // control: RoundResolved + ROUND_ACTIVE (round 2) → RoundActive
+        let c = mirrored(&m, dp::ROUND_ACTIVE, 2);
+        assert_eq!((c.status, c.current_round), (MatchStatus::RoundActive, 2));
+        // Aborted (full mode): untouched by any phase, CHAMPION included
+        m.status = MatchStatus::Aborted;
+        for ph in [dp::ROUND_ACTIVE, dp::ROUND_RESULT, dp::CHAMPION, dp::DONE] {
+            let a = mirrored(&m, ph, 3);
+            assert_eq!((a.status, a.current_round, a.completed_at), (MatchStatus::Aborted, 1, 0), "phase {ph}");
+        }
+        // Aborted (hybrid Final mode): mirror_final would have made it Completed
+        m.flags = MATCH_SIM_STARTED | MATCH_FINAL_MODE;
+        let a = mirrored(&m, dp::CHAMPION, 4);
+        assert_eq!((a.status, a.current_round), (MatchStatus::Aborted, 1));
+        // Completed (full mode) stays Completed whatever phase a later tick reports
+        m.flags = MATCH_SIM_STARTED;
+        m.status = MatchStatus::Completed;
+        m.completed_at = 7;
+        for ph in [dp::ROUND_INTRO, dp::ROUND_RESULT, dp::DONE] {
+            assert_eq!(mirrored(&m, ph, 2).status, MatchStatus::Completed, "phase {ph}");
+        }
+    }
+
+    fn input_buf(owner: &Pubkey) -> InputBuf {
+        let mut ib: InputBuf = bytemuck::Zeroable::zeroed();
+        ib.owner = *owner;
+        ib
+    }
+
+    /// harden #12: a batch for ticks the World already ran never clobbers a queued future input (t and t + RING
+    /// share a ring entry), and the call still succeeds.
+    #[test]
+    fn submit_input_skips_consumed_ticks() {
+        let o = Pubkey::new_unique();
+        let mut ib = input_buf(&o);
+        let fut = [1u8, 2, 0, 9, 3, 4, 0, 9, 5, 6, 0, 9];
+        let late = [100u8, 100, 0, 1, 100, 100, 0, 1, 100, 100, 0, 1];
+        // World at tick 100, lead 13: queue ticks 108..=110, then a late batch for 92..=94 (same ring entries)
+        submit_input(&mut ib, &o, 100, 13, 108, &fut).unwrap();
+        submit_input(&mut ib, &o, 100, 13, 92, &late).unwrap();
+        for (k, t) in (108u32..=110).enumerate() {
+            let e = ib.ring[t as usize % RING];
+            assert_eq!(e.tick, t, "future entry kept");
+            assert_eq!(e.input[..2], fut[k * 4..k * 4 + 2]);
+        }
+        // a batch straddling the World tick writes only the ticks still to come
+        submit_input(&mut ib, &o, 100, 13, 99, &late).unwrap();
+        assert_eq!(ib.ring[99 % RING].tick, 0, "tick 99 skipped");
+        assert_eq!(ib.ring[100 % RING].tick, 0, "tick 100 skipped (already ran)");
+        assert_eq!(ib.ring[101 % RING].tick, 101, "tick 101 written");
+        assert_eq!(ib.count, 3, "every batch accepted");
+        // the window itself is unchanged
+        assert!(submit_input(&mut ib, &o, 100, 13, 91, &late).is_err());
+        assert!(submit_input(&mut ib, &o, 100, 13, 114, &late).is_err());
+        assert!(submit_input(&mut ib, &Pubkey::new_unique(), 100, 13, 101, &late).is_err());
+    }
+}

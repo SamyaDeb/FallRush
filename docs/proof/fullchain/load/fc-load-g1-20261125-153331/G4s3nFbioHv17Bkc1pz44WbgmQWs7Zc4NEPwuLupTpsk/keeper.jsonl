@@ -1,0 +1,14 @@
+{"t":1795601020224,"act":"settle_0","ms":578,"ok":true}
+{"t":1795601020635,"act":"settle_1","ms":332,"ok":true}
+{"t":1795601021162,"act":"settle_2","ms":416,"ok":true}
+{"t":1795601021615,"act":"settle_3","ms":377,"ok":true}
+{"t":1795601022208,"act":"settle_4","ms":498,"ok":true}
+{"t":1795601022803,"act":"write_receipt","ms":333,"ok":true,"sig":"5HYcaU5ZjQriW9ZiiEFGwT6X1fmRLauGJMeyQxKDJaqKXEM4UnWEafhi8KPWeYc1d7rkWpc9Nqba5EMt2JUvCAKD"}
+{"t":1795601023270,"act":"request_capsules","ms":289,"ok":true,"sig":"43LZn4PSuRJ43kGMYNxnpt7JxooYeogdHa1cd1pUGbM5kkFS6B5yFbyh9unyy2HKSVrgr8achw3NzX953BBSv7aR"}
+{"t":1795601023840,"act":"end_sim","ms":306,"ok":true,"sig":"5whAFiVCnsyJLzJMWjdjWpGLowcGrDNwTAnd4565dAPaYisAB4ApGREfWKKwxWiofFP1tWVBtwnBeuX5bBxSt69a"}
+{"t":1795601025654,"act":"finalize_match","ms":322,"ok":true,"sig":"4NQ7v4gnvHZAcegvmNbVRy5VEj1TjpCrBLS7jmNm9aiBBtGdPVp9rQmxVanKpXPXqiE9ddUUxV3BcABvurMEzozv"}
+{"t":1795601028677,"act":"mint_rewards","what":8,"asset":"BYxCWffPZgBc1VmcCiKPaViXZVypHKaRhqQtNXdMiwvX","owner":"9Pjykn8UARvjgsQoms61HhFBoN56VysNTBtkUsQyMFeL","sig":"wbGwBQwG2HJHDVAi9N4tMWokCBZPzjYMjN3QRW7NHsibzK7rGHe7sDLR3ge8tvAZ48HuEBKJC12RBxVEv6svY2k"}
+{"t":1795601029481,"act":"mint_rewards","what":9,"asset":"BuzKSrLuCzTL8sHbYMpWXQD6th9JkkdUrp8SiVsg5W8v","owner":"66F7xpDMHo4fVEc1V26zuNyG8aiznuBMeoAqrwSWWhiz","sig":"3XeEcMMZ9C1d54XjQQZg7oqrARn6qDDgbRNU5jrAsMuxr4rGXRUAQyU5y8iu3aMHFqGi1pocd2wzkBNwY5X7nnmH"}
+{"t":1795601030461,"act":"mint_rewards","what":10,"asset":"HkTH2oNZfxtgVJGSLFpC3kiprsrr6umEhCaTxqTXZmS6","owner":"8axdoJDsN1bJpoHRxYLgCcsgXY5GMKjo9hue5bc9Ei99","sig":"5LL7KTEpgsQZQtpKb49UbXQq5oGPeA8G97R89GS8BMhT52GzmPPrwt32ibZM22HkzF78rWSx7iYgMCQGDkh2q14B"}
+{"t":1795601031257,"act":"mint_rewards","what":11,"asset":"UoZ4pdhvDjAhABmVXmkyujs6fB2r951Leqm4NcTvaNu","owner":"FDZPq1YjAhvKGxPCBYDfQYQgZDWQcU6jE4UzgUtUfEAP","sig":"56mALT4SjJx1N3W7QU9LYTxrRHus2hZqEgcHcG4E2qxWrN7LHquST7WsdGfHtoKw92TJu5XBTz11S6xdYniGcqoK"}
+{"t":1795601032163,"act":"mint_rewards","what":12,"asset":"StvrJcevZnmgvRqjXitHx8iZgvfG9YitWn1gMPBEeyE","owner":"2AWf5D6YgPkYdznajJuZBYjbDc6F5n95aBSezwXKeNBF","sig":"47nSNViq4C8tigmyDtnjSuDNbPREWcgggd92Ty5c7ENjEQBWNjquq6KfNTxwcUPLAy5xDFqeZUcAPPx6SDRAysEy"}

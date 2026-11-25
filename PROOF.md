@@ -6,7 +6,7 @@ It is a **full on-chain match**: all 4 rounds (Capsule Run, Goo Tower, Star Foun
 
 Rollup transactions open in Solana Explorer through a custom cluster (`https://devnet-as.magicblock.app`): Explorer asks once to **Connect** to that server; click Connect and the transaction loads (the `tick()` below was fetched over RPC when this page was generated: success, 207,225 CU). Rollups do not keep transactions forever: if a rollup link stops opening, the [receipt](https://fallrush.fun/receipt/Hxf8ae7ymYhyNcjEhKuah8y1FHfV4fkVYkk4VqnqAYDn) and the [replay](https://fallrush.fun/replay/Hxf8ae7ymYhyNcjEhKuah8y1FHfV4fkVYkk4VqnqAYDn) work from our archive and the Match account on Solana.
 
-> All 4 rounds are computed by the `fall_rush` program in a MagicBlock Ephemeral Rollup, 30 times a second, for all 12 players. Ticks come from MagicBlock's task scheduler and a permissionless keeper crank. Replay any match and compare it with the on-chain receipt, byte for byte.
+> All 4 rounds are computed by the `fall_rush` program in a MagicBlock Ephemeral Rollup, 30 times a second, for all 12 players. Ticks come from MagicBlock's task scheduler (timed tasks; on MagicBlock core 2.0.4 a task runs as a Hydra crank and a failed execution is retried) and a permissionless keeper crank. Replay any match and compare it with the on-chain receipt, byte for byte.
 
 | System | What it proves | Where | Link |
 |---|---|---|---|

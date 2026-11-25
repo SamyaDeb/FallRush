@@ -36,7 +36,7 @@
     "commitment": "processed",
     "baseTxPerSec": 1.5,
     "baseBurst": 1,
-    "confirmPollMs": 50,
+    "confirmPollMs": 200,
     "confirmBatch": 256,
     "confirmTimeoutMs": 5000,
     "accountPollMs": 1000,

@@ -159,6 +159,24 @@ namespace FallRush.Tests
         }
 
         [Test]
+        public void FullFeedEmitsTheNextRoundResultWhenItsIntroWorldsWereSkipped()
+        {
+            // harden #13: a tab hidden across the intermission + intro (the bundle keeps only ~2 s of Worlds) sees round 3
+            // first in RUSH; the per-round state must still reset (round index change), or round 3's result never fires
+            var f = new OnChainMatchFeed { OwnSlot = 0, Full = true };
+            f.OnWorld(View(Full("rush.worldacc", ChainDirector.RoundActive, 2)), 10.0);
+            f.OnWorld(View(Full("ended.worldacc", ChainDirector.RoundResult, 2)), 20.0);
+            Assert.IsTrue(f.NewEvents.Any(e => e.Type == RaceEventType.RoundEnd), "round 2's result");
+            f.OnWorld(View(Full("rush.worldacc", ChainDirector.RoundActive, 3)), 40.0); // no Intro / Countdown World seen
+            Assert.IsFalse(f.NewEvents.Any(e => e.Type == RaceEventType.RoundEnd));
+            f.OnWorld(View(Full("ended.worldacc", ChainDirector.RoundResult, 3)), 50.0);
+            Assert.AreEqual(1, f.NewEvents.Count(e => e.Type == RaceEventType.RoundEnd), "round 3's result fires once");
+            Assert.AreEqual(1, f.Match.Slots.Single(s => s.Slot == 1).Places[2], "round 3 place recorded");
+            f.OnWorld(View(Full("ended.worldacc", ChainDirector.RoundResult, 3)), 51.0);
+            Assert.IsFalse(f.NewEvents.Any(e => e.Type == RaceEventType.RoundEnd), "and only once");
+        }
+
+        [Test]
         public void FullFeedChampionAndEliminations()
         {
             var elim = new byte[12];

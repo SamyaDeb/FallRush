@@ -1,0 +1,52 @@
+{
+ "match": "/Users/samya/Downloads/FallRush-fullchain/.m1-logs/fc-load-g0-20261125-143730-archive/7M3YwGdQc3PL89VeKDpePmeb9LqbAgwgSZ1o3dGGqjL5//world2.bin",
+ "mode": "full",
+ "worldVersions": [
+  2
+ ],
+ "trust": 6,
+ "wasm": "client-unity/Assets/StreamingAssets/rush_core.wasm",
+ "maps": {
+  "BlockPartyDash": "71e871b165477fd4",
+  "GooTower": "5966a1cacd37d150",
+  "StarScramble": "9ca114e137e10cb3",
+  "CrumbleShelf": "8ecf31f663c6ea3f",
+  "Lobby": "943cbda4597a360a"
+ },
+ "snapshots": 1047,
+ "ticks": [
+  27,
+  7222
+ ],
+ "pairs": 830,
+ "byteExact": 830,
+ "fullTickPairs": 187,
+ "midTickPairs": 643,
+ "gaps": 216,
+ "mapLoads": 1,
+ "perRound": {
+  "r0": {
+   "pairs": 302,
+   "byteExact": 302
+  },
+  "r1": {
+   "pairs": 473,
+   "byteExact": 473
+  },
+  "r2": {
+   "pairs": 55,
+   "byteExact": 55
+  }
+ },
+ "firstMismatch": null,
+ "dropsIngested": 0,
+ "lastWorld": {
+  "round": 2,
+  "directorPhase": 11
+ },
+ "transcriptInLastWorld": true,
+ "error": null,
+ "seconds": 0.142,
+ "pass": true
+}
+replay = on-chain ✓

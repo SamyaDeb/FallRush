@@ -67,8 +67,11 @@ namespace FallRush.OnChain
 
         // stats
         public long Updates, Batches, BatchesRejected, BatchesUnconfirmed, Resyncs, Lagged;
-        /// <summary>P3-J: the arena rejected our session key (revoked or expired SessionTokenV2).</summary>
-        public bool SessionExpired;
+        /// <summary>P3-J: the arena rejected our session key (revoked or expired SessionTokenV2). harden #13: only on
+        /// SessionInvalid (confirm status 5 / 6027), cleared once an input lands again (<see cref="SessionHealth"/>).</summary>
+        public bool SessionExpired => _health.Expired;
+        private readonly SessionHealth _health = new SessionHealth();
+        private readonly JoinSupervisor _joinSup = new JoinSupervisor();
         private long _acceptedBatches;
         private long _updatesMark, _batchesMark;
         public float UpdatesPerSec, BatchesPerSec, ConfirmP50, ConfirmP95;
@@ -90,6 +93,8 @@ namespace FallRush.OnChain
         private static void Install()
         {
             OnChainEntry.Play = () => Begin(ChainConfig.FromArgs());
+            // harden #13: the Deal screen hides the server's local-seed deal while a whole on-chain match is pre-joined
+            MatchHud.OnChainDealPending = () => Instance != null && Instance.DealPendingOnChain;
             SceneManager.sceneLoaded -= OnSceneLoaded;
             SceneManager.sceneLoaded += OnSceneLoaded;
             OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
@@ -137,6 +142,7 @@ namespace FallRush.OnChain
         private void Start()
         {
             Cfg ??= ChainConfig.FromArgs();
+            _createdAt = ClientSim.Now;
             _clock = new OnChainClock(Cfg.rate) { LagMs = Cfg.lagMs };
             _prevFrameRate = Application.targetFrameRate;
             Application.targetFrameRate = 60; // on-chain play: leave CPU to the chain link (a relay may share the machine)
@@ -208,6 +214,19 @@ namespace FallRush.OnChain
         public bool ServerConfirmed;
         private bool _handedBack;
 
+        /// <summary>harden #13: a whole on-chain match whose feed does not drive the screens yet: the game server's Deal
+        /// screen shows its own local-seed deal, while the arena deals from <c>Match.vrf_seed</c>.</summary>
+        public bool DealPendingOnChain
+        {
+            get
+            {
+                if (!FullMatch || _handedBack || !isActiveAndEnabled)
+                    return false;
+                var cs = ClientSim.Instance;
+                return cs == null || !ReferenceEquals(cs.Feed, this);
+            }
+        }
+
         public double PresentTick => _pred != null && _pred.HasState && OwnPlaying ? _pred.Present + _frac : double.NaN;
 
         private bool OwnPlaying
@@ -246,12 +265,50 @@ namespace FallRush.OnChain
             if (!_core.Ready)
             {
                 _status = _core.Error ?? "loading rush-core …";
+                // harden #13 review: rush_core.wasm failed for good (state −1) in a game-server session: end it (else a
+                // confirmed whole match froze on the hold, and an unconfirmed pre-join lingered and kept the Deal screen
+                // on "Dealing on-chain" for the following Classic matches)
+                if (_core.Error != null && BaseMatch != null)
+                {
+                    Debug.LogWarning("[onchain] " + _core.Error + "; leaving the arena");
+                    if (FullMatch && WholeMatchConfirmed)
+                        OnChainNotice.Show("Could not start on-chain play: watch this match on /live");
+                    End();
+                }
                 return;
             }
 
             var j = _tx.Joined;
+            // harden #13: a confirmed whole match whose join failed / hangs: re-join once as a spectator, then give up
+            // (before, this returned here for good: a frozen hold for the whole match, no timeout ran). Review: a
+            // (re)connect during a whole match (final_onchain, no pre-join: MatchHex null) is confirmed by that message
+            switch (_joinSup.Step(now, FullMatch, WholeMatchConfirmed, j != null, _tx.Error))
+            {
+                case JoinSupervisor.Action.RejoinSpectate:
+                    Debug.LogWarning($"[onchain] whole match: no on-chain join {(_tx.Error != null ? "(" + _tx.Error + ")" : $"in {JoinSupervisor.RejoinSeconds:F0} s")} after the server's confirmation; re-joining as a spectator");
+                    Spectate = true;
+                    WantSlot = -1;
+                    _tx.Join(NetBootstrap.ClientName(), -1, true, MatchHex, FullMatch);
+                    return;
+                case JoinSupervisor.Action.GiveUp:
+                    Debug.LogWarning($"[onchain] whole match: the spectator join failed too ({_tx.Error ?? "timeout"}); leaving the arena");
+                    OnChainNotice.Show("Could not join on-chain: watch this match on /live");
+                    End();
+                    return;
+            }
+
             if (j == null)
+            {
+                // harden #13 review: a pre-join that never joined must still notice the server's fallback (it plays the
+                // match / Final itself): before, this returned first, the session lingered for good, and its
+                // DealPendingOnChain hid the deal of every following Classic match ("Dealing on-chain")
+                if (MatchHex != null && !ServerConfirmed && PrejoinAbandoned(ClientSim.Instance, now))
+                {
+                    Debug.Log("[onchain] pre-join never joined and the server moved on without the arena: leaving the arena");
+                    End();
+                }
                 return;
+            }
             if ((!_sceneRequested || j.slot != _ownSlot && j.slot < 255) && (MatchHex == null || ServerConfirmed))
                 OnJoined(j);
             else if (_joinedAt < 0)
@@ -303,12 +360,10 @@ namespace FallRush.OnChain
             _tx.DrainConfirms(_confirms);
             foreach (var c in _confirms)
             {
-                if (c.Status == 5 || c.Status == 3 && Batches > 10 && SessionExpired == false && _acceptedBatches > 0)
-                {
-                    // the program refused our session key (revoked / expired token): inputs no longer count
-                    SessionExpired = true;
+                // the program refused our session key (SessionInvalid 6027: revoked / expired token): inputs no longer
+                // count. harden #13: only status 5 raises the banner; an accepted batch clears it
+                if (_health.OnConfirm(c.Status))
                     Debug.LogWarning("[onchain] session expired / revoked: inputs rejected (status " + c.Status + ")");
-                }
 
                 if (c.Status == 0)
                     _acceptedBatches++;
@@ -338,7 +393,19 @@ namespace FallRush.OnChain
                 SuperviseSwitch(cs, now);
         }
 
-        private double _startedAt = -1, _joinedAt = -1;
+        private double _startedAt = -1, _joinedAt = -1, _createdAt = -1;
+
+        /// <summary>harden #13 review: the game server's confirmation of a whole on-chain match: its
+        /// <c>final_onchain</c> after our pre-join, or a (re)connect's <c>final_onchain</c> (no pre-join, no match id).</summary>
+        private bool WholeMatchConfirmed => ServerConfirmed || MatchHex == null && BaseMatch != null;
+
+        /// <summary>harden #13 review: an unconfirmed pre-join whose join never resolved, while the server runs the
+        /// match itself (whole match: a Classic round is running) or is done with it (champion / lobby, after 20 s).</summary>
+        private bool PrejoinAbandoned(ClientSim cs, double now)
+        {
+            var sm = cs != null ? cs.ServerMatch : null;
+            return sm != null && PrejoinRules.Abandoned(sm.Phase, FullMatch, _createdAt >= 0 ? now - _createdAt : 0);
+        }
 
         /// <summary>
         /// P3-F: in the Classic → on-chain switch, hand the screens back to the game server once it has the arena's
@@ -650,18 +717,16 @@ namespace FallRush.OnChain
                 if (_applied < view.Tick)
                 {
                     _lateWindow++;
-                    // P3-J: 2 s of our ticks never applied at the maximum lead = the arena refuses our key (a revoked /
-                    // expired SessionTokenV2 is not always reported back as a clean confirm status)
-                    if (++_lateStreak >= 60 && _extraLead >= MaxExtraLead && !SessionExpired)
-                    {
-                        SessionExpired = true;
-                        Debug.LogWarning($"[onchain] session expired / revoked: no input applied for {_lateStreak} ticks (applied_tick {_applied}, tick {view.Tick})");
-                    }
+                    // harden #13: 2 s of our ticks never applied at the maximum lead is lateness (a player far from the
+                    // ER validator), not proof of an expired key: log it, no "Session expired" banner (status 5 only)
+                    if (++_lateStreak == 60 && _extraLead >= MaxExtraLead)
+                        Debug.LogWarning($"[onchain] no input applied for {_lateStreak} ticks at the maximum lead +{_extraLead} (applied_tick {_applied}, tick {view.Tick})");
                 }
                 else
                 {
                     _onTimeWindow++;
                     _lateStreak = 0;
+                    _health.OnSentTick(_applied, view.Tick); // an input landed again: the key works
                 }
             }
             if (key != _arenaKey && view.Phase != WorldView.PhaseSandbox)

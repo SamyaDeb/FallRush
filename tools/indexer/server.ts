@@ -22,6 +22,7 @@ import { readFileSync, existsSync, readdirSync, statSync, writeFileSync, rmSync,
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import { serverIdle, keeperIdle, idle, lowFlags, seasonPause, PUBLIC_PHASES, LOW_DEFAULTS } from "./policy.ts";
 
 const PORT = Number(process.env.PORT ?? 3112);
 const ARCHIVE = process.env.ARCHIVE ?? "/archive";
@@ -78,6 +79,42 @@ async function funderLamports() {
   funderCache.v = await BASE.getBalance(funder.publicKey).catch(() => funderCache.v ?? -1);
   return funderCache.v;
 }
+// harden #1: the other two wallets the game spends from: the game authority (create + delegate every match; its pubkey
+// from AUTHORITY_PUBKEY or a keeper's /status) and the global treasury PDA (Core asset rent for Crowns + capsules).
+// lowBalance below 0.3 / 0.1 / 0.2 SOL (LOW_*_LAMPORTS); the watchdog logs a FAIL line on it (no restart).
+const TREASURY = PublicKey.findProgramAddressSync([Buffer.from("treasury")], PROGRAM)[0];
+const LOW = { authority: Number(process.env.LOW_AUTHORITY_LAMPORTS ?? LOW_DEFAULTS.authority), treasury: Number(process.env.LOW_TREASURY_LAMPORTS ?? LOW_DEFAULTS.treasury), funder: Number(process.env.LOW_FUNDER_LAMPORTS ?? LOW_DEFAULTS.funder) };
+const balCache = new Map<string, { at: number; v: number }>();
+async function lamportsOf(k: PublicKey | null) {
+  if (!k) return null;
+  const id = k.toBase58(), c = balCache.get(id);
+  if (c && Date.now() - c.at < 30_000) return c.v;
+  const v = await BASE.getBalance(k).catch(() => c?.v ?? -1);
+  balCache.set(id, { at: Date.now(), v });
+  return v;
+}
+async function authorityKey(): Promise<PublicKey | null> {
+  try { if (process.env.AUTHORITY_PUBKEY) return new PublicKey(process.env.AUTHORITY_PUBKEY); } catch {}
+  const st = await status().catch(() => null);
+  const a = st?.servers?.find((x: any) => x.keeper?.authority)?.keeper?.authority;
+  try { return a ? new PublicKey(a) : null; } catch { return null; }
+}
+// review: /api/health is the container healthcheck (5 s timeout, then the watchdog restarts the indexer): the balance
+// reads run in parallel and are capped; a slow (429-retrying) RPC answers with the last cached value, which the
+// background read refreshes when it lands
+const capped = <T,>(p: Promise<T>, ms: number, dflt: T) => Promise.race([p, new Promise<T>((r) => setTimeout(() => r(dflt), ms))]);
+const cachedOf = (k: PublicKey | null) => (k ? balCache.get(k.toBase58())?.v ?? -1 : null);
+async function health() {
+  const authority = await capped(authorityKey(), 2000, null);
+  const [funderL, authorityL, treasuryL] = await Promise.all([
+    capped(funderLamports(), 1500, funderCache.v ?? (funder ? -1 : null)),
+    capped(lamportsOf(authority), 1500, cachedOf(authority)),
+    capped(lamportsOf(TREASURY), 1500, cachedOf(TREASURY)),
+  ]);
+  const b = { funderLamports: funderL, authorityLamports: authorityL, treasuryLamports: treasuryL };
+  const low = lowFlags(b, LOW);
+  return { ok: true, funder: funder?.publicKey.toBase58() ?? null, authority: authority?.toBase58() ?? null, treasury: TREASURY.toBase58(), ...b, lowBalance: low.any, low, matches: matchDirs().length };
+}
 // ------------------------------------------------------------------ status (cached)
 let statusCache: { at: number; body: any } = { at: 0, body: null };
 async function status() {
@@ -89,7 +126,10 @@ async function status() {
       const sv = k.server && Date.now() - k.server.t < 10_000 ? k.server : null;
       return {
         id, url: GS_PUBLIC[id] ?? null, up: !!sv, arena: k.arena, arenaKey: k.arenaKey, world: k.world,
-        keeper: { stage: k.stage, since: k.since, alive: Date.now() - (k.heartbeat ?? 0) < 30_000, match: k.match, dealSig: k.dealSig ?? null, worldTick: k.worldTick, worldPhase: k.worldPhase, worldRound: k.worldRound, last: k.last },
+        keeper: { stage: k.stage, since: k.since, alive: Date.now() - (k.heartbeat ?? 0) < 30_000, match: k.match, dealSig: k.dealSig ?? null, worldTick: k.worldTick, worldPhase: k.worldPhase, worldRound: k.worldRound, last: k.last,
+          // harden #1 / #2 / #11: the keeper's wallet balances + flags, the season pause, the rollup's MagicBlock version
+          authority: k.authority ?? null, authorityLamports: k.authorityLamports ?? null, treasuryLamports: k.treasuryLamports ?? null, lowBalance: k.lowBalance ?? null,
+          seasons: k.seasons ?? null, seasonsPaused: k.seasonsPaused ?? null, seasonsPausedReason: k.seasonsPausedReason ?? null, magicblockCore: k.magicblockCore ?? null, erVersionChanged: !!k.erVersionChanged },
         phase: sv?.phase ?? "offline", inMatch: sv?.inMatch ?? false, round: sv?.round ?? 0, humans: sv?.humans ?? 0, size: sv?.size ?? 12, matchHex: sv?.match ?? "", served: sv?.completed ?? 0, onchainAll: !!sv && "onchainAll" in sv,
         room: !!sv?.room, lobbyTier: sv?.lobbyTier ?? null, conns: sv?.conns ?? null,
       };
@@ -310,7 +350,6 @@ const rooms = new Map<string, Room>(); // by code
 const roomIp: Record<string, number[]> = {};
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const roomOf = (gs: string) => { for (const r of rooms.values()) if (r.gs === gs) return r; return null; };
-const PUBLIC_PHASES = new Set(["LobbyOpen", "Countdown"]);
 function writeRoom(r: Room | null, gs: string) {
   if (!ROOMS) return;
   const f = join(ROOMS, `${gs}.json`);
@@ -347,7 +386,7 @@ if (ROOMS) {
   try { mkdirSync(ROOMS, { recursive: true }); for (const f of readdirSync(ROOMS)) if (f.endsWith(".json")) rmSync(join(ROOMS, f), { force: true }); } catch (e: any) { console.warn("[rooms] init", e?.message ?? e); }
   console.log(`[rooms] dir ${ROOMS} ${ROOMS_ON ? "on" : "off"}; classic servers ${Object.keys(STATUS_FILES).join(",") || "-"}`);
 }
-const idle = (sv: any) => sv.up && sv.url && !sv.room && !sv.inMatch && PUBLIC_PHASES.has(sv.phase) && (sv.humans ?? 0) === 0;
+// harden #6 (policy.ts): an arena server is idle only when its keeper is idle too
 // beta audit: one room decision at a time (two concurrent creates both picked the same idle server: the second
 // overwrote the first's room file, so the first invite was dead and the server reopened to the public on its end)
 let roomLock: Promise<unknown> = Promise.resolve();
@@ -403,7 +442,12 @@ async function createJudge0(ip: string) {
   const arenas = st.servers.filter((x: any) => x.arena != null && !x.classic);
   const othersOpen = (except: string) => arenas.filter((x: any) => x.id !== except && x.up && !x.room).length + st.servers.filter((x: any) => x.classic && x.up && !x.room).length;
   const pick = arenas.find((x: any) => idle(x) && !roomOf(x.id) && othersOpen(x.id) >= 1);
-  if (!pick) return { code: 409, body: { ok: false, error: "both on-chain arenas are busy: try again in a minute (a match takes about 6 minutes), or use Play" } };
+  if (!pick) {
+    // harden #6: an arena whose server is free but whose keeper still finishes the last match: retry shortly
+    const finishing = arenas.find((x: any) => serverIdle(x) && !keeperIdle(x) && !roomOf(x.id) && othersOpen(x.id) >= 1);
+    if (finishing) return { code: 409, body: { ok: false, busy: "keeper", error: "arena finishing the last match", stage: finishing.keeper?.stage ?? null, retryInS: 5 } };
+    return { code: 409, body: { ok: false, busy: "arenas", error: "both on-chain arenas are busy: try again in a minute (a match takes about 6 minutes), or use Play", retryInS: 60 } };
+  }
   const r: Room = { code: newCode(), gs: pick.id, createdAt: Date.now(), expiresAt: Date.now() + ROOM_IDLE_MS, botMix: 1, seen: false, ip, judge: true };
   rooms.set(r.code, r);
   writeRoom(r, r.gs);
@@ -460,7 +504,7 @@ createServer(async (req, res) => {
     const u = new URL(req.url ?? "/", "http://x");
     const p = u.pathname.replace(/^\/api/, "");
     if (p === "/status") return send(res, 200, await status());
-    if (p === "/health") return send(res, 200, { ok: true, funder: funder?.publicKey.toBase58() ?? null, funderLamports: await funderLamports(), matches: matchDirs().length });
+    if (p === "/health") return send(res, 200, await health());
     if (p === "/matches") {
       // P6: matches with no human and no on-chain Final (aborted bot-only lobbies) only with ?all=1
       const all = u.searchParams.get("all") === "1";
@@ -473,7 +517,10 @@ createServer(async (req, res) => {
       // beta audit: only plausible ids (ISO weeks 2024–2099 or the 7-digit test seasons): an id sweep would otherwise
       // make one RPC call each from the IP the keepers share
       if (!Number.isInteger(id) || !((id >= 202401 && id <= 209953) || (id >= 1_000_000 && id <= 9_999_999))) return send(res, 400, { ok: false, error: "bad season id" });
-      const body = await season(id);
+      // harden #2: the keepers pause seasons at the MagicBlock commit cap (or SEASONS=0): the board says so
+      const st0 = await status().catch(() => null);
+      const pause = seasonPause((st0?.servers ?? []).map((x: any) => x.keeper));
+      const body = { ...(await season(id)), paused: pause.paused, pausedReason: pause.reason };
       const w = u.searchParams.get("wallet");
       if (w && SAFE.test(w)) {
         let pk: PublicKey; try { pk = new PublicKey(w); } catch { return send(res, 400, { ok: false, error: "bad wallet" }); }
