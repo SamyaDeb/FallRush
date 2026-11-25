@@ -142,6 +142,7 @@ namespace FallRush.OnChain
         private void Start()
         {
             Cfg ??= ChainConfig.FromArgs();
+            Cfg.ApplyRollupDefaults(); // input run: window 13 / T+5 on the rollup (?window=8 = the old behaviour)
             _createdAt = ClientSim.Now;
             _clock = new OnChainClock(Cfg.rate) { LagMs = Cfg.lagMs };
             _prevFrameRate = Application.targetFrameRate;
@@ -395,6 +396,7 @@ namespace FallRush.OnChain
 
                 if (c.Status == 0)
                     _acceptedBatches++;
+                OnBatchConfirm(in c, now);
                 if (c.Status == 1 || c.Status == 2 || c.Status == 3 || c.Status == 5)
                     BatchesRejected++; // late / out of window / bad slot
                 else if (c.Status != 0)
@@ -403,7 +405,9 @@ namespace FallRush.OnChain
             }
 
             AdaptLead(now);
+            ResendHeld();
             AdvanceAndSend(cs, now);
+            InputHealthLog(now);
             _pred?.UpdateSmoothing(Time.deltaTime);
             _pred?.UpdateSlotSmoothing(Time.deltaTime);
 
@@ -741,6 +745,12 @@ namespace FallRush.OnChain
             var playing = _ownSlot < 12 && view.InRound(_ownSlot) && !view.Out(_ownSlot) && (view.RulesFlags(_ownSlot) & WorldView.SlotDone) == 0;
             if (!playing)
                 _lateStreak = 0;
+            if (_ownSlot < 12 && timed && playing && view.Phase == WorldView.PhaseRush && _sentTicks.Count > 0)
+            {
+                _inTicks++;
+                if (_applied < view.Tick)
+                    _inMissing++;
+            }
             if (_ownSlot < 12 && timed && playing && _sentTicks.Contains(view.Tick))
             {
                 if (_applied < view.Tick)
@@ -775,7 +785,7 @@ namespace FallRush.OnChain
         /// <summary>The program accepts stamps ≤ World.tick + 8; a batch ends 2 ticks after its first stamp (T+3+x+2 ≤ +8).</summary>
         /// <summary>The extra lead's cap: the batch's first tick (T + lead + extra) must stay inside the arena's window
         /// with 2 ticks of margin (window 8 → 3, as P3; window 12 → 7).</summary>
-        public int MaxExtraLead => Math.Max(0, Cfg.inputWindow - Cfg.inputLead - 2);
+        public int MaxExtraLead => Math.Max(0, Cfg.inputWindow - Cfg.inputLead - 2); // window 13, T+5 → +6
 
         private void AdaptLead(double now)
         {
@@ -886,6 +896,29 @@ namespace FallRush.OnChain
                 // Far off (a stall, a tab in the background): jump; the next World rebases exactly.
                 Resyncs++;
                 FlushBatch();
+                // input run: a browser stall used to skip these ticks with no input at all (the arena then repeated our
+                // last command for 1–3 s). Ticks still ahead of the chain get the current command now.
+                if (whole > _pred.Present && OwnPlaying)
+                {
+                    var chainNow = (uint)Math.Max(0, Math.Floor(_clock.ChainNow(now)));
+                    var first = Math.Max(_pred.Present + 1, chainNow + 2);
+                    if (whole >= first && whole - first < 16)
+                    {
+                        var fill = new InputCmd();
+                        cs?.InputSource?.Sample(ref fill);
+                        fill.CamYaw &= 0xFF00;
+                        _pred.StepTo(first - 1);
+                        for (var t = first; t <= whole; t++)
+                        {
+                            fill.Tick = t;
+                            _pred.SetInput(t, in fill);
+                            Queue(t, in fill);
+                            _sentTicks.Add(t);
+                            ResyncFilled++;
+                        }
+                        FlushBatch();
+                    }
+                }
                 _pred.StepTo(Math.Max(_pred.Present, whole));
                 _frac = 0;
                 return;
@@ -942,9 +975,113 @@ namespace FallRush.OnChain
             _batch[0] = (byte)_ownSlot;
             BitConverter.GetBytes(_pendingFirst).CopyTo(_batch, 1);
             _batch[5] = (byte)_pending;
-            _tx.SendInputs(_batch, 6 + _pending * 5);
+            var len = 6 + _pending * 5;
+            Track(_tx.SendInputs(_batch, len), _pendingFirst, _batch, len);
             Batches++;
             _pending = 0;
+        }
+
+        // ------------------------------------------------------------------ input run: delivery
+
+        /// <summary>A sent batch, kept until its confirmation (resent if the arena refused it as out of window).</summary>
+        private struct SentBatch
+        {
+            public uint Start;
+            public byte[] Bytes;
+            public int Len;
+            public double HeldAt;
+        }
+
+        private readonly Dictionary<uint, SentBatch> _inflight = new Dictionary<uint, SentBatch>();
+        private readonly List<SentBatch> _held = new List<SentBatch>();
+        private readonly Queue<double> _windowRejectAt = new Queue<double>();
+        public long BatchesResent, BatchesDroppedLate, ResyncFilled, WindowFallbacks;
+
+        private void Track(uint txid, uint start, byte[] batch, int len)
+        {
+            if (_inflight.Count > 256)
+                _inflight.Clear(); // confirmations stopped coming (transport trouble): do not grow forever
+            var copy = new byte[len];
+            Buffer.BlockCopy(batch, 0, copy, 0, len);
+            _inflight[txid] = new SentBatch { Start = start, Bytes = copy, Len = len };
+        }
+
+        /// <summary>
+        /// Status 2 = out of window: the batch started beyond the arena's tick + window when it landed (a chain
+        /// micro-stall while our clock ran on). Its ticks are usually still ahead of the chain: hold it and resend it
+        /// once it fits (<see cref="ResendHeld"/>). Repeated refusals at a stamp the client thought fit mean the
+        /// arena's window is narrower than ours (not widened): fall back to window 8 / T+3.
+        /// </summary>
+        private void OnBatchConfirm(in InputConfirm c, double now)
+        {
+            if (!_inflight.TryGetValue(c.TxId, out var b))
+                return;
+            _inflight.Remove(c.TxId);
+            if (c.Status != 2)
+                return;
+            if (b.Start > _newestTick)
+            {
+                b.HeldAt = now;
+                _held.Add(b);
+            }
+            else
+                BatchesDroppedLate++;
+            _windowRejectAt.Enqueue(now);
+            while (_windowRejectAt.Count > 0 && now - _windowRejectAt.Peek() > 3.0)
+                _windowRejectAt.Dequeue();
+            if (_windowRejectAt.Count >= 12 && Cfg.inputWindow > 8 && !Cfg.windowSet)
+            {
+                WindowFallbacks++;
+                Debug.LogWarning($"[onchain] {_windowRejectAt.Count} input batches refused as out of window in 3 s at window {Cfg.inputWindow}: the arena's window is narrower, falling back to 8 / T+3");
+                Cfg.inputWindow = 8;
+                Cfg.inputLead = 3;
+                _extraLead = Math.Min(_extraLead, MaxExtraLead);
+                _windowRejectAt.Clear();
+            }
+        }
+
+        /// <summary>Resends held batches that fit the window now; drops those the chain has passed or older than 3 s.</summary>
+        private void ResendHeld()
+        {
+            if (_held.Count == 0 || !_hasNewest)
+                return;
+            var now = ClientSim.Now;
+            for (var i = _held.Count - 1; i >= 0; i--)
+            {
+                var b = _held[i];
+                if (b.Start <= _newestTick || now - b.HeldAt > 3.0)
+                {
+                    BatchesDroppedLate++;
+                    _held.RemoveAt(i);
+                    continue;
+                }
+                if (b.Start > _newestTick + (uint)Math.Max(1, Cfg.inputWindow - 1))
+                    continue; // still beyond the window: the chain has not caught up yet
+                _held.RemoveAt(i);
+                Track(_tx.SendInputs(b.Bytes, b.Len), b.Start, b.Bytes, b.Len);
+                BatchesResent++;
+            }
+        }
+
+        // input health: did our input reach the arena for the ticks of the Worlds we see (playing, intro → RUSH)?
+        private long _inTicks, _inMissing, _inTicksMark, _inMissingMark;
+        private double _inLogAt;
+
+        /// <summary>Share of our sampled ticks whose input the arena applied (%), whole session.</summary>
+        public float InputsAppliedPct => _inTicks > 0 ? 100f * (_inTicks - _inMissing) / _inTicks : 100f;
+
+        private void InputHealthLog(double now)
+        {
+            if (now - _inLogAt < 10.0)
+                return;
+            _inLogAt = now;
+            var n = _inTicks - _inTicksMark;
+            var miss = _inMissing - _inMissingMark;
+            _inTicksMark = _inTicks;
+            _inMissingMark = _inMissing;
+            if (n <= 0)
+                return;
+            Debug.Log($"[onchain] inputs applied {100f * (n - miss) / n:F0}% last 10 s ({miss}/{n} missing; session {InputsAppliedPct:F0}%) lead T+{Cfg.inputLead}+{_extraLead} window {Cfg.inputWindow} rejected {BatchesRejected} resent {BatchesResent} droppedLate {BatchesDroppedLate} resyncs {Resyncs} filled {ResyncFilled} upd/s {UpdatesPerSec:F1}");
         }
 
         private void Stats(double now)
@@ -972,7 +1109,7 @@ namespace FallRush.OnChain
         public string StatsLine(double now)
         {
             var p = _pred;
-            return $"[onchain] tick {_newestTick} upd/s {UpdatesPerSec:F1} batches/s {BatchesPerSec:F1} corr/5s {(p != null ? p.CorrectionsSince(now, 5) : 0)} corr {(p?.Corrections ?? 0)} match {(p?.Matches ?? 0)} late {(p?.LateInputs ?? 0)} replay {(p?.LastReplay ?? 0)}/{(p?.MaxReplay ?? 0)} rtt {_tx.RttMs:F0} confirm p50 {ConfirmP50:F0} p95 {ConfirmP95:F0} gaps {_tx.Gaps} polls {_tx.Polls} resync {Resyncs} lag {Lagged} rejected {BatchesRejected} unconfirmed {BatchesUnconfirmed} lead +{_extraLead} {RemoteStats()}";
+            return $"[onchain] tick {_newestTick} upd/s {UpdatesPerSec:F1} batches/s {BatchesPerSec:F1} corr/5s {(p != null ? p.CorrectionsSince(now, 5) : 0)} corr {(p?.Corrections ?? 0)} match {(p?.Matches ?? 0)} late {(p?.LateInputs ?? 0)} replay {(p?.LastReplay ?? 0)}/{(p?.MaxReplay ?? 0)} rtt {_tx.RttMs:F0} confirm p50 {ConfirmP50:F0} p95 {ConfirmP95:F0} gaps {_tx.Gaps} polls {_tx.Polls} resync {Resyncs} lag {Lagged} rejected {BatchesRejected} unconfirmed {BatchesUnconfirmed} lead +{_extraLead} applied {InputsAppliedPct:F0}% window {Cfg.inputWindow} resent {BatchesResent} filled {ResyncFilled} {RemoteStats()}";
         }
 
         /// <summary>Smooth run: how the other players are drawn (playtest measurement).</summary>
@@ -1030,9 +1167,11 @@ namespace FallRush.OnChain
             var w = new WorldView(_newest, 0, _newestLen);
             _sb.Append("core 0x").Append(_core.Version.ToString("x")).Append("  World hash ").Append(_hasNewest ? Fnv(_newest, _newestLen).ToString("x16") : "-")
                 .Append("  phase ").Append(_hasNewest ? w.Phase.ToString() : "-").Append("  lead T+").Append(Cfg.inputLead).Append(" +").Append(_extraLead).Append(" × ").Append(Cfg.batchTicks).Append('\n');
+            _sb.Append("inputs applied ").Append(InputsAppliedPct.ToString("F0")).Append("%  window ").Append(Cfg.inputWindow).Append("  resent ").Append(BatchesResent)
+                .Append("  dropped late ").Append(BatchesDroppedLate).Append("  resync filled ").Append(ResyncFilled).Append('\n');
             _sb.Append(RemoteStats()).Append('\n');
-            GUI.Box(new Rect(Screen.width - 620, 120, 610, 170), GUIContent.none);
-            GUI.Label(new Rect(Screen.width - 612, 124, 600, 165), _sb.ToString());
+            GUI.Box(new Rect(Screen.width - 620, 120, 610, 188), GUIContent.none);
+            GUI.Label(new Rect(Screen.width - 612, 124, 600, 183), _sb.ToString());
         }
 
         /// <summary>FNV-1a 64 over the canonical World bytes (= <c>rc_hash</c>).</summary>
