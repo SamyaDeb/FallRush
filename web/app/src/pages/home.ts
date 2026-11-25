@@ -7,7 +7,7 @@ import { icon } from '../lib/icons';
 export function home(root: HTMLElement) {
   root.innerHTML = `
   <div class="hero-title word">FALL <span class="yellow">RUSH</span></div>
-  <p class="lede"><b>12 Rushlings. 4 rounds. 1 crown.</b> A 3D knockout party game whose Final runs inside a MagicBlock Ephemeral Rollup: the program steps the physics, settles the bets and mints the Crown. No wallet, no popups.</p>
+  <p class="lede"><b>12 Rushlings. 4 rounds. 1 crown.</b> A 3D knockout party game whose 4 rounds all run inside a MagicBlock Ephemeral Rollup: the program steps the physics, settles the bets and mints the Crown. No wallet, no popups.</p>
   <div class="row"><a class="btn" href="/play" data-link>${icon('play')} Play now</a><a class="btn mint" href="/live" data-link>${icon('eye')} Watch live</a></div>
   <div class="card hue-soda"><div class="ribbon">${icon('tiles')} LIVE ARENAS</div><div id="arenas" class="grid" style="min-height:150px"><span class="muted">loading…</span></div></div>
   <div class="card hue-lemon"><div class="ribbon">${icon('trophy')} THIS WEEK'S SEASON <span class="spacer"></span><a class="btn small ghost" href="/season" data-link>full board</a></div><div id="season" class="muted" style="min-height:90px">loading…</div></div>
@@ -17,7 +17,7 @@ export function home(root: HTMLElement) {
     <div class="tile hue-lemon"><h3>VRF</h3><span class="muted">MagicBlock VRF seeds the on-chain Final and rolls the capsule rarity.</span></div>
     <div class="tile hue-apple"><h3>Session keys</h3><span class="muted">A guest wallet signs once; a session key signs your Final moves, bets and Chaos Drops. No popups.</span></div>
     <div class="tile hue-bubble"><h3>Private ER + Magic Actions</h3><span class="muted">Sealed Champion bets live in a TEE-backed Private Ephemeral Rollup; the Crown and capsules are minted by a Magic Action as the Match returns to Solana.</span><div class="row" style="margin-top:6px"><a href="${explorer('address', RUSH_MINT)}" target="_blank">RUSH mint</a></div></div>
-  </div><p class="muted" style="margin-bottom:0">Rounds 1–3 run on the Classic game server (recorded on-chain ●); the Final is program-computed ◆. Devnet test chips only (no real-money value).</p></div>`;
+  </div><p class="muted" style="margin-bottom:0">All 4 rounds are program-computed ◆ (if the rollup is unavailable, the Classic game server plays the match and records it on-chain ●). Devnet test chips only (no real-money value).</p></div>`;
   let stop = false, first = true;
   const tick = async () => {
     try {

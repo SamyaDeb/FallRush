@@ -5,7 +5,7 @@ let ex: Ex | null = null;
 const maps: Record<string, Uint8Array> = {};
 export async function core(): Promise<Ex> {
   if (ex) return ex;
-  const { instance } = await WebAssembly.instantiate(await (await fetch('/chain/rush_core.wasm')).arrayBuffer(), {});
+  const { instance } = await WebAssembly.instantiate(await (await fetch(`/chain/rush_core.wasm?v=${__CHAIN_V__}`)).arrayBuffer(), {});
   ex = instance.exports as Ex;
   return ex;
 }

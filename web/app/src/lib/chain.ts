@@ -10,11 +10,13 @@ let initing: Promise<void> | null = null;
 export const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!);
 let chain: Api | null = null;
 export const J = async (p: Promise<string> | string) => JSON.parse(await p);
+/** harden #8: a versioned /chain/ URL (the bundle, configs, rush_core.wasm): a deploy changes it, so no stale CDN copy */
+export const chainUrl = (file: string) => `/chain/${file}?v=${__CHAIN_V__}`;
 
 function load(): Promise<Api> {
   if (!loading) loading = new Promise((ok, fail) => {
     const s = document.createElement('script');
-    s.src = '/chain/fallrush-chain.js';
+    s.src = chainUrl('fallrush-chain.js'); // Unity's jslib then reuses this one (window.FallRushChain exists)
     s.onload = () => ok((globalThis as any).FallRushChain);
     s.onerror = () => fail(new Error('chain bundle failed to load'));
     document.head.appendChild(s);
@@ -29,7 +31,7 @@ export async function chainFor(arenaId?: number): Promise<Api> {
   // beta audit: concurrent callers (the page + ensureGuest) share one init; init() restarts the bundle's transport
   while (inited !== file) {
     if (!initing) initing = (async () => {
-      const cfg = await (await fetch('/chain/' + file, { signal: AbortSignal.timeout(15_000) })).json();
+      const cfg = await (await fetch(chainUrl(file), { signal: AbortSignal.timeout(15_000) })).json();
       const r = await J(c.init(JSON.stringify(cfg)));
       if (!r.ok) throw new Error(r.error);
       inited = file;
@@ -53,7 +55,8 @@ export async function ensureGuest(step: Step = () => {}, arenaId?: number): Prom
     if (!g.ok && !(bal.ok && bal.burner > 3_000_000)) return { burner: w.burner, error: g.error ?? 'gas failed' };
   }
   const now = Math.floor(Date.now() / 1000);
-  if (!w.session?.token || w.session.validUntil < now + 600) {
+  // harden #9: renew below 30 min (the bundle's join itself renews below 15 min): a token must outlive a whole match
+  if (!w.session?.token || w.session.validUntil < now + 1800) {
     step('creating a session key…');
     // beta audit: renew a session that is about to expire (without force the bundle kept the old one: it could expire
     // mid-match)

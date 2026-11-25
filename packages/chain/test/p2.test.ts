@@ -271,3 +271,65 @@ test('P4 WorldAcc header: core version (u16) + match serial: exact new match, st
   assert.equal(intake.ingest(worldAccP2(101, { serial: 7, core: 2 }), 'ws'), false, 'a stale read of the old match');
   assert.equal(intake.ingest(worldAccP2(6, { serial: 8, core: 2 }), 'ws'), true);
 });
+
+// ---- harden #9: mid-match spectate join, two tabs on one burner, stop() cancels a pending join ------------------
+test('spectate / whole-match join with no match id while the arena RUNS: spectates within 1 s (no 15 min lobby wait)', async () => {
+  for (const args of [{ name: 'v', spectate: true }, { name: 'v', full: true }, { name: 'v', spectate: true, full: true }]) {
+    const { clock, chain, sim, setMatch } = await setup((c) => { c.rollup.p2.useSession = false; });
+    const id = createHash('sha256').update('match-R').digest().subarray(0, 16);
+    const matchPk = pda([Buffer.from('match'), id]);
+    setMatch(matchPk);
+    sim.match = matchAcc(new Uint8Array(id), { status: 4 });
+    sim.arena = arenaAcc({ match: matchPk, status: 2, humanMask: 0b11, wallets: [Keypair.generate().publicKey, Keypair.generate().publicKey] });
+    const r = JSON.parse(await until(clock, chain.join(JSON.stringify(args)), 50, 1000));
+    assert.equal(r.ok, true, JSON.stringify(r));
+    assert.equal(r.slot, 255, JSON.stringify(args));
+    assert.equal(r.match, matchPk.toBase58());
+    assert.equal(sim.joins.length, 0, 'a viewer sends no join_lobby');
+    assert.ok(evs(chain).some((x) => x.stage === 'missedLobby'));
+    chain.stop();
+  }
+});
+
+test('two tabs, one burner: the wallet already plays slot 3, this tab was seated at slot 5 → spectates with a reason', async () => {
+  const { clock, chain, sim, setMatch } = await setup((c) => { c.rollup.p2.useSession = false; });
+  const me = new PublicKey(JSON.parse(chain.wallet()).burner);
+  const id = createHash('sha256').update('match-T').digest().subarray(0, 16);
+  const matchPk = pda([Buffer.from('match'), id]);
+  setMatch(matchPk);
+  sim.match = matchAcc(new Uint8Array(id));
+  sim.arena = arenaAcc({ match: matchPk, status: 1, humanMask: 1 << 3, wallets: Object.assign(new Array(12).fill(null), { 3: me }) });
+  const jp = chain.join(JSON.stringify({ name: 'tab2', full: true, slot: 5, match: Buffer.from(id).toString('hex') }));
+  await clock.advance(1000);
+  new Uint8Array(sim.arena.buffer)[1409] = 2; // start_sim
+  const r = JSON.parse(await until(clock, jp));
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(r.slot, 255);
+  assert.equal(r.spectating, true);
+  assert.equal(r.reason, 'wallet already playing in another tab');
+  assert.equal(sim.joins.length, 0);
+  assert.ok(evs(chain).some((x) => x.stage === 'otherTab' && x.slot === 3 && x.want === 5));
+  chain.stop();
+  // the same tab coming back (no slot given, or the slot it holds) still takes its own slot
+  for (const args of [{ full: true }, { full: true, slot: 3 }]) {
+    const s2 = await setup((c) => { c.rollup.p2.useSession = false; });
+    const me2 = new PublicKey(JSON.parse(s2.chain.wallet()).burner);
+    s2.setMatch(matchPk);
+    s2.sim.match = matchAcc(new Uint8Array(id));
+    s2.sim.arena = arenaAcc({ match: matchPk, status: 2, humanMask: 1 << 3, wallets: Object.assign(new Array(12).fill(null), { 3: me2 }) });
+    const r2 = JSON.parse(await until(s2.clock, s2.chain.join(JSON.stringify(args))));
+    assert.equal(r2.slot, 3, JSON.stringify(args));
+    assert.equal(r2.spectating, undefined);
+    s2.chain.stop();
+  }
+});
+
+test('stop() cancels a pending join: it resolves "stopped" and polls no more', async () => {
+  const { clock, chain, sim } = await setup((c) => { c.rollup.p2.useSession = false; });
+  sim.arena = arenaAcc({ status: 0 }); // idle arena: the join waits for open_lobby
+  const jp = chain.join(JSON.stringify({ name: 'x', full: true }));
+  await clock.advance(2000);
+  chain.stop();
+  const r = JSON.parse(await until(clock, jp, 50, 1000));
+  assert.deepEqual([r.ok, r.error], [false, 'stopped']);
+});
