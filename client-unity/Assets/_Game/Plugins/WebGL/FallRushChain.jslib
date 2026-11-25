@@ -115,5 +115,8 @@ mergeInto(LibraryManager.library, {
     var n = lengthBytesUTF8(v) + 1, b = _malloc(n); stringToUTF8(v, b, n); return b;
   },
 
-  fr_stop: function () { if (window.FallRushChain) window.FallRushChain.stop(); },
+  // fullchain (production canary): stop() drops the bundle's transport, so the next session must boot it again (state 0);
+  // before, fr_boot returned early ("already booted") and the next match's join ran against a stopped transport
+  fr_stop__deps: ['$FRC'],
+  fr_stop: function () { if (window.FallRushChain) window.FallRushChain.stop(); FRC.state = 0; FRC.join = null; FRC.joining = false; },
 });
