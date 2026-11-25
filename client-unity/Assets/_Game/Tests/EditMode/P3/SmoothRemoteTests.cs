@@ -302,5 +302,36 @@ namespace FallRush.Tests
             Assert.IsTrue(fresh.RenderSlot(1, 1f, out var exact));
             Assert.That((settled - exact).magnitude, Is.LessThan(1e-4f));
         }
-    }
+    
+        [Test]
+        public void SpectatorPredictionDrawsEveryoneFromRushCore()
+        {
+            // floor run: a spectator (no own slot) still runs rush-core, so every Rushling stands on the real floors
+            var core = RushCoreAbi.Create();
+            var map = File.ReadAllBytes(Path.Combine(Application.dataPath, "_Game", "Scripts", "FeelLab", "Resources", "feellab", "CrumbleShelf.bytes"));
+            var a = Acc("rush.worldacc");
+            var w = new WorldView(a, L.offset, L.WorldLen(a, a.Length));
+            using var p = new OnChainPrediction(core, map, 30, 0b111, 0b110, -1, 120, 2);
+            p.OnAuthoritative(a, L.offset, WorldView.Size, w.Tick, w.Tick + 6, 1.0, w.Tick);
+            Assert.IsTrue(p.HasState);
+            Assert.AreEqual(w.Tick + 6, p.Present);
+
+            var h = core.Init(map, RushCoreAbi.Cfg(30, 0b111, 0b110, 0));
+            var world = new byte[WorldView.Size];
+            Buffer.BlockCopy(a, L.offset, world, 0, WorldView.Size);
+            core.Run(h, world, world.Length, 6, new byte[6 * 72], 0, null);
+            var rec = new byte[12 * 36];
+            core.Players(h, rec);
+            core.Free(h);
+            for (var s = 0; s <= 2; s++)
+            {
+                Assert.IsTrue(p.RenderSlot(s, 1f, out var feet), $"slot {s} drawn");
+                var exp = new Vector3(BitConverter.ToInt32(rec, s * 36), BitConverter.ToInt32(rec, s * 36 + 4), BitConverter.ToInt32(rec, s * 36 + 8)) * 0.001f;
+                Assert.That((feet - exp).magnitude, Is.LessThan(1e-4f), $"slot {s} (human 0, bots 1–2) where rush-core puts it");
+            }
+            p.StepTo(w.Tick + 9); // stepping without own inputs works
+            Assert.AreEqual(w.Tick + 9, p.Present);
+            Assert.AreEqual(0, p.Corrections, "no own record to correct");
+        }
+}
 }
