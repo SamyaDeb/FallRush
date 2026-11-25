@@ -840,6 +840,56 @@ mod tests {
         assert_eq!(MatchStatus::Aborted as u8, 6);
     }
 
+    /// Runs `mirror_match` on a serialised `Match` (program-owned, writable) and returns it deserialised.
+    fn mirrored(m: &Match, phase: u8, round: u8) -> Match {
+        let mut w = heap_world();
+        w.dir.phase = phase;
+        w.dir.round = round;
+        w.dir.champion = 255;
+        let mut data = vec![0u8; 8 + Match::INIT_SPACE];
+        let mut out: &mut [u8] = &mut data[..];
+        m.try_serialize(&mut out).unwrap();
+        let key = Pubkey::new_unique();
+        let owner = crate::ID;
+        let mut lamports = 1u64;
+        let info = AccountInfo::new(&key, false, true, &mut lamports, &mut data[..], &owner, false);
+        mirror_match(&info, &w);
+        let d = info.try_borrow_data().unwrap();
+        Match::try_deserialize(&mut &d[..]).unwrap()
+    }
+
+    /// harden #12: a tick's mirror never rewrites an Aborted Match (full and Final mode) and never reopens a
+    /// crowned full-mode match; a normal phase change is still mirrored.
+    #[test]
+    fn mirror_keeps_aborted_and_completed() {
+        use rush_core::rules::director::phase as dp;
+        let mut m = zero_match();
+        m.flags = MATCH_SIM_STARTED;
+        m.player_count = 12;
+        m.current_round = 1;
+        m.status = MatchStatus::RoundResolved;
+        // control: RoundResolved + ROUND_ACTIVE (round 2) → RoundActive
+        let c = mirrored(&m, dp::ROUND_ACTIVE, 2);
+        assert_eq!((c.status, c.current_round), (MatchStatus::RoundActive, 2));
+        // Aborted (full mode): untouched by any phase, CHAMPION included
+        m.status = MatchStatus::Aborted;
+        for ph in [dp::ROUND_ACTIVE, dp::ROUND_RESULT, dp::CHAMPION, dp::DONE] {
+            let a = mirrored(&m, ph, 3);
+            assert_eq!((a.status, a.current_round, a.completed_at), (MatchStatus::Aborted, 1, 0), "phase {ph}");
+        }
+        // Aborted (hybrid Final mode): mirror_final would have made it Completed
+        m.flags = MATCH_SIM_STARTED | MATCH_FINAL_MODE;
+        let a = mirrored(&m, dp::CHAMPION, 4);
+        assert_eq!((a.status, a.current_round), (MatchStatus::Aborted, 1));
+        // Completed (full mode) stays Completed whatever phase a later tick reports
+        m.flags = MATCH_SIM_STARTED;
+        m.status = MatchStatus::Completed;
+        m.completed_at = 7;
+        for ph in [dp::ROUND_INTRO, dp::ROUND_RESULT, dp::DONE] {
+            assert_eq!(mirrored(&m, ph, 2).status, MatchStatus::Completed, "phase {ph}");
+        }
+    }
+
     fn input_buf(owner: &Pubkey) -> InputBuf {
         let mut ib: InputBuf = bytemuck::Zeroable::zeroed();
         ib.owner = *owner;
