@@ -270,3 +270,6 @@ canvas.view.board { cursor: pointer; background: #dcefff; }
 .sheet-card .stepper button { width: 34px; height: 34px; font-size: 20px; }
 .sheet-card .stepper output { padding: 0 10px; font: 16px var(--display); white-space: nowrap; }
 .srow .btn[disabled] { background: #ece7f6; color: var(--muted); box-shadow: none; }
+/* a grid item's min-width is auto: the 12-chip rank strip (and long chips) stretched the column and the whole page on phones */
+.two > * { min-width: 0; }
+.stage, .rankstrip { max-width: 100%; }

@@ -67,8 +67,9 @@ export function live(root: HTMLElement, params: string[]) {
       const rows = ms.map((m) => {
         const btn = root.querySelector(`#markets button[data-k="${m.k}"][data-o="${sl}"]`) as HTMLButtonElement | null;
         const o = odds({ pool: BigInt(m.pool), stake: m.stake.map((x: string) => BigInt(x)) } as any, sl);
-        const open = !!btn && !btn.disabled;
-        return `<div class="srow"><span><b>${MARKET_NAMES[m.k]}</b>${m.k === 0 && sealed?.open ? ' <span class="chip sealed">sealed</span>' : ''}</span><span class="x">${o ? 'x' + o.toFixed(1) : '—'}</span><button class="btn small ${open ? 'pink' : ''}" data-sk="${m.k}" ${open ? '' : 'disabled'}>${open ? `Bet ${STAKES[stakeIx]}` : 'closed'}</button></div>`;
+        const open = !!btn && !btn.disabled, mOpen = !!state && marketOpen(state, m.k);
+        const lbl = open ? `Bet ${STAKES[stakeIx]}` : mOpen && btn ? 'open · no wallet' : mOpen ? 'not in it' : 'closed';
+        return `<div class="srow"><span><b>${MARKET_NAMES[m.k]}</b>${m.k === 0 && sealed?.open ? ' <span class="chip sealed">sealed</span>' : ''}</span><span class="x">${o ? 'x' + o.toFixed(1) : '—'}</span><button class="btn small ${open ? 'pink' : ''}" data-sk="${m.k}" ${open ? '' : 'disabled'}>${lbl}</button></div>`;
       }).join('');
       $('#sheetbody').innerHTML = `<div class="shead"><span class="sdot" style="--c:${SHELL[sl]}">${sl + 1}</span><div><b>Player #${sl + 1}</b>${(humans >> sl) & 1 ? ' <span class="chip pink">human</span>' : ' <span class="chip">bot</span>'}<div class="muted">${row ? `${esc(row.metric)} · ${row.state === 'out' ? 'out' : row.state === 'q' || row.state === 'done' ? 'through ✓' : 'in the round'}` : 'not in this round'}</div></div></div>
         <div class="row" style="margin:8px 0"><button class="btn small ${pick === sl ? 'grape' : 'mint'}" id="sfollow">${pick === sl ? '★ following' : 'Follow #' + (sl + 1)}</button><span class="spacer"></span><div class="stepper" aria-label="stake"><button data-st="-1" aria-label="less">–</button><output>${STAKES[stakeIx]} RUSH</output><button data-st="1" aria-label="more">+</button></div></div>

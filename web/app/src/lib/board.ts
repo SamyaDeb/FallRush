@@ -129,7 +129,9 @@ export class LiveBoard {
     if (round === 0 && bd) {
       // the race: the track's width fills the view; follow the pick, else the leader, eased
       k = vw / (bd.bounds[2] - bd.bounds[0] + 3000);
-      const fol = o.pick != null && live[o.pick] ? live[o.pick]! : (live.filter(Boolean) as { z: number }[]).sort((a, b) => b.z - a.z)[0];
+      // the pick, else the furthest racer still running (finishers wait at the line: the race for the last spots is the show)
+      const racing = players.filter((p, s) => p && states[s] === 'in') as { z: number }[];
+      const fol = o.pick != null && live[o.pick] && states[o.pick] === 'in' ? live[o.pick]! : (racing.length ? racing : (live.filter(Boolean) as { z: number }[])).sort((a, b) => b.z - a.z)[0];
       const span = vh / k;
       const tz = fol ? fol.z + span * 0.18 : bd.bounds[1] + span / 2;
       cx = (bd.bounds[0] + bd.bounds[2]) / 2;
