@@ -1,7 +1,7 @@
 // P7 A2: "Download card" — the match receipt as a 1080 × 1350 PNG drawn on a 2D canvas (the approach of the landing's
 // poster, web/site/src/three/poster.ts, in plain TS: fonts ready → draw → toBlob). No 3D, no library.
 export interface CardInput {
-  match: string; champion: string; championHuman: boolean; when: string;
+  match: string; champion: string; championHuman: boolean; when: string; full?: boolean;
   rounds: { map: string; mode: string; line: string }[];
   assets: { name: string; color: string; crown: boolean }[];
   rollup: boolean; solana: boolean; replay: boolean | null; sealed: number; drops: number; pools: string;
@@ -49,7 +49,7 @@ export async function drawCard(c: CardInput): Promise<Blob> {
   capsule(g, 230, 400, 92, '#ffd21f', true);
   g.textAlign = 'left'; g.fillStyle = INK; g.font = '30px "Lilita One"'; g.fillText('CHAMPION', 370, 320);
   word(g, c.champion.length > 16 ? c.champion.slice(0, 15) + '…' : c.champion, 370, 410, 76, SUN);
-  g.font = '28px "Varela Round"'; g.fillStyle = INK; g.fillText(c.championHuman ? 'won the on-chain Final · the Crown is theirs' : 'a bot won the on-chain Final', 370, 470);
+  g.font = '28px "Varela Round"'; g.fillStyle = INK; g.fillText(c.championHuman ? `won the on-chain ${c.full ? 'match' : 'Final'} · the Crown is theirs` : `a bot won the on-chain ${c.full ? 'match' : 'Final'}`, 370, 470);
   // rounds
   const rw = (W - 120 - 3 * 18) / 4;
   c.rounds.forEach((r, i) => {

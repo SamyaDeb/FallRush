@@ -24,7 +24,7 @@ export function live(root: HTMLElement, params: string[]) {
     const s = await api('/status').catch(() => ({ servers: [] }));
     // beta audit: only arenas (the Classic room server gs3 has no on-chain arena: it showed as a dead "arena 0" pill)
     const servers = (s.servers ?? []).filter((x: any) => x.arena != null && !x.classic);
-    const id = params[0] != null ? Number(params[0]) : servers.find((x: any) => x.keeper?.stage === 'final')?.arena ?? servers[0]?.arena ?? 2;
+    const id = params[0] != null ? Number(params[0]) : servers.find((x: any) => x.keeper?.stage === 'final' || x.keeper?.stage === 'onchain_match')?.arena ?? servers[0]?.arena ?? 2;
     root.querySelector('#pick')!.innerHTML = servers.map((x: any) => `<a class="btn small ${x.arena === id ? 'grape' : 'ghost'}" href="/live/${Number(x.arena)}" data-link>${esc(String(x.id).toUpperCase())} · arena ${Number(x.arena)}</a>`).join(' ') || 'no arena online';
     // submission: on a desktop screen, a QR code opens this arena's /live on a phone (bet + drop from the couch)
     root.querySelector('.card')!.insertAdjacentHTML('beforeend', `<div class="phone-qr"><div>${qrSvg(`${location.origin}/live/${id}`, 104)}</div><div class="muted">Open on your phone:<br>scan to bet and drop chaos<br>into arena ${id}'s Final</div></div>`);
@@ -224,7 +224,8 @@ function marketOpen(st: any, k: number): boolean {
   const m = st.match, w = st.world, mk = st.markets?.[k];
   if (!m || !mk || mk.status !== 1 || mk.match !== m.pda) return false;
   const final = (m.flags & 0x40) !== 0;
-  const live = final && w && w.round === 4 && w.roundPhase < 3;
+  // either flag = the arena runs this match's Final (0x40 hybrid start_final, 0x20 full start_sim), as ChainEconomy.ChainRuns
+  const live = (m.flags & 0x60) !== 0 && w && w.round === 4 && w.roundPhase < 3;
   if (m.status >= 5) return false;
   if (k === 0) return !(m.round >= 4 || final) || !!live;
   if (k === 1) return !!live;
@@ -233,7 +234,7 @@ function marketOpen(st: any, k: number): boolean {
 }
 function dropOpen(st: any): string | null {
   const m = st.match, w = st.world, d = st.drops;
-  if (!w || !m || (m.flags & 0x40) === 0 || w.round !== 4 || w.roundPhase !== 3) return "during the on-chain Final's RUSH only";
+  if (!w || !m || (m.flags & 0x60) === 0 || w.round !== 4 || w.roundPhase !== 3) return "during the on-chain Final's RUSH only";
   if (d && d.count >= 3) return '3 drops this round';
   if (d && d.count > 0 && w.tick < d.lastTick + 150) return `cooldown ${((d.lastTick + 150 - w.tick) / 30).toFixed(1)} s`;
   return null;

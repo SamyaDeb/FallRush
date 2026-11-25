@@ -30,7 +30,7 @@ export function play(root: HTMLElement) {
     // (skill-tier matchmaking, rooms, ?room= invite links). The old one-click Quick Play stays for scripts and old
     // links: ?quickplay=1 or ?server= (the fullest open server, as before).
     const q0 = new URLSearchParams(location.search);
-    // submission: judge mode (?judge=1): a private room on an on-chain arena whose rounds 1–3 are fast-forwarded, joined
+    // submission: judge mode (?judge=1): a private room on an on-chain arena (full mode: all 4 rounds on-chain; hybrid: rounds 1–3 fast-forwarded), joined
     // at once; a QR code opens /live/<arena> on a phone to bet and drop chaos into the same Final
     let judge: any = null;
     if (q0.get('judge') === '1') {

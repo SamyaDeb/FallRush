@@ -161,7 +161,7 @@ export function receipt(root: HTMLElement, params: string[]) {
     $('#dl').onclick = async () => {
       ($('#dl') as HTMLButtonElement).disabled = true;
       const blob = await drawCard({
-        match: id, champion: aborted ? 'Aborted' : tag(m.champion), championHuman: champHuman, when,
+        match: id, champion: aborted ? 'Aborted' : tag(m.champion), championHuman: champHuman, when, full,
         rounds: rounds.map((r) => ({ map: r.map, mode: r.mode, line: r.line })),
         assets: assets.map((a) => ({ name: a.at.name ?? '', color: !a.at.shell ? '#ffd21f' : RARITY_COLOUR[Math.max(0, RARITY.indexOf(a.at.rarity ?? 'Common'))], crown: !a.at.shell })),
         rollup: written, solana: onSolana, replay: replayOk, sealed: rc.sealedN, drops: rc.drops, pools: pools || '0',
