@@ -624,9 +624,14 @@ namespace FallRush.Net
                 // The clock keeps running while we are not sending yet (lobby / map loading), so the first
                 // commands are stamped for the right tick instead of a stale one.
                 var n = Clock.Advance(dt);
+                // Jump run (2026-11-25): while the on-chain feed drives the player, the game server's input is unused,
+                // and sampling here consumed the sampler's one-shot edges (Space / dive pressed) before the on-chain
+                // session read them: production match DB2Hwh…, 10 of 41 Space holds reached the arena as "held" with
+                // no "pressed" (no jump), none near a missing tick.
+                var feedDrives = Feed != null && Feed.OverridesServer;
                 for (var i = 0; i < n; i++)
                 {
-                    if (Active)
+                    if (Active && !feedDrives)
                         SampleAndSend();
                     else
                         Clock.NextTick();
