@@ -1,0 +1,72 @@
+{
+ "run": "p5-cashout-2026-11-24T20-26-00-479Z",
+ "steps": [
+  {
+   "what": "fund burner (admin → burner, 0.03 SOL)",
+   "t": "2026-11-24T20:26:02.102Z",
+   "ok": true,
+   "sig": "63eg3PapAuPSQdw7YKmJpTbKQwrTESySTv8pxomKGXuAEzUGQSepmBmBaoRXtD1KAazZEHXt1MDyo2sCohKubfq4"
+  },
+  {
+   "what": "session key (SessionTokenV2)",
+   "t": "2026-11-24T20:26:05.607Z",
+   "ok": true,
+   "sig": "4WfMafNKHWK95h4FD9rZooPQ82u7pN71mhUttKTA5bKAzE9VTDwj8bgpcL8p2Y77Stcn5z3ABg7GFKjJExZ9ZrsP"
+  },
+  {
+   "what": "chips: init + delegate ChipBalance, faucet (session key)",
+   "t": "2026-11-24T20:26:07.285Z",
+   "ok": true,
+   "created": "2uXV8iFMYSRitdrrheMyTU1SAiuyyrA5j6LaiGz6BpBiWT7CTWPppf8hDYR7twDr8DJoKT7appHDH6xEC8iFugRw",
+   "faucet": "5eG7MpYJjU1x2QQ5QPiDPDHKsdSGmNL2c1WSZLARDQohRWPBhA8CtPz7RyRHf94z9uEtiNvPuYbKgtZAQG3uvrPg",
+   "balance": "1000000000"
+  },
+  {
+   "what": "RUSH SPL before",
+   "t": "2026-11-24T20:26:07.366Z",
+   "amount": "0",
+   "ata": "3TNLKWXgebkrrkn3bVwCwnvuuTwd7F3NbyhjtcVGkTH9"
+  },
+  {
+   "what": "cashout 500 RUSH: rollup cashout + commit → mint_cashout on Solana",
+   "t": "2026-11-24T20:26:09.691Z",
+   "ok": true,
+   "cashoutSig": "2mpuwsFbWPyXkj3oxdFEnDMBTZPGwxuZkx7Uvup7cBgiNCpacN1sSvSqM5KQDypq6BzxKLJYU35yEbgpS4GYK8WT",
+   "session": true,
+   "rollupMs": 231,
+   "commitMs": 1152,
+   "committedCashedOut": "500000000",
+   "mintSig": "55wg9ae83sTJwwH17tiCkcfZGzMpzHmhzrHvdbNJJ9VPf3eKZMQ3M4sHUXtT9VVhDtacJGfjCwWtVFNVHXrWrKJM",
+   "ata": "3TNLKWXgebkrrkn3bVwCwnvuuTwd7F3NbyhjtcVGkTH9",
+   "wallMs": 2325
+  },
+  {
+   "what": "RUSH SPL after (base units, 6 decimals)",
+   "t": "2026-11-24T20:26:09.768Z",
+   "amount": "500000000",
+   "ata": "3TNLKWXgebkrrkn3bVwCwnvuuTwd7F3NbyhjtcVGkTH9",
+   "delta": "500000000"
+  },
+  {
+   "what": "chips on the rollup after",
+   "t": "2026-11-24T20:26:10.212Z",
+   "balance": "500000000",
+   "cashedOut": "500000000"
+  },
+  {
+   "what": "SPL transfer 1 RUSH → a second wallet",
+   "t": "2026-11-24T20:26:11.122Z",
+   "ok": true,
+   "sig": "3E9oF31Bo7Qh1HUxYym6c1tQVVDQcuHNGZf3whjAbP5hZYCAcQQC9FbpDwFk26QERMuercmMmvM1fSnSRAuQRfL",
+   "to": "8AABaEpV5okmWcbFTm1SyPfuGHwzcXLtTRt9irnyCpk7"
+  },
+  {
+   "what": "balances after the transfer",
+   "t": "2026-11-24T20:26:11.313Z",
+   "second": "1000000",
+   "burner": "499000000"
+  }
+ ],
+ "burner": "HtZJdN89rTNhzXuP6tSwTj9uWvMnFy9C2vsuf5mUTpxJ",
+ "pass": true
+}
