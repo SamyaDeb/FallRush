@@ -35,8 +35,8 @@ services:
       GAMESERVER_ONCHAIN_FINAL: "1"
       GAMESERVER_ONCHAIN_FINAL_NET: devnet
       GAMESERVER_ONCHAIN_ARENA: HbinPthhN3g5BRQRL4aKQ75HyQXMofhsUbg2c28bJXHt
-      # fullchain kill switch: FC_ONCHAIN_ALL=0 in /opt/fallrush/.env → the hybrid flow (Classic rounds 1–3 + on-chain Final)
-      GAMESERVER_ONCHAIN_ALL: "${FC_ONCHAIN_ALL:-1}"
+      # fullchain kill switch: FC_ONCHAIN_ALL_A2 / _A3 = 0 in /opt/fallrush/.env → the hybrid flow (Classic rounds 1–3 + on-chain Final)
+      GAMESERVER_ONCHAIN_ALL: "${FC_ONCHAIN_ALL_A2:-1}"
       GAMESERVER_ONCHAIN_WORLD: HYJRSXpSGZ3HdjmZr4oMy3x6VgTWLcarkgHav7L4hSTQ
       GAMESERVER_ROOM_FILE: /rooms/gs1.json  # P7-UX (OC-46): a private room's code, written by the indexer
     volumes: ["./logs/gs1:/logs", "./rooms:/rooms:ro"]
@@ -58,8 +58,8 @@ services:
       GAMESERVER_ONCHAIN_FINAL: "1"
       GAMESERVER_ONCHAIN_FINAL_NET: devnet
       GAMESERVER_ONCHAIN_ARENA: E9XE7vtQgrWnXLcGMn5FYXAFLb6GmBjrKcZq5wgPcEbG
-      # fullchain kill switch: FC_ONCHAIN_ALL=0 in /opt/fallrush/.env → the hybrid flow (Classic rounds 1–3 + on-chain Final)
-      GAMESERVER_ONCHAIN_ALL: "${FC_ONCHAIN_ALL:-1}"
+      # fullchain kill switch: FC_ONCHAIN_ALL_A2 / _A3 = 0 in /opt/fallrush/.env → the hybrid flow (Classic rounds 1–3 + on-chain Final)
+      GAMESERVER_ONCHAIN_ALL: "${FC_ONCHAIN_ALL_A3:-1}"
       GAMESERVER_ONCHAIN_WORLD: 9Q5KBadvfx3Yoen1uqLUgbU1x6tXn4GmkEkjGqfPuRWn
       GAMESERVER_ROOM_FILE: /rooms/gs2.json
     volumes: ["./logs/gs2:/logs", "./rooms:/rooms:ro"]
@@ -89,7 +89,7 @@ services:
     <<: *node
     container_name: fallrush-keeper-1
     command: ["node", "--experimental-strip-types", "--no-warnings", "tools/keeper/daemon.ts"]
-    environment: { ARENA: "2", LOG_DIR: /logs, ARCHIVE: /archive, STATUS_PORT: "3111", ONCHAIN_ALL: "${FC_ONCHAIN_ALL:-1}" }
+    environment: { ARENA: "2", LOG_DIR: /logs, ARCHIVE: /archive, STATUS_PORT: "3111", ONCHAIN_ALL: "${FC_ONCHAIN_ALL_A2:-1}" }
     ports: ["127.0.0.1:3111:3111"]
     volumes: ["./logs/gs1:/logs:ro", "./archive:/archive", "./secrets/game-authority.json:/secrets/game-authority.json:ro", "./keys:/app/tools/keeper/.keys"]
     cpus: 0.25
@@ -100,7 +100,7 @@ services:
     container_name: fallrush-keeper-2
     profiles: ["gs2"]
     command: ["node", "--experimental-strip-types", "--no-warnings", "tools/keeper/daemon.ts"]
-    environment: { ARENA: "3", LOG_DIR: /logs, ARCHIVE: /archive, STATUS_PORT: "3111", ONCHAIN_ALL: "${FC_ONCHAIN_ALL:-1}" }
+    environment: { ARENA: "3", LOG_DIR: /logs, ARCHIVE: /archive, STATUS_PORT: "3111", ONCHAIN_ALL: "${FC_ONCHAIN_ALL_A3:-1}" }
     ports: ["127.0.0.1:3113:3111"]
     volumes: ["./logs/gs2:/logs:ro", "./archive:/archive", "./secrets/game-authority.json:/secrets/game-authority.json:ro", "./keys:/app/tools/keeper/.keys"]
     cpus: 0.25
