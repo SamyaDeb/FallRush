@@ -92,7 +92,7 @@ services:
     environment: { ARENA: "2", LOG_DIR: /logs, ARCHIVE: /archive, STATUS_PORT: "3111", ONCHAIN_ALL: "${FC_ONCHAIN_ALL_A2:-1}" }
     ports: ["127.0.0.1:3111:3111"]
     volumes: ["./logs/gs1:/logs:ro", "./archive:/archive", "./secrets/game-authority.json:/secrets/game-authority.json:ro", "./keys:/app/tools/keeper/.keys"]
-    cpus: 0.25
+    cpus: 1.0 # fullchain: the crank signs + sends ~50 tx/s (0.25 starved the event loop: 0.2x real time)
     mem_limit: 512m
     healthcheck: { test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3111/health').then(r=>r.json()).then(j=>process.exit(j.ok?0:1)).catch(()=>process.exit(1))"], interval: 30s, timeout: 5s, retries: 3 }
   fallrush-keeper-2:
@@ -103,7 +103,7 @@ services:
     environment: { ARENA: "3", LOG_DIR: /logs, ARCHIVE: /archive, STATUS_PORT: "3111", ONCHAIN_ALL: "${FC_ONCHAIN_ALL_A3:-1}" }
     ports: ["127.0.0.1:3113:3111"]
     volumes: ["./logs/gs2:/logs:ro", "./archive:/archive", "./secrets/game-authority.json:/secrets/game-authority.json:ro", "./keys:/app/tools/keeper/.keys"]
-    cpus: 0.25
+    cpus: 1.0 # fullchain: the crank signs + sends ~50 tx/s (0.25 starved the event loop: 0.2x real time)
     mem_limit: 512m
     healthcheck: { test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3111/health').then(r=>r.json()).then(j=>process.exit(j.ok?0:1)).catch(()=>process.exit(1))"], interval: 30s, timeout: 5s, retries: 3 }
   fallrush-indexer:

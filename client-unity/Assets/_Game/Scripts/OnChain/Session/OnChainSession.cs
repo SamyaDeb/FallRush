@@ -640,7 +640,12 @@ namespace FallRush.OnChain
             // inputs are latched in intro / countdown too (the rules neutralise them): measure there, so the lead has
             // settled before RUSH
             var timed = view.Phase == WorldView.PhaseIntro || view.Phase == WorldView.PhaseCountdown || view.Phase == WorldView.PhaseRush;
-            if (_ownSlot < 12 && timed && _sentTicks.Contains(view.Tick))
+            // fullchain: a slot that is out / done for this round is not stepped (World v2), so its inputs are never
+            // applied: that is not an expired session (production canary: a player out of round 1 saw "Session expired")
+            var playing = _ownSlot < 12 && view.InRound(_ownSlot) && !view.Out(_ownSlot) && (view.RulesFlags(_ownSlot) & WorldView.SlotDone) == 0;
+            if (!playing)
+                _lateStreak = 0;
+            if (_ownSlot < 12 && timed && playing && _sentTicks.Contains(view.Tick))
             {
                 if (_applied < view.Tick)
                 {

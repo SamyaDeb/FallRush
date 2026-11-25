@@ -19,8 +19,8 @@ case "${1:-}" in
   build)
     # rollback tags of what runs now (the keepers / indexer run untagged image ids)
     "${SSH[@]}" 'set -e; cd /opt/fallrush
-      docker image inspect fallrush-gameserver:pre-fc >/dev/null 2>&1 || docker tag fallrush-gameserver:fc fallrush-gameserver:pre-fc
-      docker image inspect fallrush-node:pre-fc >/dev/null 2>&1 || docker tag fallrush-node:fc fallrush-node:pre-fc
+      docker image inspect fallrush-gameserver:pre-fc >/dev/null 2>&1 || docker tag fallrush-gameserver:sub fallrush-gameserver:pre-fc
+      docker image inspect fallrush-node:pre-fc >/dev/null 2>&1 || docker tag fallrush-node:sub fallrush-node:pre-fc
       [ -f docker-compose.prefc.yml ] || cp docker-compose.yml docker-compose.prefc.yml
       echo "rollback tags + compose backup ready"'
     mkdir -p "$STAGE/node/tools" "$STAGE/node/programs/target"

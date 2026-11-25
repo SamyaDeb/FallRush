@@ -9,7 +9,8 @@ import { cu, sleep } from "./lib.ts";
 
 export const BUDGETS = [6000, 4500, 2250, 1000]; // LiteSVM Capsule Run 12p max per execution: 6000 → 1.43M (rare), 4500 → 1.38M
 
-export type CrankStats = { sent: number; ok: number; err: number; down: number; up: number; msAt: Record<number, number> };
+export type CrankStats = { sent: number; ok: number; err: number; skipped: number; down: number; up: number; msAt: Record<number, number> };
+export const MAX_INFLIGHT = Number(process.env.CRANK_MAX_INFLIGHT ?? 64);
 
 export function startCrank(o: {
   er: Connection;
@@ -25,7 +26,8 @@ export function startCrank(o: {
   log?: (o: object) => void;
 }) {
   const rate = o.rate ?? 50, stuckMs = o.stuckMs ?? 250, upMs = o.upMs ?? 1000;
-  const st: CrankStats = { sent: 0, ok: 0, err: 0, down: 0, up: 0, msAt: {} };
+  const st: CrankStats = { sent: 0, ok: 0, err: 0, skipped: 0, down: 0, up: 0, msAt: {} };
+  let inflight = 0;
   let run = true;
   const done = (async () => {
     const ixs: Record<number, TransactionInstruction> = {};
@@ -48,10 +50,15 @@ export function startCrank(o: {
       }
       const due = Math.floor(((now - t0) / 1000) * rate);
       while (sent0 < due) {
+        sent0++;
+        // production canary: unbounded fire-and-forget sends starved a 0.25-CPU keeper (0.2x real time); at most
+        // MAX_INFLIGHT sends are open, the rest of this slot's budget is skipped (the next sends catch up)
+        if (inflight >= MAX_INFLIGHT) { st.skipped++; continue; }
         const tx = new Transaction().add(cu(1_400_000 - (nonce++ % 4096)), ixs[BUDGETS[level]]);
         tx.feePayer = o.wallet.publicKey; tx.recentBlockhash = bh; tx.sign(o.wallet);
-        o.er.sendRawTransaction(tx.serialize(), { skipPreflight: true, maxRetries: 0 }).then(() => st.ok++).catch(() => st.err++);
-        sent0++; st.sent++;
+        inflight++;
+        o.er.sendRawTransaction(tx.serialize(), { skipPreflight: true, maxRetries: 0 }).then(() => st.ok++).catch(() => st.err++).finally(() => inflight--);
+        st.sent++;
       }
       await sleep(3);
     }
