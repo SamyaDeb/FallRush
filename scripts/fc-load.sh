@@ -21,6 +21,10 @@ ARENA=3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3   # dev arena 7 (PDA ["arena"
 WORLD=5e6BG7aod9wft3R36yR72gWJSKjHgdgpLv1YJbDzBDPf
 bal() { echo "$(date -u +%T) admin $(solana balance -u devnet -k ~/.config/solana/id.json) authority $(solana balance -u devnet -k ~/.config/fall-rush/devnet-game-authority.json)"; }
 bal | tee "$OUT/balances.txt"
+# the keeper must know the knobs this run depends on, else the run measures something else (CRANK_GATE=1 would be an
+# ungated run; without FULL_MIN_HUMANS a 12-bot soak starts the match before the headless clients joined)
+grep -q CRANK_GATE tools/keeper/*.ts || { [[ "$CRANK_GATE" != 0 ]] && { echo "tools/keeper has no CRANK_GATE: refusing a gated run"; exit 1; }; }
+grep -q FULL_MIN_HUMANS tools/keeper/*.ts || echo "warning: tools/keeper has no FULL_MIN_HUMANS: start_sim may run before the headless clients join (joined < $FULL_MIN_HUMANS)"
 # no network: the config, encoding and metrics must be sane before anything is sent
 node --experimental-strip-types tools/fullchain/load.ts --dry-run > "$OUT/dry-run.json" || { echo "dry-run failed"; exit 1; }
 bash scripts/m1-macserver.sh stop >/dev/null 2>&1; sleep 1
@@ -43,7 +47,10 @@ GAMESERVER_ONCHAIN_ALL=1 bash scripts/m1-macserver.sh start -fallrushBots 12 -fa
 # the load tool exits after MATCHES matches (0 = every criterion passed)
 wait $LOAD; RC=$?; LOAD=
 echo "load tool exit $RC (0 = pass)"
-for _ in $(seq 1 600); do D=$(grep -l '"doneAt"' "$ARCH"/*/summary.json 2>/dev/null | wc -l | tr -d ' '); [[ "$D" -ge "$MATCHES" ]] && break; sleep 1; done
+for _ in $(seq 1 600); do D=$(grep -l '"doneAt"' "$ARCH"/*/summary.json 2>/dev/null | wc -l | tr -d ' '); [[ "$D" -ge "$MATCHES" ]] && break; kill -0 $KEEPER 2>/dev/null || break; sleep 1; done
+# the keeper's own view (crankGated / crank counters, humans want/joined) before cleanup stops it
+curl -s --max-time 5 "http://127.0.0.1:3198/status" > "$OUT/keeper-status.json" 2>/dev/null
+echo "crank_gate events: $(grep -c '"crank_gate"' "$OUT/keeper.log" 2>/dev/null)" | tee "$OUT/crank-gate.txt"
 bal | tee -a "$OUT/balances.txt"
 for d in "$ARCH"/*/; do
   m=$(basename "$d"); [[ -f "$d/summary.json" ]] || continue
@@ -52,6 +59,10 @@ for d in "$ARCH"/*/; do
   [[ -n "$W" ]] && node tools/p7/replay-check.mjs "$W" --sealed --summary "$d/summary.json" > "$OUT/$m/replay.txt" 2>&1
   echo "$m: $(tail -1 "$OUT/$m/replay.txt" 2>/dev/null)"
 done | tee "$OUT/replays.txt"
+# plan #10 also needs replay byte-exact: every archived match must say so, and at least MATCHES of them
+OKR=$(grep -c 'replay = on-chain ✓' "$OUT/replays.txt" 2>/dev/null); ALLR=$(grep -c . "$OUT/replays.txt" 2>/dev/null)
+echo "replays byte-exact: ${OKR:-0} / ${ALLR:-0} (want ≥ $MATCHES, all)" | tee -a "$OUT/replays.txt"
+[[ "${OKR:-0}" -ge "$MATCHES" && "${OKR:-0}" -eq "${ALLR:-0}" ]] || RC=1
 grep -E '"start_sim"|humans' "$OUT/keeper.log" | cut -c1-300 > "$OUT/keeper-start-sim.txt" 2>/dev/null
 echo "load run: $OUT (load.json: rounds / confirm / joined / verdict)"
 exit $RC

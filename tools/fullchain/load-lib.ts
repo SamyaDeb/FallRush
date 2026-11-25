@@ -97,11 +97,30 @@ export function mover(seed: number) {
  * never past the program's window (start ≤ tick + INPUT_WINDOW; a batch further ahead is rejected, so hold it).
  * Returns null when this 100 ms step should send nothing (the World is behind our cursor by more than the window).
  */
-export function nextStart(worldTick: number, cursor: number, lead: number, window = INPUT_WINDOW): number | null {
-  if (worldTick < 0) return null;
+export function nextStart(worldTick: number, cursor: number, lead: number, window = INPUT_WINDOW, seenTick = worldTick): number | null {
+  if (worldTick < 0 || seenTick < 0) return null;
   const s = Math.max(cursor, worldTick + lead);
-  if (s > worldTick + window) return null;
+  // the window is checked against the newest tick actually SEEN (the World at landing is ≥ it), not the estimate: an
+  // estimate that runs ahead of a slow World must never push a batch out of the program's window (6020)
+  if (s > seenTick + window) return null;
   return s;
+}
+
+/** The World tick now, as the browser's chain clock does it (OnChainSession.Target uses ChainNow, not the newest
+ * received tick): the newest seen tick plus the wall time since it was first seen, capped at `cap` ticks so a stalled
+ * World does not run the estimate away. Without it a batch aimed at a stale tick lands late and the program skips its
+ * already-run ticks (sim.rs submit_input: t ≤ world_tick is not latched), which reads as a low applied ratio. */
+export class TickClock {
+  seen = -1; at = 0;
+  cap: number;
+  constructor(cap = 3) { this.cap = cap; }
+  /** Newer ticks advance it; a jump back by more than a second (a new match's World after the last one) restarts it. */
+  observe(tick: number, now: number) { if (tick < 0) return; if (tick > this.seen || tick < this.seen - HZ) { this.seen = tick; this.at = now; } }
+  reset() { this.seen = -1; this.at = 0; }
+  est(now: number): number {
+    if (this.seen < 0) return -1;
+    return this.seen + Math.max(0, Math.min(this.cap, Math.floor(((now - this.at) * HZ) / 1000)));
+  }
 }
 
 // ------------------------------------------------------------------ slots
@@ -216,16 +235,19 @@ export interface Criteria { minRealTime: number; maxInputP95Ms: number; expected
 export const DEFAULT_CRITERIA: Criteria = { minRealTime: 0.99, maxInputP95Ms: 400, expectedHumans: 12 };
 
 /** Plan #10 pass criteria (replay byte-exact is checked separately with tools/p7/replay-check.mjs on the keeper archive). */
-export function verdict(rounds: RoundStat[], inputP95: number, joined: number, c: Criteria) {
+export function verdict(rounds: RoundStat[], inputP95: number, joined: number, c: Criteria, toolSaturated = false) {
   const realTime = rounds.length === 4 && rounds.every((r) => (r.realTime ?? 0) >= c.minRealTime);
   const input = Number.isFinite(inputP95) && inputP95 < c.maxInputP95Ms;
   const humans = joined === c.expectedHumans;
-  return { pass: realTime && input && humans, realTime, rounds: rounds.length, inputP95: input, joined: humans, criteria: c };
+  const pass = realTime && input && humans;
+  // a saturated load tool (its own event loop p99 > 50 ms) delays its sends, confirm polls and sample timestamps: a
+  // FAIL then says nothing about the rollup (re-run lighter: RAW_SOCKETS=1, SUBSCRIBE=0 or N split over 2 processes)
+  return { pass, inconclusive: !pass && toolSaturated, toolSaturated, realTime, rounds: rounds.length, inputP95: input, joined: humans, criteria: c };
 }
 
 /** CRANK_GATE=0 run `a` vs CRANK_GATE=1 run `b`: per round real time (b must stay ≥ 0.99 per round) and World
  * executions/s saved (the plan expects ~45/s fewer in R2–R4). */
-export function compareRuns(a: { rounds: RoundStat[]; label?: string }, b: { rounds: RoundStat[]; label?: string }, minRealTime = 0.99) {
+export function compareRuns(a: { rounds: RoundStat[]; label?: string; crankGate?: string | null }, b: { rounds: RoundStat[]; label?: string; crankGate?: string | null }, minRealTime = 0.99, minSavedPerS = 10) {
   const rows = [1, 2, 3, 4].map((r) => {
     const x = a.rounds.find((q) => q.round === r), y = b.rounds.find((q) => q.round === r);
     return {
@@ -238,10 +260,15 @@ export function compareRuns(a: { rounds: RoundStat[]; label?: string }, b: { rou
   });
   const gateOk = rows.every((r) => r.realTimeB !== null && r.realTimeB >= minRealTime);
   const saved = rows.filter((r) => r.round >= 2 && r.execSavedPerS !== null).map((r) => r.execSavedPerS!);
-  return { a: a.label ?? "A", b: b.label ?? "B", rows, gateOk, meanSavedR2R4: saved.length ? r3(saved.reduce((p, q) => p + q, 0) / saved.length) : null };
+  const meanSavedR2R4 = saved.length ? r3(saved.reduce((p, q) => p + q, 0) / saved.length) : null;
+  // B must really be the gated run: a keeper without CRANK_GATE support ignores the env, so B = A and "gateOk" alone
+  // would read as "the gate costs nothing" (ship it) when the gate never ran
+  const order = a.crankGate === undefined || b.crankGate === undefined || (String(a.crankGate) === "0" && String(b.crankGate) === "1");
+  const gateEffective = meanSavedR2R4 !== null && meanSavedR2R4 >= minSavedPerS;
+  return { a: a.label ?? "A", b: b.label ?? "B", rows, gateOk, meanSavedR2R4, gateEffective, order, ship: gateOk && gateEffective && order };
 }
 
 /** Input confirm summary from the bundle's confirm events (kind "input"). */
-export function confirmSummary(ms: number[], counts: { ok: number; err: number; timeout: number; window: number; sent: number }) {
+export function confirmSummary(ms: number[], counts: { ok: number; err: number; timeout: number; window: number; sent: number; sendErr?: number }) {
   return { n: ms.length, p50: r3(pct(ms, 50)), p95: r3(pct(ms, 95)), p99: r3(pct(ms, 99)), max: ms.length ? Math.max(...ms) : null, ...counts, okRatio: counts.sent ? r3(counts.ok / counts.sent) : null };
 }

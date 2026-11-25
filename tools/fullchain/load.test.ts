@@ -54,6 +54,37 @@ test("nextStart: lead ahead, never re-sends a tick, holds outside the program wi
   for (let i = 1; i < sent.length; i++) assert.equal(sent[i], sent[i - 1] + 1);
 });
 
+test("nextStart + TickClock: aims at the estimated tick now, checks the window against the newest tick seen", () => {
+  // the estimate may run ahead, the program window is relative to the World at landing (≥ the seen tick)
+  assert.equal(L.nextStart(103, 0, 5, 8, 100), 108);
+  assert.equal(L.nextStart(104, 0, 5, 8, 100), null, "an estimate ahead of a slow World must not leave the window");
+  assert.equal(L.nextStart(103, 0, 5, 8, -1), null);
+  const k = new L.TickClock(3);
+  assert.equal(k.est(0), -1);
+  k.observe(100, 1000);
+  assert.equal(k.est(1000), 100);
+  assert.equal(k.est(1050), 101); // 30 Hz: 1.5 ticks → 1
+  assert.equal(k.est(1100), 103);
+  assert.equal(k.est(5000), 103, "capped: a stalled World does not run the estimate away");
+  k.observe(99, 1200); // an older notification: ignored
+  assert.equal(k.seen, 100);
+  k.observe(106, 1200);
+  assert.equal(k.est(1200), 106);
+  k.observe(4, 1300); // the next match's fresh World: restart, not stuck at the old tick
+  assert.equal(k.seen, 4);
+  // a stale observer (seen 1 tick behind each step) still leaves no gaps and never re-sends a tick
+  const c = new L.TickClock(3);
+  let cur = 0; const sent: number[] = [];
+  for (let step = 0; step < 60; step++) {
+    const now = step * 100;
+    c.observe(Math.max(0, step * 3 - 2), now);
+    const s = L.nextStart(c.est(now), cur, 5, 8, c.seen);
+    if (s !== null) { for (let q = 0; q < 3; q++) sent.push(s + q); cur = s + 3; }
+  }
+  assert.ok(sent.length > 150);
+  for (let i = 1; i < sent.length; i++) assert.equal(sent[i], sent[i - 1] + 1);
+});
+
 test("chooseSlots: top down, skips reserved and taken; rosterHumans reads the server header", () => {
   assert.deepEqual(L.chooseSlots(11, []), [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
   assert.deepEqual(L.chooseSlots(3, [11, 9], 1 << 10), [8, 7, 6]);
@@ -111,6 +142,8 @@ test("verdict: plan #10 pass criteria", () => {
   const slow = L.roundStats(synth((r) => (r === 3 ? 0.98 : 1)));
   assert.equal(L.verdict(slow, 250, 12, L.DEFAULT_CRITERIA).realTime, false);
   assert.equal(L.verdict(ok.slice(0, 3), 250, 12, L.DEFAULT_CRITERIA).realTime, false, "a missing round fails");
+  assert.equal(L.verdict(slow, 250, 12, L.DEFAULT_CRITERIA, true).inconclusive, true, "a FAIL with a saturated tool is inconclusive");
+  assert.equal(L.verdict(ok, 250, 12, L.DEFAULT_CRITERIA, true).inconclusive, false);
 });
 
 test("compareRuns: CRANK_GATE=1 must stay ≥ 0.99x per round; reports executions saved in R2–R4", () => {
@@ -120,8 +153,18 @@ test("compareRuns: CRANK_GATE=1 must stay ≥ 0.99x per round; reports execution
   const c = L.compareRuns(a, b);
   assert.equal(c.gateOk, true);
   assert.ok(c.meanSavedR2R4! > 30, `saved ${c.meanSavedR2R4}`);
+  assert.equal(c.gateEffective, true);
+  assert.equal(c.ship, true);
   const bad = { label: "gate1", rounds: L.roundStats(synth((r) => (r === 2 ? 0.95 : 1))) };
   assert.equal(L.compareRuns(a, bad).gateOk, false);
+  assert.equal(L.compareRuns(a, bad).ship, false);
+  // a keeper that ignores CRANK_GATE: B = A, real time fine, nothing saved → not a ship signal
+  const same = L.compareRuns({ ...a, crankGate: "0" }, { label: "gate1", crankGate: "1", rounds: L.roundStats(synth(() => 1)) });
+  assert.equal(same.gateOk, true);
+  assert.equal(same.gateEffective, false);
+  assert.equal(same.ship, false);
+  // swapped arguments
+  assert.equal(L.compareRuns({ ...b, crankGate: "1" }, { ...a, crankGate: "0" }).order, false);
 });
 
 test("confirmSummary + pct", () => {
