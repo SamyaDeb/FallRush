@@ -2,8 +2,8 @@
 
 **Summary (2026-11-25)**
 - **What:** a 12-player, 4-round 3D knockout party game (Unity 6 WebGL) with spectator markets, for MagicBlock Solana Blitz V10 (Entertainment Finance).
-- **On-chain:** the Final (Lid Flip) runs in a MagicBlock Ephemeral Rollup: `tick()` 30×/s, `rush-core` as sBPF, worst case ~254–262k CU per tick, 3 finalists.
-- **Server:** rounds 1–3 run on our game server; every qualify/eliminate result is recorded on-chain.
+- **On-chain (2026-11-25, OC-60):** all 4 rounds run in a MagicBlock Ephemeral Rollup (`start_sim`): 12 players, 30 Hz, `rush-core` as sBPF; two timed tasks + a permissionless keeper crank (`crank(budget)`, 1.4M CU) for the heaviest 12-player ticks. Every round of 11 devnet gate matches ran at 0.99–1.00× real time.
+- **Server:** runs the lobby and matchmaking only, and hands each match to the rollup at roster lock (per-match fallback to Classic if the rollup is not live in 60 s).
 - **Economy (devnet test chips):** Rush Markets settled by the program, a sealed Champion market on a Private ER (TEE), Chaos Drops, Crown + capsules minted by a Magic Action, cash-out to the RUSH SPL token.
 - **Live:** https://fallrush.fun (web + 3 game servers + 2 arena keepers on one VPS). Program `4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4` (devnet).
 - **Proof:** [`PROOF.md`](PROOF.md) (explorer links), [`docs/proof/`](docs/proof/) (per-phase runs and numbers).
