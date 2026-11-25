@@ -210,6 +210,13 @@ namespace FallRush.Net
             ChainFailed = false;
             ChainFailWhy = null;
             _verifiedMatch = null;
+            // fullchain Gate 2 fix: the previous match's last arena / World reads must not reach this match's first
+            // result check (a stale "arena ended" read aborted 2 of 5 matches 0.6 s after they went live)
+            _arenaNow = null;
+            _world = null;
+            _leftPolls = 0;
+            _allPolls = 0;
+            _lastTickAt = DateTime.UtcNow;
             var slots = new StringBuilder();
             for (var i = 0; i < roster.Length; i++)
             {
@@ -312,6 +319,9 @@ namespace FallRush.Net
 
         private uint _lastTick;
         private DateTime _lastTickAt;
+        private int _leftPolls;
+        /// <summary>Consecutive arena reads (one per ~2 s) that must show the arena off this match before it counts.</summary>
+        public const int LeftPollsNeeded = 3;
         private volatile byte[] _arenaNow;
         private int _allPolls;
 
@@ -331,7 +341,11 @@ namespace FallRush.Net
 
             ChainPhase = d.Phase;
             ChainRound = d.Round;
-            var left = a != null && a.Length > ArenaStatus && (a[ArenaStatus] != 2 || _verifiedMatch == null || Base58Encode(a, ArenaMatch, 32) != _verifiedMatch);
+            var leftNow = a != null && a.Length > ArenaStatus && (a[ArenaStatus] != 2 || _verifiedMatch == null || Base58Encode(a, ArenaMatch, 32) != _verifiedMatch);
+            // an arena read only counts as "left this match" after LeftPollsNeeded consecutive reads say so
+            if (a != null)
+                _leftPolls = leftNow ? _leftPolls + 1 : 0;
+            var left = _leftPolls >= LeftPollsNeeded;
             if (d.Phase == ChainDirector.Aborted)
             {
                 Fail($"the arena aborted the match (reason {d.LastAbort})");

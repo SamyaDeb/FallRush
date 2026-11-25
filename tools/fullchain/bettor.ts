@@ -30,9 +30,12 @@ for (let n = 0; n < MATCHES; n++) {
   for (const b of bettors) rec.before[b.publicKey.toBase58()] = (await chips(b)).toString();
   const bet = async (b: Keypair, k: number, outcome: number, amt: bigint, when: string) => {
     for (let i = 0; i < 20; i++) {
+      const wd = (await er.getAccountInfo(world))!.data as Buffer, wv = decodeWorld(wd);
+      const at = { t: new Date().toISOString(), tick: wv.tick, round: wv.round, roundPhase: wd[199] };
       const r: any = await E.placeBet(b, ARENA, k, m, outcome, amt).catch((e) => ({ err: String(e?.message ?? e) }));
-      if (!r.err) { rec.bets.push({ wallet: b.publicKey.toBase58(), market: k, outcome, amount: amt.toString(), when, sig: r.sig }); return; }
-      if (i === 19 || !/MarketClosed|AccountNotFound|InvalidWritable|Blockhash|timeout/i.test(r.err)) { rec.bets.push({ wallet: b.publicKey.toBase58(), market: k, outcome, err: r.err.slice(0, 160), when }); return; }
+      Object.assign(r, { at });
+      if (!r.err) { rec.bets.push({ wallet: b.publicKey.toBase58(), market: k, outcome, amount: amt.toString(), when, at: r.at, sig: r.sig }); return; }
+      if (i === 19 || !/MarketClosed|AccountNotFound|InvalidWritable|Blockhash|timeout/i.test(r.err)) { rec.bets.push({ wallet: b.publicKey.toBase58(), market: k, outcome, err: r.err.slice(0, 160), when, at: r.at }); return; }
       await sleep(1500);
     }
   };

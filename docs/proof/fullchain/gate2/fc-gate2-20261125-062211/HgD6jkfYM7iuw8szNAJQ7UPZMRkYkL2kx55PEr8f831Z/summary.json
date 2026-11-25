@@ -1,0 +1,277 @@
+{
+ "match": "HgD6jkfYM7iuw8szNAJQ7UPZMRkYkL2kx55PEr8f831Z",
+ "matchHex": "14d8694635f42ece20a4a9ed9e53c82a",
+ "arena": 7,
+ "arenaKey": "3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3",
+ "world": "5e6BG7aod9wft3R36yR72gWJSKjHgdgpLv1YJbDzBDPf",
+ "resumed": false,
+ "startedAt": 1795568375463,
+ "sigs": {
+  "create": "5dYG3fneqCFvrY6MwmXUkWp2FkZa4W6MohSnqdE4f4sJYnYq1MXr9sHfwD1Xzisjykxtd6CNdMJeKakuvefC7DKh",
+  "delegate": "2ga8A6DeZ34DC43pMDTQbrFgKswRPLq2h8mgW7nX6DG6xMxbX86hiz6oPF3GdcqfVvSjRkYvN2PNDzTVTqeaB2AK",
+  "openLobby": "4PmuFekphtC8xi3BNYYd3favGd8BX1XFUDbi1s7oQGEgqBU5qD5BqmfoY16zULxnLtbZGhHLqwdqkxRNY7kA25Df",
+  "openMarkets": "21pqbd34kVe4FggL2Fuk4zGNMpR5cJS45n3gKCXzEe9Z9e1tAbt1WffiXdCPRs8gjh5CEZe5ycpimtSqEToW4Ssf",
+  "requestDeal": "PMMHb7XWUj2itAGFGnxdpan4xHbsYAaCP61X38tJXf6Sa9zo89j7sLX11nUaMC669pKhWQmiXUqRW2bLuGtK3XQ",
+  "startSim": "2Ac3YfuMzncigMaw44esY7Mk5qPujc7WotbFVY7sCLBU9fDaeuya3cjhWb9et2C3TBoJjtgH6fizPtsKcg3exjHM",
+  "writeReceipt": "5ffD2jU1RqWZLUfNaVFhHCSXgEPYK9xTrvBGFrfW89yGLUHhYQrkV3nRYtx8pW5TxjNWiHwvYzzZh34SM6EqvsBG",
+  "endSim": "2KGE3Pqk6HqYEAztA6gAT5Y1hvVRY1DsvVM791w1jzL1odsQZhAxMBDEj8wnr72tneGvid4KV6MV591aySQjDhri",
+  "finalize": "5FC9bbet6WyerRf2sYoBK5zxhpw1xL58rak8SQ5dVDQn74hUiXQKeMc7V2ZEFaLDRkpbMzReuSgqSnPfLETMJqnh"
+ },
+ "maps": [
+  "86hLenUHLLULngacRGesYdVUaLhTVQtMSgx2UsF9ZKuv",
+  "47v2Vx8Fbfnuxxu8Y62tPL3U3wbFmf3yMnsPYPFjarbT",
+  "GYeqhxkkjzvXAS1Mv2FLM3EqALH5TjZfqJKiQqu6E8LG",
+  "2zzJi24AJTKVopXd9UMz2j1poAzway5ZMSvuw9jNBCgC",
+  "DxuXdFPfomJW6SXNiCkNgDauW3p2xkiEoPfoPjuYVsCD"
+ ],
+ "humansInRoster": 0,
+ "onchainAll": true,
+ "humans": {
+  "want": 0,
+  "joined": 0,
+  "ms": 88
+ },
+ "final": {
+  "full": true,
+  "serverFellBack": false,
+  "crank": {
+   "sent": 21406,
+   "ok": 21406,
+   "err": 0,
+   "down": 11,
+   "up": 11,
+   "msAt": {
+    "1000": 1010,
+    "2250": 1255,
+    "4500": 9275,
+    "6000": 416672
+   }
+  },
+  "complete": true,
+  "ticks": 12859,
+  "restarts": 1,
+  "realTime": 0.9999976630108366,
+  "gapP95": 63,
+  "cu": {
+   "n": 390,
+   "p95": 305645,
+   "max": 399523
+  }
+ },
+ "mm": [],
+ "settle": {
+  "0": 1,
+  "1": 1,
+  "2": 1,
+  "3": 1,
+  "4": 1
+ },
+ "market0": {
+  "pool": "30000000",
+  "winners": 1,
+  "winningStake": "10000000",
+  "label": 1,
+  "status": 3,
+  "refund": 0,
+  "paidTotal": "30000000",
+  "bets": [
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "outcome": 0,
+    "amount": "10000000",
+    "paid": 1
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "outcome": 5,
+    "amount": "20000000",
+    "paid": 1
+   }
+  ]
+ },
+ "market1": {
+  "pool": "30000000",
+  "winners": 1,
+  "winningStake": "15000000",
+  "label": 1,
+  "status": 3,
+  "refund": 0,
+  "paidTotal": "30000000",
+  "bets": [
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "outcome": 0,
+    "amount": "15000000",
+    "paid": 1
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "outcome": 2,
+    "amount": "15000000",
+    "paid": 1
+   }
+  ]
+ },
+ "market2": {
+  "pool": "20000000",
+  "winners": 1391,
+  "winningStake": "20000000",
+  "label": 2,
+  "status": 3,
+  "refund": 0,
+  "paidTotal": "20000000",
+  "bets": [
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "outcome": 1,
+    "amount": "10000000",
+    "paid": 1
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "outcome": 2,
+    "amount": "10000000",
+    "paid": 1
+   }
+  ]
+ },
+ "market3": {
+  "pool": "0",
+  "winners": 293,
+  "winningStake": "0",
+  "label": 5,
+  "status": 3,
+  "refund": 1,
+  "paidTotal": "0",
+  "bets": []
+ },
+ "market4": {
+  "pool": "0",
+  "winners": 37,
+  "winningStake": "0",
+  "label": 5,
+  "status": 3,
+  "refund": 1,
+  "paidTotal": "0",
+  "bets": []
+ },
+ "drops": {
+  "count": 0,
+  "pot": "0",
+  "buys": []
+ },
+ "finalizeMode": "plain",
+ "finalizeToBaseMs": 1775,
+ "rewards": {
+  "minted": {},
+  "attempts": 0,
+  "failures": []
+ },
+ "assets": [],
+ "receipt": {
+  "owner": "4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4",
+  "flags": 25,
+  "trust": 6,
+  "coreVersion": 2,
+  "humanMask": 0,
+  "mintedMask": 0,
+  "drops": 0,
+  "dropSpent": "0",
+  "mapHash": "b36cd41ca6cb46783002bce05cb1bd46102274cbc8eb828e63daaa261c678dac",
+  "preFinal": "0000000000000000000000000000000000000000000000000000000000000000",
+  "finalTranscript": "30b07987bea4653942dcb947fd598228b6a573317bae304c88620f46d4311da0",
+  "dropLog": "0000000000000000000000000000000000000000000000000000000000000000",
+  "capsuleSeed": "0000000000000000000000000000000000000000000000000000000000000000",
+  "crown": "11111111111111111111111111111111",
+  "wallets": [
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111"
+  ],
+  "placements": [
+   0,
+   2,
+   5,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255
+  ],
+  "rarity": [
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255
+  ],
+  "markets": [
+   {
+    "pool": "30000000",
+    "winningStake": "10000000",
+    "winners": 1,
+    "label": 1,
+    "status": 3
+   },
+   {
+    "pool": "30000000",
+    "winningStake": "15000000",
+    "winners": 1,
+    "label": 1,
+    "status": 3
+   },
+   {
+    "pool": "20000000",
+    "winningStake": "20000000",
+    "winners": 1391,
+    "label": 2,
+    "status": 3
+   },
+   {
+    "pool": "0",
+    "winningStake": "0",
+    "winners": 293,
+    "label": 5,
+    "status": 3
+   },
+   {
+    "pool": "0",
+    "winningStake": "0",
+    "winners": 37,
+    "label": 5,
+    "status": 3
+   }
+  ],
+  "sealedN": 0,
+  "sealedRevealed": 0,
+  "sealedForfeits": 0,
+  "sealedPool": "0",
+  "sealedForfeit": "0",
+  "betsHash": "bf406aba58c37346e71bc831fd5977d3b7096f8f479d0e48678c626f38a25519",
+  "sealedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "completedAt": 1795568802,
+  "status": 5,
+  "champion": 0
+ },
+ "doneAt": 1795568818663
+}

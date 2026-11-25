@@ -1,0 +1,25 @@
+[gs] fullchain: whole matches run on the arena (GAMESERVER_ONCHAIN_ALL=1); per-match fallback = Classic
+[gs] on-chain match: handing match 1 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 1 (8.8 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=A modifier=TinyTilt seed=0xab4ff5f41afd5d74 start=1019 qualify=8/12 intro=60 countdown=90 timer=4500 rush@1019 participants=12
+[gs] on-chain match World: The operation was canceled.
+[gs] on-chain match result from the arena director: champion 1 order 1,2,6,0,5,7,9,11,3,4,8,10
+[gs] on-chain match: handing match 2 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 4 (7.8 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=A modifier=ButterFloors seed=0xf992a358cff1f90f start=13443 qualify=8/12 intro=60 countdown=90 timer=4500 rush@13443 participants=12
+[gs] on-chain match: the arena left this match without a champion; aborting the server's match
+[gs] on-chain match: handing match 3 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match handoff failed (arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 not running match 7681d20cddc0b821c4bf2a84ebdf2448 within 60 s): the server plays the match (Classic)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=B modifier=TinyTilt seed=0x308bac600ac1ab1c start=16019 qualify=8/12 intro=60 countdown=90 timer=4500 rush@16019 participants=12
+[gs] on-chain match 3: fallback, the server plays it (Classic): arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 not running match 7681d20cddc0b821c4bf2a84ebdf2448 within 60 s
+[gs] round 2/4 GooTower (Survival) start: map=1 variant=B modifier=None seed=0x28cc8d387e75882a start=21091 qualify=5/8 intro=60 countdown=90 timer=4500 rush@21091 participants=8
+[gs] round 3/4 StarScramble (Skill) start: map=2 variant=A modifier=BigBonk seed=0x60435d76a9318e43 start=23310 qualify=3/5 intro=60 countdown=90 timer=1800 rush@23310 participants=5
+[gs] round 4/4 CrumbleShelf (Final) start: map=3 variant=A modifier=None seed=0xa7bf594efaee8192 start=25682 qualify=1/3 intro=60 countdown=90 timer=3600 rush@25682 participants=3
+[gs] on-chain match: handing match 4 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 2 (6.3 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=A modifier=None seed=0x28d02551005380e1 start=30444 qualify=8/12 intro=60 countdown=90 timer=4500 rush@30444 participants=12
+[gs] on-chain match result from the arena director: champion 11 order 11,0,7,1,6,2,4,8,3,5,9,10
+[gs] on-chain match: handing match 5 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 6 (8.8 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=B modifier=ButterFloors seed=0x10c46fe3b0366abe start=43867 qualify=8/12 intro=60 countdown=90 timer=4500 rush@43867 participants=12
+[gs] on-chain match: the arena left this match without a champion; aborting the server's match

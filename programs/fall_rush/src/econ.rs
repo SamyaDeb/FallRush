@@ -383,7 +383,8 @@ pub fn settle(mk: &mut Market, m: &Match) -> Result<bool> {
                     }
                     s += 1;
                 }
-                lab = label::AUTHORITY;
+                // fullchain: in a `start_sim` match the program computed the round (◆), else the authority recorded it (●)
+                lab = if sim::chain_all(m) { label::PROGRAM } else { label::AUTHORITY };
             }
         }
     }
