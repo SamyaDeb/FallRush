@@ -65,3 +65,9 @@ docs/proof/p2/keeper-local-*.jsonl
 tools/p4/.keys/
 /backups/
 docs/proof/p5/PUBLIC_URL.local.md
+
+# ---- local-only ----
+# Claude Code desktop preview config (machine-specific absolute paths)
+.claude/
+# throwaway analysis scripts (dot-prefixed)
+tools/keeper/.*.mjs
