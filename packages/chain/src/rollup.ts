@@ -124,6 +124,7 @@ export class RollupTransport implements Transport {
   private backoff: Backoff;
   private erGen = 0;
   private joined: JoinResult | null = null;
+  private joinedMatch: string | null = null;
   /** who signs join_lobby / submit_input: the session signer (with its token) or the burner */
   private player: Keypair | null = null;
   private joinedWithToken = false;
@@ -380,7 +381,12 @@ export class RollupTransport implements Transport {
   // ---- join ----------------------------------------------------------------------------------------------------
   async join(args: JoinArgs): Promise<JoinResult> {
     if (this.rc.p2) {
-      if (this.joined) return this.joined; // idempotent (relay re-joins, Unity reconnects)
+      // idempotent for the same match (relay re-joins, Unity reconnects); a pre-join for ANOTHER match starts over
+      // (fullchain production canary: the second whole match of a page returned the first match's join, no join_lobby,
+      // and the player's slot ran as a bot)
+      if (this.joined && (!args.match || args.match === this.joinedMatch)) return this.joined;
+      if (this.joined) { this.jev('rejoinNewMatch', { from: this.joinedMatch, to: args.match }); this.joined = null; this.joinPromise = null; }
+      this.joinedMatch = args.match ?? null;
       if (!this.joinPromise) this.joinPromise = this.p2Join(args, this.rc.p2).finally(() => { this.joinPromise = null; });
       return this.joinPromise;
     }
