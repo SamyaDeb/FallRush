@@ -243,27 +243,28 @@ def dizzy_sfx():
     dizzy = a spring "boing" + tweeting cartoon birds circling the head; wheee = a slide whistle falling off the course."""
     out = {}
     r = np.random.default_rng(2411)
-    # boing: a spring twang, pitch gliding up with a fast wobble that dies away (+ a soft octave for body)
-    d = 0.5; n = int(d * SR); tt = np.arange(n) / SR
-    f = (210 + 120 * (1 - np.exp(-tt / 0.06))) * (1 + 0.28 * np.sin(2 * np.pi * 13 * tt) * np.exp(-tt / 0.22))
+    # dizzy2 (2026-11-25, user: the old boing + birds sounded creepy): a classic cartoon "dizzy" — a bright jaw-harp
+    # "BOING!" (high, fast wobble that dies quickly), then two "cuck-oo" calls (a soft hollow falling major third) and
+    # light xylophone twinkles running round the head. Major key, nothing low, nothing trilled.
+    d = 0.42; n = int(d * SR); tt = np.arange(n) / SR
+    f = (440 + 380 * (1 - np.exp(-tt / 0.05))) * (1 + 0.16 * np.sin(2 * np.pi * 22 * tt) * np.exp(-tt / 0.12))
     ph = np.cumsum(2 * np.pi * f / SR)
-    boing = (np.sin(ph) + 0.35 * np.sin(2 * ph) + 0.12 * np.sin(3 * ph)) * env(n, 0.002, 0.05, 0.75, 0.2, 0.25) * 0.75
-    # birds: 7 quick tweets (rising-falling, trilled), louder and softer as they circle
-    birds = np.zeros(int(1.45 * SR))
-    for i in range(7):
-        o = int((0.08 + i * 0.18 + r.uniform(-0.02, 0.02)) * SR)
-        d = r.uniform(0.07, 0.11); m = int(d * SR); tt = np.arange(m) / SR
-        base = r.uniform(2500, 3300)
-        f = base * (1 + 0.22 * np.sin(np.pi * tt / d)) * (1 + 0.04 * np.sin(2 * np.pi * 38 * tt))
-        tw = np.sin(np.cumsum(2 * np.pi * f / SR)) * env(m, 0.004, 0.02, 0.7, 0.03, d - 0.06)
-        if i % 2 == 0:  # a double tweet now and then
-            tw = np.concatenate([tw, np.zeros(int(0.03 * SR)), tw[: m * 2 // 3] * 0.8])
-        e = min(len(tw), len(birds) - o)
-        birds[o:o + e] += tw[:e] * (0.55 + 0.45 * np.sin(np.pi * 2 * i / 3.5) ** 2) * 0.32
-    lead = int(0.18 * SR)
-    x = np.zeros(lead + len(birds))
+    boing = (np.sin(ph) + 0.3 * np.sin(2 * ph) + 0.1 * np.sin(3 * ph)) * env(n, 0.002, 0.04, 0.7, 0.18, 0.18) * 0.7
+    def cuckoo(f0, d):
+        m = int(d * SR); tt = np.arange(m) / SR
+        tone = np.sin(2 * np.pi * f0 * tt) + 0.25 * np.sin(2 * np.pi * 2 * f0 * tt) + 0.08 * np.sin(2 * np.pi * 3 * f0 * tt)
+        return tone * env(m, 0.015, 0.03, 0.75, 0.06, d - 0.11)
+    hi, lo = midi(88), midi(84)  # E6 → C6
+    x = np.zeros(int(1.55 * SR))
     x[:len(boing)] += boing
-    x[lead:] += birds
+    for at in (0.36, 0.86):
+        c1 = cuckoo(hi, 0.13); c2 = cuckoo(lo, 0.2)
+        o = int(at * SR); x[o:o + len(c1)] += c1 * 0.42
+        o2 = o + int(0.17 * SR); x[o2:o2 + len(c2)] += c2 * 0.42
+    for i, m in enumerate([96, 100, 103, 108, 103, 100]):  # C7 E7 G7 C8 G7 E7: twinkle round the head
+        tw = marimba(midi(m), 0.25, 1.0)
+        o = int((0.3 + i * 0.17) * SR); e = min(len(tw), len(x) - o)
+        x[o:o + e] += tw[:e] * 0.13
     out['dizzy'] = x
     # wheee: a slide whistle swooping up a little, then falling a long way (with a breathy edge)
     d = 0.95; n = int(d * SR); tt = np.arange(n) / SR; k = tt / d

@@ -476,6 +476,9 @@ namespace FallRush.Client
         private readonly Vector3[] _lastFeet = new Vector3[Protocol.MaxPlayers];
         private readonly Vector3[] _lastVelS = new Vector3[Protocol.MaxPlayers];
         private readonly byte[] _lastYaw = new byte[Protocol.MaxPlayers]; // dizzy2: an unsampled faller keeps its facing
+        private readonly float[] _landSfxAt = new float[Protocol.MaxPlayers]; // dizzy2: landing-sound cooldown per Rushling
+        public const float LandSfxGap = 0.3f;
+        private readonly float[] _jumpSfxAt = new float[Protocol.MaxPlayers];
 
         // Dizzy hits: the visual fall after leaving the course (−1 = none).
         public const float KnockOffFallSecs = 1.4f;
@@ -498,19 +501,28 @@ namespace FallRush.Client
             var cam = Camera.main;
             var near = own || cam != null && (cam.transform.position - feet).sqrMagnitude < 14f * 14f;
             var vol = own ? 1f : 0.55f;
-            if (vis.LandedThisFrame && vis.LandImpact > 0.06f)
+            // dizzy2 (2026-11-25, user: "a creepy vibration sound … when the char is vanished"): a Rushling pinned on a
+            // hazard after a hit flickers grounded / airborne every tick or two, and each flicker replayed the low landing
+            // thud — 10–30 thuds a second read as a buzz. One landing sound per 0.3 s per Rushling, none while staggering.
+            if (vis.LandedThisFrame && vis.LandImpact > 0.06f && Time.unscaledTime >= _landSfxAt[i])
             {
+                _landSfxAt[i] = Time.unscaledTime + LandSfxGap;
                 Fx.Dust(feet, vis.LandImpact);
-                if (near)
+                if (near && !vis.Staggering)
+                {
                     GameAudio.Play(GameAudio.Sfx.Land, feet, vol * Mathf.Lerp(0.4f, 1f, vis.LandImpact), 0.9f + UnityEngine.Random.value * 0.2f);
-                if (vis.Sliding)
-                    GameAudio.Play(GameAudio.Sfx.Slide, feet, vol);
+                    if (vis.Sliding)
+                        GameAudio.Play(GameAudio.Sfx.Slide, feet, vol);
+                }
             }
 
             if (vis.StepThisFrame && near && (own || (++_stepParity & 1) == 0))
                 GameAudio.Play(GameAudio.Sfx.Step, feet, vol * 0.35f, 0.85f + UnityEngine.Random.value * 0.3f);
-            if (vis.JumpedThisFrame && near)
+            if (vis.JumpedThisFrame && near && !vis.Staggering && Time.unscaledTime >= _jumpSfxAt[i]) // dizzy2: a knock-up is not a jump
+            {
+                _jumpSfxAt[i] = Time.unscaledTime + LandSfxGap;
                 GameAudio.Play(GameAudio.Sfx.Jump, feet, vol * 0.7f, 0.95f + UnityEngine.Random.value * 0.12f);
+            }
             if (vis.DiveStartedThisFrame)
             {
                 Fx.Streaks(feet, vel.sqrMagnitude > 0.01f ? new Vector3(vel.x, 0f, vel.z).normalized : vis.transform.forward);
@@ -529,6 +541,8 @@ namespace FallRush.Client
                 Fx.Bonk(feet);
                 _hazardViews?.SquashBumperNear(feet); // G4.9: the pillow bumper squashes and wobbles (client-only)
                 GameAudio.Hits.Stunned(own, feet); // dizzy hits: boing + birds, your own hits only
+                if (own)
+                    _cam?.Knocked(); // dizzy2: the camera tracks the knock at once and stays out of the body
                 // Hit-stop: the visuals freeze ~60 ms (the sim never does), except inside a rolling ball (no collider):
                 // there a frozen body hides in the 2 m ball and reads as gone.
                 if (_hazardViews == null || !_hazardViews.BallNear(feet + Vector3.up * 0.6f, 0.6f))

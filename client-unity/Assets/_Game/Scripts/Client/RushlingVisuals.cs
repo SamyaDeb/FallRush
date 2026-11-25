@@ -870,6 +870,9 @@ namespace FallRush.Client
         /// <summary>dizzy2: stunned, tumbling or seeing stars (the hit cue covers it: no stumble warble on top).</summary>
         public bool Dazed => _lastStun > 0 || _tumbleT >= 0f || _starsLeft > 0f;
 
+        /// <summary>dizzy2: inside the stun / stagger itself (not the woozy tail): no landing / slide sounds then.</summary>
+        public bool Staggering => _lastStun > 0 || _tumbleT >= 0f;
+
         // ------------------------------------------------------------------ feet
 
         /// <summary>
