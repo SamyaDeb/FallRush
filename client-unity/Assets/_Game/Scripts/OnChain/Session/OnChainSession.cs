@@ -142,6 +142,7 @@ namespace FallRush.OnChain
         private void Start()
         {
             Cfg ??= ChainConfig.FromArgs();
+            _createdAt = ClientSim.Now;
             _clock = new OnChainClock(Cfg.rate) { LagMs = Cfg.lagMs };
             _prevFrameRate = Application.targetFrameRate;
             Application.targetFrameRate = 60; // on-chain play: leave CPU to the chain link (a relay may share the machine)
@@ -264,13 +265,24 @@ namespace FallRush.OnChain
             if (!_core.Ready)
             {
                 _status = _core.Error ?? "loading rush-core …";
+                // harden #13 review: rush_core.wasm failed for good (state −1) in a game-server session: end it (else a
+                // confirmed whole match froze on the hold, and an unconfirmed pre-join lingered and kept the Deal screen
+                // on "Dealing on-chain" for the following Classic matches)
+                if (_core.Error != null && BaseMatch != null)
+                {
+                    Debug.LogWarning("[onchain] " + _core.Error + "; leaving the arena");
+                    if (FullMatch && WholeMatchConfirmed)
+                        OnChainNotice.Show("Could not start on-chain play: watch this match on /live");
+                    End();
+                }
                 return;
             }
 
             var j = _tx.Joined;
             // harden #13: a confirmed whole match whose join failed / hangs: re-join once as a spectator, then give up
-            // (before, this returned here for good: a frozen hold for the whole match, no timeout ran)
-            switch (_joinSup.Step(now, FullMatch, ServerConfirmed, j != null, _tx.Error))
+            // (before, this returned here for good: a frozen hold for the whole match, no timeout ran). Review: a
+            // (re)connect during a whole match (final_onchain, no pre-join: MatchHex null) is confirmed by that message
+            switch (_joinSup.Step(now, FullMatch, WholeMatchConfirmed, j != null, _tx.Error))
             {
                 case JoinSupervisor.Action.RejoinSpectate:
                     Debug.LogWarning($"[onchain] whole match: no on-chain join {(_tx.Error != null ? "(" + _tx.Error + ")" : $"in {JoinSupervisor.RejoinSeconds:F0} s")} after the server's confirmation; re-joining as a spectator");
@@ -286,7 +298,17 @@ namespace FallRush.OnChain
             }
 
             if (j == null)
+            {
+                // harden #13 review: a pre-join that never joined must still notice the server's fallback (it plays the
+                // match / Final itself): before, this returned first, the session lingered for good, and its
+                // DealPendingOnChain hid the deal of every following Classic match ("Dealing on-chain")
+                if (MatchHex != null && !ServerConfirmed && PrejoinAbandoned(ClientSim.Instance, now))
+                {
+                    Debug.Log("[onchain] pre-join never joined and the server moved on without the arena: leaving the arena");
+                    End();
+                }
                 return;
+            }
             if ((!_sceneRequested || j.slot != _ownSlot && j.slot < 255) && (MatchHex == null || ServerConfirmed))
                 OnJoined(j);
             else if (_joinedAt < 0)
@@ -371,7 +393,19 @@ namespace FallRush.OnChain
                 SuperviseSwitch(cs, now);
         }
 
-        private double _startedAt = -1, _joinedAt = -1;
+        private double _startedAt = -1, _joinedAt = -1, _createdAt = -1;
+
+        /// <summary>harden #13 review: the game server's confirmation of a whole on-chain match: its
+        /// <c>final_onchain</c> after our pre-join, or a (re)connect's <c>final_onchain</c> (no pre-join, no match id).</summary>
+        private bool WholeMatchConfirmed => ServerConfirmed || MatchHex == null && BaseMatch != null;
+
+        /// <summary>harden #13 review: an unconfirmed pre-join whose join never resolved, while the server runs the
+        /// match itself (whole match: a Classic round is running) or is done with it (champion / lobby, after 20 s).</summary>
+        private bool PrejoinAbandoned(ClientSim cs, double now)
+        {
+            var sm = cs != null ? cs.ServerMatch : null;
+            return sm != null && PrejoinRules.Abandoned(sm.Phase, FullMatch, _createdAt >= 0 ? now - _createdAt : 0);
+        }
 
         /// <summary>
         /// P3-F: in the Classic → on-chain switch, hand the screens back to the game server once it has the arena's

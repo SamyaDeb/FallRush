@@ -1,3 +1,5 @@
+using FallRush.Shared;
+
 namespace FallRush.OnChain
 {
     /// <summary>
@@ -73,6 +75,22 @@ namespace FallRush.OnChain
                 return Action.None;
             _gaveUp = true;
             return Action.GiveUp;
+        }
+    }
+
+    /// <summary>
+    /// harden #13 review: when an unconfirmed pre-join whose join never resolved must end: the game server plays the
+    /// whole match itself (a Classic round is running) or is done with it (champion / lobby, 20 s after the pre-join, so a
+    /// lobby state still in flight does not end it). Before, such a session lingered for good. Pure (tested in EditMode).
+    /// </summary>
+    public static class PrejoinRules
+    {
+        /// <param name="age">seconds since the session was created</param>
+        public static bool Abandoned(MatchPhase server, bool fullMatch, double age)
+        {
+            if (fullMatch && server == MatchPhase.RoundActive)
+                return true;
+            return (server >= MatchPhase.Champion || server == MatchPhase.LobbyOpen) && age > 20;
         }
     }
 }

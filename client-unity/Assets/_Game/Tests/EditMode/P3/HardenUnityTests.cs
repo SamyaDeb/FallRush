@@ -62,6 +62,20 @@ namespace FallRush.Tests
         }
 
         [Test]
+        public void UnjoinedPrejoinEndsWhenTheServerMovesOnWithoutTheArena()
+        {
+            // harden #13 review: a pre-join whose join never resolved used to linger for good (its DealPendingOnChain then
+            // hid the deal of every following Classic match); it ends on the server's fallback like a joined one
+            Assert.IsTrue(PrejoinRules.Abandoned(FallRush.Shared.MatchPhase.RoundActive, true, 1), "whole match: the server plays round 1 itself");
+            Assert.IsFalse(PrejoinRules.Abandoned(FallRush.Shared.MatchPhase.RoundActive, false, 60), "hybrid: Classic rounds run before the Final");
+            Assert.IsFalse(PrejoinRules.Abandoned(FallRush.Shared.MatchPhase.Dealt, true, 60), "the deal hold");
+            Assert.IsFalse(PrejoinRules.Abandoned(FallRush.Shared.MatchPhase.RoundIntro, true, 60), "the server's held round");
+            Assert.IsFalse(PrejoinRules.Abandoned(FallRush.Shared.MatchPhase.LobbyOpen, true, 5), "a stale lobby message right after the pre-join");
+            Assert.IsTrue(PrejoinRules.Abandoned(FallRush.Shared.MatchPhase.LobbyOpen, true, 25));
+            Assert.IsTrue(PrejoinRules.Abandoned(FallRush.Shared.MatchPhase.Champion, false, 25), "hybrid: the server ran the Final itself");
+        }
+
+        [Test]
         public void JoinNameIsJsonEscaped()
         {
             Assert.AreEqual("Rushling", ChainJson.JoinName(null));
