@@ -777,7 +777,7 @@ namespace FallRush.OnChain
         // P3-K: adaptive extra input lead (client-side delay tuning): +1 tick when our inputs arrive late (the arena's
         // applied_tick for that slot is behind a tick we sent), −1 after LeadHoldSeconds without any late input (floor +1 once late); ≤ MaxExtraLead.
         private readonly HashSet<uint> _sentTicks = new HashSet<uint>();
-        private int _lateWindow, _onTimeWindow, _extraLead, _lateStreak;
+        private int _lateWindow, _onTimeWindow, _extraLead, _lateStreak, _aheadWindow;
         private double _leadAt, _lastLateAt = -1;
         public int ExtraLead => _extraLead;
         /// <summary>dizzy2: seconds without a late input before the extra lead steps down (was 10).</summary>
@@ -785,14 +785,22 @@ namespace FallRush.OnChain
         /// <summary>The program accepts stamps ≤ World.tick + 8; a batch ends 2 ticks after its first stamp (T+3+x+2 ≤ +8).</summary>
         /// <summary>The extra lead's cap: the batch's first tick (T + lead + extra) must stay inside the arena's window
         /// with 2 ticks of margin (window 8 → 3, as P3; window 12 → 7).</summary>
-        public int MaxExtraLead => Math.Max(0, Cfg.inputWindow - Cfg.inputLead - 2); // window 13, T+5 → +6
+        public int MaxExtraLead => Math.Max(0, Cfg.inputWindow - Cfg.inputLead - LeadMargin); // window 13, T+5 → +4
+        /// <summary>Input run 2: ticks kept free below the window edge for clock error (was 2: stamps reached the edge).</summary>
+        public const int LeadMargin = 4;
 
         private void AdaptLead(double now)
         {
             if (now - _leadAt < 1.0)
                 return;
             _leadAt = now;
-            if (_lateWindow > 0)
+            if (_aheadWindow > 0)
+            {
+                // input run 2: batches refused as too far ahead = our clock runs early: step the lead down, never up
+                _extraLead = Math.Max(0, _extraLead - 1);
+                _lastLateAt = now;
+            }
+            else if (_lateWindow > 0)
             {
                 _lastLateAt = now;
                 _extraLead = Math.Min(MaxExtraLead, _extraLead + 1);
@@ -807,7 +815,7 @@ namespace FallRush.OnChain
                 _lastLateAt = now;
             }
 
-            _lateWindow = _onTimeWindow = 0;
+            _lateWindow = _onTimeWindow = _aheadWindow = 0;
             if (_sentTicks.Count > 600)
                 _sentTicks.Clear();
         }
@@ -994,8 +1002,7 @@ namespace FallRush.OnChain
 
         private readonly Dictionary<uint, SentBatch> _inflight = new Dictionary<uint, SentBatch>();
         private readonly List<SentBatch> _held = new List<SentBatch>();
-        private readonly Queue<double> _windowRejectAt = new Queue<double>();
-        public long BatchesResent, BatchesDroppedLate, ResyncFilled, WindowFallbacks;
+        public long BatchesResent, BatchesDroppedLate, ResyncFilled, RejectedAhead, RejectedBehind;
 
         private void Track(uint txid, uint start, byte[] batch, int len)
         {
@@ -1019,24 +1026,20 @@ namespace FallRush.OnChain
             _inflight.Remove(c.TxId);
             if (c.Status != 2)
                 return;
-            if (b.Start > _newestTick)
+            // input run 2: judge ahead / behind against our chain clock (the newest World we saw lags the arena by its
+            // delivery delay, so holding against it resent batches that were already too old: refused twice)
+            var chainNow = _clock.ChainNow(now);
+            if (b.Start > chainNow + 2)
             {
+                RejectedAhead++;
+                _aheadWindow++;
                 b.HeldAt = now;
                 _held.Add(b);
             }
             else
-                BatchesDroppedLate++;
-            _windowRejectAt.Enqueue(now);
-            while (_windowRejectAt.Count > 0 && now - _windowRejectAt.Peek() > 3.0)
-                _windowRejectAt.Dequeue();
-            if (_windowRejectAt.Count >= 12 && Cfg.inputWindow > 8 && !Cfg.windowSet)
             {
-                WindowFallbacks++;
-                Debug.LogWarning($"[onchain] {_windowRejectAt.Count} input batches refused as out of window in 3 s at window {Cfg.inputWindow}: the arena's window is narrower, falling back to 8 / T+3");
-                Cfg.inputWindow = 8;
-                Cfg.inputLead = 3;
-                _extraLead = Math.Min(_extraLead, MaxExtraLead);
-                _windowRejectAt.Clear();
+                RejectedBehind++;
+                BatchesDroppedLate++;
             }
         }
 
@@ -1046,16 +1049,17 @@ namespace FallRush.OnChain
             if (_held.Count == 0 || !_hasNewest)
                 return;
             var now = ClientSim.Now;
+            var chainNow = _clock.ChainNow(now);
             for (var i = _held.Count - 1; i >= 0; i--)
             {
                 var b = _held[i];
-                if (b.Start <= _newestTick || now - b.HeldAt > 3.0)
+                if (b.Start < chainNow + 2 || now - b.HeldAt > 2.0)
                 {
-                    BatchesDroppedLate++;
+                    BatchesDroppedLate++; // would land after its tick: the arena already repeated our last command
                     _held.RemoveAt(i);
                     continue;
                 }
-                if (b.Start > _newestTick + (uint)Math.Max(1, Cfg.inputWindow - 1))
+                if (b.Start > chainNow + Math.Max(1, Cfg.inputWindow - LeadMargin))
                     continue; // still beyond the window: the chain has not caught up yet
                 _held.RemoveAt(i);
                 Track(_tx.SendInputs(b.Bytes, b.Len), b.Start, b.Bytes, b.Len);
@@ -1081,7 +1085,7 @@ namespace FallRush.OnChain
             _inMissingMark = _inMissing;
             if (n <= 0)
                 return;
-            Debug.Log($"[onchain] inputs applied {100f * (n - miss) / n:F0}% last 10 s ({miss}/{n} missing; session {InputsAppliedPct:F0}%) lead T+{Cfg.inputLead}+{_extraLead} window {Cfg.inputWindow} rejected {BatchesRejected} resent {BatchesResent} droppedLate {BatchesDroppedLate} resyncs {Resyncs} filled {ResyncFilled} upd/s {UpdatesPerSec:F1}");
+            Debug.Log($"[onchain] inputs applied {100f * (n - miss) / n:F0}% last 10 s ({miss}/{n} missing; session {InputsAppliedPct:F0}%) lead T+{Cfg.inputLead}+{_extraLead} window {Cfg.inputWindow} rejected {BatchesRejected} (ahead {RejectedAhead} behind {RejectedBehind}) resent {BatchesResent} droppedLate {BatchesDroppedLate} resyncs {Resyncs} filled {ResyncFilled} upd/s {UpdatesPerSec:F1}");
         }
 
         private void Stats(double now)
