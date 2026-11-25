@@ -40,7 +40,7 @@
     "confirmPollMs": 200,
     "confirmBatch": 256,
     "confirmTimeoutMs": 5000,
-    "accountPollMs": 1000,
+    "accountPollMs": 150,
     "stallMs": 2000,
     "rttPollMs": 2000,
     "blockhashRefreshMs": 10000,

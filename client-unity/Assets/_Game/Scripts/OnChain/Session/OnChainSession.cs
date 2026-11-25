@@ -143,8 +143,9 @@ namespace FallRush.OnChain
         {
             Cfg ??= ChainConfig.FromArgs();
             Cfg.ApplyRollupDefaults(); // input run: window 13 / T+5 on the rollup (?window=8 = the old behaviour)
+            _clockNominal = Cfg.target == "devnet";
             _createdAt = ClientSim.Now;
-            _clock = new OnChainClock(Cfg.rate) { LagMs = Cfg.lagMs };
+            _clock = new OnChainClock(Cfg.rate) { LagMs = Cfg.lagMs, NominalRateOnly = _clockNominal };
             _prevFrameRate = Application.targetFrameRate;
             Application.targetFrameRate = 60; // on-chain play: leave CPU to the chain link (a relay may share the machine)
             _core = RushCoreAbi.Create();
@@ -773,6 +774,7 @@ namespace FallRush.OnChain
         }
 
         private uint _applied;
+        private bool _clockNominal;
         private bool _resultLogged;
         // P3-K: adaptive extra input lead (client-side delay tuning): +1 tick when our inputs arrive late (the arena's
         // applied_tick for that slot is behind a tick we sent), −1 after LeadHoldSeconds without any late input (floor +1 once late); ≤ MaxExtraLead.
@@ -893,13 +895,20 @@ namespace FallRush.OnChain
         /// <summary>The predicted present: chain now + lead + batch − 1 (fractional).</summary>
         private double Target(double now) => _clock.ChainNow(now) + Cfg.inputLead + _extraLead + Cfg.batchTicks - 1;
 
+        /// <summary>
+        /// Input run 4 (2026-11-25): ticks stepped (and sent) per frame. Was 8: a tab the browser throttles to ~1 fps
+        /// (not in front, a slow phone) covered 8 of every 30 ticks, so the player sent a steady 3 batches/s and the arena
+        /// had their input for 30 % of ticks (production match 5QRdHb…, measured from the account). 45 = 1.5 s at 30 Hz.
+        /// </summary>
+        public const int MaxCatchUpTicks = 45;
+
         private void AdvanceAndSend(ClientSim cs, double now)
         {
             if (_pred == null || !_pred.HasState || !_clock.HasData)
                 return;
             var target = Target(now);
             var whole = (uint)Math.Max(0, Math.Floor(target));
-            if (whole > _pred.Present + 8 || whole + 8 < _pred.Present)
+            if (whole > _pred.Present + MaxCatchUpTicks || whole + 8 < _pred.Present)
             {
                 // Far off (a stall, a tab in the background): jump; the next World rebases exactly.
                 Resyncs++;
@@ -910,7 +919,7 @@ namespace FallRush.OnChain
                 {
                     var chainNow = (uint)Math.Max(0, Math.Floor(_clock.ChainNow(now)));
                     var first = Math.Max(_pred.Present + 1, chainNow + 2);
-                    if (whole >= first && whole - first < 16)
+                    if (whole >= first && whole - first < MaxCatchUpTicks)
                     {
                         var fill = new InputCmd();
                         cs?.InputSource?.Sample(ref fill);
@@ -934,7 +943,7 @@ namespace FallRush.OnChain
 
             var playing = OwnPlaying;
             var steps = 0;
-            while (_pred.Present < whole && steps++ < 8)
+            while (_pred.Present < whole && steps++ < MaxCatchUpTicks)
             {
                 var tick = _pred.Present + 1;
                 var cmd = new InputCmd { Tick = tick };

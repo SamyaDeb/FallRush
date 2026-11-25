@@ -18,8 +18,9 @@ for (let i = 0; i < m.length; i += 25) await Promise.all(m.slice(i, i + 25).map(
   const ix = tx?.transaction.message.instructions.find((q) => { const d = unb58(q.data); return d.length >= 13 && d[0] === 56 && d[1] === 184; });
   if (!ix) return;
   const start = unb58(ix.data).readUInt32LE(9);
-  rows.push({ ok: !x.err, slot: tx.slot, d: start - (tx.slot - S0) * 0.3 });
+  rows.push({ ok: !x.err, slot: tx.slot, start, d: start - (tx.slot - S0) * 0.3 });
 }));
+if (process.env.DUMP) (await import('node:fs')).writeFileSync(process.env.DUMP, JSON.stringify(rows.map((r) => ({ ...r }))));
 const q = (a, p) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(p * (s.length - 1))].toFixed(1) : '-'; };
 const ok = rows.filter((r) => r.ok).map((r) => r.d), bad = rows.filter((r) => !r.ok).map((r) => r.d);
 console.log(`input txs ${rows.length}: accepted ${ok.length}, refused ${bad.length} (${(100 * bad.length / Math.max(1, rows.length)).toFixed(1)}%: ahead ${bad.filter((x) => x > 0).length}, behind ${bad.filter((x) => x <= 0).length})`);
