@@ -62,6 +62,18 @@ const FULL_TASKS = Number(process.env.FULL_TASKS ?? 2);
 const CRANK_RATE = Number(process.env.CRANK_RATE ?? 50);
 const ROTATE_MS = Number(process.env.ROTATE_MS ?? 8000);
 const FULL_WAIT_HUMANS_S = Number(process.env.FULL_WAIT_HUMANS_S ?? 20); // a first join (session + gas) measured 8.5 s on production
+// followups: dev arenas (load test): start_sim also waits (≤ FULL_WAIT_HUMANS_S) for this many on-chain joins, so
+// headless clients that are not in the Classic roster can join; 0 (default) = only the roster's humans (unchanged)
+const FULL_MIN_HUMANS = Math.max(0, Number(process.env.FULL_MIN_HUMANS ?? 0) | 0);
+// followups: CRANK_GATE=1 → the crank sends only while the World is behind real time (policy.gateStep); 0 (default) =
+// it always sends (today). Never changes the simulation (only which transaction runs a tick).
+const CRANK_GATE = process.env.CRANK_GATE === "1";
+const GATE_CFG: P.GateCfg = {
+  lagTicks: Number(process.env.CRANK_LAG_TICKS ?? P.GATE_DEFAULTS.lagTicks),
+  closeTicks: Number(process.env.CRANK_CLOSE_TICKS ?? P.GATE_DEFAULTS.closeTicks),
+  stallMs: Number(process.env.CRANK_GATE_STALL_MS ?? P.GATE_DEFAULTS.stallMs),
+  holdMs: Number(process.env.CRANK_GATE_HOLD_MS ?? P.GATE_DEFAULTS.holdMs),
+};
 const DONE = 11;
 const BOOT = Date.now();
 const STATE_FILE = join(ARCHIVE, `keeper-${NET}-arena${ARENA}.json`);
@@ -76,7 +88,8 @@ const saveState = () => { try { writeFileSync(STATE_FILE + ".tmp", JSON.stringif
 /** harden #7: a match is done for the main loop once finalized (or given up); `active` is cleared with it */
 const markDone = (hex: string) => { if (!st.done.includes(hex)) { st.done.push(hex); st.done = st.done.slice(-500); } if (st.active?.matchHex === hex) delete st.active; saveState(); };
 const status: any = { arena: ARENA, arenaKey: arena.toBase58(), world: world.toBase58(), net: NET, stage: "boot", since: Date.now(), boot: BOOT, last: [] as any[],
-  authority: wallet.publicKey.toBase58(), treasury: E.epda.treasury().toBase58(), funder: FUNDER_PUBKEY?.toBase58() ?? null, seasons: SEASONS, seasonsPaused: !SEASONS };
+  authority: wallet.publicKey.toBase58(), treasury: E.epda.treasury().toBase58(), funder: FUNDER_PUBKEY?.toBase58() ?? null, seasons: SEASONS, seasonsPaused: !SEASONS,
+  crankGateEnabled: CRANK_GATE, fullMinHumans: FULL_MIN_HUMANS };
 const stage = (s: string, extra: object = {}) => {
   Object.assign(status, { stage: s, since: Date.now(), ...extra });
   log({ stage: s, ...extra });
@@ -288,7 +301,7 @@ async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, ml
   let crank: ReturnType<typeof startCrank> | null = null;
   let crankStats: any = null;
   let w: any;
-  let liveProg = "", serverFellBack = false, gaveUpWhy: string | false = false, timedOut = false;
+  let liveProg = "", liveProgAt = Date.now(), serverFellBack = false, gaveUpWhy: string | false = false, timedOut = false;
   let restarts = 0;
   const cus: number[] = [];
   const tickAt: [number, number, number][] = [];
@@ -302,11 +315,22 @@ async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, ml
     let rotatedAt = Date.now(), lastGaveUpCheck = 0;
     const committed = new Set<number>();
     let lastSnapKey = "";
+    // followups (CRANK_GATE): the slot clock as the keeper sees it — the slot each tick started at (World last_slot,
+    // written at part 0) with the wall time it arrived, over the last 5 s (measured wall ms per slot)
+    const gw = { at: 0, lastSlot: -1, seenAt: 0, startSlot: 0, ticksRun: 0, tick: 0, round: 0, samples: [] as [number, number][] };
     const record = (buf: Buffer) => {
       const w = decodeWorld(buf);
-      if (w.partPending === 0 && (tickAt.length === 0 || w.tick > tickAt[tickAt.length - 1][0])) tickAt.push([w.tick, Date.now(), Number(w.lastSlot)]);
+      const now = Date.now();
+      if (w.partPending === 0 && (tickAt.length === 0 || w.tick > tickAt[tickAt.length - 1][0])) tickAt.push([w.tick, now, Number(w.lastSlot)]);
       const k = `${w.tick}:${w.partPending}`;
+      if (k !== liveProg) liveProgAt = now;
       liveProg = k;
+      const ls = Number(w.lastSlot);
+      if (ls !== gw.lastSlot) {
+        gw.lastSlot = ls; gw.seenAt = now; gw.samples.push([ls, now]);
+        while (gw.samples.length > 2 && now - gw.samples[0][1] > 5000) gw.samples.shift();
+      }
+      Object.assign(gw, { at: now, startSlot: Number(w.startSlot), ticksRun: Number(w.ticksRun), tick: w.tick, round: w.round });
       if (k === lastSnapKey) return w;
       lastSnapKey = k;
       const h = Buffer.alloc(7); h.writeUInt32LE(w.tick, 0); h[4] = w.partPending; h.writeUInt16LE(w.len, 5);
@@ -317,9 +341,28 @@ async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, ml
     };
     sub = er.onAccountChange(world, (a) => { try { record(a.data as Buffer); } catch {} }, { commitment: "processed" } as any);
     w = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
-    liveProg = `${w.tick}:${w.partPending}`;
+    liveProg = `${w.tick}:${w.partPending}`; liveProgAt = Date.now();
+    // followups (CRANK_GATE): open while the World is behind the program's real-time rule by > lagTicks or has not
+    // moved for stallMs (a dead timed task); closed while the timed tasks keep up (the ~45 NOT_DUE tx/s of R2–R4)
+    const slotMs = Number(a0.slotMs ?? 0) || 1;
+    let gs = P.gateInit(Date.now());
+    const gate = () => {
+      const now = Date.now();
+      const known = gw.at > 0 && now - gw.at < 2000;
+      const debt = known ? P.tickDebt({ slotNow: P.slotNow({ lastSlot: gw.lastSlot, seenAt: gw.seenAt, now, wallMsPerSlot: P.slotWallMs(gw.samples), slotMs }), startSlot: gw.startSlot, ticksRun: gw.ticksRun, slotMs }) : Infinity;
+      const r = P.gateStep(gs, { now, known, debt, progAgeMs: now - liveProgAt }, GATE_CFG);
+      if (r.changed) {
+        gs = r.state;
+        const o = { ev: "crank_gate", open: gs.open, why: r.why, debt: Number.isFinite(debt) ? debt : null, tick: gw.tick, round: gw.round, opens: gs.opens, closes: gs.closes };
+        logTo(mlog, o);
+        status.crankGate = { ...P.gateTotals(gs, now), why: r.why };
+      }
+      return gs.open;
+    };
     crank = full ? startCrank({ er, wallet, rate: CRANK_RATE, progress: () => liveProg, log: (o) => logTo(mlog, o),
-      ix: (b) => pe.methods.crank(b).remainingAccounts(tickMetas).instruction() }) : null;
+      ix: (b) => pe.methods.crank(b).remainingAccounts(tickMetas).instruction(),
+      ...(CRANK_GATE ? { gate, gateStats: () => ({ ...P.gateTotals(gs, Date.now()), cfg: GATE_CFG }) } : {}) }) : null;
+    if (crank && CRANK_GATE) logTo(mlog, { ev: "crank_gate", open: true, why: "start", cfg: GATE_CFG, slotMs });
     let lastProg = "", lastExecAt = Date.now(), lastCu = 0;
     const t0 = Date.now();
     // harden #4: the deadline counts from the match's first start (persisted across keeper restarts), so it fires
@@ -338,6 +381,7 @@ async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, ml
       if (!info) continue;
       w = record(info.data as Buffer);
       status.worldTick = w.tick; status.worldPhase = w.phase; status.worldRound = w.round;
+      if (crank) { status.crankSent = crank.stats.sent; status.crankGated = crank.stats.gated; if (CRANK_GATE) { const g = P.gateTotals(gs, now); status.crankGate = { ...status.crankGate, ...g }; status.crankGateOpenMs = g.openMs; } }
       const prog = `${w.tick}:${w.partPending}`;
       if (prog !== lastProg) { lastProg = prog; lastExecAt = now; }
       if (full && now - rotatedAt > ROTATE_MS) {
@@ -641,16 +685,23 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
   // 2. ER: lobby (the arena points at this match), markets, deal
   let a: any = await arenaAcc();
   if (a.matchAccount.toBase58() !== matchPda.toBase58()) {
-    if (a.status === 2) { // a RUNNING arena left by another match: stop it first
-      // harden #4: and abort that match (its markets refund through the MarketBusy recovery below), retried
-      const old: PublicKey = a.matchAccount;
+    const old: PublicKey = a.matchAccount;
+    // followups #3: the arena's previous match is still RUNNING, or was left non-final (an earlier try stopped the arena
+    // but its abort_match did not land): stop the arena, then abort that match (markets refund via MarketBusy recovery)
+    const oldM: any = old.toBase58() !== ZERO && a.status !== 2 ? await erMatch(old) : null;
+    // (only a Match still delegated to the rollup can take abort_match: an undelegated one is never retried forever)
+    const oldOpen = !!oldM && !["completed", "aborted"].includes(statusName(oldM)) && !!(await baseOwner(old))?.equals(E.DELEGATION);
+    if (a.status === 2 || oldOpen) {
+      let abortErr: any = null;
       try { await ensureFinal(old, 7, true, mlog); }
-      catch (e: any) { log({ ev: "ensure_final_failed", match: old.toBase58(), err: String(e?.message ?? e).slice(0, 200) }); }
+      catch (e: any) { abortErr = e; log({ ev: "ensure_final_failed", match: old.toBase58(), err: String(e?.message ?? e).slice(0, 200) }); }
       // still RUNNING (its World reached DONE without end_sim, or the abort did not land): stop it as before
       if ((await arenaAcc()).status === 2) {
         const r = await sendEr([await pe.methods.abortArena().accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "abort_arena");
         if (r.err) throw new Error(`abort_arena: ${r.err}`);
       }
+      // never swallowed: the arena is stopped now, the retry (backoff) aborts the old match again before open_lobby
+      if (abortErr) throw abortErr;
     }
     const inputMetas = Array.from({ length: N }, (_, s) => ({ pubkey: pda.input(arena, s), isSigner: false, isWritable: true }));
     out.sigs.openLobby = (await act("open_lobby", async () => sendEr([await pe.methods.openLobby(matchPda).accountsPartial({ authority: wallet.publicKey, arena, world }).remainingAccounts(inputMetas).instruction()], [wallet], "open_lobby", 40), mlog)).sig;
@@ -705,7 +756,9 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
         // harden #4: never leave the Match in Dealing with the market maker's bets: abort (finish() refunds)
         stage("vrf_timeout");
         out.vrfTimeout = true;
-        await ensureFinal(matchPda, 7, false, mlog);
+        // followups #3: force (a Match that was never dealt cannot have a live World; if the arena somehow runs it,
+        // it is stopped before abort_match, else the aborted Match would hold a RUNNING arena)
+        await ensureFinal(matchPda, 7, true, mlog);
         dealFailed = true;
         break;
       }
@@ -721,11 +774,12 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
       // fullchain: every human of the roster pre-joins on-chain at roster lock (the server's SendPrejoin); wait for
       // them (bots fill the rest inside start_sim), then the program runs lobby → R1 … R4
       const want = (h?.roster ?? []).filter((r: any) => r.bot === false).length;
-      const t0 = Date.now();
+      // followups: FULL_MIN_HUMANS (dev arenas) raises the target to admit headless load clients (policy.humansWaitDone)
+      const t0 = Date.now(), waitS = judge ? Math.max(FULL_WAIT_HUMANS_S, 30) : FULL_WAIT_HUMANS_S;
       for (;;) {
         const ar: any = await arenaAcc();
         let n = 0; for (let s = 0; s < N; s++) if ((Number(ar.humanMask) >> s) & 1) n++;
-        if (n >= want || Date.now() - t0 >= (judge ? Math.max(FULL_WAIT_HUMANS_S, 30) : FULL_WAIT_HUMANS_S) * 1000) { out.humans = { want, joined: n, ms: Date.now() - t0 }; break; }
+        if (P.humansWaitDone({ joined: n, want, minHumans: FULL_MIN_HUMANS, elapsedMs: Date.now() - t0, waitS, n: N })) { out.humans = { want, min: FULL_MIN_HUMANS, target: P.fullHumansTarget(want, FULL_MIN_HUMANS, N), joined: n, ms: Date.now() - t0 }; break; }
         if (serverAllState(jsonl) === "fallback") break;
         await sleep(200);
       }
@@ -734,7 +788,8 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
       // the server plays this match on Classic (it never saw the rollup go live): abort ours, markets refund
       stage("server_fallback");
       out.serverFallback = true;
-      out.sigs.abort = (await act("abort_match", async () => sendEr([await pe.methods.abortMatch(6).accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "abort_match"), mlog)).sig;
+      // followups #3: through ensureFinal (stop the arena if it runs this match, then abort_match, retried, thrown)
+      out.ensureFinal = await ensureFinal(matchPda, 6, true, mlog);
     } else if (full && !(m.flags & 0x20) && !["completed", "aborted"].includes(statusName(m))) {
       stage("start_sim", { humans: out.humans });
       out.sigs.startSim = (await act("start_sim", async () => sendEr([cu(400_000), await pe.methods.startSim().accountsPartial({ authority: wallet.publicKey, arena, world, matchAccount: matchPda, lobbyMap: maps[4] }).instruction()], [wallet], "start_sim"), mlog)).sig;
@@ -742,7 +797,7 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
       if (!jsonl) {
         // resumed without the server's log: the Classic rounds cannot be bridged; abort (markets refund)
         stage("abort_no_log");
-        out.sigs.abort = (await act("abort_match", async () => sendEr([await pe.methods.abortMatch(5).accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "abort_match"), mlog)).sig;
+        out.ensureFinal = await ensureFinal(matchPda, 5, true, mlog); // followups #3: arena first, retried, thrown
       } else {
         stage("rounds_1_3");
         let br: any;
@@ -753,7 +808,7 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
           // the Classic server aborted the match (e.g. every human left): abort it on-chain too (markets refund)
           if (!/unexpected event ABORT/.test(String(e?.message ?? e))) throw e;
           stage("classic_abort");
-          out.sigs.abort = (await act("abort_match", async () => sendEr([await pe.methods.abortMatch(4).accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "abort_match"), mlog)).sig;
+          out.ensureFinal = await ensureFinal(matchPda, 4, true, mlog); // followups #3: arena first, retried, thrown
           br = null;
         }
         if (br) {
@@ -832,6 +887,8 @@ function jsonlFor(matchHex: string): string | null {
   return null;
 }
 
+if (FULL_MIN_HUMANS > 0 && (ARENA === 2 || ARENA === 3)) { log({ ev: "warn_full_min_humans", arena: ARENA, min: FULL_MIN_HUMANS }); console.log(`[keeper a${ARENA}] WARNING: FULL_MIN_HUMANS=${FULL_MIN_HUMANS} on a production arena: full matches with fewer humans wait ${FULL_WAIT_HUMANS_S} s`); }
+if (CRANK_GATE) log({ ev: "crank_gate_enabled", cfg: GATE_CFG });
 // idempotent economy setup for this arena (markets, drop queue, treasury, RUSH mint): P4 setupEcon
 for (let i = 0; ; i++) { try { const o = await E.setupEcon(ARENA); log({ act: "econ_setup", ...o }); break; } catch (e) { log({ ev: "econ_setup_failed", err: String(e).slice(0, 200) }); if (i >= 5) throw e; await sleep(5000); } }
 if (MM) await ensureMm().catch((e) => log({ ev: "mm_setup_failed", err: String(e).slice(0, 200) }));

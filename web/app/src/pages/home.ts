@@ -3,6 +3,7 @@
 import { api, explorer, PROGRAM, RUSH_MINT, VALIDATOR, short, rush } from '../lib/net';
 import { seasonName } from '../lib/decode';
 import { icon } from '../lib/icons';
+import { pausedChip, pausedNote } from './season';
 
 export function home(root: HTMLElement) {
   root.innerHTML = `
@@ -31,7 +32,7 @@ export function home(root: HTMLElement) {
         <div class="row" style="margin-top:8px"><a class="btn small" href="/play" data-link>Play</a><a class="btn small mint" href="/live/${x.arena}" data-link>Watch</a></div></div>`).join('') || '<span class="muted">no arena online</span>';
       const ss = await api('/season').catch(() => null);
       const sv = ss?.onChain;
-      root.querySelector('#season')!.innerHTML = sv ? `<div class="grid">${([['champions', 'crown', 'Champions', (x: string) => Math.floor(Number(x) / 1000) + ' crown(s)'], ['predictors', 'eye', 'Predictors', (x: string) => (Number(x) > 0 ? '+' : '') + rush(x) + ' RUSH'], ['dropMvps', 'bolt', 'Drop MVPs', (x: string) => x + ' drop(s)']] as const).map(([k, ic, t, f]) => `<div><b class="row">${icon(ic as any).replace('<svg', '<svg style="width:20px;height:20px"')} ${t}</b>${(sv[k] as any[]).slice(0, 3).map((e, i) => `<div>${i + 1}. <span class="mono">${short(e.wallet)}</span> ${f(e.score)}</div>`).join('') || '<span class="muted">no one yet</span>'}</div>`).join('')}</div><div class="muted" style="margin-top:8px">${seasonName(sv.id)} · from the on-chain <a target="_blank" href="${explorer('address', ss.account)}">Season account</a> · ends ${new Date(sv.endsAt * 1000).toUTCString().slice(0, 22)} UTC · a Season Trophy (Metaplex Core) to each top 1</div>` : '<span class="muted">the season opens with the first match of the week</span>';
+      root.querySelector('#season')!.innerHTML = sv ? `<div class="grid">${([['champions', 'crown', 'Champions', (x: string) => Math.floor(Number(x) / 1000) + ' crown(s)'], ['predictors', 'eye', 'Predictors', (x: string) => (Number(x) > 0 ? '+' : '') + rush(x) + ' RUSH'], ['dropMvps', 'bolt', 'Drop MVPs', (x: string) => x + ' drop(s)']] as const).map(([k, ic, t, f]) => `<div><b class="row">${icon(ic as any).replace('<svg', '<svg style="width:20px;height:20px"')} ${t}</b>${(sv[k] as any[]).slice(0, 3).map((e, i) => `<div>${i + 1}. <span class="mono">${short(e.wallet)}</span> ${f(e.score)}</div>`).join('') || '<span class="muted">no one yet</span>'}</div>`).join('')}</div>${pausedNote(ss)}<div class="muted" style="margin-top:8px">${pausedChip(ss)} ${seasonName(sv.id)} · from the on-chain <a target="_blank" href="${explorer('address', ss.account)}">Season account</a> · ends ${new Date(sv.endsAt * 1000).toUTCString().slice(0, 22)} UTC · a Season Trophy (Metaplex Core) to each top 1</div>` : `<span class="muted">the season opens with the first match of the week</span>${pausedNote(ss)}`;
       const m = await api('/matches?n=8');
       root.querySelector('#matches')!.innerHTML = (m.matches ?? []).length ? `<table><tr><th>when</th><th>match</th><th>champion</th><th>pools (RUSH)</th><th></th></tr>${m.matches.map((x: any) => `<tr>
         <td>${new Date(x.doneAt).toLocaleTimeString()}</td><td class="mono">${short(x.match)}</td><td>${x.champion != null && x.champion < 12 ? '#' + (x.champion + 1) + ((x.humanMask >> x.champion) & 1 ? ' <span class="chip sun">' + icon('crown') + ' human</span>' : ' (bot)') : '—'}</td>

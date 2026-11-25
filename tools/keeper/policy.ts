@@ -220,3 +220,64 @@ export async function stallRecover(d: StallDeps, tasks: string[], o: { nTasks: n
   }
   return { sent, scheduled, bhErrors, gaveUp: gave };
 }
+
+// ------------------------------------------------------------------ crank gate (followups: CRANK_GATE)
+// The crank only sends while the World is behind real time. "Real time" is the program's own rule (sim.rs tick_inner):
+// tick n (ticks_run = n) may start once (slot − start_slot) × slot_ms × 30 ≥ n × 1000. The gate only changes WHICH
+// transactions land (a crank that is not sent cannot run a tick a timed task then runs instead); the slice size never
+// changes the simulation, so the World bytes are the same either way.
+export const GATE_DEFAULTS = { lagTicks: 3, closeTicks: 1, stallMs: 50, holdMs: 500 };
+export type GateCfg = typeof GATE_DEFAULTS;
+/** Ticks the program would let start by `slotNow` minus the ticks already run (≤ 0 = caught up / ahead; 1 = one tick due now). */
+export function tickDebt(o: { slotNow: number; startSlot: number; ticksRun: number; slotMs: number; hz?: number }): number {
+  if (!(o.ticksRun > 0)) return 1; // the first tick is due at once (it sets start_slot)
+  const elapsedMs = Math.max(0, o.slotNow - o.startSlot) * Math.max(1, o.slotMs);
+  return Math.floor((elapsedMs * (o.hz ?? 30)) / 1000) + 1 - o.ticksRun;
+}
+/** Wall ms per rollup slot from [slot, wallMs] samples (oldest first); null until they span ≥ minSpanMs and ≥ 1 slot. */
+export function slotWallMs(samples: [number, number][], minSpanMs = 1000): number | null {
+  if (samples.length < 2) return null;
+  const [s0, t0] = samples[0], [s1, t1] = samples[samples.length - 1];
+  if (t1 - t0 < minSpanMs || s1 <= s0) return null;
+  return (t1 - t0) / (s1 - s0);
+}
+/** The slot now, extrapolated from the last observed slot with the measured slot rate (else the arena's slot_ms). */
+export function slotNow(o: { lastSlot: number; seenAt: number; now: number; wallMsPerSlot: number | null; slotMs: number }): number {
+  const per = o.wallMsPerSlot && o.wallMsPerSlot > 0 ? o.wallMsPerSlot : Math.max(1, o.slotMs);
+  return o.lastSlot + Math.max(0, o.now - o.seenAt) / per;
+}
+export type GateState = { open: boolean; at: number; opens: number; closes: number; openMs: number; closedMs: number };
+export type GateInput = { now: number; known: boolean; debt: number; progAgeMs: number };
+/** Fail-open start: the gate starts open (a match must never wait for the gate to learn the slot clock). */
+export const gateInit = (now: number): GateState => ({ open: true, at: now, opens: 0, closes: 0, openMs: 0, closedMs: 0 });
+/**
+ * One gate decision (pure). Open when the World is unknown, behind by more than lagTicks, or has made no progress for
+ * stallMs (a dead / over-budget timed task); once open it stays open at least holdMs and until the debt is ≤ closeTicks
+ * and progress is fresh (hysteresis: no flapping at the threshold).
+ */
+export function gateStep(s: GateState, i: GateInput, cfg: GateCfg = GATE_DEFAULTS): { state: GateState; changed: boolean; why: string } {
+  const why = !i.known ? "unknown" : i.debt > cfg.lagTicks ? "lag" : i.progAgeMs > cfg.stallMs ? "stall" : "";
+  let open = s.open;
+  if (!s.open && why) open = true;
+  else if (s.open && !why && i.now - s.at >= cfg.holdMs && i.debt <= cfg.closeTicks) open = false;
+  if (open === s.open) return { state: s, changed: false, why: why || (open ? "hold" : "ahead") };
+  const span = Math.max(0, i.now - s.at);
+  const state: GateState = { ...s, open, at: i.now, opens: s.opens + (open ? 1 : 0), closes: s.closes + (open ? 0 : 1), openMs: s.openMs + (s.open ? span : 0), closedMs: s.closedMs + (s.open ? 0 : span) };
+  return { state, changed: true, why: why || "ahead" };
+}
+/** openMs / closedMs including the current stretch. */
+export function gateTotals(s: GateState, now: number) {
+  const span = Math.max(0, now - s.at);
+  return { open: s.open, opens: s.opens, closes: s.closes, openMs: s.openMs + (s.open ? span : 0), closedMs: s.closedMs + (s.open ? 0 : span) };
+}
+
+// ------------------------------------------------------------------ full-mode human wait (followups: FULL_MIN_HUMANS)
+/** How many on-chain joins start_sim waits for: the Classic roster's humans, raised to FULL_MIN_HUMANS (dev arenas:
+ * headless load clients are not in the Classic roster), never above the arena's N slots. */
+export function fullHumansTarget(want: number, minHumans: number, n = 12): number {
+  return Math.min(n, Math.max(want | 0, Number.isFinite(minHumans) ? Math.max(0, minHumans | 0) : 0));
+}
+/** The full-mode lobby wait is over: enough joined humans, or the wait (waitS) ran out. */
+export function humansWaitDone(o: { joined: number; want: number; minHumans: number; elapsedMs: number; waitS: number; n?: number }): boolean {
+  return o.joined >= fullHumansTarget(o.want, o.minHumans, o.n) || o.elapsedMs >= o.waitS * 1000;
+}

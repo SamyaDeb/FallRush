@@ -250,3 +250,96 @@ test("review: the default top-up target clears the treasury low flag (a topped-u
   const top = P.treasuryTopUp(5_000_000, 3, P.TREASURY_TOPUP_DEFAULT);
   assert.equal(P.lowBalance({ authorityLamports: null, treasuryLamports: 5_000_000 + top, funderLamports: null }).treasury, false);
 });
+
+// ------------------------------------------------------------------ followups: CRANK_GATE
+test("tickDebt follows the program's real-time rule (elapsed_ms × 30 ≥ ticks_run × 1000)", () => {
+  // slot_ms 50: 20 slots = 1000 ms → ticks 0..30 may have started (31); 30 run → 1 due now
+  assert.equal(P.tickDebt({ slotNow: 120, startSlot: 100, ticksRun: 30, slotMs: 50 }), 1);
+  assert.equal(P.tickDebt({ slotNow: 120, startSlot: 100, ticksRun: 31, slotMs: 50 }), 0); // caught up (NOT_DUE)
+  assert.equal(P.tickDebt({ slotNow: 120, startSlot: 100, ticksRun: 40, slotMs: 50 }), -9); // never "ahead" of the program
+  assert.equal(P.tickDebt({ slotNow: 140, startSlot: 100, ticksRun: 30, slotMs: 50 }), 31); // 1 s behind
+  assert.equal(P.tickDebt({ slotNow: 0, startSlot: 0, ticksRun: 0, slotMs: 50 }), 1); // the first tick is due at once
+  // the boundary: tick n is due exactly when elapsed × 30 = n × 1000 (n = 3 at 100 ms)
+  assert.equal(P.tickDebt({ slotNow: 2, startSlot: 0, ticksRun: 3, slotMs: 50 }), 1);
+  assert.equal(P.tickDebt({ slotNow: 1.99, startSlot: 0, ticksRun: 3, slotMs: 50 }), 0);
+});
+
+test("slotWallMs / slotNow: measured slot rate, fallback to slot_ms, extrapolated by wall time", () => {
+  assert.equal(P.slotWallMs([]), null);
+  assert.equal(P.slotWallMs([[10, 0], [12, 500]]), null); // span < 1 s
+  assert.equal(P.slotWallMs([[10, 0], [10, 2000]]), null); // no slot moved
+  assert.equal(P.slotWallMs([[10, 0], [50, 2000]]), 50);
+  assert.equal(P.slotNow({ lastSlot: 100, seenAt: 1000, now: 1100, wallMsPerSlot: 25, slotMs: 50 }), 104);
+  assert.equal(P.slotNow({ lastSlot: 100, seenAt: 1000, now: 1100, wallMsPerSlot: null, slotMs: 50 }), 102);
+  assert.equal(P.slotNow({ lastSlot: 100, seenAt: 1000, now: 900, wallMsPerSlot: null, slotMs: 50 }), 100); // clock skew: never back
+});
+
+test("gateStep: fail-open start, closes when caught up after the hold, reopens on lag / stall / unknown", () => {
+  const cfg = P.GATE_DEFAULTS;
+  let s = P.gateInit(0);
+  assert.equal(s.open, true);
+  // keeping up (debt 0..1, fresh progress) but inside the 500 ms hold: stays open
+  let r = P.gateStep(s, { now: 100, known: true, debt: 0, progAgeMs: 10 }, cfg);
+  assert.equal(r.changed, false); assert.equal(r.state.open, true);
+  // after the hold: closes
+  r = P.gateStep(s, { now: 600, known: true, debt: 1, progAgeMs: 10 }, cfg);
+  assert.equal(r.changed, true); assert.equal(r.state.open, false); s = r.state;
+  assert.deepEqual(P.gateTotals(s, 600), { open: false, opens: 0, closes: 1, openMs: 600, closedMs: 0 });
+  // a debt of 2..3 does not reopen (hysteresis band)
+  r = P.gateStep(s, { now: 700, known: true, debt: 3, progAgeMs: 10 }, cfg);
+  assert.equal(r.state.open, false);
+  // lag > 3 ticks: opens
+  r = P.gateStep(s, { now: 800, known: true, debt: 4, progAgeMs: 10 }, cfg);
+  assert.equal(r.changed, true); assert.equal(r.state.open, true); assert.equal(r.why, "lag"); s = r.state;
+  // open with debt 2 after the hold: stays open until ≤ closeTicks
+  r = P.gateStep(s, { now: 1400, known: true, debt: 2, progAgeMs: 10 }, cfg);
+  assert.equal(r.state.open, true);
+  r = P.gateStep(s, { now: 1400, known: true, debt: 1, progAgeMs: 10 }, cfg);
+  assert.equal(r.state.open, false); s = r.state;
+  assert.deepEqual(P.gateTotals(s, 2000), { open: false, opens: 1, closes: 2, openMs: 600 + 600, closedMs: 200 + 600 });
+  // no progress for > stallMs (a dead timed task): opens even with no debt
+  r = P.gateStep(s, { now: 2000, known: true, debt: 0, progAgeMs: 60 }, cfg);
+  assert.equal(r.state.open, true); assert.equal(r.why, "stall");
+  // the World unknown (no fresh sample): opens
+  r = P.gateStep(s, { now: 2000, known: false, debt: Infinity, progAgeMs: 0 }, cfg);
+  assert.equal(r.state.open, true); assert.equal(r.why, "unknown");
+  // a stalled World never closes, whatever the hold
+  let o = P.gateInit(0);
+  for (let t = 0; t < 5000; t += 100) o = P.gateStep(o, { now: t, known: true, debt: 0, progAgeMs: 400 }, cfg).state;
+  assert.equal(o.open, true);
+});
+
+test("gate replay: R2–R4 idle ticks close it; an R1 backlog opens it, then it closes again", () => {
+  // a crude 30 Hz World: the timed tasks keep up (debt 0/1) except a 1 s R1 window where they fall 6 ticks behind
+  let s = P.gateInit(0), sends = 0, closedAt = -1, openedOnLag = false;
+  for (let t = 0; t < 10_000; t += 10) {
+    const backlog = t >= 4000 && t < 5000;
+    const debt = backlog ? 6 : t % 33 < 3 ? 1 : 0;
+    const r = P.gateStep(s, { now: t, known: true, debt, progAgeMs: backlog ? 30 : 5 });
+    s = r.state;
+    if (r.changed && !s.open && closedAt < 0) closedAt = t;
+    if (r.changed && s.open && r.why === "lag") openedOnLag = true;
+    if (s.open) sends++;
+  }
+  assert.ok(closedAt >= 500 && closedAt < 600, `closed after the hold (${closedAt})`);
+  assert.ok(openedOnLag, "opened for the R1 backlog");
+  assert.equal(s.open, false, "closed again once caught up");
+  assert.ok(sends < 250, `open ≈ 0.5 s + 1.5 s of 10 s (${sends} of 1000 polls)`);
+});
+
+// ------------------------------------------------------------------ followups: FULL_MIN_HUMANS
+test("fullHumansTarget / humansWaitDone: FULL_MIN_HUMANS raises the target (capped at N), the wait still times out", () => {
+  assert.equal(P.fullHumansTarget(0, 0), 0); // default: the Classic roster only (unchanged)
+  assert.equal(P.fullHumansTarget(2, 0), 2);
+  assert.equal(P.fullHumansTarget(0, 11), 11); // 12-bot soak + 11 headless clients
+  assert.equal(P.fullHumansTarget(3, 2), 3); // never below the roster's humans
+  assert.equal(P.fullHumansTarget(0, 40), 12); // never above N
+  assert.equal(P.fullHumansTarget(1, NaN), 1);
+  assert.equal(P.fullHumansTarget(1, -5), 1);
+  const w = { want: 0, minHumans: 11, waitS: 20 };
+  assert.equal(P.humansWaitDone({ ...w, joined: 0, elapsedMs: 0 }), false); // before: done at once with want 0
+  assert.equal(P.humansWaitDone({ ...w, minHumans: 0, joined: 0, elapsedMs: 0 }), true);
+  assert.equal(P.humansWaitDone({ ...w, joined: 10, elapsedMs: 5000 }), false);
+  assert.equal(P.humansWaitDone({ ...w, joined: 11, elapsedMs: 5000 }), true);
+  assert.equal(P.humansWaitDone({ ...w, joined: 3, elapsedMs: 20_000 }), true); // the wait ran out: start anyway
+});

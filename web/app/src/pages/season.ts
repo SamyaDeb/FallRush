@@ -8,6 +8,11 @@ import { badges, seasonName } from '../lib/decode';
 import { chainFor } from '../lib/chain';
 import { icon, type IconName } from '../lib/icons';
 
+// followups: /api/season says `paused` (the keepers stopped recording at the MagicBlock commit cap, or SEASONS=0)
+const esc = (x: unknown) => String(x ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+export const pausedChip = (r: any) => (r?.paused ? `<span class="chip pink" title="${esc(r.pausedReason ?? 'paused')}">paused</span>` : '');
+export const pausedNote = (r: any) => (r?.paused ? `<div class="muted" style="margin-top:6px">season recording paused${r.pausedReason ? ` (${esc(r.pausedReason)})` : ''}: matches still play and settle on-chain; the board resumes when recording does</div>` : '');
+
 const B: [string, string, IconName, string, (s: string) => string][] = [
   ['champions', 'Champions', 'crown', 'hue-lemon', (s) => `${Math.floor(Number(s) / 1000)} crown${Math.floor(Number(s) / 1000) === 1 ? '' : 's'} · ${Number(s) % 1000} Final${Number(s) % 1000 === 1 ? '' : 's'}`],
   ['predictors', 'Predictors', 'eye', 'hue-soda', (s) => `${Number(s) > 0 ? '+' : ''}${rush(s)} RUSH`],
@@ -16,7 +21,7 @@ const B: [string, string, IconName, string, (s: string) => string][] = [
 
 export function season(root: HTMLElement, params: string[]) {
   let stop = false, endsAt = 0;
-  root.innerHTML = `<div class="card hue-grape enter"><div class="ribbon">${icon('trophy')} <span id="t">SEASON</span> <span class="sub" id="cd"></span></div><div id="meta" class="muted">reading the Season account on Solana…</div><div id="list" class="row" style="margin-top:8px"></div></div>
+  root.innerHTML = `<div class="card hue-grape enter"><div class="ribbon">${icon('trophy')} <span id="t">SEASON</span> <span id="paused"></span> <span class="sub" id="cd"></span></div><div id="meta" class="muted">reading the Season account on Solana…</div><div id="list" class="row" style="margin-top:8px"></div></div>
     <div class="grid" id="boards" style="grid-template-columns:repeat(auto-fit,minmax(290px,1fr))"></div>
     <div class="card hue-apple"><div class="ribbon">${icon('capsule')} YOU</div><div id="you" class="muted">…</div></div>`;
   const $ = (q: string) => root.querySelector(q) as HTMLElement;
@@ -41,10 +46,11 @@ export function season(root: HTMLElement, params: string[]) {
       if (!r?.ok) { $('#meta').innerHTML = '<span class="bad">season unavailable: retrying…</span>'; if (!stop) setTimeout(tick, 10_000); return; }
       const s = r.onChain;
       $('#t').textContent = `SEASON · ${seasonName(id).toUpperCase()}`;
-      if (!s) { $('#meta').innerHTML = `no Season account yet (it opens with the first match of the week) · <a target="_blank" href="${explorer('address', r.account)}">account</a>`; }
+      $('#paused').innerHTML = pausedChip(r);
+      if (!s) { $('#meta').innerHTML = `no Season account yet (it opens with the first match of the week) · <a target="_blank" href="${explorer('address', r.account)}">account</a>${pausedNote(r)}`; }
       else {
         endsAt = s.endsAt;
-        $('#meta').innerHTML = `${s.nMatches} match${s.nMatches === 1 ? '' : 'es'} · ${s.nPlayers} player${s.nPlayers === 1 ? '' : 's'} · from the on-chain <a target="_blank" href="${explorer('address', r.account)}">Season account</a> (program <a target="_blank" href="${explorer('address', PROGRAM)}">${short(PROGRAM)}</a>) · indexer rebuild from ${r.rebuild.matches} archived receipt(s): ${r.matches ? '<span class="ok">matches ✓</span>' : r.rebuild.matches ? '<span class="bad">differs</span>' : '—'}${s.status ? ` · trophies minted: ${[0, 1, 2].filter((k) => (s.trophies >> k) & 1).length}/3` : ' · a Season Trophy (Metaplex Core) to each top 1 at the end'}`;
+        $('#meta').innerHTML = `${s.nMatches} match${s.nMatches === 1 ? '' : 'es'} · ${s.nPlayers} player${s.nPlayers === 1 ? '' : 's'} · from the on-chain <a target="_blank" href="${explorer('address', r.account)}">Season account</a> (program <a target="_blank" href="${explorer('address', PROGRAM)}">${short(PROGRAM)}</a>) · indexer rebuild from ${r.rebuild.matches} archived receipt(s): ${r.matches ? '<span class="ok">matches ✓</span>' : r.rebuild.matches ? '<span class="bad">differs</span>' : '—'}${s.status ? ` · trophies minted: ${[0, 1, 2].filter((k) => (s.trophies >> k) & 1).length}/3` : ' · a Season Trophy (Metaplex Core) to each top 1 at the end'}${pausedNote(r)}`;
         $('#boards').innerHTML = B.map(([k, name, ic, hue, fmt], bi) => {
           const rows = s[k] as any[];
           const pl = (i: number, cls: string) => { const e = rows[i]; return `<div class="pl ${cls} ${e ? '' : 'empty'}"><div class="who mono">${e ? short(e.wallet) + (e.wallet === me ? ' (you)' : '') : '—'}</div><div class="sc">${e ? fmt(e.score) : ''}</div><div class="block">${i + 1}</div></div>`; };
