@@ -3,7 +3,7 @@
  * rounds and the on-chain Final → the Rushling pit → the finale. Play (the live private beta, /play) and the waitlist
  * (/join → email → capsule reveal in the race → poster + Share on X) stay two separate paths.
  */
-import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Component, Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { CapsuleLoader } from '../components/CapsuleLoader';
 import { Juice, type JuiceHandle } from '../components/Juice';
@@ -11,6 +11,7 @@ import { TopBar } from '../components/TopBar';
 import { LIVE_URL, PLAY_URL } from '../lib/links';
 import { useLive } from '../lib/live';
 import { play, restoreSound, useSound } from '../lib/sfx';
+import { ScrollTrigger } from '../lib/scroll';
 import Story from './Story';
 import PitSection from './PitSection';
 import Finale from './Finale';
@@ -89,6 +90,48 @@ export default function Home() {
     const id = setTimeout(() => setStage('card'), failed ? 0 : 7000);
     return () => clearTimeout(id);
   }, [stage, failed]);
+
+  // One-way story: once the visitor touches the very end of the page, the scroll story and the pit fold away, so
+  // scrolling back up runs from the finale's cloud edge straight into the hero instead of replaying the race in
+  // reverse. The finale is held exactly where it was on screen while the sections above it vanish. Back at the very
+  // top (hero fully in view) they unfold again, below the fold, ready for the next pass down.
+  const [folded, setFolded] = useState(false);
+  const foldAnchor = useRef<number | null>(null);
+  const foldMounted = useRef(false);
+  useEffect(() => {
+    if (playing) return;
+    let raf = 0;
+    const check = () => {
+      raf = 0;
+      if (folded) {
+        if (window.scrollY <= 1) setFolded(false);
+        return;
+      }
+      const fin = document.querySelector<HTMLElement>('.landing > .finale');
+      if (!fin || window.scrollY + window.innerHeight < document.documentElement.scrollHeight - 8) return;
+      foldAnchor.current = fin.getBoundingClientRect().top;
+      setFolded(true);
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(check);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [folded, playing]);
+  useLayoutEffect(() => {
+    if (!foldMounted.current) return void (foldMounted.current = true);
+    const before = foldAnchor.current;
+    foldAnchor.current = null;
+    if (folded && before != null) {
+      const fin = document.querySelector<HTMLElement>('.landing > .finale');
+      // the delta also covers browsers whose scroll anchoring already compensated (then it is ~0)
+      if (fin) window.scrollTo({ top: window.scrollY + fin.getBoundingClientRect().top - before, behavior: 'instant' });
+    }
+    ScrollTrigger.refresh();
+  }, [folded]);
 
   // Esc leaves play mode
   useEffect(() => {
@@ -247,8 +290,8 @@ export default function Home() {
         )}
       </div>
     </div>
-    <Story webgl={!failed} live={live} />
-    <PitSection webgl={!failed} />
+    {!folded && <Story webgl={!failed} live={live} />}
+    {!folded && <PitSection webgl={!failed} />}
     <Finale live={live} />
     </div>
   );
