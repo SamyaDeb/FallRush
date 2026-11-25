@@ -230,7 +230,7 @@ namespace FallRush.OnChain
             }
         }
 
-        public double PresentTick => _pred != null && _pred.HasState && OwnPlaying ? _pred.Present + _frac : double.NaN;
+        public double PresentTick => _pred != null && _pred.HasState && (OwnPlaying || _pred.Slot < 0) ? _pred.Present + _frac : double.NaN;
 
         private bool OwnPlaying
         {
@@ -262,7 +262,7 @@ namespace FallRush.OnChain
         {
             feet = vel = Vector3.zero;
             flags = yaw = stun = 0;
-            if (_pred == null || !_pred.HasState || !OwnPlaying || slot < 0 || slot >= 12 || slot == _ownSlot)
+            if (_pred == null || !_pred.HasState || slot < 0 || slot >= 12 || slot == _pred.Slot || slot == _ownSlot && _pred.Slot >= 0)
                 return false;
             if (_pred.IsBot(slot) ? !Cfg.predictBots : !Cfg.predictHumans)
                 return false;
@@ -863,18 +863,29 @@ namespace FallRush.OnChain
 
             // own prediction: rebase on the newest World
             var view = new WorldView(_newest, 0, _newestLen);
-            if (_ownSlot >= 12 || !view.Active(_ownSlot) || _map == null)
+            if (_map == null)
                 return;
-            if (FullMatch)
+            // floor run (2026-11-25): a spectator (or a player out of an earlier round) runs a prediction world too, with
+            // no own slot, so every Rushling is drawn from rush-core at the present — on the floors (lids, goo platforms,
+            // star pads) as they are drawn — instead of a straight line between sparse Worlds 0.2–0.6 s back, which cut
+            // through raised floors (user report: bodies sunk into Lid Flip lids, Goo Tower, Star Fountain).
+            var predSlot = _ownSlot < 12 && view.Active(_ownSlot) ? _ownSlot : -1;
+            if (predSlot >= 0 && FullMatch)
             {
                 var d = view.Director;
                 if (d.Valid && d.Running && d.Round >= 1 && d.InRoster(_ownSlot) && !d.Alive(_ownSlot))
-                {
-                    // fullchain: eliminated in an earlier round (still active in the World): spectate, no prediction
-                    _pred?.Dispose();
-                    _pred = null;
-                    return;
-                }
+                    predSlot = -1; // fullchain: eliminated in an earlier round (still active in the World): spectate
+            }
+            if (predSlot < 0 && !Cfg.predictBots)
+            {
+                _pred?.Dispose();
+                _pred = null;
+                return;
+            }
+            if (_pred != null && _pred.Slot != predSlot)
+            {
+                _pred.Dispose();
+                _pred = null;
             }
             if (_pred == null)
             {
@@ -882,7 +893,7 @@ namespace FallRush.OnChain
                 for (var s = 0; s < 12; s++)
                     if (view.IsBot(s))
                         bots |= 1u << s;
-                _pred = new OnChainPrediction(_core, _map, view.Rate, view.ActiveMask, bots, _ownSlot, Cfg.smoothingMs, Cfg.snapMeters);
+                _pred = new OnChainPrediction(_core, _map, view.Rate, view.ActiveMask, bots, predSlot, Cfg.smoothingMs, Cfg.snapMeters);
             }
 
             var present = _pred.HasState ? _pred.Present : (uint)Math.Max(_newestTick, Math.Floor(Target(now)));
@@ -893,7 +904,9 @@ namespace FallRush.OnChain
             a.MapId == b.MapId && a.HazardSeed == b.HazardSeed && a.RoundStartTick == b.RoundStartTick && a.Variant == b.Variant && a.Modifier == b.Modifier;
 
         /// <summary>The predicted present: chain now + lead + batch − 1 (fractional).</summary>
-        private double Target(double now) => _clock.ChainNow(now) + Cfg.inputLead + _extraLead + Cfg.batchTicks - 1;
+        private double Target(double now) => _pred != null && _pred.Slot < 0
+            ? _clock.ChainNow(now) + 1 // spectator world: no inputs to lead, stay just ahead of the chain
+            : _clock.ChainNow(now) + Cfg.inputLead + _extraLead + Cfg.batchTicks - 1;
 
         /// <summary>
         /// Input run 4 (2026-11-25): ticks stepped (and sent) per frame. Was 8: a tab the browser throttles to ~1 fps

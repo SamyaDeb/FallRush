@@ -53,8 +53,9 @@ namespace FallRush.OnChain
         public bool smoothRemotes = true;
         /// <summary>Smooth run: bots drawn from the own prediction (exact, live) instead of late Worlds.</summary>
         public bool predictBots = true;
-        /// <summary>Smooth run: other humans drawn from the prediction too (live, corrected on input changes). Off by default.</summary>
-        public bool predictHumans;
+        /// <summary>Smooth run: other humans drawn from the prediction too (live, corrected on input changes). Floor run: on by
+        /// default — the delayed, sparse interpolation cut their bodies into raised floors (?smooth=1 = bots only).</summary>
+        public bool predictHumans = true;
         /// <summary>No World for this long → "! LAGGING" / chip Pending.</summary>
         public float lagMs = 300f;
         public float pollSeconds = 1f;

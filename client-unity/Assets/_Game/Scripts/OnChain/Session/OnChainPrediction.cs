@@ -65,7 +65,7 @@ namespace FallRush.OnChain
             _smoothing = Mathf.Max(1f, smoothingMs) / 1000f;
             _snap = snapMeters;
             BotMask = botMask;
-            _outMask = (activeMask | (1u << slot)) & 0xFFFu;
+            _outMask = (activeMask | (slot >= 0 ? 1u << slot : 0u)) & 0xFFFu;
             _h = core.Init(map, RushCoreAbi.Cfg(rate, activeMask, botMask, 0));
             if (_h < 0)
                 throw new InvalidOperationException("rc_init failed for the prediction world");
@@ -90,6 +90,8 @@ namespace FallRush.OnChain
         {
             var o = k * RushCoreAbi.InputsPerTick;
             Array.Clear(_inputs, o, RushCoreAbi.InputsPerTick);
+            if (Slot < 0)
+                return; // spectator world: no own inputs (every slot repeats its last command, bots run their brain)
             var i = (int)(tick % Hist);
             if (_cmdTick[i] != tick)
                 return; // no command (missing): rush-core repeats our last one, as the arena does
@@ -102,7 +104,8 @@ namespace FallRush.OnChain
         {
             var i = (int)(tick % Hist);
             _recTick[i] = tick;
-            Buffer.BlockCopy(_out, (k * 12 + Slot) * 36, _rec, i * 36, 36);
+            if (Slot >= 0)
+                Buffer.BlockCopy(_out, (k * 12 + Slot) * 36, _rec, i * 36, 36);
             _allTick[i] = tick;
             Buffer.BlockCopy(_out, k * 12 * 36, _all, i * Slots * 36, Slots * 36);
         }
@@ -128,15 +131,17 @@ namespace FallRush.OnChain
         public void OnAuthoritative(byte[] world, int offset, int len, uint w, uint present, double now, uint appliedTick)
         {
             var view = new WorldView(world, offset, len);
-            view.PlayerRecord(Slot, _auth, 0);
-            var before = HasState ? RenderFeet(1f) : Vector3.zero;
+            var own = Slot >= 0;
+            if (own)
+                view.PlayerRecord(Slot, _auth, 0);
+            var before = HasState && own ? RenderFeet(1f) : Vector3.zero;
             for (var s = 0; s < Slots; s++)
             {
                 view.PlayerRecord(s, _authAll, s * 36);
                 _beforeAll[s] = HasState && RawSlot(s, 1f, out var bf) ? bf : new Vector3(float.NaN, 0f, 0f);
             }
             var i = (int)(w % Hist);
-            if (HasState && _recTick[i] == w)
+            if (own && HasState && _recTick[i] == w)
             {
                 var dx = BitConverter.ToInt32(_rec, i * 36) - BitConverter.ToInt32(_auth, 0);
                 var dy = BitConverter.ToInt32(_rec, i * 36 + 4) - BitConverter.ToInt32(_auth, 4);
@@ -165,7 +170,8 @@ namespace FallRush.OnChain
             _core.Run(_h, buf, len, n, _inputs, _outMask, _out);
             // the authoritative record itself
             _recTick[i] = w;
-            Buffer.BlockCopy(_auth, 0, _rec, i * 36, 36);
+            if (own)
+                Buffer.BlockCopy(_auth, 0, _rec, i * 36, 36);
             _allTick[i] = w;
             Buffer.BlockCopy(_authAll, 0, _all, i * Slots * 36, Slots * 36);
             for (var k = 0; k < n; k++)
@@ -203,15 +209,18 @@ namespace FallRush.OnChain
                 _offAll[s] = o;
             }
 
-            var after = RenderFeet(1f);
-            var off = RenderOffset + before - after;
-            if (off.magnitude > _snap)
+            if (own)
             {
-                Snaps++;
-                off = Vector3.zero;
-            }
+                var after = RenderFeet(1f);
+                var off = RenderOffset + before - after;
+                if (off.magnitude > _snap)
+                {
+                    Snaps++;
+                    off = Vector3.zero;
+                }
 
-            RenderOffset = off;
+                RenderOffset = off;
+            }
         }
 
         private byte[] _slice;
