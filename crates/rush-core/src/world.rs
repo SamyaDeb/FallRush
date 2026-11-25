@@ -21,6 +21,16 @@ use crate::vec::IVec3;
 pub const MAX_PLAYERS: usize = 12;
 /// Canonical layout version.
 pub const WORLD_VERSION: u8 = 1;
+/// World version 2 (fullchain, doc 15 OC-60): a full match through the director (`start_match`, the chain's
+/// `start_sim`). Same layout as 1; `step_slice` skips slots that do not simulate this tick (eliminated / finished /
+/// spectating): no bot brain, no base work charge. Version 1 worlds (the Final, Classic replays, archives) step as before.
+pub const WORLD_VERSION_CHAIN: u8 = 2;
+
+/// True for a world version this build decodes.
+#[inline]
+pub const fn version_ok(v: u8) -> bool {
+    v == WORLD_VERSION || v == WORLD_VERSION_CHAIN
+}
 /// The size budget (doc 19 P2: `World` ≤ 2 KB).
 pub const WORLD_MAX_BYTES: usize = 2048;
 /// Crumble tiles with reactive state in `World` (bigger grids need their own account in P2).
@@ -357,7 +367,7 @@ impl World {
     pub fn from_bytes(b: &[u8]) -> Option<World> {
         let mut d = Dec::new(b);
         let w = World::dec(&mut d);
-        if d.err || w.version != WORLD_VERSION {
+        if d.err || !version_ok(w.version) {
             None
         } else {
             Some(w)
@@ -389,7 +399,7 @@ impl World {
         self.round = crate::rules::RoundState::dec(&mut d);
         self.dir = crate::rules::director::DirectorState::dec(&mut d);
         self.event_seq = d.u32();
-        !d.err && self.version == WORLD_VERSION
+        !d.err && version_ok(self.version)
     }
 
     /// FNV-1a 64 over the canonical bytes (parity only; the program uses sha256 where it matters).
@@ -1065,6 +1075,12 @@ pub fn step_slice<'m, H: Hasher>(w: &mut World, inputs: &[Option<InputCmd>; MAX_
     let mut stepped = 0;
     while slot < MAX_PLAYERS {
         if !w.players[slot].active() {
+            slot += 1;
+            continue;
+        }
+        if w.version >= WORLD_VERSION_CHAIN && !crate::rules::simulates(w, slot) {
+            // v2: an idle slot (out / done) is not stepped; it only reports no motion this tick
+            w.players[slot].last_step = 0;
             slot += 1;
             continue;
         }

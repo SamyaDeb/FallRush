@@ -1,0 +1,262 @@
+{
+ "match": "9yc9iAffrFkBjMY7sjyuaacYtm982SCe71QLQcXbQdR9",
+ "matchHex": "72a235bff0574833ab58ba3ffdade614",
+ "arena": 7,
+ "arenaKey": "3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3",
+ "world": "5e6BG7aod9wft3R36yR72gWJSKjHgdgpLv1YJbDzBDPf",
+ "resumed": false,
+ "startedAt": 1795569388345,
+ "sigs": {
+  "create": "4F16hHzSA3Dn9oCHoD2etjtBiBL3braJCAt45xXBZeTfMUPEfoD4fvC4qkRHRuKVNrvKUYsieATBoUnhEfapRQVW",
+  "delegate": "2qfhh7xrMHz1ae8rYjoenRq4uLRt99oVteCovux1DkqCYUniWhe7Emf8nGReQomne8Zd6P472eLMyYV9VZndCJjF",
+  "openLobby": "4h6vbrQRh3iR6wMx7k9aVyboEtFmYRVTgRda31P7UaPCtf1r4jCT9FpaHpdXUBPJi2tk7zdZNvZXYSZFKkXaHLQH",
+  "openMarkets": "ke4Mo2oFkDzEwApB4gwaBx6gp5vXjFAkpmdKa3cQm26JrvYbEpAGhQ3KPdD7z6sWzdNwfgRF5ZsRMGQxB7kR4ns",
+  "requestDeal": "5qL5JjfPrXSYDji3yskRigqGu3spDbE3JH1s4JhPKDA6F2fsf9CwmbdZ5YEa7f6vf2byFwGAy8s6ft9tStV74mUX",
+  "startSim": "66XUvK1K3TEg7vgFQRvc1bQJAaKT6PUvSJwbbDKUYsPaPiw5eKQYsX7LphnaFwGADQ4ct1ZjSeKK4wfyEaMWPSY6",
+  "writeReceipt": "5nanXBScBh7EPmA6XzFxoQRita6dwiUK5fLrc2XjP344ZRf3qBAmvwFJDXSFDoEJHzZadVNW3i8UEd88NUShbZDf",
+  "endSim": "pd7aAybX2w5i921bczh7SgeBbDmo8fSEgwEqmfBYvCEL1ToG2aaarhDWRQWcWwSaCquxHUrJfq7TVh5zJChhNSH",
+  "finalize": "5PVnKviQVM6VyQmExvkLw9z2W7cAwm3xtAAyTJTmK2inDu3JY3CJ8i9AFFWNPskBMaZewBcBfrZUv9ibG82UDtBa"
+ },
+ "maps": [
+  "86hLenUHLLULngacRGesYdVUaLhTVQtMSgx2UsF9ZKuv",
+  "47v2Vx8Fbfnuxxu8Y62tPL3U3wbFmf3yMnsPYPFjarbT",
+  "GYeqhxkkjzvXAS1Mv2FLM3EqALH5TjZfqJKiQqu6E8LG",
+  "2zzJi24AJTKVopXd9UMz2j1poAzway5ZMSvuw9jNBCgC",
+  "DxuXdFPfomJW6SXNiCkNgDauW3p2xkiEoPfoPjuYVsCD"
+ ],
+ "humansInRoster": 0,
+ "onchainAll": true,
+ "humans": {
+  "want": 0,
+  "joined": 0,
+  "ms": 72
+ },
+ "final": {
+  "full": true,
+  "serverFellBack": false,
+  "crank": {
+   "sent": 15799,
+   "ok": 15799,
+   "err": 0,
+   "down": 3,
+   "up": 3,
+   "msAt": {
+    "4500": 3015,
+    "6000": 313053
+   }
+  },
+  "complete": true,
+  "ticks": 9498,
+  "restarts": 0,
+  "realTime": 1.0001540971909983,
+  "gapP95": 61,
+  "cu": {
+   "n": 336,
+   "p95": 303821,
+   "max": 399523
+  }
+ },
+ "mm": [],
+ "settle": {
+  "0": 1,
+  "1": 1,
+  "2": 1,
+  "3": 1,
+  "4": 1
+ },
+ "market0": {
+  "pool": "30000000",
+  "winners": 2048,
+  "winningStake": "0",
+  "label": 5,
+  "status": 3,
+  "refund": 1,
+  "paidTotal": "30000000",
+  "bets": [
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "outcome": 0,
+    "amount": "10000000",
+    "paid": 1
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "outcome": 5,
+    "amount": "20000000",
+    "paid": 1
+   }
+  ]
+ },
+ "market1": {
+  "pool": "30000000",
+  "winners": 2048,
+  "winningStake": "0",
+  "label": 5,
+  "status": 3,
+  "refund": 1,
+  "paidTotal": "30000000",
+  "bets": [
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "outcome": 1,
+    "amount": "15000000",
+    "paid": 1
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "outcome": 9,
+    "amount": "15000000",
+    "paid": 1
+   }
+  ]
+ },
+ "market2": {
+  "pool": "0",
+  "winners": 3894,
+  "winningStake": "0",
+  "label": 5,
+  "status": 3,
+  "refund": 1,
+  "paidTotal": "0",
+  "bets": []
+ },
+ "market3": {
+  "pool": "0",
+  "winners": 2598,
+  "winningStake": "0",
+  "label": 5,
+  "status": 3,
+  "refund": 1,
+  "paidTotal": "0",
+  "bets": []
+ },
+ "market4": {
+  "pool": "0",
+  "winners": 2562,
+  "winningStake": "0",
+  "label": 5,
+  "status": 3,
+  "refund": 1,
+  "paidTotal": "0",
+  "bets": []
+ },
+ "drops": {
+  "count": 0,
+  "pot": "0",
+  "buys": []
+ },
+ "finalizeMode": "plain",
+ "finalizeToBaseMs": 1688,
+ "rewards": {
+  "minted": {},
+  "attempts": 0,
+  "failures": []
+ },
+ "assets": [],
+ "receipt": {
+  "owner": "4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4",
+  "flags": 25,
+  "trust": 6,
+  "coreVersion": 2,
+  "humanMask": 0,
+  "mintedMask": 0,
+  "drops": 0,
+  "dropSpent": "0",
+  "mapHash": "b36cd41ca6cb46783002bce05cb1bd46102274cbc8eb828e63daaa261c678dac",
+  "preFinal": "0000000000000000000000000000000000000000000000000000000000000000",
+  "finalTranscript": "a59e88094a32556809316481c914ee08329d756c9122d5ff53ae32c5986c5a50",
+  "dropLog": "0000000000000000000000000000000000000000000000000000000000000000",
+  "capsuleSeed": "0000000000000000000000000000000000000000000000000000000000000000",
+  "crown": "11111111111111111111111111111111",
+  "wallets": [
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111",
+   "11111111111111111111111111111111"
+  ],
+  "placements": [
+   11,
+   1,
+   9,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255
+  ],
+  "rarity": [
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255,
+   255
+  ],
+  "markets": [
+   {
+    "pool": "30000000",
+    "winningStake": "0",
+    "winners": 2048,
+    "label": 5,
+    "status": 3
+   },
+   {
+    "pool": "30000000",
+    "winningStake": "0",
+    "winners": 2048,
+    "label": 5,
+    "status": 3
+   },
+   {
+    "pool": "0",
+    "winningStake": "0",
+    "winners": 3894,
+    "label": 5,
+    "status": 3
+   },
+   {
+    "pool": "0",
+    "winningStake": "0",
+    "winners": 2598,
+    "label": 5,
+    "status": 3
+   },
+   {
+    "pool": "0",
+    "winningStake": "0",
+    "winners": 2562,
+    "label": 5,
+    "status": 3
+   }
+  ],
+  "sealedN": 0,
+  "sealedRevealed": 0,
+  "sealedForfeits": 0,
+  "sealedPool": "0",
+  "sealedForfeit": "0",
+  "betsHash": "0784aeedb94428b8d068e8bf066a93d705203e6172f0371d4d6fb554eed9981a",
+  "sealedHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "completedAt": 1795569704,
+  "status": 5,
+  "champion": 11
+ },
+ "doneAt": 1795569720289
+}

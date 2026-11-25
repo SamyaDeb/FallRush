@@ -56,16 +56,17 @@ async function firstOp(list: any[], op: number) {
 }
 /** The highest-CU tick() of the Final: the Match's signatures between start_final and write_receipt (every tick
  * touches the Match), sampled every 25th, paging backwards from the receipt. */
-async function bestTick(world: string, limit = 300) {
-  if (sig.writeReceipt && sig.startFinal) {
+async function bestTick(world: string, limit = 300, want: RegExp = /Instruction: Tick/i) {
+  const startSig: string | undefined = sig.startFinal ?? sig.startSim;
+  if (sig.writeReceipt && startSig) {
     let before = sig.writeReceipt, best: any = null, n = 0;
     for (let page = 0; page < 8; page++) {
-      const ps = await er.getSignaturesForAddress(new PublicKey(match), { before, until: sig.startFinal, limit: 1000 }).catch(() => []);
+      const ps = await er.getSignaturesForAddress(new PublicKey(match), { before, until: startSig, limit: 1000 }).catch(() => []);
       if (!ps.length) break;
       for (let i = 0; i < ps.length; i += 25) {
         const x = ps[i]; if (x.err) continue;
         const t: any = await tx(er, x.signature); n++;
-        if (t && logsHave(t, /Instruction: Tick/i) && !logsHave(t, /no-op/i) && (!best || (t.meta?.computeUnitsConsumed ?? 0) > (best.t.meta?.computeUnitsConsumed ?? 0))) best = { sig: x.signature, t };
+        if (t && logsHave(t, want) && !logsHave(t, /no-op/i) && (!best || (t.meta?.computeUnitsConsumed ?? 0) > (best.t.meta?.computeUnitsConsumed ?? 0))) best = { sig: x.signature, t };
         await sleep(40);
       }
       before = ps[ps.length - 1].signature;
@@ -77,7 +78,7 @@ async function bestTick(world: string, limit = 300) {
   for (const x of sigs) {
     if (x.err) continue;
     const t: any = await tx(er, x.signature);
-    if (t && logsHave(t, /Instruction: Tick/i)) { seen++; if (!best || (t.meta?.computeUnitsConsumed ?? 0) > (best.t.meta?.computeUnitsConsumed ?? 0)) best = { sig: x.signature, t }; if (seen >= 40) break; }
+    if (t && logsHave(t, want)) { seen++; if (!best || (t.meta?.computeUnitsConsumed ?? 0) > (best.t.meta?.computeUnitsConsumed ?? 0)) best = { sig: x.signature, t }; if (seen >= 40) break; }
     await sleep(60);
   }
   return best;
@@ -98,6 +99,9 @@ const j: any = await (await fetch(`${IDX}/api/match/${match}`)).json();
 if (!j.ok) throw new Error("not archived: " + JSON.stringify(j).slice(0, 200));
 const s = j.summary, sig = s.sigs ?? {};
 out.judge = !!s.judge;
+// fullchain: a whole match computed on-chain (start_sim) instead of the hybrid start_final
+out.full = !!s.onchainAll || !!sig.startSim;
+const startSig: string | undefined = sig.startFinal ?? sig.startSim;
 const st: any = await (await fetch(`${IDX}/api/status`)).json();
 const sv = st.servers.find((x: any) => x.arena === s.arena);
 out.arena = s.arena; out.arenaKey = sv?.arenaKey; out.world = sv?.world;
@@ -106,17 +110,22 @@ await add("Delegate to the Ephemeral Rollup", "the Match is delegated to MagicBl
 await add("VRF deal request", "the program asks MagicBlock VRF for the match seed", sig.requestDeal, true);
 // every tick() touches the Match: look just before start_final (the callback lands before rounds 1–3 are bridged)
 let cb: any = null;
-if (sig.startFinal) {
-  const pre = await er.getSignaturesForAddress(new PublicKey(match), { before: sig.startFinal, limit: 300 }).catch(() => []);
+if (startSig) {
+  const pre = await er.getSignaturesForAddress(new PublicKey(match), { before: startSig, limit: 300 }).catch(() => []);
   for (const x of [...pre].reverse()) { if (x.err) continue; const t: any = await tx(er, x.signature); if (t && logsHave(t, /DealCallback|deal_callback/i)) { cb = { sig: x.signature, t }; break; } await sleep(80); }
 }
 if (cb) out.links.push({ system: "VRF deal callback", proves: "the VRF oracle's callback writes the seed into the Match (it seeds the on-chain Final)", sig: cb.sig, url: ex("tx", cb.sig, true), rollup: true, live: true, cu: cb.t?.meta?.computeUnitsConsumed });
 else out.links.push({ system: "VRF deal callback", missing: true });
-await add("Start the on-chain Final", "the finalists are handed from the Classic rounds to the program", sig.startFinal, true);
+if (out.full) await add("Start the on-chain match (all 4 rounds)", "start_sim: the program's director takes the whole match, lobby → Capsule Run → Goo Tower → Star Fountain → Lid Flip", sig.startSim, true);
+else await add("Start the on-chain Final", "the finalists are handed from the Classic rounds to the program", sig.startFinal, true);
 // a tick() of the Final (timed task) with its compute units
 if (sv?.world) {
   const tk = await bestTick(sv.world);
-  if (tk) out.links.push({ system: "tick() (timed task, 30 Hz)", proves: "one physics step of the Final, run as sBPF by the program (the costliest of the ticks sampled)", sig: tk.sig, url: ex("tx", tk.sig, true), rollup: true, live: true, cu: tk.t?.meta?.computeUnitsConsumed, sampled: tk.sampled });
+  if (tk) out.links.push({ system: "tick() (timed task, 30 Hz)", proves: out.full ? "a slice of a 12-player physics step, run as sBPF by the program from MagicBlock's task scheduler (the costliest of the ticks sampled)" : "one physics step of the Final, run as sBPF by the program (the costliest of the ticks sampled)", sig: tk.sig, url: ex("tx", tk.sig, true), rollup: true, live: true, cu: tk.t?.meta?.computeUnitsConsumed, sampled: tk.sampled });
+  if (out.full) {
+    const ck = await bestTick(sv.world, 300, /Instruction: Crank/i);
+    if (ck) out.links.push({ system: "crank() (permissionless keeper crank)", proves: "the same step with a bigger slice for the heaviest 12-player ticks (1.4M CU limit); anyone may send it and it cannot change the result (the costliest sampled)", sig: ck.sig, url: ex("tx", ck.sig, true), rollup: true, live: true, cu: ck.t?.meta?.computeUnitsConsumed, sampled: ck.sampled });
+  }
 }
 // market txs from the indexer's tx lists (bets, drops)
 const txs = j.txs ?? {};
@@ -155,7 +164,7 @@ if (sv?.world) {
     if (ip) break;
   }
   if (!ip) ip = await findIn(er, sv.world, /SubmitInput|submit_input/i, 400);
-  if (ip) out.links.push({ system: "Player input (session key)", proves: "a player's input batch for the Final, signed by a session key (no wallet popup)", sig: ip.sig, url: ex("tx", ip.sig, true), rollup: true, live: true, signer: ip.t?.transaction?.message?.accountKeys?.[0]?.toBase58?.() ?? null });
+  if (ip) out.links.push({ system: "Player input (session key)", proves: out.full ? "a player's input batch, signed by a session key (no wallet popup)" : "a player's input batch for the Final, signed by a session key (no wallet popup)", sig: ip.sig, url: ex("tx", ip.sig, true), rollup: true, live: true, signer: ip.t?.transaction?.message?.accountKeys?.[0]?.toBase58?.() ?? null });
   else out.links.push({ system: "Player input (session key)", missing: true });
 }
 out.links.push({ system: "Match account", address: match, url: ex("address", match, false), live: !!(await base.getAccountInfo(new PublicKey(match)).catch(() => null)) });

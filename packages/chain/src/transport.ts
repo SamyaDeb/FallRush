@@ -3,7 +3,7 @@ import type { ChainConfig } from './config.ts';
 import type { EventLog, Stats, WorldIntake } from './intake.ts';
 import type { Wallet } from './wallet.ts';
 
-export interface JoinArgs { name?: string; spectate?: boolean; slot?: number; map?: string; /** hybrid: Classic match id, 32 hex */ match?: string }
+export interface JoinArgs { name?: string; spectate?: boolean; slot?: number; map?: string; /** hybrid: Classic match id, 32 hex */ match?: string; /** fullchain: a whole on-chain match (start_sim): any of 12 slots, the map follows the World */ full?: boolean }
 export interface JoinResult { ok: boolean; error?: string; slot?: number; arena?: string; map?: string; rate?: number; coreVersion?: number; roster?: unknown[]; world?: string }
 
 export interface Ctx {

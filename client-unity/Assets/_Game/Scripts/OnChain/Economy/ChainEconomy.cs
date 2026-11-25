@@ -318,11 +318,20 @@ namespace FallRush.OnChain
         // ---- program rules mirrored for the UI (the program enforces them; this only greys buttons)
         public const int DropCap = 3, DropCooldownTicks = 150, SweeperFromT30 = 600;
 
+        /// <summary><c>Match.flags</c>: 0x40 = Final on-chain after Classic rounds (<c>start_final</c>), 0x20 = the program
+        /// simulates (<c>start_sim</c>, fullchain: every round; also set with 0x40). Either = the arena runs this match's Final.</summary>
+        public const int FlagFinalMode = 0x40, FlagSimStarted = 0x20;
+
+        public static bool ChainRuns(int matchFlags) => (matchFlags & (FlagFinalMode | FlagSimStarted)) != 0;
+
+        /// <summary>fullchain: every round computed by the program (start_sim without the Final-mode bit).</summary>
+        public static bool ChainAll(int matchFlags) => (matchFlags & FlagSimStarted) != 0 && (matchFlags & FlagFinalMode) == 0;
+
         public bool DropOpen(out string why)
         {
             why = null;
             var s = State;
-            if (s?.world == null || s.match == null || (s.match.flags & 0x40) == 0 || s.world.round != 4 || s.world.roundPhase != 3)
+            if (s?.world == null || s.match == null || !ChainRuns(s.match.flags) || s.world.round != 4 || s.world.roundPhase != 3)
             {
                 why = "during the on-chain Final's RUSH only";
                 return false;
@@ -352,7 +361,7 @@ namespace FallRush.OnChain
             if (s?.match == null || s.markets == null || k >= s.markets.Length || s.markets[k] == null || s.markets[k].status != 1 || s.markets[k].match != s.match.pda)
                 return false;
             var final = (s.match.flags & 0x40) != 0;
-            var live = final && s.world != null && s.world.round == 4 && s.world.roundPhase < 3;
+            var live = ChainRuns(s.match.flags) && s.world != null && s.world.round == 4 && s.world.roundPhase < 3; // fullchain: FinalWinner at R4 intro
             var over = s.match.status >= 5;
             if (over)
                 return false;

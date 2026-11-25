@@ -118,15 +118,15 @@ export function play(root: HTMLElement) {
 }
 
 /** Judge mode: the corner card (what is fast-forwarded, the phone QR for /live/<arena>). Collapsible; stays over the game. */
-function judgeCard(root: HTMLElement, j: { code: string; arena: number | null }) {
+function judgeCard(root: HTMLElement, j: { code: string; arena: number | null; onchainAll?: boolean }) {
   const live = `${location.origin}/live${j.arena != null ? '/' + j.arena : ''}`;
   const el = document.createElement('div');
   el.id = 'judge-card';
   el.innerHTML = `<button class="jc-x" title="hide">×</button><div class="jc-h">JUDGE MODE</div>
-    <div class="jc-t">Rounds 1–3 are fast-forwarded (the receipt says so). You go straight to the <b>on-chain Final</b>.</div>
+    <div class="jc-t">${j.onchainAll ? 'A <b>full on-chain match</b>: all 4 rounds are computed by the program in the Ephemeral Rollup (about 6–7 minutes).' : 'Rounds 1–3 are fast-forwarded (the receipt says so). You go straight to the <b>on-chain Final</b>.'}</div>
     <div class="jc-q">${qrSvg(live, 132)}</div>
-    <div class="jc-t">Scan with your phone to <b>bet</b> and <b>drop chaos</b> into this Final:<br><a href="${live}" target="_blank" class="mono">${live.replace(/^https?:\/\//, '')}</a></div>
-    <div class="jc-t muted">After the Final, press Start in the lobby for another one. The <a href="/play">full match</a> plays all 4 rounds.</div>`;
+    <div class="jc-t">Scan with your phone to <b>bet</b> on this match and <b>drop chaos</b> into its Final:<br><a href="${live}" target="_blank" class="mono">${live.replace(/^https?:\/\//, '')}</a></div>
+    <div class="jc-t muted">${j.onchainAll ? 'After the match, press Start in the lobby for another one.' : 'After the Final, press Start in the lobby for another one. The <a href="/play">full match</a> plays all 4 rounds.'}</div>`;
   root.appendChild(el);
   el.querySelector('.jc-x')!.addEventListener('click', () => el.classList.toggle('min'));
 }

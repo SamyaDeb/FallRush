@@ -53,6 +53,18 @@ pub const INPUT_LEAD_MAX: u32 = (RING as u32) - INPUT_BATCH as u32;
 pub const MATCH_SIM_STARTED: u8 = 0x20;
 /// `Match::flags` bit: the match's Final runs on-chain after Classic rounds 1–3 (`start_final`, doc 15 OC-11).
 pub const MATCH_FINAL_MODE: u8 = 0x40;
+
+/// fullchain: the program computes this match's Final (`start_final`, or `start_sim` where it computes every round).
+#[inline]
+pub fn chain_final(m: &crate::state::Match) -> bool {
+    m.flags & (MATCH_SIM_STARTED | MATCH_FINAL_MODE) != 0
+}
+
+/// fullchain: the program computes every round (`start_sim`; no Classic rounds).
+#[inline]
+pub fn chain_all(m: &crate::state::Match) -> bool {
+    m.flags & MATCH_SIM_STARTED != 0 && m.flags & MATCH_FINAL_MODE == 0
+}
 /// `Match::flags` bit set by `open_markets` (P5 0.5): the match has an economy; `finalize_match` needs its receipt.
 pub const MATCH_ECON: u8 = 0x80;
 
@@ -266,7 +278,21 @@ fn zero_copy_ref<'a, T: bytemuck::Pod + anchor_lang::Discriminator>(info: &'a Ac
 /// (drop_queue)]` (P4: the arena's `DropQueue`, optional, read-only).
 /// Runs the next pending part of the current tick. Never returns an error (see the module doc).
 pub fn tick(accs: &[AccountInfo]) -> Result<()> {
-    let code = tick_inner(accs);
+    tick_with(accs, rush_core::world::SLICE_WORK)
+}
+
+/// Work units a `crank` call may spend at most (a 1.4M CU keeper transaction: ≈ 70k + 107 per unit, p99 residual
+/// ≈ 200k; fullchain RESEARCH §7). The slice size never changes the simulation, only how many calls a tick takes.
+pub const CRANK_MAX_WORK: u32 = 6000;
+
+/// `crank(budget)` (fullchain): `tick()` with a bigger slice for a keeper transaction that asks for more CU. Same
+/// accounts, same rules, same results; anyone may send it.
+pub fn crank(accs: &[AccountInfo], budget: u32) -> Result<()> {
+    tick_with(accs, budget.clamp(rush_core::world::SLICE_WORK, CRANK_MAX_WORK))
+}
+
+fn tick_with(accs: &[AccountInfo], budget: u32) -> Result<()> {
+    let code = tick_inner(accs, budget);
     if let Some(w) = accs.get(1).and_then(zero_copy_mut::<WorldAcc>) {
         let mut w = w;
         w.executions = w.executions.wrapping_add(1);
@@ -282,7 +308,7 @@ pub fn tick(accs: &[AccountInfo]) -> Result<()> {
 }
 
 #[inline(never)]
-fn tick_inner(accs: &[AccountInfo]) -> u8 {
+fn tick_inner(accs: &[AccountInfo], budget: u32) -> u8 {
     if accs.len() < 9 + N {
         return tick_code::BAD_ACCOUNTS;
     }
@@ -415,7 +441,7 @@ fn tick_inner(accs: &[AccountInfo]) -> u8 {
     let mut ev: Box<StepEvents> = Box::default();
     let params = MovementParams::default();
     let phase_before = w.dir.phase;
-    let next = rush_core::world::step_slice(&mut w, &inputs, &v, &params, &mut h, &mut ev, &mut sc, part, rush_core::world::SLICE_WORK);
+    let next = rush_core::world::step_slice(&mut w, &inputs, &v, &params, &mut h, &mut ev, &mut sc, part, budget);
     drop(sc);
     let n = w.to_bytes(&mut wa.world);
     wa.len = n as u32;

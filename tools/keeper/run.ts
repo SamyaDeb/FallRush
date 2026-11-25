@@ -11,6 +11,7 @@ import { randomBytes, createHash } from "node:crypto";
 import { mkdirSync, appendFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { sampleCu } from "./cusample.ts";
+import { startCrank } from "./crank.ts";
 import { header, bridgeRounds13, readLines } from "../chain-worker/worker.ts";
 import { NET, EP, base, er, wallet, pb, pe, pda, key, sendBase, sendEr, ROOT, PROGRAM_ID, MAGIC_PROGRAM, MAGIC_CONTEXT, N, sleep, decodeWorld, tickAccounts, log, cu, pct, BN } from "./lib.ts";
 import * as E from "./econ.ts";
@@ -26,6 +27,14 @@ const DRIVE_GAP_MS = Number(process.env.DRIVE_GAP_MS ?? (NET === "local" ? 40 : 
 const RUN = process.env.RUN ?? `${NET}-${new Date().toISOString().replace(/[:.]/g, "-")}`;
 const LOG = join(ROOT, `docs/proof/p2/keeper-${RUN}.jsonl`);
 const DONE = 11;
+const CRANK_TEST = process.env.CRANK_TEST === "1";
+const CRANK_RATES = (process.env.CRANK_RATES ?? "40,80,120,160").split(",").map(Number);
+const CRANK_STEP_MS = Number(process.env.CRANK_STEP_MS ?? 15000);
+let crankDone = false;
+const TASKS = Number(process.env.TASKS ?? 1);
+const CRANK = process.env.CRANK === "1";
+const CRANK_RATE = Number(process.env.CRANK_RATE ?? 50);
+const ROTATE_MS = Number(process.env.ROTATE_MS ?? 8000); // fullchain research: parallel timed tasks on the same World
 const HYBRID = (process.env.MODE ?? "slice") === "hybrid"; // P2.10: Classic jsonl (CLASSIC_JSONL) rounds 1–3 → on-chain Final
 const FINAL = (process.env.MODE ?? "slice") === "final" || HYBRID;
 // P4 0.3 "wait for humans": before start_final, wait until HUMANS humans have joined the lobby or WAIT_HUMANS_S
@@ -208,6 +217,9 @@ for (let mi = 1; mi <= MATCHES; mi++) {
   const noteTask = async () => { const a: any = await pe.account.arena.fetch(arena); tasks.push(a.taskId.toString()); };
   sigs.schedule = (await schedule()).sig;
   await noteTask();
+  for (let k = 1; k < TASKS; k++) { await schedule(); await noteTask(); } // fullchain: N parallel timed tasks
+  let crank: ReturnType<typeof startCrank> | null = null;
+  let rotatedAt = Date.now();
   // ---- watch: recorder + stall restart + commits
   const t0 = Date.now();
   let lastProg = "", lastExecAt = Date.now(), restarts = 0, fallback = 0;
@@ -215,11 +227,13 @@ for (let mi = 1; mi <= MATCHES; mi++) {
   const gaps: number[] = [];
   const committed = new Set<number>();
   let lastSnapKey = "";
+  let liveProg = "";
   const tickAt: [number, number, number][] = [];
   const record = (buf: Buffer) => {
     const w = decodeWorld(buf);
     if (w.partPending === 0 && (tickAt.length === 0 || w.tick > tickAt[tickAt.length - 1][0])) tickAt.push([w.tick, Date.now(), Number(w.lastSlot)]);
     const k = `${w.tick}:${w.partPending}`;
+    liveProg = k;
     if (k === lastSnapKey) return w;
     lastSnapKey = k;
     const h = Buffer.alloc(7); h.writeUInt32LE(w.tick, 0); h[4] = w.partPending; h.writeUInt16LE(w.len, 5);
@@ -229,6 +243,9 @@ for (let mi = 1; mi <= MATCHES; mi++) {
   const sub = er.onAccountChange(world, (a) => { try { record(a.data as Buffer); } catch {} }, { commitment: "processed" } as any);
   let w = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
   const base0 = { executions: w.executions, notDue: w.notDue, budgetHit: w.budgetHit };
+  liveProg = `${w.tick}:${w.partPending}`;
+  if (CRANK) crank = startCrank({ er, wallet, rate: CRANK_RATE, progress: () => liveProg, log: (o) => log(LOG, o),
+    ix: (b) => pe.methods.crank(b).remainingAccounts(tickMetas).instruction() });
   let phaseRound = "";
   const cuByRound: Record<string, number[]> = {};
   let lastCu = 0;
@@ -243,6 +260,43 @@ for (let mi = 1; mi <= MATCHES; mi++) {
     if (prog !== lastProg) { lastProg = prog; lastExecAt = now; }
     if (w.tick !== lastTick) { if (lastTick >= 0) gaps.push((now - lastTickAt) / Math.max(1, w.tick - lastTick)); lastTick = w.tick; lastTickAt = now; }
     if (`${w.phase}/${w.round}` !== phaseRound) { phaseRound = `${w.phase}/${w.round}`; log(LOG, { ev: "phase", phase: w.phase, round: w.round, tick: w.tick, ticksRun: Number(w.ticksRun), budgetHit: Number(w.budgetHit) }); console.log(`  tick ${w.tick} phase ${w.phase} round ${w.round} execs ${w.executions} budget_hit ${w.budgetHit}`); }
+    // fullchain research (CRANK_TEST=1): at the start of round 1's RUSH, cancel the tasks and crank tick() at 1.4M CU
+    // from this process at stepped send rates; per step: landed executions/s (World counter), ticks/s, send errors
+    if (CRANK_TEST && !crankDone && w.round === 1 && w.phase === 6) {
+      crankDone = true;
+      for (const t of tasks.splice(0)) await cancel(new BN(t)).catch(() => {});
+      const ixTick = await pe.methods.tick().remainingAccounts(tickMetas).instruction();
+      let bh = (await er.getLatestBlockhash("processed")).blockhash, bhAt = Date.now(), nonce = 0;
+      for (const rate of CRANK_RATES) {
+        const w0 = decodeWorld((await er.getAccountInfo(world, "processed"))!.data as Buffer), t0c = Date.now();
+        let ok = 0, err = 0, sent = 0;
+        while (Date.now() - t0c < CRANK_STEP_MS) {
+          if (Date.now() - bhAt > 1500) { bh = (await er.getLatestBlockhash("processed")).blockhash; bhAt = Date.now(); }
+          const due = Math.floor(((Date.now() - t0c) / 1000) * rate);
+          while (sent < due) {
+            const tx = new Transaction().add(cu(1_400_000 - (nonce++ % 4096)), ixTick);
+            tx.feePayer = wallet.publicKey; tx.recentBlockhash = bh; tx.sign(wallet);
+            er.sendRawTransaction(tx.serialize(), { skipPreflight: true, maxRetries: 0 }).then(() => ok++).catch(() => err++);
+            sent++;
+          }
+          await sleep(2);
+        }
+        await sleep(1500); // let in-flight sends land
+        const w1 = decodeWorld((await er.getAccountInfo(world, "processed"))!.data as Buffer), s = (Date.now() - t0c) / 1000;
+        const r = { ev: "crank", rate, sent, ok, err, execPerS: +((Number(w1.executions) - Number(w0.executions)) / s).toFixed(1), ticksPerS: +((w1.tick - w0.tick) / s).toFixed(1), notDue: Number(w1.notDue) - Number(w0.notDue) };
+        log(LOG, r); console.log("  crank", JSON.stringify(r));
+      }
+      for (let k = 0; k < TASKS; k++) { await schedule(); await noteTask(); }
+      lastExecAt = Date.now();
+      continue;
+    }
+    // fullchain: with the crank, rotate the timed tasks (a task that hit an over-budget execution is gone)
+    if (CRANK && now - rotatedAt > ROTATE_MS) {
+      rotatedAt = now;
+      const old = tasks.splice(0);
+      for (let k = 0; k < TASKS; k++) { await schedule(); await noteTask(); }
+      for (const t of old) await cancel(new BN(t)).catch(() => {});
+    }
     // stall: no execution for STALL_MS → fallback ticks + cancel / re-schedule
     if (now - lastExecAt > STALL_MS) {
       restarts++;
@@ -265,8 +319,7 @@ for (let mi = 1; mi <= MATCHES; mi++) {
       }
       const wd = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
       log(LOG, { act: "drive", ms: Date.now() - d0, sends: sent.length, ticks: wd.tick - tick0, sample: sent.slice(-3) });
-      await schedule();
-      await noteTask();
+      for (let k = 0; k < TASKS; k++) { await schedule(); await noteTask(); }
       lastExecAt = Date.now();
     }
     // commits at phase edges: once per resolved round (Match says RoundResolved / Completed for that round)
@@ -281,6 +334,7 @@ for (let mi = 1; mi <= MATCHES; mi++) {
     }
     if (now - t0 > 60 * 60_000) { log(LOG, { ev: "timeout" }); break; }
   }
+  if (crank) { const cs = await crank.stop(); log(LOG, { ev: "crank_stats", ...cs }); console.log("  crank", JSON.stringify(cs)); }
   await er.removeAccountChangeListener(sub);
   // real time: game time vs wall clock over the round's ticks; per-tick gaps from the websocket arrivals
   const g: number[] = [];

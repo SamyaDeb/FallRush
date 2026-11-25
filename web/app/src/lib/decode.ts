@@ -39,6 +39,8 @@ export function decodeMatch(d: Uint8Array) {
   return {
     matchId: hex(d, 8, 24), status: d[26], flags: d[27], players: d[128], round: d[129], champion: d[294],
     slots: Array.from({ length: 12 }, (_, i) => d[214 + 4 * i]),
+    // SlotResult {state, round, placement, reason}: round = the last round qualified in / the round eliminated in
+    slotRound: Array.from({ length: 12 }, (_, i) => d[215 + 4 * i]),
     receipt: {
       flags: d[r], trust: d[r + 1], coreVersion: u16(d, r + 2), humanMask: u16(d, r + 4), mintedMask: u16(d, r + 6), drops: d[r + 8], dropSpent: u64(d, r + 9),
       mapHash: hex(d, r + 17, r + 49), preFinal: hex(d, r + 49, r + 81), finalTranscript: hex(d, r + 81, r + 113), dropLog: hex(d, r + 113, r + 145), capsuleSeed: hex(d, r + 145, r + 177),
@@ -49,6 +51,10 @@ export function decodeMatch(d: Uint8Array) {
     completedAt: d.length >= 1408 ? Number(new DataView(d.buffer, d.byteOffset).getBigInt64(1400, true)) : 0,
   };
 }
+/** Receipt `trust` bits (programs/fall_rush/src/econ.rs `trust`). */
+export const TRUST = { ROUNDS_AUTHORITY: 1, FINAL_PROGRAM: 2, ALL_PROGRAM: 4 };
+/** fullchain: the line every program-computed round carries. */
+export const TICKS_LINE = "round ticks are sent by MagicBlock's task scheduler and a permissionless keeper crank";
 export const MATCH_STATUS = ['Created', 'Dealing', 'Dealt', 'Round active', 'Round resolved', 'Completed', 'Aborted'];
 export const RARITY = ['Common', 'Rare', 'Epic', 'Legendary'];
 export const DROPS = ['', 'Lid Frenzy', 'Bumper Rain', 'Wind Gust', 'Sweeper Rush'];

@@ -17,6 +17,7 @@ import { NET, EP, base, er, wallet, pb, pe, pda, key, sendBase, sendEr, PROGRAM_
 import * as E from "./econ.ts";
 import * as S from "./p6.ts";
 import { sampleCu } from "./cusample.ts";
+import { startCrank } from "./crank.ts";
 
 const ARENA = Number(process.env.ARENA ?? 2);
 const LOG_DIR = process.env.LOG_DIR ?? "/logs";
@@ -33,6 +34,13 @@ const ACTION_WAIT_S = Number(process.env.ACTION_WAIT_S ?? 60);
 const SEALED = process.env.SEALED !== "0"; // P6: sealed Champion bets (escrow + private book on the TEE)
 const SEASONS = process.env.SEASONS !== "0"; // P6: record finalized matches into the seasons
 const KILL_AT = process.env.KILL_AT ?? ""; // test hook (P5 0.5): exit(9) right after this stage
+// fullchain (docs/proof/fullchain/CONTRACT.md): ONCHAIN_ALL=1 + the server's header `onchainAll` → the whole match on
+// the rollup (start_sim: the program computes all 4 rounds); off (default) = the hybrid flow, unchanged
+const ONCHAIN_ALL = process.env.ONCHAIN_ALL === "1";
+const FULL_TASKS = Number(process.env.FULL_TASKS ?? 2);
+const CRANK_RATE = Number(process.env.CRANK_RATE ?? 50);
+const ROTATE_MS = Number(process.env.ROTATE_MS ?? 8000);
+const FULL_WAIT_HUMANS_S = Number(process.env.FULL_WAIT_HUMANS_S ?? 20); // a first join (session + gas) measured 8.5 s on production
 const DONE = 11;
 const BOOT = Date.now();
 const STATE_FILE = join(ARCHIVE, `keeper-${NET}-arena${ARENA}.json`);
@@ -186,7 +194,15 @@ function sealedWatcher(matchPda: PublicKey, mlog: string, out: any) {
 }
 
 // ------------------------------------------------------------------ the Final: timed task + watch (+ resume)
-async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog: string) {
+/** fullchain: the Classic server's last `{"type":"onchainAll","state":…}` line for this match (live / fallback / done /
+ * aborted). `fallback` = the server gave up on the rollup and plays the match on Classic: the keeper aborts its side. */
+function serverAllState(jsonl: string | null): string | null {
+  if (!jsonl) return null;
+  const xs = readLines(jsonl).filter((l) => l.type === "onchainAll");
+  return xs.length ? String(xs[xs.length - 1].state) : null;
+}
+
+async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog: string, full = false, gaveUp: () => boolean = () => false) {
   const tickMetas = tickAccounts(arena, matchPda, maps);
   const schedule = async () => act("schedule_ticks", async () => sendEr([cu(400_000), await pe.methods.scheduleTicks(new BN(INTERVAL_MS), new BN(2_000_000)).accountsPartial({ payer: wallet.publicKey, arena }).remainingAccounts(tickMetas).instruction()], [wallet], "schedule_ticks"), mlog);
   const cancel = async (taskId: any) => act("cancel_ticks", async () => sendEr([await pe.methods.cancelTicks(taskId).accountsPartial({ payer: wallet.publicKey }).remainingAccounts([{ pubkey: MAGIC_CONTEXT, isSigner: false, isWritable: true }]).instruction()], [wallet], "cancel_ticks", 3), mlog);
@@ -195,12 +211,17 @@ async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, ml
   if (a0.taskId && a0.taskId.toString() !== "0") await cancel(a0.taskId).catch(() => {});
   await schedule();
   const tasks: string[] = [(await arenaAcc()).taskId.toString()];
+  // fullchain: N parallel timed tasks + the keeper crank (crank(budget), 1.4M CU) + task rotation + per-round commits
+  for (let k = 1; k < (full ? FULL_TASKS : 1); k++) { await schedule(); tasks.push((await arenaAcc()).taskId.toString()); }
+  let liveProg = "", rotatedAt = Date.now(), lastGaveUpCheck = 0, serverFellBack = false;
+  const committed = new Set<number>();
   let lastSnapKey = "";
   const tickAt: [number, number, number][] = [];
   const record = (buf: Buffer) => {
     const w = decodeWorld(buf);
     if (w.partPending === 0 && (tickAt.length === 0 || w.tick > tickAt[tickAt.length - 1][0])) tickAt.push([w.tick, Date.now(), Number(w.lastSlot)]);
     const k = `${w.tick}:${w.partPending}`;
+    liveProg = k;
     if (k === lastSnapKey) return w;
     lastSnapKey = k;
     const h = Buffer.alloc(7); h.writeUInt32LE(w.tick, 0); h[4] = w.partPending; h.writeUInt16LE(w.len, 5);
@@ -211,6 +232,9 @@ async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, ml
   };
   const sub = er.onAccountChange(world, (a) => { try { record(a.data as Buffer); } catch {} }, { commitment: "processed" } as any);
   let w = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
+  liveProg = `${w.tick}:${w.partPending}`;
+  const crank = full ? startCrank({ er, wallet, rate: CRANK_RATE, progress: () => liveProg, log: (o) => logTo(mlog, o),
+    ix: (b) => pe.methods.crank(b).remainingAccounts(tickMetas).instruction() }) : null;
   let lastProg = "", lastExecAt = Date.now(), restarts = 0, lastCu = 0;
   const cus: number[] = [];
   const t0 = Date.now();
@@ -223,6 +247,23 @@ async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, ml
     const now = Date.now();
     const prog = `${w.tick}:${w.partPending}`;
     if (prog !== lastProg) { lastProg = prog; lastExecAt = now; }
+    if (full && now - lastGaveUpCheck > 2000) {
+      lastGaveUpCheck = now;
+      if (gaveUp()) { log({ ev: "server_fallback", tick: w.tick }); logTo(mlog, { ev: "server_fallback", tick: w.tick }); serverFellBack = true; break; }
+    }
+    if (full && now - rotatedAt > ROTATE_MS) {
+      // a task that hit an over-budget execution is gone for good: keep FULL_TASKS fresh ones running
+      rotatedAt = now;
+      const old = tasks.splice(0);
+      for (let k = 0; k < FULL_TASKS; k++) { await schedule().catch(() => {}); tasks.push((await arenaAcc()).taskId.toString()); }
+      for (const t of old) await cancel(new BN(t)).catch(() => {});
+    }
+    if (full && w.round >= 1 && !committed.has(w.round) && (w.phase === 7 || w.phase === 8 || w.phase >= 9)) {
+      // each resolved round's results to Solana (commit_round: once per round, any payer)
+      committed.add(w.round);
+      const r = w.round;
+      act(`commit_round_${r}`, async () => sendEr([await pe.methods.commitRound(r).accountsPartial({ payer: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "commit_round", 10), mlog).catch(() => committed.delete(r));
+    }
     if (now - lastExecAt > STALL_MS) {
       restarts++;
       log({ ev: "stall", ms: now - lastExecAt, tick: w.tick });
@@ -237,20 +278,21 @@ async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, ml
         er.sendRawTransaction(tx.serialize(), { skipPreflight: true, maxRetries: 0 }).catch(() => {});
         await sleep(8);
       }
-      await schedule();
-      tasks.push((await arenaAcc()).taskId.toString());
+      for (let k = 0; k < (full ? FULL_TASKS : 1); k++) { await schedule(); tasks.push((await arenaAcc()).taskId.toString()); }
       lastExecAt = Date.now();
     }
     if (now - lastCu > 15_000) { lastCu = now; sampleCu(world).then((xs) => cus.push(...xs.map((x) => x.cu))).catch(() => {}); }
-    if (now - t0 > 20 * 60_000) { log({ ev: "final_timeout" }); break; }
+    if (now - t0 > (full ? 35 : 20) * 60_000) { log({ ev: "final_timeout" }); break; }
   }
+  const crankStats = crank ? await crank.stop() : null;
+  if (crankStats) logTo(mlog, { ev: "crank_stats", ...crankStats });
   await er.removeAccountChangeListener(sub);
   for (const t of tasks.splice(0)) await cancel(new BN(t)).catch(() => {});
   const g: number[] = [];
   for (let i = 1; i < tickAt.length; i++) g.push((tickAt[i][1] - tickAt[i - 1][1]) / Math.max(1, tickAt[i][0] - tickAt[i - 1][0]));
   const span = tickAt.length > 1 ? { ticks: tickAt[tickAt.length - 1][0] - tickAt[0][0], wallMs: tickAt[tickAt.length - 1][1] - tickAt[0][1] } : { ticks: 0, wallMs: 1 };
   writeFileSync(join(mdir, "ticks.json"), JSON.stringify(tickAt));
-  return { complete: w.phase >= DONE, ticks: w.tick, restarts, realTime: span.ticks / 30 / (span.wallMs / 1000), gapP95: pct(g, 95), cu: { n: cus.length, p95: pct(cus, 95), max: cus.length ? Math.max(...cus) : 0 } };
+  return { full, serverFellBack, crank: crankStats, complete: w.phase >= DONE, ticks: w.tick, restarts, realTime: span.ticks / 30 / (span.wallMs / 1000), gapP95: pct(g, 95), cu: { n: cus.length, p95: pct(cus, 95), max: cus.length ? Math.max(...cus) : 0 } };
 }
 
 // ------------------------------------------------------------------ after the Final: settle → receipt → finalize → mint
@@ -387,6 +429,7 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
   status.match = matchPda.toBase58(); status.matchHex = matchHex; status.dealSig = null; // P7: the VRF deal's request tx (the Deal screen links it)
   const a0: any = await arenaAcc();
   const maps: PublicKey[] = a0.maps;
+  out.maps = maps.map((k) => k.toBase58()); // fullchain: the sealed map blobs this match ran on (replay --sealed)
   const lines = jsonl ? readLines(jsonl) : [];
   const h = lines.find((l) => l.type === "match");
   // submission (judge mode): the Classic server fast-forwarded rounds 1–3 (labelled on the receipt; no Season record)
@@ -463,7 +506,30 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
     }
     // 3. rounds 1–3 from the Classic server (idempotent by event_seq)
     let finalists: number[] = [];
-    if (!(m.flags & 0x40) && !["completed", "aborted"].includes(statusName(m))) {
+    const full = ONCHAIN_ALL && h?.onchainAll === true;
+    if (full) out.onchainAll = true;
+    if (full && !(m.flags & 0x20) && !["completed", "aborted"].includes(statusName(m))) {
+      // fullchain: every human of the roster pre-joins on-chain at roster lock (the server's SendPrejoin); wait for
+      // them (bots fill the rest inside start_sim), then the program runs lobby → R1 … R4
+      const want = (h?.roster ?? []).filter((r: any) => r.bot === false).length;
+      const t0 = Date.now();
+      for (;;) {
+        const ar: any = await arenaAcc();
+        let n = 0; for (let s = 0; s < N; s++) if ((Number(ar.humanMask) >> s) & 1) n++;
+        if (n >= want || Date.now() - t0 >= (judge ? Math.max(FULL_WAIT_HUMANS_S, 30) : FULL_WAIT_HUMANS_S) * 1000) { out.humans = { want, joined: n, ms: Date.now() - t0 }; break; }
+        if (serverAllState(jsonl) === "fallback") break;
+        await sleep(200);
+      }
+    }
+    if (full && serverAllState(jsonl) === "fallback" && !(m.flags & 0x20) && !["completed", "aborted"].includes(statusName(m))) {
+      // the server plays this match on Classic (it never saw the rollup go live): abort ours, markets refund
+      stage("server_fallback");
+      out.serverFallback = true;
+      out.sigs.abort = (await act("abort_match", async () => sendEr([await pe.methods.abortMatch(6).accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "abort_match"), mlog)).sig;
+    } else if (full && !(m.flags & 0x20) && !["completed", "aborted"].includes(statusName(m))) {
+      stage("start_sim", { humans: out.humans });
+      out.sigs.startSim = (await act("start_sim", async () => sendEr([cu(400_000), await pe.methods.startSim().accountsPartial({ authority: wallet.publicKey, arena, world, matchAccount: matchPda, lobbyMap: maps[4] }).instruction()], [wallet], "start_sim"), mlog)).sig;
+    } else if (!(m.flags & 0x40) && !(m.flags & 0x20) && !["completed", "aborted"].includes(statusName(m))) {
       if (!jsonl) {
         // resumed without the server's log: the Classic rounds cannot be bridged; abort (markets refund)
         stage("abort_no_log");
@@ -503,9 +569,17 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
     m = await erMatch(matchPda);
     const wd = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
     a = await arenaAcc();
-    if (m && m.flags & 0x40 && a.status === 2 && wd.phase < DONE && a.matchAccount.toBase58() === matchPda.toBase58()) {
-      stage("final", { finalists });
-      out.final = await runFinal(matchPda, maps, mdir, mlog);
+    if (m && m.flags & 0x20 && a.status === 2 && wd.phase < DONE && a.matchAccount.toBase58() === matchPda.toBase58()) {
+      const fullRun = !(m.flags & 0x40);
+      stage(fullRun ? "onchain_match" : "final", { finalists });
+      out.final = await runFinal(matchPda, maps, mdir, mlog, fullRun, () => serverAllState(jsonl) === "fallback");
+      if (out.final.serverFellBack) {
+        // mid-match fallback: stop the arena and abort the Match (markets refund; the receipt says aborted)
+        stage("server_fallback");
+        out.serverFallback = true;
+        await sendEr([await pe.methods.abortArena().accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "abort_arena").catch(() => {});
+        out.sigs.abort = (await act("abort_match", async () => sendEr([await pe.methods.abortMatch(6).accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "abort_match"), mlog).catch(() => ({ sig: "" }))).sig;
+      }
     }
   } finally {
     if (mmw) await mmw.stop();

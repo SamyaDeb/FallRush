@@ -9,6 +9,10 @@ export async function core(): Promise<Ex> {
   ex = instance.exports as Ex;
   return ex;
 }
+/** The program's map slots (sim.rs: 0..3 = deal ids 0 Capsule Run, 1 Goo Tower, 2 Star Fountain, 3 Lid Flip; 4 = lobby). */
+export const CHAIN_MAPS = ['BlockPartyDash', 'GooTower', 'StarScramble', 'CrumbleShelf', 'Lobby'];
+/** Round names by deal id (the World's map_key). */
+export const ROUND_MAP = ['Capsule Run', 'Goo Tower', 'Star Fountain', 'Lid Flip'];
 async function map(name: string) { return (maps[name] ??= new Uint8Array(await (await fetch(`/maps/${name}.mapblob`)).arrayBuffer())); }
 const put = (e: Ex, b: Uint8Array) => { const p = e.rc_alloc(b.length); new Uint8Array(e.memory.buffer, p, b.length).set(b); return p; };
 
@@ -25,6 +29,24 @@ export class CoreWorld {
     w.cap = w.e.rc_world_size() + 4096; w.buf = w.e.rc_alloc(w.cap);
     return w;
   }
+  /** fullchain: a handle whose map follows the World through every round, as the program's tick() picks it (needs
+   *  the fullchain rush_core.wasm; `blobs` = the 5 slot blobs, default /maps/<name>.mapblob). Null on an old wasm. */
+  static async createChain(blobs?: Uint8Array[]): Promise<CoreWorld | null> {
+    const e = await core();
+    if (!e.rc_step_chain) return null;
+    const bs = blobs ?? (await Promise.all(CHAIN_MAPS.map((n) => map(n))));
+    const w = await CoreWorld.create('Lobby');
+    for (let s = 0; s < 5; s++) { const p = put(e, bs[s]); const r = e.rc_chain_map(w.h, s, p, bs[s].length); e.rc_dealloc(p, bs[s].length); if (r !== 0) return null; }
+    return w;
+  }
+  /** fullchain: the map load the program runs before a tick (deal id loaded, −1 none needed, −2 missing map). */
+  chainLoad(): number { return this.e.rc_chain_load(this.h); }
+  /** fullchain: one whole tick exactly as the chain steps it (step_slice parts until complete); events or < 0. */
+  stepChain(inputs: Uint8Array, budget = 6000): number { const p = put(this.e, inputs); const n = this.e.rc_step_chain(this.h, p, budget); this.e.rc_dealloc(p, inputs.length); return n; }
+  /** fullchain: one program execution from part `from` (budget 0 = one player); the next part or < 0. */
+  stepPart(inputs: Uint8Array, from: number, budget = 0): number { const p = put(this.e, inputs); const n = this.e.rc_step_part(this.h, p, from, budget); this.e.rc_dealloc(p, inputs.length); return n; }
+  /** The director's position of the current World: round 0..4, director phase, the loaded round, its map (deal id). */
+  round() { const r = this.e.rc_round ? this.e.rc_round(this.h) >>> 0 : 0; return { round: r & 0xff, phase: (r >> 8) & 0xff, roundIndex: (r >> 16) & 0xff, mapKey: (r >>> 24) & 0xff }; }
   set(world: Uint8Array): boolean { new Uint8Array(this.e.memory.buffer, this.buf, world.length).set(world); return this.e.rc_set_world(this.h, this.buf, world.length) === 0; }
   bytes(): Uint8Array { const n = this.e.rc_world_bytes(this.h, this.buf, this.cap); return new Uint8Array(this.e.memory.buffer, this.buf, n).slice(); }
   /** 12 × 6 B inputs {present, mx, my, buttons, yaw lo, yaw hi}. */

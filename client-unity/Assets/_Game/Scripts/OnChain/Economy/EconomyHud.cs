@@ -634,7 +634,7 @@ namespace FallRush.OnChain
             // P7 fix: who is spectating. Rounds 1–3 run on the Classic server (the pre-joined on-chain session has no slot
             // yet), so there the bet panel opens by itself only for players who are out (or not in the match); during the
             // on-chain Final, for eliminated players and watchers. An alive player opens it with B.
-            var inFinal = s?.match != null && (s.match.flags & 0x40) != 0;
+            var inFinal = s?.match != null && ChainEconomy.ChainRuns(s.match.flags);
             var cs = ClientSim.Instance;
             var classicOut = cs != null && cs.Match != null && (cs.MatchSlot == 255 || (cs.TryGetSlotInfo(cs.MatchSlot, out var si) && !si.Has(MatchSlotInfo.Alive)));
             var spectating = inFinal ? session.Spectate || session.OwnSlot >= 12 || session.OwnOut : classicOut;
@@ -847,7 +847,7 @@ namespace FallRush.OnChain
             // P7: the receipt card opens as soon as the on-chain Final is over (then Rollup ✓ → Solana ✓ tick in as they land),
             // not ~40 s later when the Match reaches "completed"
             var cs = ClientSim.Instance;
-            var finalOver = s?.match != null && (s.match.flags & 0x40) != 0 && (s.match.status == 5 || (s.world != null && s.world.round == 4 && s.world.roundPhase > 3) ||
+            var finalOver = s?.match != null && ChainEconomy.ChainRuns(s.match.flags) && (s.match.status == 5 || (s.world != null && s.world.round == 4 && s.world.roundPhase > 3) ||
                             (cs?.Match != null && cs.Match.Phase >= MatchPhase.Champion && cs.Match.Phase <= MatchPhase.Done));
             var done = finalOver && s.match.status != 6;
             if (!done && e.Receipt == null)
@@ -948,7 +948,7 @@ namespace FallRush.OnChain
                     .Append(r.receipt.sealedForfeits > 0 ? $" · {r.receipt.sealedForfeits} forfeited" : string.Empty).Append(" ◆\n");
             if (sp != null && me >= 0 && e.SeasonFor == r.match)
                 _sb.Append("<color=#7B2FF7>").Append(champ == me ? $"+1 crown this season ({sp.crowns} total) · " : string.Empty).Append(sp.finals).Append(" Final(s) this season</color>\n");
-            _sb.Append("<color=#8C88A6>Drops ").Append(r.receipt.drops).Append(" · rounds 1–3 ● server-recorded · Final ◆ program-computed · core v").Append(r.receipt.coreVersion).Append("</color>");
+            _sb.Append("<color=#8C88A6>Drops ").Append(r.receipt.drops).Append((r.receipt.trust & 4) != 0 ? " · all 4 rounds ◆ program-computed · core v" : " · rounds 1–3 ● server-recorded · Final ◆ program-computed · core v").Append(r.receipt.coreVersion).Append("</color>");
             _rLines.text = _sb.ToString();
             var holds = me >= 0 && r.onSolana && (((r.receipt.flags & 4) != 0 && champ == me) || (r.receipt.mintedMask >> me & 1) == 1);
             var guest = holds && string.IsNullOrEmpty(ChainWallet.PhantomPubkey);

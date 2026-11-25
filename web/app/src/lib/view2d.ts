@@ -1,4 +1,4 @@
-// Top-down 2D view of the Lid Flip Final (the same World the program steps): lids (idle / lit / open / retired),
+// Top-down 2D view of the Lid Flip Final, or (fullchain) of any round framed on its players (the same World the program steps): lids (idle / lit / open / retired),
 // sweeper bars, players (humans ringed, bots plain, out = faded), the Chaos Drop telegraph banner.
 import type { CoreWorld } from './core';
 const SHELL = ['#FF3EA5', '#3FA9F5', '#FFD21F', '#5BE3B5', '#7B2FF7', '#FF8A3D', '#2EC4B6', '#E84855', '#FF9BD2', '#3A2E8C', '#FFE45C', '#B79CFF'];
@@ -12,6 +12,11 @@ export function draw(cv: HTMLCanvasElement, w: CoreWorld, opts: { humans: number
   const lids = w.lids();
   let minX = -8000, maxX = 8000, minZ = -8000, maxZ = 8000;
   if (lids.length) { minX = Math.min(...lids.map((l) => l.x)) - 1500; maxX = Math.max(...lids.map((l) => l.x)) + 1500; minZ = Math.min(...lids.map((l) => l.z)) - 1500; maxZ = Math.max(...lids.map((l) => l.z)) + 1500; }
+  else {
+    // fullchain rounds 1–3 (no lid grid): frame the players still in the round (a race map is long: follow the pack)
+    const ps = Array.from({ length: 12 }, (_, i) => w.player(i)).filter((p) => p && p.flags & 1 && !(p.flags & 4) && p.y > -4000) as { x: number; z: number }[];
+    if (ps.length) { minX = Math.min(...ps.map((p) => p.x)) - 6000; maxX = Math.max(...ps.map((p) => p.x)) + 6000; minZ = Math.min(...ps.map((p) => p.z)) - 6000; maxZ = Math.max(...ps.map((p) => p.z)) + 6000; }
+  }
   const span = Math.max(maxX - minX, maxZ - minZ), k = Math.min(W, H) / span;
   const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
   const X = (x: number) => W / 2 + (x - cx) * k, Z = (z: number) => H / 2 - (z - cz) * k;

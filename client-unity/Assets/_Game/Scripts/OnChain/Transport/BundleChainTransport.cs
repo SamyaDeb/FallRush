@@ -79,13 +79,16 @@ namespace FallRush.OnChain
             var sa = Application.streamingAssetsPath;
             // emulator: the session's URL (config default, ?onchainurl=, or the game server's fonc); rollup: the config's RPCs
             var url = cfg.target == "emu" ? cfg.url : "";
-            fr_boot(sa + "/fallrush-chain.js", sa + "/chain/" + cfg.bundleConfig, url);
+            // fullchain: ?v=<this build's GUID> — the site sits behind a CDN that keeps StreamingAssets 4 h, so a deploy
+            // must change the bundle's URL (else players run the previous bundle against the new program / server)
+            var v = "?v=" + Application.buildGUID;
+            fr_boot(sa + "/fallrush-chain.js" + v, sa + "/chain/" + cfg.bundleConfig + v, url);
         }
 
-        public void Join(string name, int slot, bool spectate, string match = null)
+        public void Join(string name, int slot, bool spectate, string match = null, bool full = false)
         {
             var n = (name ?? "Rushling").Replace("\"", "").Replace("\\", "");
-            _pendingJoin = $"{{\"name\":\"{n}\",\"spectate\":{(spectate ? "true" : "false")}{(slot >= 0 ? ",\"slot\":" + slot : "")}{(string.IsNullOrEmpty(match) ? "" : ",\"match\":\"" + match + "\"")}}}";
+            _pendingJoin = $"{{\"name\":\"{n}\",\"spectate\":{(spectate ? "true" : "false")}{(slot >= 0 ? ",\"slot\":" + slot : "")}{(string.IsNullOrEmpty(match) ? "" : ",\"match\":\"" + match + "\"")}{(full ? ",\"full\":true" : "")}}}";
             _joinSent = false;
         }
 

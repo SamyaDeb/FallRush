@@ -1,9 +1,10 @@
 // /receipt/:match (P7 A2: the receipt card). The champion and the 4 rounds, the minted assets, a "Verified" stepper
 // (Rollup ✓ → Solana ✓ → Replay ✓; the replay check runs in this page with rush_core.wasm), market results with payouts,
 // sealed bets, achievements, Chaos Drops, and a "Proof" drawer with every explorer link and hash. "Download card"
-// draws the receipt as a PNG. Trust labels: ● rounds 1–3 by the game authority, ◆ the Final by the program.
+// draws the receipt as a PNG. Trust labels: ● rounds 1–3 by the game authority, ◆ the Final by the program; a full
+// on-chain match (receipt trust bit 4 ALL_PROGRAM): ◆ every round computed by the program.
 import { api, account, BASE_HTTP, ER_HTTP, explorer, short, rush, PROGRAM } from '../lib/net';
-import { decodeMatch, MARKET_NAMES, LABELS, RARITY, DROPS, MATCH_STATUS, coreAttrs, seasonName, ACH } from '../lib/decode';
+import { decodeMatch, MARKET_NAMES, LABELS, RARITY, DROPS, MATCH_STATUS, coreAttrs, seasonName, ACH, TRUST, TICKS_LINE } from '../lib/decode';
 import { icon, capsuleArt, RARITY_COLOUR } from '../lib/icons';
 import { verifyMatch } from '../lib/verify';
 import { drawCard } from '../lib/card';
@@ -15,7 +16,8 @@ const HUES = ['hue-soda', 'hue-grape', 'hue-lemon', 'hue-bubble'];
 const SIG_LABELS: [string, string, boolean | 'tee'][] = [
   ['create', 'create_match (Solana)', false], ['delegate', 'delegate the Match to the rollup', false], ['openMarkets', 'open the Rush Markets', true],
   ['requestDeal', 'MagicBlock VRF deal request', true], ['escrowOpen', 'sealed escrow open', true], ['bookOpen', 'private book open (TEE)', 'tee'],
-  ['startFinal', 'start the on-chain Final', true], ['sealedClose', 'sealed market close', true], ['bookClose', 'private book close (TEE)', 'tee'],
+  ['startFinal', 'start the on-chain Final', true], ['startSim', 'start the on-chain match (all 4 rounds)', true],
+  ['commit1', 'commit round 1', true], ['commit2', 'commit round 2', true], ['commit3', 'commit round 3', true], ['commit4', 'commit round 4', true], ['sealedClose', 'sealed market close', true], ['bookClose', 'private book close (TEE)', 'tee'],
   ['sealedFinish', 'sealed reveal + settle', true], ['writeReceipt', 'write_receipt (rollup)', true], ['commitEcon', 'commit the economy', true],
   ['requestCapsules', 'capsule VRF request', true], ['endSim', 'end the simulation', true], ['finalize', 'finalize: commit + undelegate + Magic Action', true],
 ];
@@ -36,6 +38,8 @@ export function receipt(root: HTMLElement, params: string[]) {
     const human = (slot: number) => ((rc.humanMask >> slot) & 1) === 1;
     const tag = (slot: number) => (slot < 12 ? `#${slot + 1}${human(slot) ? '' : ' (bot)'}` : '—');
     const crown = rc.flags & 4 ? rc.crown : null;
+    // fullchain: every round computed by the program (no round recorded by the game authority)
+    const full = (rc.trust & TRUST.ALL_PROGRAM) !== 0;
     const when = s?.doneAt ? new Date(s.doneAt).toUTCString().slice(5, 22) + ' UTC' : '';
     // the 4 rounds: rounds 1–3 from the Classic server's log (● recorded by the game authority), the Final from the receipt (◆)
     const classic = await fetch(`/api/replay/${id}/classic.jsonl`).then((r) => (r.ok ? r.text() : '')).catch(() => '');
@@ -43,7 +47,15 @@ export function receipt(root: HTMLElement, params: string[]) {
     const head = ev.find((x: any) => x.type === 'match');
     const q = [1, 2, 3, 4].map((r) => ev.filter((x: any) => x.type === 'event' && x.round === r && x.name === 'QUALIFIED').length);
     const players = head?.players ?? 12;
-    const rounds = [0, 1, 2, 3].map((r) => ({
+    // full on-chain: who entered / left each round, from the Match the program mirrors (SlotResult state, round)
+    const inMatch = [...Array(12).keys()].filter((x) => m.slots[x] !== 0);
+    const entered = (r: number) => inMatch.filter((x) => !(m.slots[x] === 3 && m.slotRound[x] < r)).length;
+    const outIn = (r: number) => inMatch.filter((x) => m.slots[x] === 3 && m.slotRound[x] === r).length;
+    const rounds = full ? [0, 1, 2, 3].map((r) => ({
+      map: MAPS[r], mode: MODES[r],
+      line: r < 3 ? (m.round > r + 1 || m.status >= 5 ? `${entered(r + 1) - outIn(r + 1)} of ${entered(r + 1)} advanced` : m.round === r + 1 ? 'in progress' : 'not reached') : m.champion < 12 ? `${tag(m.champion)} wins` : aborted ? 'aborted' : m.round === 4 ? 'in progress' : 'not reached',
+      trust: '◆ program',
+    })) : [0, 1, 2, 3].map((r) => ({
       map: MAPS[head?.deal?.maps?.[r] ?? r] ?? MAPS[r], mode: MODES[r],
       line: r < 3 ? (q[r] ? `${q[r]} of ${r === 0 ? players : q[r - 1] || '?'} advanced` : 'Classic round') : m.champion < 12 ? `${tag(m.champion)} wins` : aborted ? 'aborted' : 'in progress',
       trust: r < 3 ? (s?.judge ? '● fast-forwarded (judge mode)' : '● game server') : '◆ program',
@@ -78,7 +90,7 @@ export function receipt(root: HTMLElement, params: string[]) {
       <div class="two">
         <div class="tile ${champHuman ? 'crown' : 'hue-lemon'} asset enter" style="--i:0">${capsuleArt('#ffd21f', champHuman)}
           <div><div class="muted">${aborted ? 'NO CHAMPION' : 'CHAMPION'}</div><div class="word" style="font-size:36px">${aborted ? 'Aborted' : tag(m.champion)}</div>
-          <div>${aborted ? 'the match was aborted: every stake is refunded' : champHuman ? `<span class="mono">${short(rc.wallets[m.champion])}</span> won the on-chain Final${crown ? ' and holds the Crown' : ''}` : 'a bot won the on-chain Final (no Crown)'}</div><div class="muted">${when} · arena ${s?.arena ?? '?'} · ${MATCH_STATUS[m.status] ?? m.status}</div></div></div>
+          <div>${aborted ? 'the match was aborted: every stake is refunded' : champHuman ? `<span class="mono">${short(rc.wallets[m.champion])}</span> won the ${full ? 'on-chain match' : 'on-chain Final'}${crown ? ' and holds the Crown' : ''}` : `a bot won the ${full ? 'on-chain match' : 'on-chain Final'} (no Crown)`}</div><div class="muted">${when} · arena ${s?.arena ?? '?'} · ${MATCH_STATUS[m.status] ?? m.status}</div></div></div>
         <div>
           <div class="muted" style="margin-bottom:6px">Verified</div>
           <div class="verify">
@@ -86,11 +98,11 @@ export function receipt(root: HTMLElement, params: string[]) {
             <a class="step ${onSolana ? 'done' : ''}" style="--i:1" target="_blank" href="${explorer('address', id)}"><span class="dot">${icon('check')}</span>Solana</a><span class="line" id="l2" style="--i:1"><i></i></span>
             <a class="step" id="rp" style="--i:2" href="/replay/${id}" data-link><span class="dot">${icon('check')}</span>Replay</a>
           </div>
-          <div class="muted" id="rpst" style="margin-top:8px">${aborted ? 'no Final to replay' : 'replaying the Final with rush_core.wasm…'}</div>
+          <div class="muted" id="rpst" style="margin-top:8px">${aborted ? 'no Final to replay' : full ? 'replaying all 4 rounds with rush_core.wasm…' : 'replaying the Final with rush_core.wasm…'}</div>
           <div class="row" style="margin-top:12px"><button class="btn small" id="dl">${icon('capsule')} Download card</button><a class="btn small mint" href="/replay/${id}" data-link>${icon('play')} Replay it yourself</a><button class="btn small ghost" id="share">Copy link</button></div>
         </div>
       </div>
-      <h3 style="margin-top:16px">The 4 rounds</h3>${s?.judge ? `<div class="muted" style="margin:-4px 0 8px">Judge mode: rounds 1–3 were <b>not played</b>. The game server fast-forwarded them so the judge reached the Final at once, and recorded the result on-chain as usual (●). The Final was played and computed by the program (◆).</div>` : ''}
+      <h3 style="margin-top:16px">The 4 rounds</h3>${full ? `<div class="muted" style="margin:-4px 0 8px">◆ Every round was <b>computed by the program</b> (rush-core on MagicBlock's rollup): ${TICKS_LINE}.</div>` : s?.judge ? `<div class="muted" style="margin:-4px 0 8px">Judge mode: rounds 1–3 were <b>not played</b>. The game server fast-forwarded them so the judge reached the Final at once, and recorded the result on-chain as usual (●). The Final was played and computed by the program (◆).</div>` : ''}
       <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">${rounds.map((r, i) => `<div class="tile ${HUES[i]} enter" style="--i:${i + 1}"><div class="muted">${i === 3 ? 'FINAL' : 'ROUND ' + (i + 1)}</div><h3>${r.map}</h3><div>${r.line}</div><div class="muted">${r.mode} · ${r.trust}</div></div>`).join('')}</div>
       <h3 style="margin-top:16px">Minted to the players</h3>
       <div class="grid">${assetTiles || `<div class="muted">${aborted ? 'nothing minted (aborted)' : 'no asset minted for this match'}</div>`}</div>
@@ -107,10 +119,10 @@ export function receipt(root: HTMLElement, params: string[]) {
         ${SIG_LABELS.filter(([k]) => sig[k]).map(([k, label, er]) => er === 'tee' ? `<dt>${label}</dt><dd><span class="mono" title="${esc(sig[k])}">${short(sig[k])}</span> <span class="muted">(on the private rollup, devnet-tee: not readable from a public explorer)</span></dd>` : `<dt>${label}</dt><dd><a target="_blank" href="${explorer('tx', sig[k], er)}" class="mono">${short(sig[k])}</a></dd>`).join('')}
         ${(s?.sealed?.reveals ?? []).map((x: string, i: number) => `<dt>sealed reveal ${i + 1}</dt><dd><a target="_blank" href="${explorer('tx', x, true)}" class="mono">${short(x)}</a></dd>`).join('')}
         ${Object.entries(s?.seasons ?? {}).flatMap(([k, v]: [string, any]) => (v.sigs ?? []).map((x: string) => `<dt>season ${seasonName(Number(k))}</dt><dd><a target="_blank" href="${explorer('tx', x)}" class="mono">${short(x)}</a></dd>`)).join('')}
-        <dt>trust</dt><dd>${rc.trust & 1 ? '● rounds 1–3 recorded by the game authority (Classic server) · ' : ''}${rc.trust & 2 ? '◆ the Final computed by the program (rush-core on the rollup)' : ''} · core v${rc.coreVersion & 0xff}</dd>
+        <dt>trust</dt><dd>${full ? `◆ all 4 rounds computed by the program (rush-core on the rollup; ${TICKS_LINE})` : `${rc.trust & 1 ? '● rounds 1–3 recorded by the game authority (Classic server) · ' : ''}${rc.trust & 2 ? '◆ the Final computed by the program (rush-core on the rollup)' : ''}`} · core v${rc.coreVersion & 0xff}</dd>
         <dt>map hash</dt><dd class="mono">${rc.mapHash}</dd>
-        <dt>rounds 1–3 transcript</dt><dd class="mono">${rc.preFinal}</dd>
-        <dt>Final transcript</dt><dd class="mono">${rc.finalTranscript}</dd>
+        ${full ? '' : `<dt>rounds 1–3 transcript</dt><dd class="mono">${rc.preFinal}</dd>`}
+        <dt>${full ? 'match transcript (rounds 1–4)' : 'Final transcript'}</dt><dd class="mono">${rc.finalTranscript}</dd>
         <dt>drop log hash</dt><dd class="mono">${rc.dropLog}</dd>
         <dt>capsule VRF seed</dt><dd class="mono">${rc.capsuleSeed}</dd>
         ${rc.sealedN ? `<dt>sealed entries hash</dt><dd class="mono">${rc.sealedHash}</dd>` : ''}
@@ -124,7 +136,7 @@ export function receipt(root: HTMLElement, params: string[]) {
       const per = (w: string) => {
         let bits = 0;
         const sl = humans.find((x) => rc.wallets[x] === w);
-        if (sl != null && ((s.chainWorker?.finalists ?? []).includes(sl) || m.champion === sl)) bits |= 2;
+        if (sl != null && ((full ? inMatch.filter((x) => !(m.slots[x] === 3 && m.slotRound[x] < 4)) : s.chainWorker?.finalists ?? []).includes(sl) || m.champion === sl)) bits |= 2;
         let won = 0, lost = 0;
         for (let k = 0; k < 5; k++) { const mk = s[`market${k}`]; if (!mk || mk.refund === 1) continue; for (const bt of mk.bets) if (bt.wallet === w) ((mk.winners >> bt.outcome) & 1 ? won++ : lost++); }
         if (won + lost >= 2 && lost === 0) bits |= 4;
@@ -163,13 +175,13 @@ export function receipt(root: HTMLElement, params: string[]) {
     // the replay check, in this page (on a phone: on a tap, the archive is a few MB)
     if (!aborted && s?.replay !== false) {
       const run = async () => {
-        $('#rpst').textContent = 'replaying the Final with rush_core.wasm…';
+        $('#rpst').textContent = full ? 'replaying all 4 rounds with rush_core.wasm…' : 'replaying the Final with rush_core.wasm…';
         try {
-          const v = await verifyMatch(id, s, (i, n) => { if (!stop) $('#rpst').textContent = `re-simulating the Final: ${Math.round((100 * i) / n)}%`; });
+          const v = await verifyMatch(id, s, (i, n) => { if (!stop) $('#rpst').textContent = `re-simulating the ${full ? 'match' : 'Final'}: ${Math.round((100 * i) / n)}%`; });
           if (stop) return;
           replayOk = v.error ? null : v.pass;
           if (!v.error) { $('#rp').classList.add(v.pass ? 'done' : 'fail'); if (v.pass && onSolana) $('#l2').classList.add('done'); }
-          $('#rpst').innerHTML = v.error ? `<span class="muted">${esc(v.error)}</span>` : `${v.pass ? '<span class="ok">replay = on-chain ✓</span>' : '<span class="bad">replay ≠ on-chain</span>'} · ${v.ok}/${v.pairs} ticks re-simulated byte-exact${v.transcript ? ' · Final transcript ✓' : ''}`;
+          $('#rpst').innerHTML = v.error ? `<span class="muted">${esc(v.error)}</span>` : `${v.pass ? '<span class="ok">replay = on-chain ✓</span>' : '<span class="bad">replay ≠ on-chain</span>'} · ${v.ok}/${v.pairs} ${v.full ? 'Worlds (rounds 1–4, mid-tick parts included)' : 'ticks'} re-simulated byte-exact${v.transcript ? (v.full ? ' · match transcript ✓' : ' · Final transcript ✓') : ''}`;
           (window as any).__receiptReplay = { pass: v.pass, ok: v.ok, pairs: v.pairs };
         } catch (err) { $('#rpst').textContent = 'replay unavailable: ' + err; }
       };

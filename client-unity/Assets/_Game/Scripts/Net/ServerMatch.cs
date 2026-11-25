@@ -49,6 +49,11 @@ namespace FallRush.Net
         /// <summary>P3-F: the Classic → on-chain switch at the Final (null unless <c>-fallrushOnchainFinal</c>).</summary>
         public readonly ChainFinalHandoff Handoff = ChainFinalHandoff.Enabled ? new ChainFinalHandoff() : null;
         private bool _foncSent;
+        /// <summary>fullchain: <c>GAMESERVER_ONCHAIN_ALL=1</c> (with a rollup handoff): whole matches go to the arena.</summary>
+        public readonly bool OnchainAll;
+        /// <summary>fullchain: the match serial handed (or being handed) to the arena as a whole match; its fallback.</summary>
+        private int _allSerial = -1;
+        private bool _allFallback, _allFoncSent, _allLogged;
 
         /// <summary>Server ticks simulated per network tick while no human is connected (soak; 1 = real time).</summary>
         public int SimSpeed = 1;
@@ -71,6 +76,14 @@ namespace FallRush.Net
             nm.CustomMessagingManager.RegisterNamedMessageHandler(Protocol.Msg.Control, OnControl);
             // The initial scene is the lobby; the director's first LoadMap finds it already loaded.
             _wantMap = sim.Map != null ? sim.Map.MapId : (byte)255;
+            OnchainAll = Handoff != null && Handoff.Rollup && ChainFinalHandoff.AllEnabled;
+            if (OnchainAll)
+            {
+                Director.HoldDealt = () => AllThisMatch && Handoff.Phase == ChainFinalHandoff.State.Deciding;
+                Director.ChainAll = () => AllLive;
+                Debug.Log("[gs] fullchain: whole matches run on the arena (GAMESERVER_ONCHAIN_ALL=1); per-match fallback = Classic");
+            }
+
             Director.Start();
         }
 
@@ -200,7 +213,9 @@ namespace FallRush.Net
             {
                 var d = Director;
                 var id = d.MatchId != null ? Sha256.Hex(d.MatchId) : "";
-                var json = $"{{\"t\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()},\"phase\":\"{d.Phase}\",\"inMatch\":{(d.InMatch ? "true" : "false")},\"round\":{d.Round},\"humans\":{d.HumansConnected()},\"size\":{d.MatchSize},\"serial\":{d.MatchSerial},\"completed\":{d.MatchesCompleted},\"match\":\"{id}\",\"onchainFinal\":{(Handoff != null ? "true" : "false")},\"room\":{(d.PrivateRoom ? "true" : "false")},\"judge\":{(d.JudgeMatch || d.JudgeMode ? "true" : "false")},\"lobbyTier\":\"{TierNames[d.LobbyTier]}\",\"conns\":{NetBootstrap.Instance?.ServerConnectedCount ?? 0},\"maxConns\":{NetBootstrap.MaxConnections},\"viewers\":{_viewers.Count}}}";
+                // fullchain (only with GAMESERVER_ONCHAIN_ALL=1): is the arena playing this match, its round / director phase
+                var allJson = OnchainAll ? "\"onchainAll\":" + (AllLive ? "true" : "false") + ",\"chainRound\":" + (AllLive ? Handoff.ChainRound : 0) + ",\"chainPhase\":" + (AllLive ? Handoff.ChainPhase : -1) + "," : "";
+                var json = $"{{\"t\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()},\"phase\":\"{d.Phase}\",\"inMatch\":{(d.InMatch ? "true" : "false")},\"round\":{d.Round},\"humans\":{d.HumansConnected()},\"size\":{d.MatchSize},\"serial\":{d.MatchSerial},\"completed\":{d.MatchesCompleted},\"match\":\"{id}\",\"onchainFinal\":{(Handoff != null ? "true" : "false")},{allJson}\"room\":{(d.PrivateRoom ? "true" : "false")},\"judge\":{(d.JudgeMatch || d.JudgeMode ? "true" : "false")},\"lobbyTier\":\"{TierNames[d.LobbyTier]}\",\"conns\":{NetBootstrap.Instance?.ServerConnectedCount ?? 0},\"maxConns\":{NetBootstrap.MaxConnections},\"viewers\":{_viewers.Count}}}";
                 Directory.CreateDirectory(LogDir);
                 var tmp = Path.Combine(LogDir, "status.json.tmp");
                 File.WriteAllText(tmp, json);
@@ -304,7 +319,11 @@ namespace FallRush.Net
                 OpenLog();
                 if (Handoff != null && Handoff.Rollup)
                     SendPrejoin();
+                if (AllEligible)
+                    BeginAllHandoff();
             }
+
+            SuperviseAll();
             if (_matchDirty)
             {
                 _matchDirty = false;
@@ -366,11 +385,76 @@ namespace FallRush.Net
             _matchDirty = true;
         }
 
+        /// <summary>fullchain: this match was handed to the arena as a whole match (deciding, live or done).</summary>
+        private bool AllThisMatch => OnchainAll && Handoff.All && _allSerial == Director.MatchSerial && Director.MatchId != null && !_allFallback;
+
+        /// <summary>fullchain: the arena plays this match (live or its result is in).</summary>
+        public bool AllLive => AllThisMatch && (Handoff.Phase == ChainFinalHandoff.State.Live || Handoff.Phase == ChainFinalHandoff.State.Done);
+
+        /// <summary>A full on-chain match is possible for this roster: the deal's 4 rounds (no dev plan).</summary>
+        private bool AllEligible => OnchainAll && Director.PlanOverride == null && Director.RoundCount == Deal.Rounds;
+
+        /// <summary>fullchain, at roster lock: the arena should play this match (after the header + prejoin).</summary>
+        private void BeginAllHandoff()
+        {
+            _allSerial = Director.MatchSerial;
+            _allFallback = false;
+            _allFoncSent = false;
+            _allLogged = false;
+            var roster = new List<(int slot, string name, bool bot)>();
+            for (var i = 0; i < Director.Roster.Length; i++)
+            {
+                var r = Director.Roster[i];
+                if (r.Occupied)
+                    roster.Add((i, r.Name, r.Bot));
+            }
+
+            Handoff.TimeoutSeconds = ChainFinalHandoff.AllTimeout(Director.JudgeMatch);
+            Debug.Log($"[gs] on-chain match: handing match {Director.MatchSerial} ({roster.Count} players) to arena {Handoff.ArenaKey}, waiting ≤ {Handoff.TimeoutSeconds:F0} s");
+            Handoff.BeginAll(Sha256.Hex(Director.MatchId), roster.ToArray());
+        }
+
+        /// <summary>fullchain: every tick: live → <c>fonc</c> once; failed → fallback (Classic, logged).</summary>
+        private void SuperviseAll()
+        {
+            if (!OnchainAll || _allSerial != Director.MatchSerial || _allFallback || !Handoff.All)
+                return;
+            if (Handoff.Phase == ChainFinalHandoff.State.Failed)
+            {
+                _allFallback = true;
+                LogLine("{\"type\":\"onchainAll\",\"state\":\"fallback\",\"why\":\"" + Escape(Handoff.Error) + "\",\"utc\":\"" + DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) + "\"}");
+                Debug.LogWarning($"[gs] on-chain match {Director.MatchSerial}: fallback, the server plays it (Classic): {Handoff.Error}");
+                return;
+            }
+
+            if (AllLive && !_allFoncSent)
+            {
+                _allFoncSent = true;
+                LogLine("{\"type\":\"onchainAll\",\"state\":\"live\",\"arena\":\"" + Handoff.ArenaKey + "\",\"utc\":\"" + DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) + "\"}");
+                SendFinalOnchain();
+            }
+
+            if (!_allLogged && (Handoff.Phase == ChainFinalHandoff.State.Done || Handoff.ChainFailed))
+            {
+                _allLogged = true;
+                LogLine("{\"type\":\"onchainAll\",\"state\":\"" + (Handoff.ChainFailed ? "aborted" : "done") + "\",\"champion\":" + (Handoff.ResultOrder != null ? Handoff.ResultOrder[0] : 255) +
+                        (Handoff.ChainFailed ? ",\"why\":\"" + Escape(Handoff.ChainFailWhy) + "\"" : "") + ",\"utc\":\"" + DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) + "\"}");
+            }
+        }
+
+        private void LogLine(string json)
+        {
+            try { _log?.WriteLine(json); }
+            catch (Exception e) { Debug.LogWarning("[gs] event log: " + e.Message); }
+        }
+
         public bool MapLoaded => _loaded && !_loadingScene && (Handoff == null || Handoff.Phase != ChainFinalHandoff.State.Deciding);
 
         /// <summary>P3-F: at the last round (the Final), ask the arena for it; the round waits (≤ 8 s) for the answer.</summary>
         private void BeginHandoff(byte mapId, in RoundParams p)
         {
+            if (OnchainAll && _allSerial == Director.MatchSerial && Director.MatchId != null)
+                return; // fullchain: this match went to the arena whole, or fell back to Classic (no Final handoff then)
             _foncSent = false;
             if (mapId == MapPoolV1.Lobby || Director.Round != Director.RoundCount || Director.RoundCount < 2)
                 return;
@@ -395,6 +479,8 @@ namespace FallRush.Net
                 if (Director.Roster[i].Occupied && !Director.Roster[i].Bot)
                     humans.Add((i, Director.Roster[i].Name, false));
             var msg = Handoff.PrejoinMessage(Sha256.Hex(Director.MatchId), humans.ToArray());
+            if (AllEligible)
+                msg = msg.Replace("{\"t\":\"final_prejoin\",", "{\"t\":\"final_prejoin\",\"all\":true,"); // fullchain: join for the whole match
             var b = Encoding.UTF8.GetBytes(msg);
             Buffer.BlockCopy(b, 0, _buf, 0, b.Length);
             long bytes = 0, count = 0;
@@ -419,6 +505,8 @@ namespace FallRush.Net
             var map = _sim.Map;
             var def = map != null ? map.definition : null;
             var rules = RulesFactory.Create(map, mapId);
+            if (AllLive && mapId != MapPoolV1.Lobby && Director.Round == 1)
+                return new ChainFinalRules(rules, Handoff, all: true); // fullchain: the server holds round 1 until the arena's champion
             if (Handoff != null && Handoff.Phase == ChainFinalHandoff.State.Live && mapId != MapPoolV1.Lobby && Director.Round == Director.RoundCount)
             {
                 if (!_foncSent)
@@ -526,6 +614,14 @@ namespace FallRush.Net
             }
 
             SendFullState(clientId);
+            if (AllLive && _allFoncSent && Handoff.Message != null)
+            {
+                // fullchain: a (re)connect during a whole on-chain match goes straight to the arena (its slot, or watching)
+                var b = Encoding.UTF8.GetBytes(Handoff.Message);
+                Buffer.BlockCopy(b, 0, _buf, 0, b.Length);
+                long bytes = 0, count = 0;
+                Send(ChainFinalHandoff.Msg, clientId, b.Length, ref bytes, ref count);
+            }
         }
 
         private bool Seat(ulong clientId, string name, byte[] token, byte preset = 0, byte tier = 1)
@@ -845,7 +941,7 @@ namespace FallRush.Net
                 }
 
                 _log.WriteLine("{\"type\":\"match\",\"version\":1,\"matchId\":\"" + Sha256.Hex(d.MatchId) + "\",\"serial\":" + d.MatchSerial +
-                               ",\"practice\":true," + (d.JudgeMatch ? "\"judge\":true," : "") + "\"seed\":\"" + Sha256.Hex(d.MatchSeed) + "\",\"seedSource\":\"local\",\"rosterHash\":\"" + Sha256.Hex(d.RosterHashBytes) +
+                               ",\"practice\":true," + (d.JudgeMatch ? "\"judge\":true," : "") + (AllEligible ? "\"onchainAll\":true," : "") + "\"seed\":\"" + Sha256.Hex(d.MatchSeed) + "\",\"seedSource\":\"local\",\"rosterHash\":\"" + Sha256.Hex(d.RosterHashBytes) +
                                "\",\"transcriptInit\":\"" + Sha256.Hex(d.TranscriptInit) + "\",\"players\":" + d.PlayerCount +
                                ",\"targets\":[" + string.Join(",", d.Targets) + "],\"deal\":{\"maps\":[" + string.Join(",", d.DealResult.Maps) + "],\"variants\":[" +
                                string.Join(",", d.DealResult.Variants) + "],\"modifiers\":[" + string.Join(",", d.DealResult.Modifiers) + "]},\"plan\":[" +

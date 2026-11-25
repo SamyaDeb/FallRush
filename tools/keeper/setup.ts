@@ -35,14 +35,28 @@ for (let s = 0; s < N; s++) {
     out.sigs[`input${s}`] = await sendBase([await pb.methods.initInput(ARENA, s).accountsPartial({ authority: wallet.publicKey, arena, input: pda.input(arena, s) }).instruction()], [wallet], `init_input ${s}`);
   }
 }
-// 3. maps
+// 3. maps (FROM_ARENA=n: reuse the sealed map accounts that arena n already points at, read-only; no upload)
 const maps: PublicKey[] = [];
-for (const stem of MAP_STEMS) {
+const FROM_ARENA = process.env.FROM_ARENA != null ? Number(process.env.FROM_ARENA) : null;
+if (FROM_ARENA != null) {
+  const src = pda.arena(FROM_ARENA);
+  const a: any = await pe.account.arena.fetch(src).catch(() => pb.account.arena.fetch(src));
+  for (const k of a.maps as PublicKey[]) {
+    const info = await base.getAccountInfo(k);
+    if (!info || !info.owner.equals(PROGRAM_ID) || info.data[44] !== 1) throw new Error(`arena ${FROM_ARENA} map ${k.toBase58()} is not a sealed map blob`);
+    maps.push(k);
+  }
+  console.log(`maps from arena ${FROM_ARENA}: ${maps.map((m) => m.toBase58()).join(" ")}`);
+}
+// REPLACE_MAPS=GooTower,…: upload these stems' current blobs to fresh sealed accounts (key map2-<stem>) in place of
+// FROM_ARENA's (fullchain: the on-chain Goo Tower blob predates e3af378)
+const REPLACE = (process.env.REPLACE_MAPS ?? "").split(",").filter(Boolean);
+for (const stem of FROM_ARENA != null ? REPLACE : MAP_STEMS) {
   const blob = readFileSync(join(ROOT, `maps/${stem}.mapblob`));
   const want = hashes[stem];
   if (sha256(blob).toString("hex") !== want) throw new Error(`${stem}: blob hash differs from map_blob_hashes_v1.txt`);
-  const kp = key(`map-${stem}`);
-  maps.push(kp.publicKey);
+  const kp = key(FROM_ARENA != null ? `map2-${stem}` : `map-${stem}`);
+  if (FROM_ARENA != null) maps[MAP_STEMS.indexOf(stem)] = kp.publicKey; else maps.push(kp.publicKey);
   let info = await base.getAccountInfo(kp.publicKey);
   if (info && info.data[44] === 1) { console.log(`map ${stem}: sealed`); continue; }
   if (!info) {
@@ -66,6 +80,10 @@ for (const stem of MAP_STEMS) {
 const arenaInfo = await base.getAccountInfo(arena);
 if (arenaInfo && arenaInfo.owner.equals(PROGRAM_ID)) {
   out.sigs.setArena = await sendBase([await pb.methods.setArena(maps, PARTS, NET === "local" ? 50 : 10).accountsPartial({ authority: wallet.publicKey, arena }).instruction()], [wallet], "set_arena");
+} else if (arenaInfo && arenaInfo.owner.equals(DELEGATION) && REPLACE.length) {
+  // already delegated: the rollup runs set_arena on the delegated arena (the map accounts are read-only clones)
+  const cur: any = await pe.account.arena.fetch(arena);
+  out.sigs.setArenaEr = await sendEr([await pe.methods.setArena(maps, cur.parts, cur.slotMs).accountsPartial({ authority: wallet.publicKey, arena }).instruction()], [wallet], "set_arena (rollup)");
 }
 // 5. delegation: arena, world, event log, inputs
 const val = [{ pubkey: EP.validator, isSigner: false, isWritable: false }];

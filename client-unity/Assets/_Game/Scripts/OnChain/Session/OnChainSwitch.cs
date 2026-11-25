@@ -11,9 +11,31 @@ namespace FallRush.OnChain
     /// </summary>
     public static class OnChainSwitch
     {
-        [Serializable] private sealed class Fonc { public string t, net, arena, match, url; public RosterEntry[] slot_map; }
+        [Serializable] private sealed class Fonc { public string t, net, arena, match, url; public bool all; public RosterEntry[] slot_map; }
+
+        /// <summary>fullchain: does this <c>fonc</c> hand over the whole match (<c>"all":true</c>)?</summary>
+        public static bool IsWholeMatch(string json)
+        {
+            try { return JsonUtility.FromJson<Fonc>(json)?.all == true; }
+            catch { return false; }
+        }
 
         private static ClientSim _hooked;
+
+        /// <summary>Replays a <c>fonc</c> once the previous <see cref="OnChainSession"/> is destroyed (≤ 60 frames).</summary>
+        private sealed class Later : MonoBehaviour
+        {
+            public void Replay(string json) => StartCoroutine(Run(json));
+
+            private System.Collections.IEnumerator Run(string json)
+            {
+                for (var i = 0; i < 60 && OnChainSession.Instance != null; i++)
+                    yield return null;
+                if (OnChainSession.Instance == null)
+                    OnFonc(json);
+                Destroy(gameObject);
+            }
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Install()
@@ -70,20 +92,36 @@ namespace FallRush.OnChain
             if (f.t == "final_prejoin")
             {
                 if (OnChainSession.Instance != null)
+                {
+                    // fullchain (production canary): the previous whole match's session can still be up when the next
+                    // match's pre-join arrives; it dropped the pre-join and the player's slot ran as a bot. End the
+                    // stale session and replay this pre-join once it is gone (Destroy lands at the end of the frame).
+                    var old = OnChainSession.Instance;
+                    if (f.all && !string.IsNullOrEmpty(f.match) && old.MatchHex != f.match)
+                    {
+                        Debug.Log($"[onchain] pre-join for match {f.match}: ending the previous match's session ({old.MatchHex})");
+                        old.End();
+                        new GameObject("onchain-prejoin-later").AddComponent<Later>().Replay(json);
+                    }
                     return;
+                }
                 Debug.Log($"[onchain] pre-join: {cfg.target} arena {f.arena} match {f.match}, slot {slot}");
                 var s = OnChainSession.StartFinal(cfg, cs.ServerMatch, slot);
                 s.MatchHex = f.match;
+                s.FullMatch = f.all; // fullchain: join for rounds 1–4
                 return;
             }
 
             if (OnChainSession.Instance != null)
             {
                 OnChainSession.Instance.ServerConfirmed = true; // pre-joined: the server confirms the on-chain Final
+                if (f.all)
+                    OnChainSession.Instance.FullMatch = true;
                 return;
             }
-            Debug.Log($"[onchain] switch: Final on {f.arena} ({cfg.url}), {(slot >= 0 ? "playing slot " + slot : "spectating")}");
-            OnChainSession.StartFinal(cfg, cs.ServerMatch, slot);
+            Debug.Log($"[onchain] switch: {(f.all ? "whole match" : "Final")} on {f.arena} ({cfg.url}), {(slot >= 0 ? "playing slot " + slot : "spectating")}");
+            var st = OnChainSession.StartFinal(cfg, cs.ServerMatch, slot);
+            st.FullMatch = f.all;
         }
     }
 }

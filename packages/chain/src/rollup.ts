@@ -12,7 +12,12 @@ import { TokenBucket } from './throttle.ts';
 import { buildInstruction, resolvePubkey } from './ix.ts';
 import type { Refs } from './ix.ts';
 import { createSessionV2Ix, decodeSessionTokenV2, isExpired, MAX_VALIDITY_SEC, revokeSessionV2Ix, sessionTokenV2Pda } from './session.ts';
-import { parseWorldAccount, validateInputBatch } from './wire.ts';
+import { parseWorldAccount, validateInputBatch, VIEW_HEADER } from './wire.ts';
+
+/** rush-core map ids (map_pool v1: deal ids 0..3, 254 lobby) → the client's map / scene keys. */
+export function mapName(id: number): string {
+  return ['BlockPartyDash', 'GooTower', 'StarScramble', 'CrumbleShelf'][id] ?? (id === 254 ? 'Lobby' : 'Sandbox');
+}
 import { getPhantom, phantomPublicKey } from './wallet.ts';
 import { customCode, decodeArena, decodeMatch, pickSlot, syntheticFinalists, toP2Batch } from './p2.ts';
 import type { P2Config } from './config.ts';
@@ -119,6 +124,7 @@ export class RollupTransport implements Transport {
   private backoff: Backoff;
   private erGen = 0;
   private joined: JoinResult | null = null;
+  private joinedMatch: string | null = null;
   /** who signs join_lobby / submit_input: the session signer (with its token) or the burner */
   private player: Keypair | null = null;
   private joinedWithToken = false;
@@ -375,7 +381,12 @@ export class RollupTransport implements Transport {
   // ---- join ----------------------------------------------------------------------------------------------------
   async join(args: JoinArgs): Promise<JoinResult> {
     if (this.rc.p2) {
-      if (this.joined) return this.joined; // idempotent (relay re-joins, Unity reconnects)
+      // idempotent for the same match (relay re-joins, Unity reconnects); a pre-join for ANOTHER match starts over
+      // (fullchain production canary: the second whole match of a page returned the first match's join, no join_lobby,
+      // and the player's slot ran as a bot)
+      if (this.joined && (!args.match || args.match === this.joinedMatch)) return this.joined;
+      if (this.joined) { this.jev('rejoinNewMatch', { from: this.joinedMatch, to: args.match }); this.joined = null; this.joinPromise = null; }
+      this.joinedMatch = args.match ?? null;
       if (!this.joinPromise) this.joinPromise = this.p2Join(args, this.rc.p2).finally(() => { this.joinPromise = null; });
       return this.joinPromise;
     }
@@ -706,21 +717,31 @@ export class RollupTransport implements Transport {
         const d = await this.readEr(arena);
         a = d ? decodeArena(d, c) : a;
       }
-      // 5. roster = the finalists (Match slots alive after round 3), human when the arena's human_mask says so
+      // 5. roster = the finalists (Match slots alive after round 3), human when the arena's human_mask says so;
+      //    fullchain (args.full, start_sim): the whole roster (slots 0..playerCount-1), nobody is demoted to spectator
       const m = await readMatch();
-      let fin = m ? m.slotStates.map((st, i) => (st === c.slotState.alive ? i : -1)).filter((i) => i >= 0) : [];
-      if (fin.length === 0 && finalists) fin = finalists;
-      if (slot !== 255 && fin.length && !fin.includes(slot!)) { this.jev('notFinalist', { slot }); slot = 255; } // spectate
+      let fin: number[];
+      if (args.full) {
+        fin = m ? Array.from({ length: m.playerCount }, (_, i) => i) : [];
+      } else {
+        fin = m ? m.slotStates.map((st, i) => (st === c.slotState.alive ? i : -1)).filter((i) => i >= 0) : [];
+        if (fin.length === 0 && finalists) fin = finalists;
+        if (slot !== 255 && fin.length && !fin.includes(slot!)) { this.jev('notFinalist', { slot }); slot = 255; } // spectate
+      }
       const roster = fin.map((s) => ({ slot: s, kind: ((a!.humanMask >> s) & 1) ? 'human' : 'bot', name: s === slot ? args.name : undefined, wallet: ((a!.humanMask >> s) & 1) ? a!.wallets[s].toBase58() : undefined }));
       this.receipt.finalists = fin;
       // P4 0.1: the core version the arena's match runs (WorldAcc.core_version); the client refuses a mismatch
       let coreVersion = 0;
+      let worldMap: string | undefined;
       if (cfg.addresses.world) {
         const wd = await this.readEr(new PublicKey(cfg.addresses.world));
         const pw = wd ? parseWorldAccount(wd, cfg.world) : null;
         if (pw) coreVersion = new DataView(pw.view.buffer).getUint32(4, true);
+        // fullchain: the World's own map (rush_core World.map_key, byte 7): the client follows it round by round
+        if (pw && pw.view.length > VIEW_HEADER + 7) worldMap = mapName(pw.view[VIEW_HEADER + 7]);
       }
-      const res: JoinResult = { ok: true, slot: slot!, arena: arena.toBase58(), map: args.map ?? this.rc.join?.map ?? 'CrumbleShelf', rate: this.rc.join?.rate ?? 30, coreVersion, roster, world: cfg.addresses.world };
+      const map = args.full ? (args.map ?? worldMap ?? 'Lobby') : (args.map ?? this.rc.join?.map ?? 'CrumbleShelf');
+      const res: JoinResult = { ok: true, slot: slot!, arena: arena.toBase58(), map, rate: this.rc.join?.rate ?? 30, coreVersion, roster, world: cfg.addresses.world };
       (res as Record<string, unknown>).match = matchPk.toBase58();
       this.joined = res;
       this.jev('started', { slot, match: matchPk.toBase58(), finalists: fin, ms: Math.round(this.clock.now() - t0) });

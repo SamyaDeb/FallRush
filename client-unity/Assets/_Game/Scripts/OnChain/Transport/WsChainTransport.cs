@@ -156,10 +156,10 @@ namespace FallRush.OnChain
             _outSignal.Release();
         }
 
-        public void Join(string name, int slot, bool spectate, string match = null)
+        public void Join(string name, int slot, bool spectate, string match = null, bool full = false)
         {
             var n = (name ?? "Rushling").Replace("\"", "").Replace("\\", "");
-            _joinJson = $"{{\"t\":\"join\",\"name\":\"{n}\",\"spectate\":{(spectate ? "true" : "false")}{(slot >= 0 ? ",\"slot\":" + slot : "")}{(string.IsNullOrEmpty(match) ? "" : ",\"match\":\"" + match + "\"")}}}";
+            _joinJson = $"{{\"t\":\"join\",\"name\":\"{n}\",\"spectate\":{(spectate ? "true" : "false")}{(slot >= 0 ? ",\"slot\":" + slot : "")}{(string.IsNullOrEmpty(match) ? "" : ",\"match\":\"" + match + "\"")}{(full ? ",\"full\":true" : "")}}}";
             Enqueue(Encoding.UTF8.GetBytes(_joinJson), true);
         }
 

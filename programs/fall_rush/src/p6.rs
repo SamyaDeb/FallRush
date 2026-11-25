@@ -640,7 +640,7 @@ fn op_finish<'info>(accs: &'info [AccountInfo<'info>]) -> Result<()> {
     if pending > 0 {
         // unrevealed commits: only once the window passed AND the match is over (so the rule below is final)
         require!(over && Clock::get()?.unix_timestamp >= e.closed_at + REVEAL_WINDOW_S, FallRushError::SealedPending);
-        let forfeit = m.status == MatchStatus::Completed && m.flags & sim::MATCH_FINAL_MODE != 0;
+        let forfeit = m.status == MatchStatus::Completed && sim::chain_final(&m);
         let mut i = 0;
         while i < e.n as usize {
             if e.entries[i].state == entry::COMMITTED {
@@ -760,7 +760,7 @@ pub struct Earned {
 pub fn earned(m: &Match, markets: &[&Market], dq: Option<&DropQueue>, w: &Pubkey) -> Earned {
     let mut x = Earned::default();
     let r = &m.receipt;
-    let final_mode = m.flags & sim::MATCH_FINAL_MODE != 0;
+    let final_mode = sim::chain_final(m);
     let mut s = 0;
     while s < 12 {
         if r.human_mask >> s & 1 == 1 && r.wallets[s] == *w {

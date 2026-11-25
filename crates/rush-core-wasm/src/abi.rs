@@ -16,6 +16,18 @@
 //   rc_free(h)
 //   rc_lids(h, out_ptr, cap) -> n                P5 views: every lid of every LID_FLIP grid at the World's tick, 9 B each {x i32, z i32, state u8}
 //   rc_sweepers(h, out_ptr, cap) -> n            P5 views: 20 B each {pivot_x, pivot_z, arm, cos_q15, sin_q15} i32
+//
+// fullchain (a whole match through the director, the chain's `start_sim`; additive, the exports above are unchanged):
+//   rc_chain_map(h, slot, ptr, len) -> i32       registers the map blob of program map slot 0..=3 (deal ids 0 Capsule Run,
+//                                                1 Goo Tower, 2 Star Fountain, 3 Lid Flip) or 4 (the lobby); once a handle
+//                                                has one, its current map follows the World (as the program's tick() picks it)
+//   rc_chain_load(h) -> i32                      the program's map load before a tick (director::needs_map → load_round):
+//                                                the deal id loaded, −1 none needed, −2 that map is not registered
+//   rc_step_part(h, inputs_ptr, from, budget) -> i32   ONE program execution: `world::step_slice` from part `from` with
+//                                                `budget` work units (map load first when from = 0); the next part, −2 no map
+//   rc_step_chain(h, inputs_ptr, budget) -> i32  one whole tick exactly as the chain steps it (step_slice from part 0 until
+//                                                it returns 0; any budget gives the same World); event count, −2 no map
+//   rc_round(h) -> u32                           director round | phase << 8 | round_index << 16 | map_key << 24
 use rush_core::codec::{Codec, Enc};
 use rush_core::config::MovementParams;
 use rush_core::input::InputCmd;
@@ -29,7 +41,15 @@ struct Ctx {
     map: Vec<u8>,
     w: World,
     params: MovementParams,
+    /// fullchain: the map blobs of the program's map slots (0..=3 round maps, 4 = lobby), set by `rc_chain_map`.
+    chain: [Option<Vec<u8>>; CHAIN_SLOTS],
+    /// The chain slot `map` currently holds (`NO_SLOT` = the map given to `rc_init`).
+    cur: usize,
 }
+
+/// The program's map slots (programs/fall_rush/src/sim.rs `MAP_SLOTS`, lobby = `MAP_LOBBY_SLOT` = 4).
+const CHAIN_SLOTS: usize = 5;
+const NO_SLOT: usize = usize::MAX;
 
 thread_local! {
     static CTX: RefCell<Vec<Option<Ctx>>> = const { RefCell::new(Vec::new()) };
@@ -106,7 +126,7 @@ pub unsafe extern "C" fn rc_init(map_ptr: *const u8, map_len: u32, cfg_ptr: *con
             w.add_player(&view, s, bots >> s & 1 == 1);
         }
     }
-    let ctx = Ctx { map, w, params: MovementParams::default() };
+    let ctx = Ctx { map, w, params: MovementParams::default(), chain: Default::default(), cur: NO_SLOT };
     CTX.with(|c| {
         let mut v = c.borrow_mut();
         if let Some(i) = v.iter().position(|x| x.is_none()) {
@@ -208,6 +228,7 @@ pub unsafe extern "C" fn rc_set_world(h: i32, ptr: *const u8, len: u32) -> i32 {
     with(h, |c| match World::from_bytes(b) {
         Some(w) => {
             c.w = w;
+            sync_map(c); // fullchain handles only (no chain map registered = unchanged)
             0
         }
         None => -1,
@@ -448,4 +469,158 @@ pub unsafe extern "C" fn rc_bot_input(h: i32, slot: u32, out_ptr: *mut u8) -> i3
         }
         None => -1,
     }
+}
+
+// ------------------------------------------------------------------ fullchain: the tick exactly as the chain runs it
+
+/// The program's map slot for this World (sim.rs `map_slot`): the round map once the director has loaded it, else
+/// the lobby.
+fn chain_slot(w: &World) -> usize {
+    let id = if w.round_index >= 1 { w.map_key } else { rush_core::deal::LOBBY };
+    if (id as usize) < 4 {
+        id as usize
+    } else {
+        CHAIN_SLOTS - 1
+    }
+}
+
+/// A handle with chain maps: makes `map` the one the program would step this World on. False if it is missing.
+fn sync_map(c: &mut Ctx) -> bool {
+    if c.chain.iter().all(|m| m.is_none()) {
+        return true;
+    }
+    let s = chain_slot(&c.w);
+    if c.cur != s {
+        match &c.chain[s] {
+            Some(b) => {
+                c.map = b.clone();
+                c.cur = s;
+            }
+            None => return false,
+        }
+    }
+    true
+}
+
+/// sim.rs `tick_inner` at part 0: the director asks for the round's map → `load_round` before the tick.
+fn chain_load(c: &mut Ctx) -> i32 {
+    let Some(id) = rush_core::rules::director::needs_map(&c.w) else { return -1 };
+    let ms = if (id as usize) < 4 { id as usize } else { CHAIN_SLOTS - 1 };
+    let Some(b) = c.chain[ms].as_ref() else { return -2 };
+    let Ok(v) = MapView::new(b) else { return -2 };
+    rush_core::rules::director::load_round(&mut c.w, &v, &mut Sha);
+    id as i32
+}
+
+/// One program execution (sim.rs `tick_inner` from `part`): map load at part 0, then one `step_slice` call with a fresh
+/// scene and event buffer. Returns the next part, or −2 when a needed map is not registered.
+fn chain_part(c: &mut Ctx, inputs: &[Option<InputCmd>; MAX_PLAYERS], part: u8, budget: u32, n_ev: &mut u32) -> i32 {
+    if part == 0 && chain_load(c) == -2 {
+        return -2;
+    }
+    if !sync_map(c) {
+        return -2;
+    }
+    let map = match MapView::new(&c.map) {
+        Ok(v) => v,
+        Err(_) => return -2,
+    };
+    let mut sc = rush_core::collide::Scene::new(map);
+    let mut ev = StepEvents::default();
+    let next = world::step_slice(&mut c.w, inputs, &map, &c.params, &mut Sha, &mut ev, &mut sc, part, budget);
+    *n_ev += ev.n as u32;
+    next as i32
+}
+
+unsafe fn read_inputs(p: *const u8) -> [Option<InputCmd>; MAX_PLAYERS] {
+    let b = slice(p, MAX_PLAYERS * 6);
+    let mut inputs = [None; MAX_PLAYERS];
+    if b.len() == MAX_PLAYERS * 6 {
+        for (s, inp) in inputs.iter_mut().enumerate() {
+            *inp = read_cmd(&b[s * 6..s * 6 + 6]);
+        }
+    }
+    inputs
+}
+
+/// Registers the map blob of program map slot `slot` (0..=3 = deal ids 0..=3, 4 = the lobby). 0 or −1.
+///
+/// # Safety
+/// `ptr` → `len` readable bytes.
+#[no_mangle]
+pub unsafe extern "C" fn rc_chain_map(h: i32, slot: u32, ptr: *const u8, len: u32) -> i32 {
+    let s = slot as usize;
+    let b = slice(ptr, len as usize);
+    if s >= CHAIN_SLOTS || MapView::new(b).is_err() {
+        return -1;
+    }
+    with(h, |c| {
+        c.chain[s] = Some(b.to_vec());
+        if c.cur == s {
+            c.cur = NO_SLOT;
+        }
+        sync_map(c);
+        0
+    })
+    .unwrap_or(-1)
+}
+
+/// The map load the program runs before a tick (part 0). The deal id loaded, −1 none needed, −2 map not registered.
+/// `rc_step_part(…, 0, …)` / `rc_step_chain` do it themselves; call it first only to act between the load and the
+/// step (Chaos Drops are ingested there, after the load).
+#[no_mangle]
+pub extern "C" fn rc_chain_load(h: i32) -> i32 {
+    with(h, |c| {
+        let r = chain_load(c);
+        sync_map(c);
+        r
+    })
+    .unwrap_or(-2)
+}
+
+/// One program execution: `step_slice` from `from` (0 = a new tick, 1..=11 = that slot, 12 = the end of the tick)
+/// within `budget` work units (0 = one player per call). Returns the next part (0 = the tick is complete) or −2.
+///
+/// # Safety
+/// `inputs_ptr` must point to 72 readable bytes (or be null = all missing).
+#[no_mangle]
+pub unsafe extern "C" fn rc_step_part(h: i32, inputs_ptr: *const u8, from: u32, budget: u32) -> i32 {
+    let inputs = read_inputs(inputs_ptr);
+    with(h, |c| {
+        let mut n = 0;
+        chain_part(c, &inputs, from.min(MAX_PLAYERS as u32) as u8, budget, &mut n)
+    })
+    .unwrap_or(-2)
+}
+
+/// One whole tick as the chain steps it: `step_slice` from part 0 until it returns 0, map load first (World version 1
+/// and 2 alike; `rc_step`'s unsliced `world::step` differs on full matches). Returns the event count or −2.
+///
+/// # Safety
+/// `inputs_ptr` must point to 72 readable bytes (or be null = all missing).
+#[no_mangle]
+pub unsafe extern "C" fn rc_step_chain(h: i32, inputs_ptr: *const u8, budget: u32) -> i32 {
+    let inputs = read_inputs(inputs_ptr);
+    with(h, |c| {
+        let (mut part, mut n) = (0u8, 0u32);
+        // every call steps at least one player or finishes the tick: ≤ MAX_PLAYERS + 1 calls
+        for _ in 0..=MAX_PLAYERS + 1 {
+            let next = chain_part(c, &inputs, part, budget, &mut n);
+            if next < 0 {
+                return next;
+            }
+            if next == 0 {
+                return n as i32;
+            }
+            part = next as u8;
+        }
+        -3
+    })
+    .unwrap_or(-2)
+}
+
+/// The director's position: round | phase << 8 | World round_index << 16 | map_key << 24.
+#[no_mangle]
+pub extern "C" fn rc_round(h: i32) -> u32 {
+    with(h, |c| c.w.dir.round as u32 | (c.w.dir.phase as u32) << 8 | (c.w.round_index as u32) << 16 | (c.w.map_key as u32) << 24).unwrap_or(0)
 }
