@@ -95,3 +95,14 @@ UNVERIFIED until the upgrade: that the rollup sustains that rate when each tx us
 Crank: ~19–23k sends per match, 0–12 send errors; budget mostly 6000. Motor-cap freezes 5–10 per match.
 Replay of match 1 (`replay-check.mjs …/world.bin --sealed`): replay = on-chain ✓.
 Hybrid regression on the upgraded program: 1.000×, 0 restarts, 5 markets settled (fc-hybrid-regress).
+
+## 11. GATE 2 (real flow: Classic Mac dev server in full mode + production keeper daemon + bettors, devnet arena 7)
+Run 1 (`gate2/fc-gate2-20261125-062211`, program 411b61fa): 4/5 matches fully on-chain (1.000× each, 5/5 markets settled,
+receipt, finalize, replay ✓, payouts = hand calc); 1 match fell back to Classic **by design of the safety net** after the
+server's watcher read a stale "arena ended" from the previous match and released its match early (2 false aborts,
+the chain itself played those matches correctly). Fixes: stale reads cleared per match + 3-read debounce (server);
+Qualify markets of full matches labelled PROGRAM (program f8929b19).
+Run 2 (`gate2/fc-gate2-20261125-070134`, program f8929b19): **5/5 fully on-chain**, real time 1.000 / 1.000 / 0.998 /
+1.000 / 1.000, server states live → done on all 5, 5/5 markets settled + receipt + finalize on all 5, **replay = on-chain ✓
+5/5**. Bettor checks: 4/5 ok; the 5th compared balances before the keeper had paid market 2 (bettor read too early; the
+keeper summary shows the market settled + refunded) — fixed in the bettor, payout run 3 below.

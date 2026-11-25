@@ -1,6 +1,6 @@
 [
  {
-  "match": "BN18bwAwhooRQ46Xyj9p5qaVAzr7rtbrhFno88qmEWRE",
+  "match": "9VT5oV433AM2LJnMezEUKpRZpQZCLNyH7782qkdMNECW",
   "bets": [
    {
     "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
@@ -8,7 +8,13 @@
     "outcome": 0,
     "amount": "10000000",
     "when": "R1 champion",
-    "sig": "4NQXFE3ZhqFV9uAxMT6SdivSry5rpxrLsZJHLsUVmjNcqCpK1mV9baaeTVwBhMHF3WFiCyV1FjmBhWSHFegn1886"
+    "at": {
+     "t": "2026-11-25T01:32:09.915Z",
+     "tick": 9512,
+     "round": 4,
+     "roundPhase": 4
+    },
+    "sig": "5VWnLfj5xd2PQPfJL6j6oBnbvMkeEL221bFPMFB7pgyWsrThcifgvzFP6PMNu5ULcYdt6YzSpsHWo5x1Kc7b3tNo"
    },
    {
     "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
@@ -16,7 +22,13 @@
     "outcome": 5,
     "amount": "20000000",
     "when": "R1 champion",
-    "sig": "3zozCSgtE8ZFNpicMA2aDmoHW9VcRbFXJSYQhmgbepLAZRFLXXNXMQrUF1sLCZjxSyfnaqQYMh5bwf3jXYv9VhHE"
+    "at": {
+     "t": "2026-11-25T01:32:10.254Z",
+     "tick": 0,
+     "round": 0,
+     "roundPhase": 4
+    },
+    "sig": "2oUkam719qMbvvSEe9nrqBLGsi8AdZ4avUfKcH796Ksok2EuJDu3ZzHDKeYAVkRwytfeUdtveh4iqmKaHVDvLdEz"
    },
    {
     "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
@@ -24,7 +36,13 @@
     "outcome": 1,
     "amount": "10000000",
     "when": "R1 qualify(1)",
-    "sig": "5p4eZd4v5icaSFTNq1G8xwZqt5Xy7HPeeTSAttX5dmpspTTKmSTaJbodsxiwggkevwhYxwB1pyohHY9CXXQ8MHQg"
+    "at": {
+     "t": "2026-11-25T01:32:10.571Z",
+     "tick": 0,
+     "round": 0,
+     "roundPhase": 4
+    },
+    "sig": "3c1cehgMdVMHwVgpHjXRhm9Ak5ZWN8mrQFvc9AkjySY1FPShWnESa6MsUskMQBapHDYiyqmrnisEbVBMtySGse5B"
    },
    {
     "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
@@ -32,39 +50,57 @@
     "outcome": 2,
     "amount": "10000000",
     "when": "R1 qualify(1)",
-    "sig": "5N5t1nUYai1upaP3yNx5koyBu6GNQgnihHEnc54wTQKh4MQduQRT51Ng8v2Z4PjXPjSqPcgcmPQHErjbZ1XcNT68"
+    "at": {
+     "t": "2026-11-25T01:32:10.922Z",
+     "tick": 4,
+     "round": 0,
+     "roundPhase": 5
+    },
+    "sig": "63Yhp19oV7Vy58LhAECXwQ84LGAD3Zjah1pKiji3k7krJnDsb1FgVBbeoA45xi3xgVydbrKWBb5XoBfC82Cv5gJe"
    },
    {
     "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
     "market": 1,
-    "outcome": 1,
+    "outcome": 0,
     "amount": "15000000",
     "when": "R4 final winner",
-    "sig": "5HVqf3X2Ru6bj9rgyBzuzgQzNv5vQGhnkDjkQ2V6dQoSEqsSsKQbfnEEYeKHoAQCDNkZkqRPYiGAZDoMp2SgNs9U"
+    "at": {
+     "t": "2026-11-25T01:37:35.933Z",
+     "tick": 9757,
+     "round": 4,
+     "roundPhase": 1
+    },
+    "sig": "2VZGiuXwJ96nU8G42wmcbULTaYECMDTxLtPxmokj7XeEthofZYa2jJ4RryV4GjkbkmjGXJxv6fEH9RSK3YFf6XAW"
    },
    {
     "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
     "market": 1,
-    "outcome": 2,
+    "outcome": 4,
     "amount": "15000000",
     "when": "R4 final winner",
-    "sig": "36GDkgRRJuxud8Mhp6MNPVgWaBN2M5ti9ZEhWVohUJWMxX6DTGWwQhUywShba31ztHEdNbcFEzJqm5fgAzP6NLrk"
+    "at": {
+     "t": "2026-11-25T01:37:36.225Z",
+     "tick": 9766,
+     "round": 4,
+     "roundPhase": 1
+    },
+    "sig": "3SWYe3j35Rf2iTMeEQhgXavc6x1fK2x9PLVgsSQyu4n4P9RJvAS9TDM9tctzjXEtRK4PZP4FqhxaJeM8ZwxGaAbQ"
    }
   ],
   "before": {
-   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1000000000",
-   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "1000000000"
+   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1050000000",
+   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "950000000"
   },
   "finalists": [
-   1,
-   2,
-   6
+   0,
+   4,
+   5
   ],
   "markets": {
    "0": {
     "status": 3,
     "label": 5,
-    "winners": 2,
+    "winners": 16,
     "refund": 1,
     "pool": "30000000",
     "winningStake": "0",
@@ -89,7 +125,7 @@
    "1": {
     "status": 3,
     "label": 1,
-    "winners": 2,
+    "winners": 16,
     "refund": 0,
     "pool": "30000000",
     "winningStake": "15000000",
@@ -97,24 +133,215 @@
     "bets": [
      {
       "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-      "outcome": 1,
+      "outcome": 0,
       "amount": "15000000",
-      "wantPaid": "30000000",
+      "wantPaid": "0",
       "paidFlag": 1
      },
      {
       "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-      "outcome": 2,
+      "outcome": 4,
       "amount": "15000000",
+      "wantPaid": "30000000",
+      "paidFlag": 1
+     }
+    ]
+   },
+   "2": {
+    "status": 1,
+    "label": 0,
+    "winners": 0,
+    "refund": 0,
+    "pool": "20000000",
+    "winningStake": "0",
+    "paidTotal": "0",
+    "bets": [
+     {
+      "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+      "outcome": 1,
+      "amount": "10000000",
       "wantPaid": "0",
+      "paidFlag": 0
+     },
+     {
+      "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+      "outcome": 2,
+      "amount": "10000000",
+      "wantPaid": "0",
+      "paidFlag": 0
+     }
+    ]
+   }
+  },
+  "after": {
+   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1025000000",
+   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "955000000"
+  },
+  "check": {
+   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": {
+    "want": "-25000000",
+    "got": "-25000000",
+    "ok": true
+   },
+   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": {
+    "want": "5000000",
+    "got": "5000000",
+    "ok": true
+   }
+  }
+ },
+ {
+  "match": "EdBCRSjgrmTBvteGQ12tXjRwR69HvArkQwE16FHPHXis",
+  "bets": [
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "market": 0,
+    "outcome": 0,
+    "amount": "10000000",
+    "when": "R1 champion",
+    "at": {
+     "t": "2026-11-25T01:40:18.199Z",
+     "tick": 12821,
+     "round": 4,
+     "roundPhase": 4
+    },
+    "sig": "2FyzLizt1yFQLuHsN9TcFmssjV2nomVXdiCzcTdMbwpMq1GDGPm1A2D6UuV7ETY5Kv8BgNbfnHD7euHMpSHbm1wD"
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "market": 0,
+    "outcome": 5,
+    "amount": "20000000",
+    "when": "R1 champion",
+    "at": {
+     "t": "2026-11-25T01:40:18.496Z",
+     "tick": 0,
+     "round": 0,
+     "roundPhase": 4
+    },
+    "sig": "34pqohbfjjFgXvJSnqoLK2jbkFKoiNJAHUeLJ26XnC62JqXdateiLRfB7bauTNvb4oohnFzZc3kNGqmXYyXi1hWA"
+   },
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "market": 2,
+    "outcome": 1,
+    "amount": "10000000",
+    "when": "R1 qualify(1)",
+    "at": {
+     "t": "2026-11-25T01:40:18.808Z",
+     "tick": 0,
+     "round": 0,
+     "roundPhase": 4
+    },
+    "sig": "3cfW5AxFMiRZh3oe9BGfzYUZHoSpaMVg5cDK8bLQyU2ZuhLM3o7qTUJNK8XsZFRFoKuAqzwtNsEGQTNLPgeDpZRW"
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "market": 2,
+    "outcome": 2,
+    "amount": "10000000",
+    "when": "R1 qualify(1)",
+    "at": {
+     "t": "2026-11-25T01:40:19.092Z",
+     "tick": 0,
+     "round": 0,
+     "roundPhase": 4
+    },
+    "sig": "3SDX4jkUmi5wyD6NYBd3dFUD6Vs1AzwPMbp1umC25DnU6iqpdn7aMruBug9bYYvbnHkarCXtdsEz6Jnfs15zLEPn"
+   },
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "market": 1,
+    "outcome": 4,
+    "amount": "15000000",
+    "when": "R4 final winner",
+    "at": {
+     "t": "2026-11-25T01:45:46.224Z",
+     "tick": 9813,
+     "round": 4,
+     "roundPhase": 1
+    },
+    "sig": "4tvf5EWKfGsy2SQrMrgp5zPaHhSuYkGkvwZuz2greLZo4oDCXZ7PiEBGz4h9eFk4BkfL9RrLeGGLs6Rx11Brrccq"
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "market": 1,
+    "outcome": 7,
+    "amount": "15000000",
+    "when": "R4 final winner",
+    "at": {
+     "t": "2026-11-25T01:45:46.522Z",
+     "tick": 9822,
+     "round": 4,
+     "roundPhase": 1
+    },
+    "sig": "3bSExkHi9EuT1B8r7juTeyrXuvX7sRf4CRwtcvotm4ehvMB7cVAshDf5ax3tuRF2MhGUknZ6yeago4PT1M8MHAS2"
+   }
+  ],
+  "before": {
+   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1035000000",
+   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "965000000"
+  },
+  "finalists": [
+   4,
+   7,
+   8
+  ],
+  "markets": {
+   "0": {
+    "status": 3,
+    "label": 5,
+    "winners": 256,
+    "refund": 1,
+    "pool": "30000000",
+    "winningStake": "0",
+    "paidTotal": "30000000",
+    "bets": [
+     {
+      "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+      "outcome": 0,
+      "amount": "10000000",
+      "wantPaid": "10000000",
+      "paidFlag": 1
+     },
+     {
+      "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+      "outcome": 5,
+      "amount": "20000000",
+      "wantPaid": "20000000",
+      "paidFlag": 1
+     }
+    ]
+   },
+   "1": {
+    "status": 3,
+    "label": 5,
+    "winners": 256,
+    "refund": 1,
+    "pool": "30000000",
+    "winningStake": "0",
+    "paidTotal": "30000000",
+    "bets": [
+     {
+      "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+      "outcome": 4,
+      "amount": "15000000",
+      "wantPaid": "15000000",
+      "paidFlag": 1
+     },
+     {
+      "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+      "outcome": 7,
+      "amount": "15000000",
+      "wantPaid": "15000000",
       "paidFlag": 1
      }
     ]
    },
    "2": {
     "status": 3,
-    "label": 2,
-    "winners": 2791,
+    "label": 1,
+    "winners": 2463,
     "refund": 0,
     "pool": "20000000",
     "winningStake": "20000000",
@@ -138,24 +365,24 @@
    }
   },
   "after": {
-   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1015000000",
-   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "985000000"
+   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1035000000",
+   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "965000000"
   },
   "check": {
    "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": {
-    "want": "15000000",
-    "got": "15000000",
+    "want": "0",
+    "got": "0",
     "ok": true
    },
    "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": {
-    "want": "-15000000",
-    "got": "-15000000",
+    "want": "0",
+    "got": "0",
     "ok": true
    }
   }
  },
  {
-  "match": "HgD6jkfYM7iuw8szNAJQ7UPZMRkYkL2kx55PEr8f831Z",
+  "match": "9amWs9hL9qQQGubi7A4qXMokBnYLf7XA1Yni6gfTitpw",
   "bets": [
    {
     "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
@@ -163,7 +390,13 @@
     "outcome": 0,
     "amount": "10000000",
     "when": "R1 champion",
-    "sig": "3LcHbbgXmTNZpawaF9mdvAjumH78gSZHYhkiZmLkNv8gF2yD7MzJcg1t2qems75KZLizn7pgqH33CNqiBem7LAHL"
+    "at": {
+     "t": "2026-11-25T01:49:05.206Z",
+     "tick": 14250,
+     "round": 4,
+     "roundPhase": 4
+    },
+    "sig": "5jAa6bkC1SnLyLxpujUsniKpibNkKyTVJGrs412KLqYFn9YLLz3kFfa3CFgbBWzpF4Lq8M7LjJRRqVL9EDVQc76i"
    },
    {
     "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
@@ -171,7 +404,13 @@
     "outcome": 5,
     "amount": "20000000",
     "when": "R1 champion",
-    "sig": "4jE254gvqNQnXWxZ25UeWoM2dBT7uwet9h9jiBjgahtZU6VRqEsDaZNYDyC28WJpB4ZuALR17U5vBf19iUbZHMYp"
+    "at": {
+     "t": "2026-11-25T01:49:05.506Z",
+     "tick": 14250,
+     "round": 4,
+     "roundPhase": 4
+    },
+    "sig": "5p9LAVGgvMPm3rvRn46mjQ1nhYYTLky5QxsyJzkyXGkfxtULL3NcWVs9tXkG4ztfGJ2poCszTsfjZMFRAt1GVMMY"
    },
    {
     "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
@@ -179,7 +418,13 @@
     "outcome": 1,
     "amount": "10000000",
     "when": "R1 qualify(1)",
-    "sig": "48Xh5AGHrbqYcjdKNedhrcBHxASmpdLSp1Xc2cRbPjj8KbdyhgHe6bfxeD1a78GEocXvvPKTqzEFaC7ms2ZcGR4k"
+    "at": {
+     "t": "2026-11-25T01:49:05.803Z",
+     "tick": 0,
+     "round": 0,
+     "roundPhase": 4
+    },
+    "sig": "3xxCkmR4c2aD5soPM8jCQHrkGW2MH49PYpnV32stuyr94WRnyPcDz9anFC3TsUSvnZRybfRpNSDxjAJCw57wNfZD"
    },
    {
     "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
@@ -187,7 +432,202 @@
     "outcome": 2,
     "amount": "10000000",
     "when": "R1 qualify(1)",
-    "sig": "5xrQYY1CZ6iWRBZTpKAb3MkPTdTebM1PxVvJdPxJUNnSTWQrzB4Kb7q3ZoFmuS4Ff2sAuqbR1Pp9KrX4CpDwUcMz"
+    "at": {
+     "t": "2026-11-25T01:49:06.104Z",
+     "tick": 0,
+     "round": 0,
+     "roundPhase": 4
+    },
+    "sig": "dBbZ1rnprb8t2jQyxG9VsZtp16N19D9rYY3s2ozJwhMEodj4TcRPBkTShjV6NwexdDqKN6DD4vWEsDHQeQYk6oa"
+   },
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "market": 1,
+    "outcome": 4,
+    "amount": "15000000",
+    "when": "R4 final winner",
+    "at": {
+     "t": "2026-11-25T01:54:07.705Z",
+     "tick": 9019,
+     "round": 4,
+     "roundPhase": 1
+    },
+    "sig": "ZZxMmjq1zevae7bWUQ7rBA2jfccc8VPUb5WR5Mevckx6GSCxKfLxm8wwF5VWwdauN6DMZCXzanmpBxF8e1gzgsY"
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "market": 1,
+    "outcome": 5,
+    "amount": "15000000",
+    "when": "R4 final winner",
+    "at": {
+     "t": "2026-11-25T01:54:08.022Z",
+     "tick": 9028,
+     "round": 4,
+     "roundPhase": 1
+    },
+    "sig": "5sTLwqtLEbz4qMLAZG7a7HuGz4WzZgJxNsgP6wnzeT1ifrxhobTCnicukLA9VA2sQNURiQjUq1x9C99Q7aSabDvL"
+   }
+  ],
+  "before": {
+   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1035000000",
+   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "965000000"
+  },
+  "finalists": [
+   4,
+   5,
+   7
+  ],
+  "markets": {
+   "0": {
+    "status": 3,
+    "label": 5,
+    "winners": 16,
+    "refund": 1,
+    "pool": "30000000",
+    "winningStake": "0",
+    "paidTotal": "30000000",
+    "bets": [
+     {
+      "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+      "outcome": 0,
+      "amount": "10000000",
+      "wantPaid": "10000000",
+      "paidFlag": 1
+     },
+     {
+      "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+      "outcome": 5,
+      "amount": "20000000",
+      "wantPaid": "20000000",
+      "paidFlag": 1
+     }
+    ]
+   },
+   "1": {
+    "status": 3,
+    "label": 1,
+    "winners": 16,
+    "refund": 0,
+    "pool": "30000000",
+    "winningStake": "15000000",
+    "paidTotal": "30000000",
+    "bets": [
+     {
+      "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+      "outcome": 4,
+      "amount": "15000000",
+      "wantPaid": "30000000",
+      "paidFlag": 1
+     },
+     {
+      "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+      "outcome": 5,
+      "amount": "15000000",
+      "wantPaid": "0",
+      "paidFlag": 1
+     }
+    ]
+   },
+   "2": {
+    "status": 1,
+    "label": 0,
+    "winners": 0,
+    "refund": 0,
+    "pool": "20000000",
+    "winningStake": "0",
+    "paidTotal": "0",
+    "bets": [
+     {
+      "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+      "outcome": 1,
+      "amount": "10000000",
+      "wantPaid": "0",
+      "paidFlag": 0
+     },
+     {
+      "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+      "outcome": 2,
+      "amount": "10000000",
+      "wantPaid": "0",
+      "paidFlag": 0
+     }
+    ]
+   }
+  },
+  "after": {
+   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1040000000",
+   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "950000000"
+  },
+  "check": {
+   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": {
+    "want": "5000000",
+    "got": "5000000",
+    "ok": true
+   },
+   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": {
+    "want": "-25000000",
+    "got": "-15000000",
+    "ok": false
+   }
+  }
+ },
+ {
+  "match": "7TaPG6SziJoTy7JyfyvFU5Es1gbPCqgqv54cyuCjjWmJ",
+  "bets": [
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "market": 0,
+    "outcome": 0,
+    "amount": "10000000",
+    "when": "R1 champion",
+    "at": {
+     "t": "2026-11-25T01:57:21.337Z",
+     "tick": 202,
+     "round": 1,
+     "roundPhase": 1
+    },
+    "sig": "263MPKqNjyiHRLBiwtjmJoWF7HteKGkXEQdzZy4aoS9F7sfpVFxXbM8VLTXq8KkkWdDGR4XV6FYy4ajkp1f1MHG6"
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "market": 0,
+    "outcome": 5,
+    "amount": "20000000",
+    "when": "R1 champion",
+    "at": {
+     "t": "2026-11-25T01:57:21.647Z",
+     "tick": 211,
+     "round": 1,
+     "roundPhase": 1
+    },
+    "sig": "2uhQgVSvaKV4YHaUpn9kx55bPgGL8DQaBMhXkj7EKUExvioqfKoEziPeEUfpMVbcnLXVQZB5Xd17vCc3zHKEJdtn"
+   },
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "market": 2,
+    "outcome": 1,
+    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "when": "R1 qualify(1)",
+    "at": {
+     "t": "2026-11-25T01:57:21.936Z",
+     "tick": 220,
+     "round": 1,
+     "roundPhase": 1
+    }
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "market": 2,
+    "outcome": 2,
+    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "when": "R1 qualify(1)",
+    "at": {
+     "t": "2026-11-25T01:57:22.211Z",
+     "tick": 229,
+     "round": 1,
+     "roundPhase": 1
+    }
    },
    {
     "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
@@ -195,7 +635,13 @@
     "outcome": 0,
     "amount": "15000000",
     "when": "R4 final winner",
-    "sig": "4xoaDU516Afd75QAtfudo6YhJBKfmoorWftCz9q5babHMXdznctH3pEPab9H6d3VhJ1xLxStvb9qVB9EL7k4C9YU"
+    "at": {
+     "t": "2026-11-25T02:01:26.592Z",
+     "tick": 7559,
+     "round": 4,
+     "roundPhase": 1
+    },
+    "sig": "DwJN8qMKCnw6xj5FKwoiYmVQKpdBedfnNax8vbRu2dNix5kjeMkGnPD8rfF21DGvD3gsh1Q137ACSyDwBLukVbA"
    },
    {
     "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
@@ -203,17 +649,197 @@
     "outcome": 2,
     "amount": "15000000",
     "when": "R4 final winner",
-    "sig": "dBJXdhZA8pHnCS4WnCxiQ7oSdvE9yx1kzkCHdHbVdVDyGCg9F8T7Vp8svST1BBWzWLQhTwTu3HheY9CDbC2ATss"
+    "at": {
+     "t": "2026-11-25T02:01:26.875Z",
+     "tick": 7568,
+     "round": 4,
+     "roundPhase": 1
+    },
+    "sig": "34gp62xWn8fNxWq9RT1DTkZnUwXUmWycmz7NQovDqq4FdqqSDUN9UJEA7bAaQkkzecBcL3g5Bv2oArJcbdBPoUZm"
    }
   ],
   "before": {
-   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1015000000",
-   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "985000000"
+   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1050000000",
+   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "950000000"
   },
   "finalists": [
    0,
    2,
-   5
+   6
+  ],
+  "markets": {
+   "0": {
+    "status": 3,
+    "label": 5,
+    "winners": 4,
+    "refund": 1,
+    "pool": "30000000",
+    "winningStake": "0",
+    "paidTotal": "30000000",
+    "bets": [
+     {
+      "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+      "outcome": 0,
+      "amount": "10000000",
+      "wantPaid": "10000000",
+      "paidFlag": 1
+     },
+     {
+      "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+      "outcome": 5,
+      "amount": "20000000",
+      "wantPaid": "20000000",
+      "paidFlag": 1
+     }
+    ]
+   },
+   "1": {
+    "status": 3,
+    "label": 1,
+    "winners": 4,
+    "refund": 0,
+    "pool": "30000000",
+    "winningStake": "15000000",
+    "paidTotal": "30000000",
+    "bets": [
+     {
+      "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+      "outcome": 0,
+      "amount": "15000000",
+      "wantPaid": "0",
+      "paidFlag": 1
+     },
+     {
+      "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+      "outcome": 2,
+      "amount": "15000000",
+      "wantPaid": "30000000",
+      "paidFlag": 1
+     }
+    ]
+   },
+   "2": {
+    "status": 3,
+    "label": 5,
+    "winners": 3789,
+    "refund": 1,
+    "pool": "0",
+    "winningStake": "0",
+    "paidTotal": "0",
+    "bets": []
+   }
+  },
+  "after": {
+   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1035000000",
+   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "965000000"
+  },
+  "check": {
+   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": {
+    "want": "-15000000",
+    "got": "-15000000",
+    "ok": true
+   },
+   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": {
+    "want": "15000000",
+    "got": "15000000",
+    "ok": true
+   }
+  }
+ },
+ {
+  "match": "79oLx4WWaoPhhgt52HcXwQ6g2iAaf87Xpr1Be5o7or8E",
+  "bets": [
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "market": 0,
+    "outcome": 0,
+    "amount": "10000000",
+    "when": "R1 champion",
+    "at": {
+     "t": "2026-11-25T02:04:23.908Z",
+     "tick": 203,
+     "round": 1,
+     "roundPhase": 1
+    },
+    "sig": "2yr91rPFQVYMRsrbywFsfZ96n1yJU3Wg6FxuW7LSjthgpgYyhCUV5zDLnngcRBrKfpAWeU9nZ3eJ1vUqLfy7wFUc"
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "market": 0,
+    "outcome": 5,
+    "amount": "20000000",
+    "when": "R1 champion",
+    "at": {
+     "t": "2026-11-25T02:04:24.191Z",
+     "tick": 211,
+     "round": 1,
+     "roundPhase": 1
+    },
+    "sig": "475AUKvhdFu91CPueaspnJfApinf6xtR6CFswa2sQYhZVN3wTgPhcGJapgb6FBCpw1f6wuTVZg1P4wadJDJ5g8Rb"
+   },
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "market": 2,
+    "outcome": 1,
+    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "when": "R1 qualify(1)",
+    "at": {
+     "t": "2026-11-25T02:04:24.460Z",
+     "tick": 220,
+     "round": 1,
+     "roundPhase": 1
+    }
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "market": 2,
+    "outcome": 2,
+    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
+    "when": "R1 qualify(1)",
+    "at": {
+     "t": "2026-11-25T02:04:24.737Z",
+     "tick": 228,
+     "round": 1,
+     "roundPhase": 1
+    }
+   },
+   {
+    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
+    "market": 1,
+    "outcome": 0,
+    "amount": "15000000",
+    "when": "R4 final winner",
+    "at": {
+     "t": "2026-11-25T02:08:43.563Z",
+     "tick": 7993,
+     "round": 4,
+     "roundPhase": 1
+    },
+    "sig": "3m8coafC4xxrixx768j3auwQsSnCdDrAVjarUq9AHmZ5aAFASYBW4dRZSiRFGkgjzCq2Yu3MAeiB9wsWWyzLuSYG"
+   },
+   {
+    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
+    "market": 1,
+    "outcome": 4,
+    "amount": "15000000",
+    "when": "R4 final winner",
+    "at": {
+     "t": "2026-11-25T02:08:43.889Z",
+     "tick": 8003,
+     "round": 4,
+     "roundPhase": 1
+    },
+    "sig": "4ZNGHzb5wH7ivDs45U8KzprnzZvE4i2JLGdJksR7QfMyuhiPFBY6hxTzmJ8wnJFgwCUqRNU4EbULSencddoAxJHX"
+   }
+  ],
+  "before": {
+   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1035000000",
+   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "965000000"
+  },
+  "finalists": [
+   0,
+   4,
+   8
   ],
   "markets": {
    "0": {
@@ -259,413 +885,9 @@
      },
      {
       "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-      "outcome": 2,
+      "outcome": 4,
       "amount": "15000000",
       "wantPaid": "0",
-      "paidFlag": 1
-     }
-    ]
-   },
-   "2": {
-    "status": 3,
-    "label": 2,
-    "winners": 1391,
-    "refund": 0,
-    "pool": "20000000",
-    "winningStake": "20000000",
-    "paidTotal": "20000000",
-    "bets": [
-     {
-      "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-      "outcome": 1,
-      "amount": "10000000",
-      "wantPaid": "10000000",
-      "paidFlag": 1
-     },
-     {
-      "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-      "outcome": 2,
-      "amount": "10000000",
-      "wantPaid": "10000000",
-      "paidFlag": 1
-     }
-    ]
-   }
-  },
-  "after": {
-   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1050000000",
-   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "950000000"
-  },
-  "check": {
-   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": {
-    "want": "35000000",
-    "got": "35000000",
-    "ok": true
-   },
-   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": {
-    "want": "-35000000",
-    "got": "-35000000",
-    "ok": true
-   }
-  }
- },
- {
-  "match": "9HcSM8eLiwBQtzxfZHS4ZcK1YdcTQCxZEREjwfKkg9D7",
-  "bets": [
-   {
-    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-    "market": 0,
-    "outcome": 0,
-    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
-    "when": "R1 champion"
-   },
-   {
-    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-    "market": 0,
-    "outcome": 5,
-    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
-    "when": "R1 champion"
-   },
-   {
-    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-    "market": 2,
-    "outcome": 1,
-    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
-    "when": "R1 qualify(1)"
-   },
-   {
-    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-    "market": 2,
-    "outcome": 2,
-    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
-    "when": "R1 qualify(1)"
-   },
-   {
-    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-    "market": 1,
-    "outcome": 0,
-    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
-    "when": "R4 final winner"
-   },
-   {
-    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-    "market": 1,
-    "outcome": 1,
-    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
-    "when": "R4 final winner"
-   }
-  ],
-  "before": {
-   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1050000000",
-   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "950000000"
-  },
-  "finalists": [
-   0,
-   1,
-   2,
-   3,
-   4,
-   5,
-   6,
-   7,
-   8,
-   9,
-   10,
-   11
-  ],
-  "markets": {
-   "0": {
-    "status": 3,
-    "label": 4,
-    "winners": 0,
-    "refund": 1,
-    "pool": "0",
-    "winningStake": "0",
-    "paidTotal": "0",
-    "bets": []
-   },
-   "1": {
-    "status": 3,
-    "label": 4,
-    "winners": 0,
-    "refund": 1,
-    "pool": "0",
-    "winningStake": "0",
-    "paidTotal": "0",
-    "bets": []
-   },
-   "2": {
-    "status": 3,
-    "label": 4,
-    "winners": 0,
-    "refund": 1,
-    "pool": "0",
-    "winningStake": "0",
-    "paidTotal": "0",
-    "bets": []
-   }
-  },
-  "after": {
-   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1050000000",
-   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "950000000"
-  },
-  "check": {
-   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": {
-    "want": "0",
-    "got": "0",
-    "ok": true
-   },
-   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": {
-    "want": "0",
-    "got": "0",
-    "ok": true
-   }
-  }
- },
- {
-  "match": "2VNkGQ6r8EL8tV8z3bjfWWnvqEDdF9CxChwCEEgP2N2p",
-  "bets": [
-   {
-    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-    "market": 0,
-    "outcome": 0,
-    "amount": "10000000",
-    "when": "R1 champion",
-    "sig": "5JWcv9uJsmaJRB8CtpMnou7M7nEcyN8YMkx5FQRoTELjm2TTiQ6rHLPomGUkaiPJq4ZfBtZcDjvVqfabzEwcUoaf"
-   },
-   {
-    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-    "market": 0,
-    "outcome": 5,
-    "amount": "20000000",
-    "when": "R1 champion",
-    "sig": "63GQGJ6CHCsSFpvPm7gCjetiJsNAwcz2vWiCZTRmFtXng3cqepRfyufKDhV7Fiz3pEPZ3jk3AgSJwuPQNK6nKjdw"
-   },
-   {
-    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-    "market": 2,
-    "outcome": 1,
-    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
-    "when": "R1 qualify(1)"
-   },
-   {
-    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-    "market": 2,
-    "outcome": 2,
-    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
-    "when": "R1 qualify(1)"
-   },
-   {
-    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-    "market": 1,
-    "outcome": 0,
-    "amount": "15000000",
-    "when": "R4 final winner",
-    "sig": "kbxWuMveyp8RSKYCXNNfH5uetYuULcDn16FVM6uGh2v5hFHt9rKn62w9SsmNgb2WEmpSWbxr6e8Kpu3b6yzLS8n"
-   },
-   {
-    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-    "market": 1,
-    "outcome": 7,
-    "amount": "15000000",
-    "when": "R4 final winner",
-    "sig": "PYJZ2CmjExUP7qN8CgzvBtdpBweTrifDNGR7fpXPcfBZrkzeFt7w4MfovpNGetmd6hqqmpgkCtx2Mwyw61F2D5m"
-   }
-  ],
-  "before": {
-   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1050000000",
-   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "950000000"
-  },
-  "finalists": [
-   0,
-   7,
-   11
-  ],
-  "markets": {
-   "0": {
-    "status": 3,
-    "label": 5,
-    "winners": 2048,
-    "refund": 1,
-    "pool": "30000000",
-    "winningStake": "0",
-    "paidTotal": "30000000",
-    "bets": [
-     {
-      "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-      "outcome": 0,
-      "amount": "10000000",
-      "wantPaid": "10000000",
-      "paidFlag": 1
-     },
-     {
-      "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-      "outcome": 5,
-      "amount": "20000000",
-      "wantPaid": "20000000",
-      "paidFlag": 1
-     }
-    ]
-   },
-   "1": {
-    "status": 3,
-    "label": 5,
-    "winners": 2048,
-    "refund": 1,
-    "pool": "30000000",
-    "winningStake": "0",
-    "paidTotal": "30000000",
-    "bets": [
-     {
-      "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-      "outcome": 0,
-      "amount": "15000000",
-      "wantPaid": "15000000",
-      "paidFlag": 1
-     },
-     {
-      "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-      "outcome": 7,
-      "amount": "15000000",
-      "wantPaid": "15000000",
-      "paidFlag": 1
-     }
-    ]
-   },
-   "2": {
-    "status": 3,
-    "label": 5,
-    "winners": 2519,
-    "refund": 1,
-    "pool": "0",
-    "winningStake": "0",
-    "paidTotal": "0",
-    "bets": []
-   }
-  },
-  "after": {
-   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1050000000",
-   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "950000000"
-  },
-  "check": {
-   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": {
-    "want": "0",
-    "got": "0",
-    "ok": true
-   },
-   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": {
-    "want": "0",
-    "got": "0",
-    "ok": true
-   }
-  }
- },
- {
-  "match": "9yc9iAffrFkBjMY7sjyuaacYtm982SCe71QLQcXbQdR9",
-  "bets": [
-   {
-    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-    "market": 0,
-    "outcome": 0,
-    "amount": "10000000",
-    "when": "R1 champion",
-    "sig": "4ZeV3ffU1U262ePbUExDeCBR61DPnYEjMs71mdsc9nrgmDahuBPEH9cRv1Lr5PQXzHHnKC2tXwDiEXbpyGDzu7hu"
-   },
-   {
-    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-    "market": 0,
-    "outcome": 5,
-    "amount": "20000000",
-    "when": "R1 champion",
-    "sig": "4ToqYcre7NsPHXDbLa3EVdyGbZyEdQToRt3DtdhvzRBrMYV9XQascMNRvpHth9uhcK7rms7E59Hamk52oxQ6EsCC"
-   },
-   {
-    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-    "market": 2,
-    "outcome": 1,
-    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
-    "when": "R1 qualify(1)"
-   },
-   {
-    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-    "market": 2,
-    "outcome": 2,
-    "err": "tx:{\"InstructionError\":[0,{\"Custom\":6030}]}",
-    "when": "R1 qualify(1)"
-   },
-   {
-    "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-    "market": 1,
-    "outcome": 1,
-    "amount": "15000000",
-    "when": "R4 final winner",
-    "sig": "5pKDFK7m5MiriECoFu1uadskdmAQc2LoyAzM6cXM45q42tBhNLVYxMWDi6j2C1FF7rNS6RNLjhM2mTj2sMsD84M1"
-   },
-   {
-    "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-    "market": 1,
-    "outcome": 9,
-    "amount": "15000000",
-    "when": "R4 final winner",
-    "sig": "cKsqzh8CGZ3jJ65Rf6ZiYtPEPwoZqxzDrWGdP9aQ1KA81Hw3KdDNrzbcBa8nbLxAiqvRVTqAPri8ZVMqpB1ok4V"
-   }
-  ],
-  "before": {
-   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1050000000",
-   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "950000000"
-  },
-  "finalists": [
-   1,
-   9,
-   11
-  ],
-  "markets": {
-   "0": {
-    "status": 3,
-    "label": 5,
-    "winners": 2048,
-    "refund": 1,
-    "pool": "30000000",
-    "winningStake": "0",
-    "paidTotal": "30000000",
-    "bets": [
-     {
-      "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-      "outcome": 0,
-      "amount": "10000000",
-      "wantPaid": "10000000",
-      "paidFlag": 1
-     },
-     {
-      "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-      "outcome": 5,
-      "amount": "20000000",
-      "wantPaid": "20000000",
-      "paidFlag": 1
-     }
-    ]
-   },
-   "1": {
-    "status": 3,
-    "label": 5,
-    "winners": 2048,
-    "refund": 1,
-    "pool": "30000000",
-    "winningStake": "0",
-    "paidTotal": "30000000",
-    "bets": [
-     {
-      "wallet": "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh",
-      "outcome": 1,
-      "amount": "15000000",
-      "wantPaid": "15000000",
-      "paidFlag": 1
-     },
-     {
-      "wallet": "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk",
-      "outcome": 9,
-      "amount": "15000000",
-      "wantPaid": "15000000",
       "paidFlag": 1
      }
     ]
@@ -682,18 +904,18 @@
    }
   },
   "after": {
-   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1050000000",
-   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "950000000"
+   "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": "1070000000",
+   "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": "930000000"
   },
   "check": {
    "W8q85euodWKS5RSTMLzh6bbwDDNUGdG2o3VP1waCPjh": {
-    "want": "0",
-    "got": "0",
+    "want": "35000000",
+    "got": "35000000",
     "ok": true
    },
    "FmxYkDtUXHakWB1HXLgGW2E9bfKb1ZtcASSWfUTujpKk": {
-    "want": "0",
-    "got": "0",
+    "want": "-35000000",
+    "got": "-35000000",
     "ok": true
    }
   }

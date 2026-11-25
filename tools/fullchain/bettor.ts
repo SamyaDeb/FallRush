@@ -39,12 +39,14 @@ for (let n = 0; n < MATCHES; n++) {
       await sleep(1500);
     }
   };
-  // wait for the markets (open_markets) and the on-chain round 1
-  for (;;) { const w = decodeWorld((await er.getAccountInfo(world))!.data as Buffer); const mk = await E.market(ARENA, 0); if (mk && mk.match.equals(m) && w.round >= 1) break; await sleep(1000); }
+  // markets open (open_markets): Qualify(1) closes when round 1 starts (start_sim), so bet it first
+  for (;;) { const mk = await E.market(ARENA, 2); if (mk && mk.match.equals(m)) break; await sleep(250); }
+  await bet(bettors[0], 2, 1, 10n * ONE, "lobby qualify(1)");
+  await bet(bettors[1], 2, 2, 10n * ONE, "lobby qualify(1)");
+  // the Champion market stays open through the on-chain rounds 1–3
+  for (;;) { const w = decodeWorld((await er.getAccountInfo(world))!.data as Buffer); if (w.round >= 1 || w.phase >= 11) break; await sleep(500); }
   await bet(bettors[0], 0, 0, 10n * ONE, "R1 champion");
   await bet(bettors[1], 0, 5, 20n * ONE, "R1 champion");
-  await bet(bettors[0], 2, 1, 10n * ONE, "R1 qualify(1)");
-  await bet(bettors[1], 2, 2, 10n * ONE, "R1 qualify(1)");
   // round 4 countdown: FinalWinner on two alive finalists
   // WorldAcc raw: round phase at byte 199 (rush-core rules::phase: … 2 COUNTDOWN, 3 RUSH)
   for (;;) { const d = (await er.getAccountInfo(world))!.data as Buffer; const w = decodeWorld(d); if (w.round === 4 && d[199] < 3) break; if (w.phase >= 11) break; await sleep(300); }
@@ -53,7 +55,14 @@ for (let n = 0; n < MATCHES; n++) {
   rec.finalists = alive;
   if (alive.length >= 2) { await bet(bettors[0], 1, alive[0], 15n * ONE, "R4 final winner"); await bet(bettors[1], 1, alive[1], 15n * ONE, "R4 final winner"); }
   // after settlement: every market of this match paid / refunded; hand check of each bet
-  for (let i = 0; i < 600; i++) { const mk = await E.market(ARENA, 0); if (!mk || !mk.match.equals(m) || mk.status >= 3) break; await sleep(1000); }
+  // every market of this match settled + paid (the keeper settles 0..4 in order), or the arena moved on
+  for (let i = 0; i < 900; i++) {
+    let done = true;
+    for (const k of [0, 1, 2, 3, 4]) { const mk = await E.market(ARENA, k); if (mk && mk.match.equals(m) && mk.status < 3) done = false; }
+    if (done) break;
+    await sleep(1000);
+  }
+  await sleep(3000);
   rec.markets = {};
   for (const k of [0, 1, 2]) {
     const mk = await E.market(ARENA, k);

@@ -1,0 +1,22 @@
+[gs] fullchain: whole matches run on the arena (GAMESERVER_ONCHAIN_ALL=1); per-match fallback = Classic
+[gs] on-chain match: handing match 1 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 10 (8.6 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=A modifier=ButterFloors seed=0xc26a03999ee69085 start=1012 qualify=8/12 intro=60 countdown=90 timer=4500 rush@1012 participants=12
+[gs] on-chain match result from the arena director: champion 4 order 4,0,5,7,11,1,2,8,3,6,9,10
+[gs] on-chain match: handing match 2 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 2 (7.4 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=B modifier=None seed=0xd4a3d3cf4b82bfa1 start=15654 qualify=8/12 intro=60 countdown=90 timer=4500 rush@15654 participants=12
+[gs] on-chain match result from the arena director: champion 8 order 8,4,7,1,3,0,2,11,5,6,9,10
+[gs] on-chain match: handing match 3 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 2 (6.8 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=B modifier=TinyTilt seed=0xb7738cb92d44806f start=31471 qualify=8/12 intro=60 countdown=90 timer=4500 rush@31471 participants=12
+[gs] on-chain match result from the arena director: champion 4 order 4,5,7,8,10,0,3,11,1,2,6,9
+[gs] on-chain match: handing match 4 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 8 (9.1 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=A modifier=None seed=0xef603d53a2e7b1cf start=46127 qualify=8/12 intro=60 countdown=90 timer=4500 rush@46127 participants=12
+[gs] on-chain match World: The operation was canceled.
+[gs] on-chain match result from the arena director: champion 2 order 2,0,6,3,10,7,9,11,1,4,5,8
+[gs] on-chain match: handing match 5 (12 players) to arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3, waiting ≤ 60 s
+[gs] on-chain match live on devnet: arena 3uJwGdZSpdXN49uBPVKRgHfDLhZgc8Kv4bBUUiRnCin3 director phase 3 round 0 tick 2 (7.2 s)
+[gs] round 1/4 BlockPartyDash (Race) start: map=0 variant=B modifier=None seed=0x4a5322b0bdf555b6 start=58795 qualify=8/12 intro=60 countdown=90 timer=4500 rush@58795 participants=12
+[gs] on-chain match result from the arena director: champion 0 order 0,4,8,1,3,2,9,11,5,6,7,10
