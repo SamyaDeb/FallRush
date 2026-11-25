@@ -17,6 +17,9 @@ namespace FallRush.Net
         /// <summary>The own player's render state from the feed's prediction; false = draw it like a remote player.</summary>
         bool TrySampleOwn(out Vector3 feet, out Vector3 vel, out byte flags, out byte yaw, out byte stun);
 
+        /// <summary>Smooth run: another slot's render state from the feed (bots at the predicted present); false = interpolate it.</summary>
+        bool TrySampleRemote(int slot, out Vector3 feet, out Vector3 vel, out byte flags, out byte yaw, out byte stun);
+
         /// <summary>The predicted present (fractional tick) for hazards and the local timeline; NaN = use interpolation.</summary>
         double PresentTick { get; }
     }

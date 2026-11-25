@@ -189,6 +189,7 @@ namespace FallRush.OnChain
                 {
                     cs.Feed = null;
                     cs.FeedReset();
+                    cs.Remote.Tuning = FallRush.Net.Interpolation.Profile.Classic;
                 }
             }
 
@@ -248,6 +249,30 @@ namespace FallRush.OnChain
             _pred.Newest(out vel, out flags, out yaw, out stun, out _);
             return true;
         }
+
+        /// <summary>
+        /// Smooth run: bots are drawn from the own prediction at the predicted present (their brain runs inside rush-core
+        /// step, so they are exact up to the other humans' unknown inputs; any rebase jump is blended per slot). Other
+        /// humans stay on the interpolation buffer (<see cref="FallRush.Net.Interpolation.Profile.OnChain"/>) unless
+        /// <c>predictHumans</c> is set (live but corrected when they change input). Not while spectating (no prediction).
+        /// </summary>
+        public bool TrySampleRemote(int slot, out Vector3 feet, out Vector3 vel, out byte flags, out byte yaw, out byte stun)
+        {
+            feet = vel = Vector3.zero;
+            flags = yaw = stun = 0;
+            if (_pred == null || !_pred.HasState || !OwnPlaying || slot < 0 || slot >= 12 || slot == _ownSlot)
+                return false;
+            if (_pred.IsBot(slot) ? !Cfg.predictBots : !Cfg.predictHumans)
+                return false;
+            if (!_pred.RenderSlot(slot, (float)_frac, out feet))
+                return false;
+            _pred.NewestSlot(slot, out vel, out flags, out yaw, out stun, out _);
+            RemotePredicted++;
+            return true;
+        }
+
+        /// <summary>Remote samples served from the prediction (F3).</summary>
+        public long RemotePredicted;
 
         // ------------------------------------------------------------------ frame
 
@@ -323,6 +348,9 @@ namespace FallRush.OnChain
                 // hazard clock (no prediction → Remote.RenderTick) ran on the Classic clock: every lid ring had "retired"
                 // (only the inner 3×3 drew) and the other players froze in mid-air. Alive finalists' opponents too.
                 cs.Remote.Reset();
+                // smooth run: rollup Worlds arrive late and in bursts; the Classic 100–150 ms buffer froze then jumped them
+                if (Cfg.smoothRemotes)
+                    cs.Remote.Tuning = FallRush.Net.Interpolation.Profile.OnChain;
             }
             if (MatchHex != null && !ServerConfirmed)
             {
@@ -377,6 +405,7 @@ namespace FallRush.OnChain
             AdaptLead(now);
             AdvanceAndSend(cs, now);
             _pred?.UpdateSmoothing(Time.deltaTime);
+            _pred?.UpdateSlotSmoothing(Time.deltaTime);
 
             var lag = _clock.Lagging(now);
             if (lag && _hasNewest && _lastLagAt < 0)
@@ -943,7 +972,17 @@ namespace FallRush.OnChain
         public string StatsLine(double now)
         {
             var p = _pred;
-            return $"[onchain] tick {_newestTick} upd/s {UpdatesPerSec:F1} batches/s {BatchesPerSec:F1} corr/5s {(p != null ? p.CorrectionsSince(now, 5) : 0)} corr {(p?.Corrections ?? 0)} match {(p?.Matches ?? 0)} late {(p?.LateInputs ?? 0)} replay {(p?.LastReplay ?? 0)}/{(p?.MaxReplay ?? 0)} rtt {_tx.RttMs:F0} confirm p50 {ConfirmP50:F0} p95 {ConfirmP95:F0} gaps {_tx.Gaps} polls {_tx.Polls} resync {Resyncs} lag {Lagged} rejected {BatchesRejected} unconfirmed {BatchesUnconfirmed} lead +{_extraLead}";
+            return $"[onchain] tick {_newestTick} upd/s {UpdatesPerSec:F1} batches/s {BatchesPerSec:F1} corr/5s {(p != null ? p.CorrectionsSince(now, 5) : 0)} corr {(p?.Corrections ?? 0)} match {(p?.Matches ?? 0)} late {(p?.LateInputs ?? 0)} replay {(p?.LastReplay ?? 0)}/{(p?.MaxReplay ?? 0)} rtt {_tx.RttMs:F0} confirm p50 {ConfirmP50:F0} p95 {ConfirmP95:F0} gaps {_tx.Gaps} polls {_tx.Polls} resync {Resyncs} lag {Lagged} rejected {BatchesRejected} unconfirmed {BatchesUnconfirmed} lead +{_extraLead} {RemoteStats()}";
+        }
+
+        /// <summary>Smooth run: how the other players are drawn (playtest measurement).</summary>
+        public string RemoteStats()
+        {
+            var r = ClientSim.Instance != null ? ClientSim.Instance.Remote : null;
+            var p = _pred;
+            if (r == null)
+                return "remote -";
+            return $"remote {r.Tuning.Name} delay {r.Delay * 1000f:F0} late95 {r.LatenessP95Ms:F0} extrap {r.ExtrapolatedFrames} frozen {r.FrozenFrames} lagEv {r.LagEvents} blends {r.Blends} bsnaps {r.BlendSnaps} predicted {RemotePredicted} slotCorr {(p?.SlotCorrections ?? 0)} slotSnaps {(p?.SlotSnaps ?? 0)}";
         }
 
         private readonly StringBuilder _sb = new StringBuilder(512);
@@ -991,8 +1030,9 @@ namespace FallRush.OnChain
             var w = new WorldView(_newest, 0, _newestLen);
             _sb.Append("core 0x").Append(_core.Version.ToString("x")).Append("  World hash ").Append(_hasNewest ? Fnv(_newest, _newestLen).ToString("x16") : "-")
                 .Append("  phase ").Append(_hasNewest ? w.Phase.ToString() : "-").Append("  lead T+").Append(Cfg.inputLead).Append(" +").Append(_extraLead).Append(" × ").Append(Cfg.batchTicks).Append('\n');
-            GUI.Box(new Rect(Screen.width - 620, 120, 610, 150), GUIContent.none);
-            GUI.Label(new Rect(Screen.width - 612, 124, 600, 145), _sb.ToString());
+            _sb.Append(RemoteStats()).Append('\n');
+            GUI.Box(new Rect(Screen.width - 620, 120, 610, 170), GUIContent.none);
+            GUI.Label(new Rect(Screen.width - 612, 124, 600, 165), _sb.ToString());
         }
 
         /// <summary>FNV-1a 64 over the canonical World bytes (= <c>rc_hash</c>).</summary>
