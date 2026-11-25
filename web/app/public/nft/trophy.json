@@ -1,0 +1,22 @@
+{
+ "name": "Fall Rush Season Trophy (Champion)",
+ "symbol": "RUSH",
+ "description": "Season champion of Fall Rush, minted when the season closed on-chain. Devnet test asset; no real-money value.",
+ "image": "https://fallrush.fun/nft/trophy.png",
+ "external_url": "https://fallrush.fun/me",
+ "attributes": [
+  {
+   "trait_type": "kind",
+   "value": "trophy"
+  }
+ ],
+ "properties": {
+  "category": "image",
+  "files": [
+   {
+    "uri": "https://fallrush.fun/nft/trophy.png",
+    "type": "image/png"
+   }
+  ]
+ }
+}

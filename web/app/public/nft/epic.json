@@ -1,0 +1,22 @@
+{
+ "name": "Rushling Capsule (Epic)",
+ "symbol": "RUSH",
+ "description": "A Fall Rush capsule earned by finishing a match. Holds a cosmetic shell. Devnet test asset; no real-money value.",
+ "image": "https://fallrush.fun/nft/epic.png",
+ "external_url": "https://fallrush.fun/me",
+ "attributes": [
+  {
+   "trait_type": "kind",
+   "value": "epic"
+  }
+ ],
+ "properties": {
+  "category": "image",
+  "files": [
+   {
+    "uri": "https://fallrush.fun/nft/epic.png",
+    "type": "image/png"
+   }
+  ]
+ }
+}

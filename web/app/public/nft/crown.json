@@ -1,0 +1,22 @@
+{
+ "name": "Fall Rush Crown Capsule",
+ "symbol": "RUSH",
+ "description": "Won the on-chain Final of a Fall Rush knockout match. Minted by a MagicBlock Magic Action when the match committed to Solana. Devnet test asset; no real-money value.",
+ "image": "https://fallrush.fun/nft/crown.png",
+ "external_url": "https://fallrush.fun/me",
+ "attributes": [
+  {
+   "trait_type": "kind",
+   "value": "crown"
+  }
+ ],
+ "properties": {
+  "category": "image",
+  "files": [
+   {
+    "uri": "https://fallrush.fun/nft/crown.png",
+    "type": "image/png"
+   }
+  ]
+ }
+}
