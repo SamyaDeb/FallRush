@@ -17,6 +17,7 @@ namespace FallRush.Client
         private readonly AudioSource[] _music = new AudioSource[2];
         private readonly AudioSource[] _sfx = new AudioSource[16];
         private readonly AudioSource[] _ui = new AudioSource[4];
+        private AudioSource _own; // dizzy2: own hit cues (dizzy / wheee / goo), never recycled by world SFX
         private int _nextSfx, _nextUi, _musicIdx;
         private readonly Dictionary<string, AudioClip> _clips = new Dictionary<string, AudioClip>();
         private AudioClip[] _sfxClips, _uiClips, _chirps;
@@ -60,6 +61,11 @@ namespace FallRush.Client
                 s.dopplerLevel = 0f;
                 _sfx[i] = s;
             }
+
+            _own = gameObject.AddComponent<AudioSource>();
+            _own.playOnAwake = false;
+            _own.spatialBlend = 0f;
+            _own.priority = 0; // highest: WebAudio voice limits never drop it
 
             for (var i = 0; i < _ui.Length; i++)
             {
@@ -121,6 +127,19 @@ namespace FallRush.Client
             s.volume = Bus(GameSettings.SfxVolume) * volume;
             s.clip = clip;
             s.Play();
+        }
+
+        public void PlayOwn(GameAudio.Sfx id, float volume, float pitch)
+        {
+            if (!_unlocked)
+                return;
+            var clip = _sfxClips[(int)id];
+            if (clip == null)
+                return;
+            _own.pitch = pitch;
+            _own.volume = Bus(GameSettings.SfxVolume) * volume;
+            _own.clip = clip;
+            _own.Play();
         }
 
         public void Chirp(int mood, Vector3 at)

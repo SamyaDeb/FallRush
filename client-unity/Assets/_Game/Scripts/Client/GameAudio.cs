@@ -42,6 +42,13 @@ namespace FallRush.Client
             AudioDirector.Get()?.PlaySfx(s, Vector3.zero, volume, pitch, true);
         }
 
+        /// <summary>dizzy2: your own hit cue on a reserved 2D voice that world SFX never steal.</summary>
+        public static void PlayOwn(Sfx s, float volume, float pitch)
+        {
+            Requested?.Invoke(s);
+            AudioDirector.Get()?.PlayOwn(s, volume, pitch);
+        }
+
         public static void SetMusic(Music m) => AudioDirector.Get()?.SetMusic(m);
 
         /// <summary>Ducks music and SFX under an important cue (countdown, elimination) for <paramref name="seconds"/>.</summary>
@@ -65,8 +72,9 @@ namespace FallRush.Client
             {
                 if (!own)
                     return;
-                Play2D(Sfx.Dizzy, 0.9f, 0.96f + Random.value * 0.08f); // boing + cartoon birds
-                Chirp(2, feet);                                        // a surprised "whoa!" gibberish
+                // boing + cartoon birds on your own voice (dizzy2: in a 12-player round the shared pool cut it off
+                // under everyone's footsteps, so only the low start was heard; the buzzy "whoa" chirp is gone too)
+                PlayOwn(Sfx.Dizzy, 1f, 0.96f + Random.value * 0.08f);
             }
 
             /// <summary>The Rushling got back up after the stun.</summary>
@@ -80,7 +88,7 @@ namespace FallRush.Client
             public static void KnockedOut(bool own, bool gooed)
             {
                 if (own)
-                    Play2D(gooed ? Sfx.Goo : Sfx.Wheee);
+                    PlayOwn(gooed ? Sfx.Goo : Sfx.Wheee, 1f, 1f);
             }
         }
     }

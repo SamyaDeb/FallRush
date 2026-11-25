@@ -177,12 +177,12 @@ namespace FallRush.Tests
                         on += KnockPreview.Dt;
                 }
 
-                // 2026-11-25 (user): no floating stars at all, not during the stun, not after, not after a respawn
-                Assert.That(on, Is.EqualTo(0f), "no stars after the get-up");
-                Assert.That(stars.gameObject.activeSelf, Is.False);
+                // dizzy2 (user, 2026-11-25): stars circle the head after the get-up for ~DizzyTail, then go
+                Assert.That(on, Is.InRange(RushlingVisuals.DizzyTail - 0.5f, RushlingVisuals.DizzyTail + 0.7f), "stars outlast the stun");
+                Assert.That(stars.gameObject.activeSelf, Is.False, "then they wind down");
                 v.Dizzy(1f);
                 v.Drive(last.Feet, Vector3.zero, MotorState.Grounded, 0, 0, KnockPreview.Dt);
-                Assert.That(stars.gameObject.activeSelf, Is.False, "a respawn is tired, without stars");
+                Assert.That(stars.gameObject.activeSelf, Is.True, "a respawn after a knock-off is still seeing stars");
             }
             finally
             {
@@ -228,8 +228,9 @@ namespace FallRush.Tests
                     var b = squash.TransformPoint(new Vector3(0f, ProcMesh.UpperCenter, 0f));
                     var lowest = Mathf.Min(a.y, b.y) - ProcMesh.R * Mathf.Min(sc.x, sc.z);
                     Assert.That(lowest, Is.GreaterThan(-0.06f), $"frame {i}: body clips into the ground by {-lowest:F3} m");
-                    // 2026-11-25: no stars; a stagger (≤ ~35° lean), never lying down inside the hazard that hit it
-                    Assert.That(swirls.gameObject.activeInHierarchy, Is.False, $"frame {i}: no stars");
+                    // dizzy2: the star ring circles the head while stunned; a stagger (≤ ~35° lean), never lying down
+                    if (f.Stun > 0)
+                        Assert.That(swirls.gameObject.activeInHierarchy, Is.True, $"frame {i}: stars round the head");
                     var up = squash.up;
                     Assert.That(Vector3.Angle(up, Vector3.up), Is.LessThan(40f), $"frame {i}: upright-ish ({Vector3.Angle(up, Vector3.up):F0}°)");
                     sawSwirls |= f.Stun > 0;

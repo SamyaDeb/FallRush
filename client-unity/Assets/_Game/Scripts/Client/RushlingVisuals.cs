@@ -789,9 +789,10 @@ namespace FallRush.Client
             ApplyBody();
 
             // ---- dizzy swirls ----
-            // 2026-11-25 (user: "remove that entirely … they should feel dizzy and tired, not vanish and floating stars"):
-            // no stars over the head any more; the hit reads from the stagger + the tired look (eyes, lid, slump, sway)
-            const bool starsOn = false;
+            // 2026-11-25 dizzy2 (user: "after any hit, stars rounding on the char's head and the char feels tired and
+            // broken"): the ring of stars circles the head through the stun and the woozy tail. Still no bonk sparks flying
+            // out (the beta-audit "floating stars"): the ring rides the body, so it is never left alone inside a hazard.
+            var starsOn = stun > 0 || _tumbleT >= 0f || _starsLeft > 0f;
             if (_starsRoot.gameObject.activeSelf != starsOn)
                 _starsRoot.gameObject.SetActive(starsOn);
             if (starsOn)
@@ -865,6 +866,9 @@ namespace FallRush.Client
 
         /// <summary>Starts (or extends) the dizzy stars for <paramref name="seconds"/> (respawn after a knock-off fall).</summary>
         public void Dizzy(float seconds) => _starsLeft = Mathf.Max(_starsLeft, seconds);
+
+        /// <summary>dizzy2: stunned, tumbling or seeing stars (the hit cue covers it: no stumble warble on top).</summary>
+        public bool Dazed => _lastStun > 0 || _tumbleT >= 0f || _starsLeft > 0f;
 
         // ------------------------------------------------------------------ feet
 
