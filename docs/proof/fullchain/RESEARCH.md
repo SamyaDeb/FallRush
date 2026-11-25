@@ -7,8 +7,16 @@ Worktree `../FallRush-fullchain`, branch `fullchain`. No live change was made. D
 ## 1. Facts that shape the plan
 - Round order is fixed (deal.rs): R1 Capsule Run (12 players) → R2 Goo Tower (8) → R3 Star Fountain (5) → Final (3).
   So "Star Fountain first" = the chain plays rounds 3–4; each later step starts one round earlier.
-- Cost is compute, not SOL: rollup transactions are free. Limits: 400k CU per timed-task execution (one failure ends the
-  task), ~1 execution per 10 ms slot per task (~100/s), 1.4M CU per keeper-sent transaction.
+- Cost is compute, not SOL: rollup transactions are free. Limits: 400k CU per timed-task execution, ~1 execution per
+  10 ms slot per task (~100/s), 1.4M CU per keeper-sent transaction.
+  - Correction (2026-11-25, harden): "one failure ends the task" was measured on validator 1.1.1. devnet-as now runs
+    MagicBlock core **2.0.4** (`getVersion`; solana-core 4.2.2), where a legacy `ScheduleTask` runs as a Hydra crank
+    (default 200k CU per instruction, 2 × 200k here) and a **failed execution is retried**, not removed (match D4br8C5E:
+    crank 4mhcXBGu failed, then ran 360 times). The task rotation (ROTATE_MS 8000) is therefore churn, not a need; the
+    keeper reports the rollup version in `/status` (`magicblockCore`) and logs an alert when it changes.
+  - Also on 2.0.x: a delegated account without a fee payer stops committing after **10 commits** (delegation-metadata
+    `last_update_nonce`). The arenas' 5 markets + drop queue reached it on 2026-11-23, so `commit_econ` no longer lands
+    and the season board is paused (the keeper detects the cap at boot: `seasonsPaused`).
 - **Slice size never changes the simulation**: `rush-sim run` transcripts are identical at SLICE 1000 / 4000 / 100000
   (seed 2). So a transaction can run a bigger slice when it has more CU, with no replay or trust impact.
 - On-chain Goo Tower blob is stale (sealed hash ≠ local `maps/GooTower.mapblob`, changed 2026-11-24, e3af378); the

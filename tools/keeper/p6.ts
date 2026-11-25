@@ -190,7 +190,8 @@ export async function commitEcon(arenaId: number, per = Number(process.env.COMMI
   for (let i = 0; i < all.length; i += per) {
     const accs = [...all.slice(i, i + per).map(w_), w_(MAGIC_CONTEXT), r_(MAGIC_PROGRAM)];
     const r = await sendEr([cu(200_000), await p6Ix(wallet.publicKey, OP6.COMMIT_ECON, 0, 0, [], accs)], [wallet], "commit_econ", 10);
-    if (r.err) return { sig: sigs.join(","), err: r.err };
+    // harden #2: the failing tx's own signature (its ER logs say why), and which accounts it carried
+    if (r.err) return { sig: sigs.join(","), err: r.err, failSig: r.sig, failAt: i };
     sigs.push(r.sig);
   }
   return { sig: sigs.join(","), sigs };

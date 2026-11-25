@@ -7,10 +7,13 @@
 //     the arena's current Match is finished (settle → receipt → finalize → mint) before a new one starts (P5 0.5);
 //   - archives each match (ARCHIVE/<match>/: world.bin, the jsonl, keeper.jsonl, summary.json, econ.json) for the indexer;
 //   - serves GET /status (arena + keeper stage + the server's status.json) and GET /health on STATUS_PORT.
+//   harden (2026-11-25): wallet balances + lowBalance and the rollup's MagicBlock version in /status; treasury top-up
+//   before a minting finalize; ensureFinal (no non-final Match left with bets; MarketBusy recovery); runFinal cleans up
+//   in a finally; orphaned full matches abort; seasons pause at the commit cap. Decisions: policy.ts (+ policy.test.ts).
 //   P2_NET=devnet ARENA=2 LOG_DIR=/logs/gs1 ARCHIVE=/archive STATUS_PORT=3111 node --experimental-strip-types tools/keeper/daemon.ts
 import { PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
 import { createServer } from "node:http";
-import { mkdirSync, appendFileSync, writeFileSync, readFileSync, existsSync, readdirSync, statSync, copyFileSync } from "node:fs";
+import { mkdirSync, appendFileSync, writeFileSync, readFileSync, existsSync, readdirSync, statSync, copyFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { header, bridgeRounds13, readLines } from "../chain-worker/worker.ts";
 import { NET, EP, base, er, wallet, pb, pe, pda, key, sendBase, sendEr, PROGRAM_ID, MAGIC_CONTEXT, N, sleep, decodeWorld, tickAccounts, log as logTo, cu, pct, BN } from "./lib.ts";
@@ -18,6 +21,7 @@ import * as E from "./econ.ts";
 import * as S from "./p6.ts";
 import { sampleCu } from "./cusample.ts";
 import { startCrank } from "./crank.ts";
+import * as P from "./policy.ts";
 
 const ARENA = Number(process.env.ARENA ?? 2);
 const LOG_DIR = process.env.LOG_DIR ?? "/logs";
@@ -33,6 +37,22 @@ const ACTION = process.env.ACTION === "1"; // P5 0.3: finalize with the post-und
 const ACTION_WAIT_S = Number(process.env.ACTION_WAIT_S ?? 60);
 const SEALED = process.env.SEALED !== "0"; // P6: sealed Champion bets (escrow + private book on the TEE)
 const SEASONS = process.env.SEASONS !== "0"; // P6: record finalized matches into the seasons
+// harden #2: the 60 s wait for the committed market copy on Solana (only when commit_econ landed)
+const SEASON_COPY_WAIT_S = Number(process.env.SEASON_COPY_WAIT_S ?? 60);
+// harden #1: treasury top-up before a finalize that mints (target), low-balance thresholds (lamports), the guest funder
+// to watch (pubkey only; its key stays in the indexer), balance poll period
+const TREASURY_TOPUP_LAMPORTS = Number(process.env.TREASURY_TOPUP_LAMPORTS ?? 60_000_000);
+const LOW = {
+  authority: Number(process.env.LOW_AUTHORITY_LAMPORTS ?? P.LOW_DEFAULTS.authority),
+  treasury: Number(process.env.LOW_TREASURY_LAMPORTS ?? P.LOW_DEFAULTS.treasury),
+  funder: Number(process.env.LOW_FUNDER_LAMPORTS ?? P.LOW_DEFAULTS.funder),
+};
+const FUNDER_PUBKEY = (() => { try { return process.env.FUNDER_PUBKEY ? new PublicKey(process.env.FUNDER_PUBKEY) : null; } catch { return null; } })();
+const BALANCE_POLL_MS = Number(process.env.BALANCE_POLL_MS ?? 60_000);
+// harden #5: in full mode the stall path only re-schedules the tasks (the crank drives the World); 1 = the old tick() flood
+const STALL_FLOOD_FULL = process.env.STALL_FLOOD_FULL === "1";
+// harden #6: the Classic server no longer plays this full on-chain match for this long → abort ours (reason 8)
+const ORPHAN_MS = Number(process.env.ORPHAN_MS ?? 10_000);
 const KILL_AT = process.env.KILL_AT ?? ""; // test hook (P5 0.5): exit(9) right after this stage
 // fullchain (docs/proof/fullchain/CONTRACT.md): ONCHAIN_ALL=1 + the server's header `onchainAll` → the whole match on
 // the rollup (start_sim: the program computes all 4 rounds); off (default) = the hybrid flow, unchanged
@@ -51,8 +71,11 @@ const log = (o: object) => { try { logTo(LOG, { arena: ARENA, ...o }); } catch {
 const arena = pda.arena(ARENA);
 const world = pda.world(arena);
 const st: any = existsSync(STATE_FILE) ? JSON.parse(readFileSync(STATE_FILE, "utf8")) : { done: [] as string[] };
-const saveState = () => writeFileSync(STATE_FILE, JSON.stringify(st, null, 1));
-const status: any = { arena: ARENA, arenaKey: arena.toBase58(), world: world.toBase58(), net: NET, stage: "boot", since: Date.now(), boot: BOOT, last: [] as any[] };
+const saveState = () => { try { writeFileSync(STATE_FILE + ".tmp", JSON.stringify(st, null, 1)); renameSync(STATE_FILE + ".tmp", STATE_FILE); } catch (e) { log({ ev: "state_save_failed", err: String(e).slice(0, 200) }); } };
+/** harden #7: a match is done for the main loop once finalized (or given up); `active` is cleared with it */
+const markDone = (hex: string) => { if (!st.done.includes(hex)) { st.done.push(hex); st.done = st.done.slice(-500); } if (st.active?.matchHex === hex) delete st.active; saveState(); };
+const status: any = { arena: ARENA, arenaKey: arena.toBase58(), world: world.toBase58(), net: NET, stage: "boot", since: Date.now(), boot: BOOT, last: [] as any[],
+  authority: wallet.publicKey.toBase58(), treasury: E.epda.treasury().toBase58(), funder: FUNDER_PUBKEY?.toBase58() ?? null, seasons: SEASONS, seasonsPaused: !SEASONS };
 const stage = (s: string, extra: object = {}) => {
   Object.assign(status, { stage: s, since: Date.now(), ...extra });
   log({ stage: s, ...extra });
@@ -74,6 +97,36 @@ createServer((req, res) => {
   res.end(JSON.stringify(body));
 }).listen(STATUS_PORT, "0.0.0.0");
 setInterval(() => { status.heartbeat = Date.now(); }, 2000);
+
+// harden #1: the wallets the game spends from (authority: create/delegate per match; treasury: Core asset rent; the guest
+// funder when FUNDER_PUBKEY is set) in /status, with lowBalance flags + a log line when one turns low (no transfers here)
+async function pollBalances() {
+  const get = (k: PublicKey | null) => (k ? base.getBalance(k, "confirmed").catch(() => -1) : Promise.resolve(null));
+  const [authorityLamports, treasuryLamports, funderLamports] = [await get(wallet.publicKey), await get(E.epda.treasury()), await get(FUNDER_PUBKEY)];
+  const b = { authorityLamports, treasuryLamports, funderLamports };
+  const low = P.lowBalance(b, LOW);
+  const was = status.lowBalance ?? {};
+  for (const w of ["authority", "treasury", "funder"] as const) if (low[w] && !was[w]) { log({ ev: "low_balance", wallet: w, lamports: (b as any)[`${w}Lamports`], below: LOW[w] }); console.log(`[keeper a${ARENA}] LOW BALANCE ${w}: ${(b as any)[`${w}Lamports`]} lamports`); }
+  Object.assign(status, b, { lowBalance: low, balancesAt: Date.now() });
+}
+pollBalances().catch(() => {});
+setInterval(() => { pollBalances().catch(() => {}); }, BALANCE_POLL_MS);
+
+// harden #11: the rollup's version (MagicBlock core) in /status; a log alert when it changes after boot
+async function erVersion(): Promise<any> {
+  const r = await fetch(EP.er, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getVersion" }), signal: AbortSignal.timeout(8000) });
+  return ((await r.json()) as any).result ?? null;
+}
+async function pollVersion() {
+  const v = await erVersion().catch(() => null);
+  if (!v) return;
+  const core = P.mbCore(v);
+  status.erVersion = v; status.magicblockCore = core;
+  if (status.magicblockCoreBoot === undefined) { status.magicblockCoreBoot = core; log({ ev: "er_version", core, raw: v }); }
+  else if (core !== status.magicblockCoreBoot && !status.erVersionChanged) { status.erVersionChanged = true; log({ ev: "er_version_changed", boot: status.magicblockCoreBoot, now: core, raw: v }); console.log(`[keeper a${ARENA}] ALERT: rollup version changed ${status.magicblockCoreBoot} -> ${core}`); }
+}
+pollVersion().catch(() => {});
+setInterval(() => { pollVersion().catch(() => {}); }, 10 * 60_000);
 
 // ------------------------------------------------------------------ helpers
 const act = async (what: string, f: () => Promise<any>, logFile?: string) => {
@@ -97,7 +150,7 @@ async function arenaAcc(): Promise<any> { for (;;) { try { return await pe.accou
 const ZERO = PublicKey.default.toBase58();
 
 /** The market maker (labelled "mm"): seeds each market once its window opens. */
-function mmWatcher(matchPda: PublicKey, tiers: (string | undefined)[], mlog: any[], judge = false) {
+function mmWatcher(matchPda: PublicKey, tiers: (string | undefined)[], mlog: any[], judge = false, full = false, humanSlots: number[] | null = null) {
   const mm = key("mm");
   let stopped = false;
   const done = new Set<string>();
@@ -114,14 +167,12 @@ function mmWatcher(matchPda: PublicKey, tiers: (string | undefined)[], mlog: any
         if (m) {
           const s = statusName(m);
           const alive = m.slots.map((x: any, i: number) => (x.state === 1 ? i : -1)).filter((i: number) => i >= 0 && i < m.playerCount);
-          // judge mode: rounds 1–3 are fast-forwarded (not played), so the qualify markets get no seeded pools
-          if (m.currentRound === 0 && ["created", "dealing", "dealt"].includes(s)) { await seed("champion", 0, alive); if (!judge) await seed("q1", 2, alive); }
-          if (!judge && s === "roundResolved" && m.currentRound === 1) await seed("q2", 3, alive);
-          if (!judge && s === "roundResolved" && m.currentRound === 2) await seed("q3", 4, alive);
-          if ((m.flags & 0x40) !== 0 && !done.has("final")) {
-            const wi = await er.getAccountInfo(world, "processed");
-            if (wi && wi.data[139] === 4 && wi.data[199] < 3) await seed("final", 1, alive);
-          }
+          // judge mode: rounds 1–3 are fast-forwarded (not played), so the qualify markets get no seeded pools.
+          // harden #7 (policy.mmSeeds): Qualify(2/3) only with ≥ 2 alive and a human alive; FinalWinner in full mode too
+          const finalMode = (m.flags & 0x40) !== 0 || (full && (m.flags & 0x20) !== 0);
+          const wi = finalMode && !done.has("final") ? await er.getAccountInfo(world, "processed") : null;
+          const plan = P.mmSeeds({ status: s, currentRound: m.currentRound, flags: m.flags, alive }, { judge, full, humanSlots, worldRound: wi?.data[139], worldPhase: wi?.data[199] });
+          for (const x of plan) await seed(x.tag, x.k, alive);
         }
       } catch {}
       await sleep(400);
@@ -202,102 +253,155 @@ function serverAllState(jsonl: string | null): string | null {
   return xs.length ? String(xs[xs.length - 1].state) : null;
 }
 
-async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog: string, full = false, gaveUp: () => boolean = () => false) {
+/** harden #4: never leave a non-final Match with bets (policy.ensureFinalCore): stop the arena when it runs this match
+ * (only with `force`: a server fallback / orphan / deadline / a new match taking the arena), then abort_match(reason),
+ * both retried with backoff and never swallowed. Afterwards finish() refunds (settle), writes the receipt, finalizes. */
+async function ensureFinal(matchPda: PublicKey, reason: number, force: boolean, mlog?: string) {
+  const r = await P.ensureFinalCore({
+    arena: async () => {
+      const a: any = await arenaAcc();
+      const runsThis = a.matchAccount.toBase58() === matchPda.toBase58();
+      const wi = a.status === 2 && runsThis ? await er.getAccountInfo(world, "processed").catch(() => null) : null;
+      return { running: a.status === 2, runsThis, phase: wi ? decodeWorld(wi.data as Buffer).phase : 0 };
+    },
+    matchStatus: async () => { const m = await erMatch(matchPda); return m ? statusName(m) : null; },
+    abortArena: async () => { const r = await sendEr([await pe.methods.abortArena().accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "abort_arena"); if (r.err) throw new Error(r.err); if (mlog) logTo(mlog, { act: "abort_arena", sig: r.sig }); return r; },
+    abortMatch: async (why) => { const r = await sendEr([await pe.methods.abortMatch(why).accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "abort_match"); if (r.err) throw new Error(r.err); if (mlog) logTo(mlog, { act: "abort_match", reason: why, sig: r.sig }); return r; },
+    sleep,
+    log: (o) => { log({ match: matchPda.toBase58(), ...o }); if (mlog) logTo(mlog, o); },
+  }, reason, force);
+  log({ ev: "ensure_final", match: matchPda.toBase58(), reason, force, result: r });
+  return r;
+}
+
+async function runFinal(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog: string, full = false, gaveUp: () => string | false = () => false, firstStartedAt: number | null = null) {
   const tickMetas = tickAccounts(arena, matchPda, maps);
   const schedule = async () => act("schedule_ticks", async () => sendEr([cu(400_000), await pe.methods.scheduleTicks(new BN(INTERVAL_MS), new BN(2_000_000)).accountsPartial({ payer: wallet.publicKey, arena }).remainingAccounts(tickMetas).instruction()], [wallet], "schedule_ticks"), mlog);
   const cancel = async (taskId: any) => act("cancel_ticks", async () => sendEr([await pe.methods.cancelTicks(taskId).accountsPartial({ payer: wallet.publicKey }).remainingAccounts([{ pubkey: MAGIC_CONTEXT, isSigner: false, isWritable: true }]).instruction()], [wallet], "cancel_ticks", 3), mlog);
-  // resume: a task left by an earlier keeper process may still run (or be dead): cancel it, then schedule ours
-  const a0: any = await arenaAcc();
-  if (a0.taskId && a0.taskId.toString() !== "0") await cancel(a0.taskId).catch(() => {});
-  await schedule();
-  const tasks: string[] = [(await arenaAcc()).taskId.toString()];
-  // fullchain: N parallel timed tasks + the keeper crank (crank(budget), 1.4M CU) + task rotation + per-round commits
-  for (let k = 1; k < (full ? FULL_TASKS : 1); k++) { await schedule(); tasks.push((await arenaAcc()).taskId.toString()); }
-  let liveProg = "", rotatedAt = Date.now(), lastGaveUpCheck = 0, serverFellBack = false;
-  const committed = new Set<number>();
-  let lastSnapKey = "";
-  const tickAt: [number, number, number][] = [];
-  const record = (buf: Buffer) => {
-    const w = decodeWorld(buf);
-    if (w.partPending === 0 && (tickAt.length === 0 || w.tick > tickAt[tickAt.length - 1][0])) tickAt.push([w.tick, Date.now(), Number(w.lastSlot)]);
-    const k = `${w.tick}:${w.partPending}`;
-    liveProg = k;
-    if (k === lastSnapKey) return w;
-    lastSnapKey = k;
-    const h = Buffer.alloc(7); h.writeUInt32LE(w.tick, 0); h[4] = w.partPending; h.writeUInt16LE(w.len, 5);
-    // world2.bin (P5 replay): [u32 tick][u8 part][u16 len][80 B WorldAcc header @128..208: tick, len, phase, cur[12]
-    // (the inputs latched for this tick), cur_some, serial…][World bytes]
-    appendFileSync(join(mdir, "world2.bin"), Buffer.concat([h, buf.subarray(128, 208), w.world]));
-    return w;
-  };
-  const sub = er.onAccountChange(world, (a) => { try { record(a.data as Buffer); } catch {} }, { commitment: "processed" } as any);
-  let w = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
-  liveProg = `${w.tick}:${w.partPending}`;
-  const crank = full ? startCrank({ er, wallet, rate: CRANK_RATE, progress: () => liveProg, log: (o) => logTo(mlog, o),
-    ix: (b) => pe.methods.crank(b).remainingAccounts(tickMetas).instruction() }) : null;
-  let lastProg = "", lastExecAt = Date.now(), restarts = 0, lastCu = 0;
+  const scheduleOne = async () => { await schedule(); return (await arenaAcc()).taskId.toString() as string; };
+  // harden #5: everything started here (tasks, the World subscription, the crank) is stopped in the finally below,
+  // whatever throws: a retry never runs a second crank / appender next to a leaked one
+  const tasks: string[] = [];
+  let sub: number | null = null;
+  let crank: ReturnType<typeof startCrank> | null = null;
+  let crankStats: any = null;
+  let w: any;
+  let liveProg = "", serverFellBack = false, gaveUpWhy: string | false = false, timedOut = false;
+  let restarts = 0;
   const cus: number[] = [];
-  const t0 = Date.now();
-  while (w.phase < DONE) {
-    await sleep(POLL_MS);
-    const info = await er.getAccountInfo(world, "processed").catch(() => null);
-    if (!info) continue;
-    w = record(info.data as Buffer);
-    status.worldTick = w.tick; status.worldPhase = w.phase; status.worldRound = w.round;
-    const now = Date.now();
-    const prog = `${w.tick}:${w.partPending}`;
-    if (prog !== lastProg) { lastProg = prog; lastExecAt = now; }
-    if (full && now - lastGaveUpCheck > 2000) {
-      lastGaveUpCheck = now;
-      if (gaveUp()) { log({ ev: "server_fallback", tick: w.tick }); logTo(mlog, { ev: "server_fallback", tick: w.tick }); serverFellBack = true; break; }
-    }
-    if (full && now - rotatedAt > ROTATE_MS) {
-      // a task that hit an over-budget execution is gone for good: keep FULL_TASKS fresh ones running
-      rotatedAt = now;
-      const old = tasks.splice(0);
-      for (let k = 0; k < FULL_TASKS; k++) { await schedule().catch(() => {}); tasks.push((await arenaAcc()).taskId.toString()); }
-      for (const t of old) await cancel(new BN(t)).catch(() => {});
-    }
-    if (full && w.round >= 1 && !committed.has(w.round) && (w.phase === 7 || w.phase === 8 || w.phase >= 9)) {
-      // each resolved round's results to Solana (commit_round: once per round, any payer)
-      committed.add(w.round);
-      const r = w.round;
-      act(`commit_round_${r}`, async () => sendEr([await pe.methods.commitRound(r).accountsPartial({ payer: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "commit_round", 10), mlog).catch(() => committed.delete(r));
-    }
-    if (now - lastExecAt > STALL_MS) {
-      restarts++;
-      log({ ev: "stall", ms: now - lastExecAt, tick: w.tick });
-      for (const t of tasks.splice(0)) await cancel(new BN(t)).catch(() => {});
-      const d0 = Date.now();
-      const ixTick = await pe.methods.tick().remainingAccounts(tickMetas).instruction();
-      let bh = (await er.getLatestBlockhash("processed")).blockhash, bhAt = Date.now(), nonce = 0;
-      while (Date.now() - d0 < DRIVE_MS) {
-        if (Date.now() - bhAt > 1500) { bh = (await er.getLatestBlockhash("processed")).blockhash; bhAt = Date.now(); }
-        const tx = new Transaction().add(cu(1_400_000 - (nonce++ % 64)), ixTick);
-        tx.feePayer = wallet.publicKey; tx.recentBlockhash = bh; tx.sign(wallet);
-        er.sendRawTransaction(tx.serialize(), { skipPreflight: true, maxRetries: 0 }).catch(() => {});
-        await sleep(8);
+  const tickAt: [number, number, number][] = [];
+  try {
+    // resume: a task left by an earlier keeper process may still run (or be dead): cancel it, then schedule ours
+    const a0: any = await arenaAcc();
+    if (a0.taskId && a0.taskId.toString() !== "0") await cancel(a0.taskId).catch(() => {});
+    tasks.push(await scheduleOne());
+    // fullchain: N parallel timed tasks + the keeper crank (crank(budget), 1.4M CU) + task rotation + per-round commits
+    for (let k = 1; k < (full ? FULL_TASKS : 1); k++) tasks.push(await scheduleOne());
+    let rotatedAt = Date.now(), lastGaveUpCheck = 0;
+    const committed = new Set<number>();
+    let lastSnapKey = "";
+    const record = (buf: Buffer) => {
+      const w = decodeWorld(buf);
+      if (w.partPending === 0 && (tickAt.length === 0 || w.tick > tickAt[tickAt.length - 1][0])) tickAt.push([w.tick, Date.now(), Number(w.lastSlot)]);
+      const k = `${w.tick}:${w.partPending}`;
+      liveProg = k;
+      if (k === lastSnapKey) return w;
+      lastSnapKey = k;
+      const h = Buffer.alloc(7); h.writeUInt32LE(w.tick, 0); h[4] = w.partPending; h.writeUInt16LE(w.len, 5);
+      // world2.bin (P5 replay): [u32 tick][u8 part][u16 len][80 B WorldAcc header @128..208: tick, len, phase, cur[12]
+      // (the inputs latched for this tick), cur_some, serial…][World bytes]
+      appendFileSync(join(mdir, "world2.bin"), Buffer.concat([h, buf.subarray(128, 208), w.world]));
+      return w;
+    };
+    sub = er.onAccountChange(world, (a) => { try { record(a.data as Buffer); } catch {} }, { commitment: "processed" } as any);
+    w = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
+    liveProg = `${w.tick}:${w.partPending}`;
+    crank = full ? startCrank({ er, wallet, rate: CRANK_RATE, progress: () => liveProg, log: (o) => logTo(mlog, o),
+      ix: (b) => pe.methods.crank(b).remainingAccounts(tickMetas).instruction() }) : null;
+    let lastProg = "", lastExecAt = Date.now(), lastCu = 0;
+    const t0 = Date.now();
+    // harden #4: the deadline counts from the match's first start (persisted across keeper restarts), so it fires
+    // before the 25-min /health limit and the abort path runs instead of an endless restart-resume loop
+    const deadline = P.finalDeadline(t0, full, firstStartedAt);
+    while (w.phase < DONE) {
+      await sleep(POLL_MS);
+      const now = Date.now();
+      if (full && now - lastGaveUpCheck > 2000) {
+        lastGaveUpCheck = now;
+        const why = gaveUp();
+        if (why) { gaveUpWhy = why; log({ ev: why === "fallback" ? "server_fallback" : "server_abandoned", tick: w.tick }); logTo(mlog, { ev: why === "fallback" ? "server_fallback" : "server_abandoned", tick: w.tick }); serverFellBack = true; break; }
       }
-      for (let k = 0; k < (full ? FULL_TASKS : 1); k++) { await schedule(); tasks.push((await arenaAcc()).taskId.toString()); }
-      lastExecAt = Date.now();
+      if (now > deadline) { log({ ev: "final_timeout", firstStartedAt }); logTo(mlog, { ev: "final_timeout", firstStartedAt }); timedOut = true; break; }
+      const info = await er.getAccountInfo(world, "processed").catch(() => null);
+      if (!info) continue;
+      w = record(info.data as Buffer);
+      status.worldTick = w.tick; status.worldPhase = w.phase; status.worldRound = w.round;
+      const prog = `${w.tick}:${w.partPending}`;
+      if (prog !== lastProg) { lastProg = prog; lastExecAt = now; }
+      if (full && now - rotatedAt > ROTATE_MS) {
+        // a task that hit an over-budget execution is gone for good: keep FULL_TASKS fresh ones running
+        rotatedAt = now;
+        const old = tasks.splice(0);
+        for (let k = 0; k < FULL_TASKS; k++) { try { tasks.push(await scheduleOne()); } catch {} }
+        for (const t of old) await cancel(new BN(t)).catch(() => {});
+      }
+      if (full && w.round >= 1 && !committed.has(w.round) && (w.phase === 7 || w.phase === 8 || w.phase >= 9)) {
+        // each resolved round's results to Solana (commit_round: once per round, any payer)
+        committed.add(w.round);
+        const r = w.round;
+        act(`commit_round_${r}`, async () => sendEr([await pe.methods.commitRound(r).accountsPartial({ payer: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "commit_round", 10), mlog).catch(() => committed.delete(r));
+      }
+      if (now - lastExecAt > STALL_MS) {
+        restarts++;
+        log({ ev: "stall", ms: now - lastExecAt, tick: w.tick });
+        // harden #5 (policy.stallRecover): never throws; full mode only re-schedules (the crank keeps driving)
+        const ixTick = !full || STALL_FLOOD_FULL ? await pe.methods.tick().remainingAccounts(tickMetas).instruction().catch(() => null) : null;
+        const rs = await P.stallRecover({
+          cancel: (t) => cancel(new BN(t)),
+          schedule: scheduleOne,
+          blockhash: async () => (await er.getLatestBlockhash("processed")).blockhash,
+          sendTick: (bh, nonce) => {
+            const tx = new Transaction().add(cu(1_400_000 - (nonce % 64)), ixTick!);
+            tx.feePayer = wallet.publicKey; tx.recentBlockhash = bh; tx.sign(wallet);
+            er.sendRawTransaction(tx.serialize(), { skipPreflight: true, maxRetries: 0 }).catch(() => {});
+          },
+          gaveUp: () => (full ? !!gaveUp() : false),
+          sleep,
+          log: (o) => logTo(mlog, o),
+        }, tasks, { nTasks: full ? FULL_TASKS : 1, flood: !!ixTick, driveMs: DRIVE_MS });
+        if (rs.bhErrors || rs.scheduled < (full ? FULL_TASKS : 1)) logTo(mlog, { ev: "stall_recover", ...rs });
+        lastExecAt = Date.now();
+      }
+      if (now - lastCu > 15_000) { lastCu = now; sampleCu(world).then((xs) => cus.push(...xs.map((x) => x.cu))).catch(() => {}); }
     }
-    if (now - lastCu > 15_000) { lastCu = now; sampleCu(world).then((xs) => cus.push(...xs.map((x) => x.cu))).catch(() => {}); }
-    if (now - t0 > (full ? 35 : 20) * 60_000) { log({ ev: "final_timeout" }); break; }
+  } finally {
+    crankStats = await P.cleanupFinal({
+      crank,
+      unsubscribe: async () => { if (sub != null) await er.removeAccountChangeListener(sub); },
+      tasks,
+      cancel: (t) => cancel(new BN(t)),
+      log: (o) => logTo(mlog, o),
+    });
+    if (crankStats) logTo(mlog, { ev: "crank_stats", ...crankStats });
   }
-  const crankStats = crank ? await crank.stop() : null;
-  if (crankStats) logTo(mlog, { ev: "crank_stats", ...crankStats });
-  await er.removeAccountChangeListener(sub);
-  for (const t of tasks.splice(0)) await cancel(new BN(t)).catch(() => {});
   const g: number[] = [];
   for (let i = 1; i < tickAt.length; i++) g.push((tickAt[i][1] - tickAt[i - 1][1]) / Math.max(1, tickAt[i][0] - tickAt[i - 1][0]));
   const span = tickAt.length > 1 ? { ticks: tickAt[tickAt.length - 1][0] - tickAt[0][0], wallMs: tickAt[tickAt.length - 1][1] - tickAt[0][1] } : { ticks: 0, wallMs: 1 };
   writeFileSync(join(mdir, "ticks.json"), JSON.stringify(tickAt));
-  return { full, serverFellBack, crank: crankStats, complete: w.phase >= DONE, ticks: w.tick, restarts, realTime: span.ticks / 30 / (span.wallMs / 1000), gapP95: pct(g, 95), cu: { n: cus.length, p95: pct(cus, 95), max: cus.length ? Math.max(...cus) : 0 } };
+  return { full, serverFellBack, gaveUp: gaveUpWhy, timedOut, crank: crankStats, complete: w.phase >= DONE, ticks: w.tick, restarts, realTime: span.ticks / 30 / (span.wallMs / 1000), gapP95: pct(g, 95), cu: { n: cus.length, p95: pct(cus, 95), max: cus.length ? Math.max(...cus) : 0 } };
 }
 
 // ------------------------------------------------------------------ after the Final: settle → receipt → finalize → mint
 async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog: string, out: any) {
   let m: any = await erMatch(matchPda);
+  if (m && !["completed", "aborted"].includes(statusName(m))) {
+    // harden #4: a non-final Match the arena no longer runs (VRF timeout, a swallowed abort, a stranded earlier match)
+    // is aborted here, so its markets refund and finalize can run; a running World (phase < DONE) is never touched
+    stage("ensure_final", { match: matchPda.toBase58(), status: statusName(m) });
+    const r = await ensureFinal(matchPda, 7, false, mlog);
+    out.ensureFinal = r;
+    m = await erMatch(matchPda);
+  }
   if (m && ["completed", "aborted"].includes(statusName(m))) {
     if (SEALED) {
       // P6: close → reveal → finish (unrevealed commits wait the 20 s reveal window, then forfeit / refund)
@@ -323,11 +427,16 @@ async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog
     const dq = await er.getAccountInfo(E.epda.drops(arena)).catch(() => null);
     if (dq) { const d = E.decodeDrops(dq.data as Buffer); if (d.match.equals(matchPda)) out.drops = { count: d.count, pot: d.pot.toString(), buys: d.buys.map((b) => ({ by: b.by.toBase58(), tick: b.tick, kind: b.kind })) }; }
     let rc = await E.matchReceipt(er, matchPda);
-    if (rc && !(rc.flags & 1)) { stage("receipt"); out.sigs.writeReceipt = (await act("write_receipt", async () => E.writeReceipt(ARENA, matchPda, maps), mlog)).sig; }
-    if (SEASONS && rc && !(out.sigs.commitEcon)) {
+    if (rc && !(rc.flags & 1)) {
+      stage("receipt");
+      // an aborted match finalizes without a receipt (lib.rs finalize: the receipt is required for Completed only)
+      try { out.sigs.writeReceipt = (await act("write_receipt", async () => E.writeReceipt(ARENA, matchPda, maps), mlog)).sig; }
+      catch (e: any) { if (statusName(m) !== "aborted") throw e; out.receiptError = String(e?.message ?? e).slice(0, 300); }
+    }
+    if (SEASONS && !status.seasonsPaused && rc && !(out.sigs.commitEcon)) {
       // P6: the 5 markets + drop queue to Solana (the copies record_season checks against the receipt's bets hash)
-      const c = await S.commitEcon(ARENA).catch((x) => ({ sig: "", err: String(x) }));
-      logTo(mlog, { act: "commit_econ", sig: c.sig, err: c.err }); if (!c.err) out.sigs.commitEcon = c.sig;
+      const c: any = await S.commitEcon(ARENA).catch((x) => ({ sig: "", err: String(x) }));
+      logTo(mlog, { act: "commit_econ", sig: c.sig, err: c.err, failSig: c.failSig }); if (!c.err) out.sigs.commitEcon = c.sig; else out.commitEconError = { err: String(c.err).slice(0, 200), failSig: c.failSig ?? null };
     }
     rc = await E.matchReceipt(er, matchPda);
     m = await erMatch(matchPda);
@@ -338,7 +447,8 @@ async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog
     for (const tq = Date.now(); Date.now() - tq < 30_000;) { const r2 = await E.matchReceipt(er, matchPda); if (!r2 || !(r2.flags & 32) || r2.flags & 2) break; await sleep(400); }
   }
   const a: any = await arenaAcc();
-  if (a.status === 2) {
+  // harden #4: only the arena's own match is ended here (a recovered older match must never stop the current one)
+  if (a.status === 2 && a.matchAccount.toBase58() === matchPda.toBase58()) {
     const wd = decodeWorld((await er.getAccountInfo(world))!.data as Buffer);
     if (wd.phase >= DONE) out.sigs.endSim = (await act("end_sim", async () => sendEr([await pe.methods.endSim().accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "end_sim"), mlog)).sig;
     else out.sigs.abortArena = (await act("abort_arena", async () => sendEr([await pe.methods.abortArena().accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "abort_arena"), mlog)).sig;
@@ -346,15 +456,29 @@ async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog
   // finalize (receipt commit + undelegate) unless the Match is back on Solana already
   if (!(await baseOwner(matchPda))?.equals(PROGRAM_ID)) {
     stage("finalize");
+    // harden #1: the Magic Action pays Core asset rent from the global treasury PDA: top it up first when it cannot
+    // cover what this match owes; if the top-up fails, finalize plainly (the keeper's mint_rewards is the retry)
+    let useAction = ACTION;
+    if (ACTION) {
+      const owed = P.owedCount(await E.matchReceipt(er, matchPda));
+      const tb = await base.getBalance(E.epda.treasury(), "confirmed").catch(() => -1);
+      const top = P.treasuryTopUp(tb, owed, TREASURY_TOPUP_LAMPORTS);
+      out.treasury = { before: tb, owed, topUp: top };
+      if (tb < 0) { useAction = false; out.treasury.err = "treasury balance unreadable"; }
+      else if (top > 0) {
+        try { out.sigs.treasuryTopUp = await sendBase([SystemProgram.transfer({ fromPubkey: wallet.publicKey, toPubkey: E.epda.treasury(), lamports: top })], [wallet], "fund treasury"); logTo(mlog, { act: "treasury_topup", lamports: top, before: tb, owed, sig: out.sigs.treasuryTopUp }); }
+        catch (e: any) { useAction = false; out.treasury.err = String(e?.message ?? e).slice(0, 200); logTo(mlog, { act: "treasury_topup", ok: false, err: out.treasury.err }); }
+      }
+    }
     await sleep(1000);
-    const ix = ACTION
+    const ix = useAction
       ? await pe.methods.finalizeMatchAction().accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).instruction()
       : await pe.methods.finalizeMatch().accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).instruction();
     try {
-      out.sigs.finalize = (await act(ACTION ? "finalize_match_action" : "finalize_match", async () => sendEr([cu(400_000), ix], [wallet], "finalize_match"), mlog)).sig;
-      out.finalizeMode = ACTION ? "action" : "plain";
+      out.sigs.finalize = (await act(useAction ? "finalize_match_action" : "finalize_match", async () => sendEr([cu(400_000), ix], [wallet], "finalize_match"), mlog)).sig;
+      out.finalizeMode = useAction ? "action" : ACTION ? "plain-treasury" : "plain";
     } catch (e: any) {
-      if (!ACTION) throw e;
+      if (!useAction) throw e;
       // D-ACTION fallback: the plain finalize; the keeper's mint_rewards mints
       out.actionError = String(e?.message ?? e).slice(0, 300);
       out.sigs.finalize = (await act("finalize_match", async () => sendEr([await pe.methods.finalizeMatch().accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "finalize_match"), mlog)).sig;
@@ -366,9 +490,11 @@ async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog
   for (; Date.now() - tf < 120_000;) { if ((await baseOwner(matchPda))?.equals(PROGRAM_ID)) { onBase = true; break; } await sleep(1500); }
   out.finalizeToBaseMs = Date.now() - tf;
   if (!onBase) throw new Error("finalize: the Match did not reach Solana in 120 s");
+  // harden #7: finalized = done for the main loop (a restart during rewards / seasons never re-drives it)
+  markDone(out.matchHex);
   stage("rewards");
   let rc = await E.matchReceipt(base, matchPda);
-  const owedCount = (r: any) => (r ? ((r.flags & (4 | 16)) === 0 && r.champion < 12 ? 1 : 0) + (r.flags & 2 ? [...Array(12).keys()].filter((s) => (r.humanMask >> s) & 1 && !((r.mintedMask >> s) & 1)).length : 0) : 0);
+  const owedCount = P.owedCount;
   if (out.finalizeMode === "action" && owedCount(rc) > 0) {
     // the Magic Action runs mint_rewards on Solana after the undelegation: wait for it before any keeper retry
     const ta = Date.now();
@@ -381,17 +507,19 @@ async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog
     out.assets = r2 ? [...(r2.flags & 4 ? [E.epda.crown(matchPda).toBase58()] : []), ...[...Array(12).keys()].filter((s) => (r2.mintedMask >> s) & 1).map((s) => E.epda.capsule(matchPda, s).toBase58())] : [];
   }
   out.receipt = JSON.parse(JSON.stringify(await E.matchReceipt(base, matchPda), (_k, v) => (typeof v === "bigint" ? v.toString() : v instanceof PublicKey ? v.toBase58() : v)));
-  if (SEASONS && !out.judge) await seasons(matchPda, mlog, out).catch((e) => { out.seasonError = String(e?.message ?? e).slice(0, 300); log({ ev: "season_failed", err: out.seasonError }); });
+  if (SEASONS && !status.seasonsPaused && !out.judge) await seasons(matchPda, mlog, out).catch((e) => { out.seasonError = String(e?.message ?? e).slice(0, 300); log({ ev: "season_failed", err: out.seasonError }); });
 }
 
 /** P6: record a finalized, completed match into its seasons (weekly + the active test season), permissionless. */
 async function seasons(matchPda: PublicKey, mlog: string, out: any) {
   const rc: any = await E.matchReceipt(base, matchPda);
   if (!rc || rc.status !== 5 || !(rc.flags & 1) || /^0+$/.test(rc.betsHash)) return;
+  // harden #2: without a landed commit_econ the copy never reaches Solana (record_season fails BadCopies): skip at once
+  if (!out.sigs.commitEcon) { out.seasonSkipped = "commit_econ did not land"; log({ ev: "season_skip", why: out.seasonSkipped }); return; }
   stage("season");
   // wait until the committed market copies on Solana show this match (commit_econ landed)
   const mk0 = E.epda.market(ARENA, 0);
-  for (const t = Date.now(); Date.now() - t < 60_000;) {
+  for (const t = Date.now(); Date.now() - t < SEASON_COPY_WAIT_S * 1000;) {
     const i = await base.getAccountInfo(mk0).catch(() => null);
     if (i && E.decodeMarket(i.data as Buffer).match.equals(matchPda) && E.decodeMarket(i.data as Buffer).status === 3) break;
     await sleep(2000);
@@ -411,7 +539,7 @@ async function seasons(matchPda: PublicKey, mlog: string, out: any) {
     for (let i = 0; i < 20 && !(await S.season(id)); i++) await sleep(1500);
     let sigs: string[] = [], err = "";
     for (let t = 0; t < 3 && !sigs.length; t++) {
-      try { sigs = await S.recordSeason(ARENA, matchPda, id, wallets, champion, mlog); } catch (e: any) { err = String(e?.message ?? e).slice(0, 200); log({ ev: "record_retry", season: id, t, err }); await sleep(4000); }
+      try { sigs = await S.recordSeason(ARENA, matchPda, id, wallets, champion, mlog); } catch (e: any) { err = String(e?.message ?? e).slice(0, 200); log({ ev: "record_retry", season: id, try: t, err }); await sleep(4000); }
     }
     out.seasons[id] = { wallets: wallets.length, walletList: wallets.map((x) => x.toBase58()), sigs, err: sigs.length ? undefined : err };
   }
@@ -419,25 +547,75 @@ async function seasons(matchPda: PublicKey, mlog: string, out: any) {
 
 
 // ------------------------------------------------------------------ one match (idempotent; resumable)
-async function driveMatch(matchHex: string, jsonl: string | null, resumed: boolean) {
+/** harden #4: open_markets failed MarketBusy: every market still holding an older match's unpaid bets → drive that
+ * match to the end (abort → refund → receipt → finalize) so the markets reset for `cur`. */
+async function recoverMarkets(cur: PublicKey) {
+  const olds = new Map<string, PublicKey>();
+  for (let k = 0; k < E.MARKETS; k++) {
+    const mk = await E.market(ARENA, k);
+    if (mk && !mk.match.equals(cur) && !mk.match.equals(PublicKey.default) && mk.status !== 3 && mk.nBets > 0) olds.set(mk.match.toBase58(), mk.match);
+  }
+  log({ ev: "market_busy", match: cur.toBase58(), stale: [...olds.keys()] });
+  for (const old of olds.values()) {
+    const em: any = await erMatch(old);
+    const bm: any = em ? null : await pb.account.match.fetch(old).catch(() => null);
+    const id = (em ?? bm)?.matchId;
+    if (!id) { log({ ev: "recover_unknown_match", match: old.toBase58() }); continue; }
+    try { await driveMatch(Buffer.from(id).toString("hex"), null, true, { recover: true }); }
+    catch (e: any) { log({ ev: "recover_failed", match: old.toBase58(), err: String(e?.message ?? e).slice(0, 300) }); }
+  }
+  status.match = cur.toBase58();
+}
+
+/** harden #7: summary.json of a re-driven match merges into the earlier one (never wipes sigs / final / finalizeMode) */
+function writeSummary(mdir: string, out: any) {
+  const f = join(mdir, "summary.json");
+  const old = existsSync(f) ? (() => { try { return JSON.parse(readFileSync(f, "utf8")); } catch { return null; } })() : null;
+  writeFileSync(f + ".tmp", JSON.stringify(P.mergeSummary(old, out), null, 1));
+  renameSync(f + ".tmp", f);
+}
+
+async function driveMatch(matchHex: string, jsonl: string | null, resumed: boolean, opts: { recover?: boolean } = {}) {
   const matchId = Buffer.from(matchHex, "hex");
   const matchPda = pda.match(matchId);
   const mdir = join(ARCHIVE, matchPda.toBase58());
   mkdirSync(mdir, { recursive: true });
   const mlog = join(mdir, "keeper.jsonl");
   const out: any = { match: matchPda.toBase58(), matchHex, arena: ARENA, arenaKey: arena.toBase58(), world: world.toBase58(), resumed, startedAt: Date.now(), sigs: {} as Record<string, string> };
-  status.match = matchPda.toBase58(); status.matchHex = matchHex; status.dealSig = null; // P7: the VRF deal's request tx (the Deal screen links it)
   const a0: any = await arenaAcc();
   const maps: PublicKey[] = a0.maps;
   out.maps = maps.map((k) => k.toBase58()); // fullchain: the sealed map blobs this match ran on (replay --sealed)
+  if (opts.recover) {
+    // harden #4 (MarketBusy recovery): an older match whose markets still hold bets: abort it (the arena runs another
+    // match, so the guard never applies) → refund → receipt → finalize. Never touches the arena or the current match.
+    out.recovered = true;
+    stage("recover_match", { match: matchPda.toBase58() });
+    await finish(matchPda, maps, mdir, mlog, out);
+    out.doneAt = Date.now();
+    writeSummary(mdir, out);
+    markDone(matchHex);
+    log({ ev: "match_recovered", match: out.match });
+    return;
+  }
+  status.match = matchPda.toBase58(); status.matchHex = matchHex; status.dealSig = null; // P7: the VRF deal's request tx (the Deal screen links it)
   const lines = jsonl ? readLines(jsonl) : [];
   const h = lines.find((l) => l.type === "match");
   // submission (judge mode): the Classic server fast-forwarded rounds 1–3 (labelled on the receipt; no Season record)
   const judge = h?.judge === true;
   if (judge) out.judge = true;
+  const full = ONCHAIN_ALL && h?.onchainAll === true;
+  const exists = !!(await erMatch(matchPda)) || !!(await baseOwner(matchPda));
+  // harden #7: the server already played (or ended) this match on Classic and nothing exists on-chain: no create
+  if (P.skipClassic(serverAllState(jsonl), full, exists)) {
+    log({ ev: "skip_classic", matchHex, server: serverAllState(jsonl) });
+    markDone(matchHex);
+    return;
+  }
+  // harden #4: the first start of this match survives keeper restarts (runFinal's deadline counts from it)
+  if (st.active?.matchHex !== matchHex) { st.active = { matchHex, firstStartedAt: Date.now() }; saveState(); }
   if (jsonl) try { copyFileSync(jsonl, join(mdir, "classic.jsonl")); } catch {}
   // 1. Solana: create + delegate
-  if (!(await erMatch(matchPda)) && !(await baseOwner(matchPda))) {
+  if (!exists) {
     if (!h) throw new Error("no Match and no jsonl header: cannot create");
     stage("create_match");
     out.sigs.create = await act("create_match", async () => sendBase([await pb.methods.createMatch([...matchId], [...Buffer.from(h.rosterHash, "hex")], h.players).accountsPartial({ authority: wallet.publicKey }).instruction()], [wallet], "create_match"), mlog);
@@ -457,7 +635,15 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
   let a: any = await arenaAcc();
   if (a.matchAccount.toBase58() !== matchPda.toBase58()) {
     if (a.status === 2) { // a RUNNING arena left by another match: stop it first
-      await sendEr([await pe.methods.abortArena().accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "abort_arena");
+      // harden #4: and abort that match (its markets refund through the MarketBusy recovery below), retried
+      const old: PublicKey = a.matchAccount;
+      try { await ensureFinal(old, 7, true, mlog); }
+      catch (e: any) { log({ ev: "ensure_final_failed", match: old.toBase58(), err: String(e?.message ?? e).slice(0, 200) }); }
+      // still RUNNING (its World reached DONE without end_sim, or the abort did not land): stop it as before
+      if ((await arenaAcc()).status === 2) {
+        const r = await sendEr([await pe.methods.abortArena().accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "abort_arena");
+        if (r.err) throw new Error(`abort_arena: ${r.err}`);
+      }
     }
     const inputMetas = Array.from({ length: N }, (_, s) => ({ pubkey: pda.input(arena, s), isSigner: false, isWritable: true }));
     out.sigs.openLobby = (await act("open_lobby", async () => sendEr([await pe.methods.openLobby(matchPda).accountsPartial({ authority: wallet.publicKey, arena, world }).remainingAccounts(inputMetas).instruction()], [wallet], "open_lobby", 40), mlog)).sig;
@@ -466,9 +652,14 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
   if (!m) throw new Error("the Match is not on the rollup");
   if (!(m.flags & 0x80) && ["created", "dealing", "dealt"].includes(statusName(m)) && m.currentRound === 0) {
     // a just-delegated Match can be refused as writable for a moment (InvalidWritableAccount): retry with backoff
-    for (let i = 0; ; i++) {
+    for (let i = 0, recovered = 0; ; i++) {
       try { out.sigs.openMarkets = (await act("open_markets", async () => E.openMarkets(ARENA, matchPda), mlog)).sig; break; }
-      catch (e: any) { if (i >= 12 || !/InvalidWritableAccount|AccountNotFound|cloner|timeout|Blockhash/i.test(String(e?.message ?? e))) throw e; await sleep(1000 + 500 * i); }
+      catch (e: any) {
+        // harden #4: a market still holds an older match's bets: finish that match first (abort → refund → finalize)
+        if (P.isMarketBusy(e) && recovered < 2) { recovered++; await recoverMarkets(matchPda); continue; }
+        if (i >= 12 || !/InvalidWritableAccount|AccountNotFound|cloner|timeout|Blockhash/i.test(String(e?.message ?? e))) throw e;
+        await sleep(1000 + 500 * i);
+      }
     }
   }
   let sw: { stop: () => Promise<void> } | null = null;
@@ -490,8 +681,10 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
   out.humansInRoster = humansInRoster;
   if (MM && !["completed", "aborted"].includes(statusName(m)) && (humansInRoster > 0 || !h)) {
     const tiers = (h?.roster ?? []).map((r: any) => (r.bot ? r.tier : undefined));
-    mmw = mmWatcher(matchPda, tiers, mmLog, judge);
+    const humanSlots = h?.roster ? h.roster.filter((r: any) => r.bot === false).map((r: any) => Number(r.slot)) : null;
+    mmw = mmWatcher(matchPda, tiers, mmLog, judge, full, humanSlots);
   }
+  let dealFailed = false;
   try {
     if (statusName(m) === "created") {
       stage("deal");
@@ -501,13 +694,22 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
     for (const td = Date.now(); ;) {
       m = await erMatch(matchPda);
       if (m && statusName(m) !== "created" && statusName(m) !== "dealing") break;
-      if (Date.now() - td > 60_000) throw new Error("VRF callback timeout");
+      if (Date.now() - td > 60_000) {
+        // harden #4: never leave the Match in Dealing with the market maker's bets: abort (finish() refunds)
+        stage("vrf_timeout");
+        out.vrfTimeout = true;
+        await ensureFinal(matchPda, 7, false, mlog);
+        dealFailed = true;
+        break;
+      }
       await sleep(300);
     }
+    m = await erMatch(matchPda);
+    if (!m) throw new Error("the Match is not on the rollup");
     // 3. rounds 1–3 from the Classic server (idempotent by event_seq)
     let finalists: number[] = [];
-    const full = ONCHAIN_ALL && h?.onchainAll === true;
     if (full) out.onchainAll = true;
+    if (!dealFailed) {
     if (full && !(m.flags & 0x20) && !["completed", "aborted"].includes(statusName(m))) {
       // fullchain: every human of the roster pre-joins on-chain at roster lock (the server's SendPrejoin); wait for
       // them (bots fill the rest inside start_sim), then the program runs lobby → R1 … R4
@@ -572,14 +774,22 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
     if (m && m.flags & 0x20 && a.status === 2 && wd.phase < DONE && a.matchAccount.toBase58() === matchPda.toBase58()) {
       const fullRun = !(m.flags & 0x40);
       stage(fullRun ? "onchain_match" : "final", { finalists });
-      out.final = await runFinal(matchPda, maps, mdir, mlog, fullRun, () => serverAllState(jsonl) === "fallback");
-      if (out.final.serverFellBack) {
-        // mid-match fallback: stop the arena and abort the Match (markets refund; the receipt says aborted)
-        stage("server_fallback");
-        out.serverFallback = true;
-        await sendEr([await pe.methods.abortArena().accountsPartial({ authority: wallet.publicKey, arena, world }).instruction()], [wallet], "abort_arena").catch(() => {});
-        out.sigs.abort = (await act("abort_match", async () => sendEr([await pe.methods.abortMatch(6).accountsPartial({ authority: wallet.publicKey, matchAccount: matchPda }).instruction()], [wallet], "abort_match"), mlog).catch(() => ({ sig: "" }))).sig;
+      // harden #6: a full match the Classic server no longer plays (no-humans abort, server restart) for ORPHAN_MS
+      // counts like a fallback: nobody watches it, so abort + refund frees the arena for the next match
+      const orphaned = P.orphanDetector(matchHex, ORPHAN_MS);
+      const gaveUp = () => (serverAllState(jsonl) === "fallback" ? "fallback" : orphaned(serverStatus()) ? "orphan" : false);
+      out.final = await runFinal(matchPda, maps, mdir, mlog, fullRun, gaveUp, st.active?.matchHex === matchHex ? st.active.firstStartedAt : null);
+      if (out.final.serverFellBack || out.final.timedOut) {
+        // mid-match fallback / orphan / deadline: stop the arena and abort the Match, retried and never swallowed
+        // (markets refund; the receipt says aborted)
+        const why = out.final.timedOut ? "final_timeout" : out.final.gaveUp === "orphan" ? "server_abandoned" : "server_fallback";
+        stage(why);
+        if (why === "server_fallback") out.serverFallback = true;
+        if (why === "server_abandoned") out.serverAbandoned = true;
+        if (why === "final_timeout") out.finalTimeout = true;
+        out.ensureFinal = await ensureFinal(matchPda, why === "server_fallback" ? 6 : why === "server_abandoned" ? 8 : 7, true, mlog);
       }
+    }
     }
   } finally {
     if (mmw) await mmw.stop();
@@ -589,9 +799,9 @@ async function driveMatch(matchHex: string, jsonl: string | null, resumed: boole
   // 5. settle → receipt → capsules → end_sim → finalize → rewards
   await finish(matchPda, maps, mdir, mlog, out);
   out.doneAt = Date.now();
-  writeFileSync(join(mdir, "summary.json"), JSON.stringify(out, null, 1));
+  writeSummary(mdir, out);
   if (jsonl) try { copyFileSync(jsonl, join(mdir, "classic.jsonl")); } catch {}
-  st.done.push(matchHex); st.done = st.done.slice(-500); saveState();
+  markDone(matchHex);
   status.last = [{ match: out.match, at: out.doneAt, champion: out.receipt?.champion, minted: out.receipt?.mintedMask }, ...status.last].slice(0, 10);
   log({ ev: "match_done", match: out.match, wallS: (out.doneAt - out.startedAt) / 1000 });
 }
@@ -619,6 +829,19 @@ function jsonlFor(matchHex: string): string | null {
 for (let i = 0; ; i++) { try { const o = await E.setupEcon(ARENA); log({ act: "econ_setup", ...o }); break; } catch (e) { log({ ev: "econ_setup_failed", err: String(e).slice(0, 200) }); if (i >= 5) throw e; await sleep(5000); } }
 if (MM) await ensureMm().catch((e) => log({ ev: "mm_setup_failed", err: String(e).slice(0, 200) }));
 if (SEALED) await S.setupSealed(ARENA).then((o) => log({ act: "sealed_setup", ...o })).catch((e) => log({ ev: "sealed_setup_failed", err: String(e).slice(0, 200) }));
+// harden #2: the 5 markets + drop queue commit to Solana for the seasons; a delegated account without a fee payer stops
+// committing after 10 commits (delegation-metadata last_update_nonce): at the cap, seasons are paused (no commit_econ,
+// no 60 s copy wait, no record_season retries). /status → seasonsPaused (the indexer labels the board "paused").
+if (SEASONS) {
+  try {
+    const accs = [...Array.from({ length: E.MARKETS }, (_, k) => E.epda.market(ARENA, k)), E.epda.drops(arena)];
+    const metas = accs.map((k) => PublicKey.findProgramAddressSync([Buffer.from("delegation-metadata"), k.toBuffer()], E.DELEGATION)[0]);
+    const infos = await base.getMultipleAccountsInfo(metas, "confirmed");
+    const nonces = infos.map((i) => P.delegationNonce(i?.data as Buffer | undefined));
+    status.commitNonces = nonces;
+    if (P.commitCapped(nonces)) { status.seasonsPaused = true; status.seasonsPausedReason = "commit cap"; log({ ev: "seasons_paused", why: "commit cap", nonces }); console.log(`[keeper a${ARENA}] seasons paused: commit cap (nonces ${nonces.join(",")})`); }
+  } catch (e) { log({ ev: "commit_cap_check_failed", err: String(e).slice(0, 200) }); }
+} else status.seasonsPausedReason = "SEASONS=0";
 // resume from on-chain state: the arena's current Match, unless it is finished (on Solana, nothing owed)
 {
   const a: any = await arenaAcc();
@@ -644,15 +867,20 @@ for (;;) {
   while (!(j = newestJsonl())) await sleep(1000);
   const h = await header(j);
   const hex = h.matchId.toString("hex");
-  // a transient failure mid-match: drive the same match again (every stage is idempotent), up to 3 times
+  // a transient failure mid-match: drive the same match again (every stage is idempotent); harden #4/#5: with
+  // backoff 2 / 10 / 30 / 60 / 120 s (an ER hiccup outlasts 3 × 2 s)
   let ok = false;
-  for (let tries = 0; tries < 3 && !ok; tries++) {
+  for (let tries = 0; tries <= P.RETRY_BACKOFF_S.length && !ok; tries++) {
     try { await driveMatch(hex, j, tries > 0); ok = true; }
-    catch (e: any) { stage("match_retry", { tries: tries + 1, err: String(e?.message ?? e).slice(0, 300) }); await sleep(2000); }
+    catch (e: any) {
+      const wait = P.RETRY_BACKOFF_S[tries];
+      stage("match_retry", { tries: tries + 1, waitS: wait ?? 0, err: String(e?.message ?? e).slice(0, 300) });
+      if (wait != null) await sleep(wait * 1000);
+    }
   }
   if (!ok) {
     stage("match_failed", { match: hex });
-    st.done.push(hex); saveState(); // never loop on a broken match
+    if (!st.done.includes(hex)) { st.done.push(hex); saveState(); } // never loop on a broken match (active kept: the cleanup keeps its deadline)
     // finish whatever is on-chain (refunds, receipt, finalize) so the arena is free for the next match
     try { await driveMatch(hex, null, true); } catch (e2: any) { log({ ev: "cleanup_failed", err: String(e2?.message ?? e2).slice(0, 300) }); }
   }
