@@ -77,6 +77,7 @@ export function mmSeeds(m: MmView, o: { judge: boolean; full: boolean; humanSlot
 export function orphanDetector(matchHex: string, sustainMs = 10_000, freshMs = 10_000) {
   let since = 0;
   return (sv: { t?: number; inMatch?: boolean; match?: string } | null, now = Date.now()): boolean => {
+    if (!(sustainMs > 0)) return false; // 0 / unset = off (the production default, see daemon.ts ORPHAN_MS)
     const gone = !!sv && now - (sv.t ?? 0) < freshMs && (!sv.inMatch || (!!sv.match && sv.match !== matchHex));
     if (!gone) { since = 0; return false; }
     if (!since) since = now;

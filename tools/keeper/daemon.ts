@@ -53,7 +53,11 @@ const BALANCE_POLL_MS = Number(process.env.BALANCE_POLL_MS ?? 60_000);
 // harden #5: in full mode the stall path only re-schedules the tasks (the crank drives the World); 1 = the old tick() flood
 const STALL_FLOOD_FULL = process.env.STALL_FLOOD_FULL === "1";
 // harden #6: the Classic server no longer plays this full on-chain match for this long → abort ours (reason 8)
-const ORPHAN_MS = Number(process.env.ORPHAN_MS ?? 10_000);
+// harden: OFF by default (0). Production 2026-11-25 09:39 UTC: the Classic server records ABORT (no humans) when a
+// player's browser drops its server socket, while the player keeps playing on-chain (match 86c56c6e… finished fine
+// on the chain after that); the detector aborted a healthy judge match 31 s in. The chain is the truth: an abandoned
+// match is finished by the bots, and the indexer no longer hands a busy arena to the next judge.
+const ORPHAN_MS = Number(process.env.ORPHAN_MS ?? 0);
 const KILL_AT = process.env.KILL_AT ?? ""; // test hook (P5 0.5): exit(9) right after this stage
 // fullchain (docs/proof/fullchain/CONTRACT.md): ONCHAIN_ALL=1 + the server's header `onchainAll` → the whole match on
 // the rollup (start_sim: the program computes all 4 rounds); off (default) = the hybrid flow, unchanged

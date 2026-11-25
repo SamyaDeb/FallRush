@@ -343,3 +343,9 @@ test("fullHumansTarget / humansWaitDone: FULL_MIN_HUMANS raises the target (capp
   assert.equal(P.humansWaitDone({ ...w, joined: 11, elapsedMs: 5000 }), true);
   assert.equal(P.humansWaitDone({ ...w, joined: 3, elapsedMs: 20_000 }), true); // the wait ran out: start anyway
 });
+
+test("orphanDetector: 0 = off (a dropped server socket never aborts a live chain match)", () => {
+  const d = P.orphanDetector("aa", 0);
+  assert.equal(d({ t: 1000, inMatch: false, match: "" }, 1000), false);
+  assert.equal(d({ t: 60_000, inMatch: false, match: "" }, 60_000), false);
+});
