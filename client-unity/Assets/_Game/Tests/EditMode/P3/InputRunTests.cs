@@ -47,10 +47,26 @@ namespace FallRush.Tests
         {
             var c = new ChainConfig { target = "devnet" };
             c.ApplyRollupDefaults();
-            // OnChainSession.MaxExtraLead = window − lead − 2: the batch's first stamp T+lead+extra ≤ T+window−2
-            var maxExtra = c.inputWindow - c.inputLead - 2;
-            Assert.AreEqual(6, maxExtra);
+            // OnChainSession.MaxExtraLead = window − lead − LeadMargin (4 ticks kept for clock error)
+            var maxExtra = c.inputWindow - c.inputLead - OnChainSession.LeadMargin;
+            Assert.AreEqual(4, maxExtra);
             Assert.LessOrEqual(c.inputLead + maxExtra + c.batchTicks - 1, c.inputWindow, "the last tick of a batch fits too");
+        }
+
+        [Test]
+        public void ClockOneWayIsCappedSoASlowHttpProbeCannotRunItEarly()
+        {
+            var a = new OnChainClock(30) { RttMs = 1800f };
+            var b = new OnChainClock(30) { RttMs = 80f };
+            for (var k = 0; k < 30; k++)
+            {
+                a.OnWorld((uint)(1000 + k), 10.0 + k / 30.0);
+                b.OnWorld((uint)(1000 + k), 10.0 + k / 30.0);
+            }
+            var now = 11.0;
+            // RTT 1,800 ms used to add 900 ms = 27 ticks; capped at 60 ms = 1.8 ticks
+            Assert.That(a.ChainNow(now) - b.ChainNow(now), Is.LessThan(0.7), "60 ms cap vs 40 ms");
+            Assert.That(a.ChainNow(now), Is.EqualTo(1030 + 1.8).Within(0.2));
         }
     }
 }

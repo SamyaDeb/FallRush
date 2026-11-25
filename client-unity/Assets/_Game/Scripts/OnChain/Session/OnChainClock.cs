@@ -22,6 +22,13 @@ namespace FallRush.OnChain
         public uint NewestTick { get; private set; }
         public float RttMs = float.NaN;
         public float LagMs = 300f;
+        /// <summary>
+        /// Input run 2 (2026-11-25): cap of the one-way delay added to the freshest World. RttMs is the bundle's HTTP
+        /// getSlot probe, which queues behind the input sends and polls in the browser (measured 700–1,900 ms), so RTT/2
+        /// put our clock 10–28 ticks ahead of the arena: production match EmLEdj…, 307 of 412 refused input batches were
+        /// stamped too far ahead. A pushed World already carries its delay; the true one-way to the ER is tens of ms.
+        /// </summary>
+        public float MaxOneWayMs = 60f;
         public long Samples;
 
         public OnChainClock(int rate) => _rate = rate;
@@ -91,7 +98,7 @@ namespace FallRush.OnChain
                 best = _tick[j] - _at[j] * rate;
             }
 
-            var oneWay = float.IsNaN(RttMs) ? 45f : RttMs * 0.5f;
+            var oneWay = float.IsNaN(RttMs) ? 45f : Math.Min(MaxOneWayMs, RttMs * 0.5f);
             return now * rate + best + oneWay * 0.001 * rate;
         }
 
