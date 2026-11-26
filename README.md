@@ -8,7 +8,7 @@ A 12-player knockout party game in your browser. On our on-chain arenas, every r
 
 **[Play your own on-chain match (judge mode)](https://fallrush.fun/play?judge=1)**
 
-[Demo video]({{DEMO_VIDEO_URL}}) · [Explorer proof](PROOF.md) · [fallrush.fun](https://fallrush.fun) · Program [`4yehff…Dsk4`](https://explorer.solana.com/address/4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4?cluster=devnet)
+[Demo video]({{DEMO_VIDEO_URL}}) · [Explorer proof](PROOF.md) · [fallrush.fun](https://fallrush.fun) · [X @fallrushdotfun](https://x.com/fallrushdotfun) · Program [`4yehff…Dsk4`](https://explorer.solana.com/address/4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4?cluster=devnet)
 
 </div>
 
