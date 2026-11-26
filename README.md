@@ -105,9 +105,17 @@ That match is a full 4-round judge match of 11,083 ticks. The script fetches its
 The program decides the physics, who qualifies and who falls, the champion, every payout and the receipt. You still trust MagicBlock's rollup operator for transaction ordering and liveness, and the TEE operator to keep sealed picks private until close (the hashes keep settlement honest either way). Our keeper sends ticks: it can stall a match but can't change the result, and anyone can send `crank()`.
 
 Tested end to end on devnet:
-- **A full lobby of humans** on separate devices, playing all four rounds on the rollup.
-- **A human champion** taking the Crown, minted to their wallet by the Magic Action when the match committed.
-- **Chaos Drops and sealed Champion bets inside full 4-round on-chain matches**, settled by the program. They also passed a 15-match load test (12 drops, 144 sealed bets, all 33 settled markets matching a hand calculation).
+- **The whole economy inside one full 4-round on-chain match** ([receipt](https://fallrush.fun/receipt/9VcTwJwFLd4ftgXAjYnbNHn15BhV9jFKKQf7qZvfiMq7)). It ran at 1.00× real time for 12,208 ticks and replays 20,842 / 20,842 snapshots byte-exact. Inside it:
+  - a sealed Champion bet, attested in the browser and revealed from the private book;
+  - a Chaos Drop in the Final, bought with a session key;
+  - all 5 markets settled by the program;
+  - the player's capsule minted by the Magic Action;
+  - the match recorded in the Season.
+  
+  The player was driven by the game's autoplay (`?bot=match`), and a bot won that Final.
+- **The Crown minted by the Magic Action** to a human-slot wallet (a scripted test wallet, in an earlier hybrid-mode run). The Crown only goes to a human champion.
+- **Load tests.** 11 full on-chain gate and canary matches at 0.99–1.00× real time. A 15-match load test of the economy in the earlier hybrid mode (on-chain Final; 8 matches completed, 7 aborted by the test harness with every market refunded) had 12 drops and 144 sealed bets, and all 33 settled markets matched a hand calculation.
+- **The server can't pick a winner.** A review on 26 Nov found that our server key could still send the legacy round-result instructions during an on-chain match. They are now refused once the program runs the match: program upgrade `75d7597b`, with an exploit test. See [`docs/proof/fullchain/TRUST-FIX.md`](docs/proof/fullchain/TRUST-FIX.md).
 - **Weekly Seasons** with on-chain leaderboards and trophies. After each match the arena's markets and drop queue commit to Solana through MagicBlock's fee vault, paid by a program-owned delegated account, so the board keeps recording past the 10-commit limit for sponsored commits.
 
 <!-- Optional: link one receipt per line above (e.g. the human-won Crown match: https://fallrush.fun/receipt/<match>) -->
