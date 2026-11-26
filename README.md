@@ -1,12 +1,3 @@
-<!--
-  TODO before submitting (search for "{{"):
-  1. {{DEMO_VIDEO_URL}}  - public YouTube/X link to the demo video (under 3 min). Check it in a private window.
-  2. {{HERO_GIF}}        - 6-10 s gameplay GIF (under 8 MB) saved as docs/media/hero.gif. Then swap the hero image line below.
-  3. {{SCREENSHOTS}}     - optional: 3 fresh screenshots from the live build (see the comment further down).
-  4. {{TEAM}}            - names, roles, X handles, contact.
-  Then delete this comment.
--->
-
 <div align="center">
 
 <img src="docs/media/logo.png" alt="Fall Rush" width="340">
@@ -195,6 +186,6 @@ Built in the event week, 20–27 November 2026, for the **Entertainment Finance*
 
 **Next:** mainnet after a legal review of the chip economy, permissionless arenas (anyone can run a keeper), community maps as map blobs, and spectator leagues.
 
-**Team:** {{TEAM}}. Built with Claude Code.
+Built by **Team Fall Guys** 
 
 All meshes, music and sound are our own, made in code, Blender or a synthesiser (see [`ASSET_LICENSES.md`](ASSET_LICENSES.md)). Fonts are SIL OFL. Code is [MIT](LICENSE). Fall Rush is an original game, with no assets, layouts or designs taken from other games.
