@@ -65,9 +65,7 @@ namespace FallRush.Client
             vrt.sizeDelta = new Vector2(320f, 18f);
             UiKit.Align(ver, TextAnchor.LowerRight);
 
-            var sp = SettingsPanel.Build(canvas, new Vector2(600, 600));
-            sp.anchorMin = sp.anchorMax = sp.pivot = new Vector2(1f, 0.5f);
-            sp.anchoredPosition = new Vector2(-20f, 0f);
+            var sp = SettingsPanel.Build(canvas, () => UiMotion.SetVisible((RectTransform)_settings.transform, false));
             _settings = sp.gameObject;
             _settings.SetActive(false);
             NetBootstrap.PreferredName = GameSettings.PlayerName;

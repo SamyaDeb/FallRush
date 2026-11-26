@@ -746,10 +746,8 @@ namespace FallRush.Client
 
         private void BuildOptions(Transform canvas)
         {
-            var panel = SettingsPanel.Build(canvas, new Vector2(600f, 600f));
-            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(1f, 0.5f);
-            panel.anchoredPosition = new Vector2(-16f, 0f);
-            UiKit.Label(panel, "Click the game to play · F1 controls · F3 net HUD", 14, UiKit.Grape);
+            var panel = SettingsPanel.Build(canvas, () => _optionsOpen = false);
+            UiKit.Label(panel, "Esc or Done to close · click the game to play · F1 controls", 13, UiKit.Grey);
             _options = panel.gameObject;
             _options.SetActive(false);
         }

@@ -15,6 +15,10 @@ namespace FallRush.Client
         public const float MinFovOffset = -10f, MaxFovOffset = 15f;
         public const float MinCamDistance = 0.8f, MaxCamDistance = 1.4f;
         public const int MaxNameChars = 16;
+        public const float DefaultFovOffset = 0f, DefaultCamDistance = 1f;
+        // 2026-11-27 (user: music and in-game sound too loud by default): quieter out of the box. Was 0.8 / 0.7 / 0.8.
+        public const float DefaultMaster = 0.7f, DefaultMusic = 0.4f, DefaultSfx = 0.6f;
+        private const int AudioDefaultsVersion = 2;
 
         private const string KeySens = "fr.sens";
         private const string KeyInvert = "fr.invertY";
@@ -28,6 +32,7 @@ namespace FallRush.Client
         private const string KeyName = "fr.name";
         private const string KeyGfx = "fr.graphicsHigh";
         private const string KeyPreset = "fr.preset";
+        private const string KeyAudioVer = "fr.audioDefaultsVer";
 
         private static bool s_Loaded;
         private static float s_Sens, s_Fov, s_CamDist, s_Master, s_Music, s_Sfx;
@@ -40,14 +45,24 @@ namespace FallRush.Client
             if (s_Loaded)
                 return;
             s_Loaded = true;
+            // one-time move to the quieter defaults: volumes saved under the old, louder defaults are dropped once
+            if (PlayerPrefs.GetInt(KeyAudioVer, 0) < AudioDefaultsVersion)
+            {
+                PlayerPrefs.DeleteKey(KeyMaster);
+                PlayerPrefs.DeleteKey(KeyMusic);
+                PlayerPrefs.DeleteKey(KeySfx);
+                PlayerPrefs.SetInt(KeyAudioVer, AudioDefaultsVersion);
+                PlayerPrefs.Save();
+            }
+
             s_Sens = Mathf.Clamp(PlayerPrefs.GetFloat(KeySens, DefaultSensitivity), MinSensitivity, MaxSensitivity);
             s_Invert = PlayerPrefs.GetInt(KeyInvert, 0) != 0;
             s_Reduced = PlayerPrefs.GetInt(KeyReduced, 0) != 0;
-            s_Fov = Mathf.Clamp(PlayerPrefs.GetFloat(KeyFov, 0f), MinFovOffset, MaxFovOffset);
-            s_CamDist = Mathf.Clamp(PlayerPrefs.GetFloat(KeyCamDist, 1f), MinCamDistance, MaxCamDistance);
-            s_Master = Mathf.Clamp01(PlayerPrefs.GetFloat(KeyMaster, 0.8f));
-            s_Music = Mathf.Clamp01(PlayerPrefs.GetFloat(KeyMusic, 0.7f));
-            s_Sfx = Mathf.Clamp01(PlayerPrefs.GetFloat(KeySfx, 0.8f));
+            s_Fov = Mathf.Clamp(PlayerPrefs.GetFloat(KeyFov, DefaultFovOffset), MinFovOffset, MaxFovOffset);
+            s_CamDist = Mathf.Clamp(PlayerPrefs.GetFloat(KeyCamDist, DefaultCamDistance), MinCamDistance, MaxCamDistance);
+            s_Master = Mathf.Clamp01(PlayerPrefs.GetFloat(KeyMaster, DefaultMaster));
+            s_Music = Mathf.Clamp01(PlayerPrefs.GetFloat(KeyMusic, DefaultMusic));
+            s_Sfx = Mathf.Clamp01(PlayerPrefs.GetFloat(KeySfx, DefaultSfx));
             s_Plates = PlayerPrefs.GetInt(KeyPlates, 1) != 0;
             s_Name = CleanName(PlayerPrefs.GetString(KeyName, string.Empty));
             s_GfxHigh = PlayerPrefs.GetInt(KeyGfx, 1) != 0;
@@ -94,14 +109,14 @@ namespace FallRush.Client
             set { Load(); s_Master = Mathf.Clamp01(value); PlayerPrefs.SetFloat(KeyMaster, s_Master); AudioListener.volume = s_Master; }
         }
 
-        /// <summary>Music bus volume (wired for G3; no music yet).</summary>
+        /// <summary>Music bus volume.</summary>
         public static float MusicVolume
         {
             get { Load(); return s_Music; }
             set { Load(); s_Music = Mathf.Clamp01(value); PlayerPrefs.SetFloat(KeyMusic, s_Music); }
         }
 
-        /// <summary>SFX bus volume (wired for G3; no SFX yet).</summary>
+        /// <summary>SFX bus volume (world, UI and own hit cues).</summary>
         public static float SfxVolume
         {
             get { Load(); return s_Sfx; }
@@ -151,6 +166,22 @@ namespace FallRush.Client
             }
 
             return sb.ToString().Trim();
+        }
+
+        /// <summary>Settings panel "Reset defaults": controls, camera, display and audio (not the name or Rushling).</summary>
+        public static void ResetToDefaults()
+        {
+            Sensitivity = DefaultSensitivity;
+            InvertY = false;
+            FovOffset = DefaultFovOffset;
+            CameraDistance = DefaultCamDistance;
+            ReducedMotion = false;
+            ShowNameplates = true;
+            GraphicsHigh = true;
+            MasterVolume = DefaultMaster;
+            MusicVolume = DefaultMusic;
+            SfxVolume = DefaultSfx;
+            Save();
         }
 
         public static void Save() => PlayerPrefs.Save();
