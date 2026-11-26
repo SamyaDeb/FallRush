@@ -58,11 +58,11 @@ export function mmSeeds(m: MmView, o: { judge: boolean; full: boolean; humanSlot
   const humanAlive = o.humanSlots == null || o.humanSlots.some((s) => m.alive.includes(s));
   if (m.currentRound === 0 && ["created", "dealing", "dealt"].includes(m.status)) {
     out.push({ tag: "champion", k: 0 });
-    if (!o.judge) out.push({ tag: "q1", k: 2 });
+    if (!(o.judge && !o.full)) out.push({ tag: "q1", k: 2 }); // judge + hybrid: rounds 1–3 fast-forwarded, no pools
   }
   // a Qualify(r) pool only when round r can still be played (≥ 2 alive: a crowned-early match leaves it unsettleable,
   // prog-qualify-unplayed-round) and a human is still alive (no seeded pools on a bot-only remainder)
-  if (!o.judge && m.status === "roundResolved" && m.alive.length >= 2 && humanAlive) {
+  if (!(o.judge && !o.full) && m.status === "roundResolved" && m.alive.length >= 2 && humanAlive) {
     if (m.currentRound === 1) out.push({ tag: "q2", k: 3 });
     if (m.currentRound === 2) out.push({ tag: "q3", k: 4 });
   }
@@ -281,4 +281,19 @@ export function fullHumansTarget(want: number, minHumans: number, n = 12): numbe
 /** The full-mode lobby wait is over: enough joined humans, or the wait (waitS) ran out. */
 export function humansWaitDone(o: { joined: number; want: number; minHumans: number; elapsedMs: number; waitS: number; n?: number }): boolean {
   return o.joined >= fullHumansTarget(o.want, o.minHumans, o.n) || o.elapsedMs >= o.waitS * 1000;
+}
+
+// ------------------------------------------------------------------ seasons runway (fee-vault commits)
+/** MagicBlock charges 1,000,000 lamports per committed account per commit from an account's 26th commit; the keeper
+ * commits 6 accounts (5 markets + drop queue) per match, paid by the arena's DropQueue on the rollup. */
+export const COMMIT_FEE_LAMPORTS = 1_000_000, ECON_ACCOUNTS = 6;
+export const DROPQ_MIN_MATCHES = Number(process.env.DROPQ_MIN_MATCHES ?? 3), DROPQ_TOPUP_MATCHES = Number(process.env.DROPQ_TOPUP_MATCHES ?? 12);
+/** Lamports to send to the DropQueue (0 = enough): top up when it holds fewer than `minMatches` matches of commit fees
+ * above its rent, to `topupMatches` matches; never when the wallet would drop under `walletKeep`. */
+export function dropqTopup(dropqLamports: number, rent: number, walletLamports: number, walletKeep = 500_000_000, minMatches = DROPQ_MIN_MATCHES, topupMatches = DROPQ_TOPUP_MATCHES): number {
+  const perMatch = COMMIT_FEE_LAMPORTS * ECON_ACCOUNTS;
+  const spare = Math.max(0, dropqLamports - rent);
+  if (spare >= minMatches * perMatch) return 0;
+  const want = topupMatches * perMatch - spare;
+  return walletLamports - want >= walletKeep ? want : 0;
 }

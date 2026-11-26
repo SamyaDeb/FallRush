@@ -17,14 +17,20 @@ pub const IX_SCHEDULE_INTENT_BUNDLE: u32 = 11;
 /// `ScheduleIntentBundle` data committing the accounts at indices `2 .. 2 + n` (after payer, magic context), with
 /// or without undelegation, no actions.
 pub fn intent_data(n: usize, undelegate: bool) -> Vec<u8> {
+    let at: Vec<u8> = (0..n).map(|i| 2 + i as u8).collect();
+    intent_data_at(&at, undelegate)
+}
+
+/// `ScheduleIntentBundle` data committing the accounts at the given CPI account indices (e.g. a fee-vault commit
+/// whose payer is also a committed account: index 0), with or without undelegation, no actions.
+pub fn intent_data_at(at: &[u8], undelegate: bool) -> Vec<u8> {
+    let n = at.len();
     let mut d = Vec::with_capacity(32 + n);
     d.extend_from_slice(&IX_SCHEDULE_INTENT_BUNDLE.to_le_bytes());
     let indices = |d: &mut Vec<u8>| {
         d.extend_from_slice(&0u32.to_le_bytes()); // CommitTypeArgs::Standalone
         d.extend_from_slice(&(n as u64).to_le_bytes());
-        for i in 0..n {
-            d.push(2 + i as u8);
-        }
+        d.extend_from_slice(at);
     };
     if undelegate {
         d.push(0); // commit: None
@@ -54,6 +60,31 @@ pub fn commit<'info>(payer: &AccountInfo<'info>, magic_context: &AccountInfo<'in
     }
     infos.push(magic_program.clone());
     invoke(&Instruction { program_id: magic_program.key(), accounts: metas, data: intent_data(accounts.len(), undelegate) }, &infos)?;
+    Ok(())
+}
+
+/// Commits `accounts` paid by a DELEGATED program PDA (`payer`, signed with `payer_seeds`) through the validator's
+/// `magic_fee_vault` (= the SDK builder's `.magic_fee_vault(v)`): `[payer (s, w), magic_context (w), fee_vault (w),
+/// accounts…]`. MagicBlock core 2.0: without a delegated payer + fee vault an account commits at most 10 times
+/// ("sponsored commit limit"); on this path the delegated payer covers commits instead. A committed account equal to
+/// the payer is not repeated: its index is 0 (the builder's duplicate filter).
+pub fn commit_with_fee_vault<'info>(payer: &AccountInfo<'info>, payer_seeds: &[&[u8]], magic_context: &AccountInfo<'info>, fee_vault: &AccountInfo<'info>, magic_program: &AccountInfo<'info>, accounts: &[AccountInfo<'info>]) -> Result<()> {
+    keq!(magic_program.key(), ephemeral_rollups_sdk::consts::MAGIC_PROGRAM_ID, crate::errors::FallRushError::BadTask);
+    // the fee vault itself is checked by the magic program (it must be the validator's vault)
+    let mut metas = vec![AccountMeta::new(payer.key(), true), AccountMeta::new(magic_context.key(), false), AccountMeta::new(fee_vault.key(), false)];
+    let mut infos = vec![payer.clone(), magic_context.clone(), fee_vault.clone()];
+    let mut at = Vec::with_capacity(accounts.len());
+    for a in accounts {
+        if a.key() == payer.key() {
+            at.push(0u8);
+            continue;
+        }
+        at.push(metas.len() as u8);
+        metas.push(AccountMeta { pubkey: a.key(), is_signer: false, is_writable: a.is_writable });
+        infos.push(a.clone());
+    }
+    infos.push(magic_program.clone());
+    anchor_lang::solana_program::program::invoke_signed(&Instruction { program_id: magic_program.key(), accounts: metas, data: intent_data_at(&at, false) }, &infos, &[payer_seeds])?;
     Ok(())
 }
 
@@ -153,6 +184,15 @@ mod tests {
             assert_eq!(bincode::serialize(&MagicBlockInstruction::ScheduleIntentBundle(c)).unwrap(), intent_data(n, false));
             let u = MagicIntentBundleArgs { commit_and_undelegate: Some(CommitAndUndelegateArgs { commit_type: CommitTypeArgs::Standalone(idx), undelegate_type: UndelegateTypeArgs::Standalone }), ..Default::default() };
             assert_eq!(bincode::serialize(&MagicBlockInstruction::ScheduleIntentBundle(u)).unwrap(), intent_data(n, true));
+        }
+    }
+
+    #[test]
+    fn fee_vault_intent_bytes_equal_the_sdk_bincode() {
+        // the payer committing itself (index 0) and a market after payer, magic context, fee vault (index 3)
+        for idx in [vec![0u8], vec![3u8], vec![3u8, 4]] {
+            let c = MagicIntentBundleArgs { commit: Some(CommitTypeArgs::Standalone(idx.clone())), ..Default::default() };
+            assert_eq!(bincode::serialize(&MagicBlockInstruction::ScheduleIntentBundle(c)).unwrap(), intent_data_at(&idx, false));
         }
     }
 

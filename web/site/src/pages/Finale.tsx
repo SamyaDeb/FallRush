@@ -50,7 +50,7 @@ export default function Finale({ live }: { live: Live }) {
             </div>
             <div className="stat">
               <b>{live.finalTick != null ? live.finalTick : '—'}</b>
-              <span>{live.finalTick != null ? 'on-chain Final tick' : 'no Final running'}</span>
+              <span>{live.finalTick != null ? 'on-chain tick, live' : 'no on-chain match running'}</span>
             </div>
             <a className="stat link" href={ARENAS_URL}>
               <b>→</b>
@@ -84,7 +84,7 @@ export default function Finale({ live }: { live: Live }) {
           <span className="word small">
             FALL <span className="yellow">RUSH</span>
           </span>
-          <span>Rounds 1–3 run on the Classic game server (recorded on-chain); the Final is computed by the program on a MagicBlock Ephemeral Rollup. Devnet test chips only, no real-money value.</span>
+          <span>Every round is computed by the program on a MagicBlock Ephemeral Rollup (if the rollup is down, a match falls back to our game server and the receipt says so). Devnet test chips only, no real-money value.</span>
           <nav>
             <Link to="/privacy">Privacy</Link>
             <a href={ARENAS_URL}>Arenas</a>

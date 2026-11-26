@@ -33,7 +33,7 @@ const COPY: Copy[] = [
   },
   {
     id: 'run',
-    eyebrow: 'ROUND 1 · RACE',
+    eyebrow: 'ROUND 1 · RACE · ON-CHAIN',
     title: 'Capsule Run',
     body: 'Gumballs roll down the slope, mallets swing over the hop field, a sweeper spins on the last pad. The fastest two-thirds over the line go through.',
     stat: '~2 in 3 go through',
@@ -59,7 +59,7 @@ const COPY: Copy[] = [
     id: 'lid',
     eyebrow: 'THE FINAL · ON-CHAIN',
     title: 'Lid Flip',
-    body: 'Lids light up, then swing open under you. And this round does not run on our server: a Solana program steps it, tick by tick, inside a MagicBlock Ephemeral Rollup.',
+    body: 'Lids light up, then swing open under you. Like every round before it, this one does not run on our server: a Solana program steps it, tick by tick, inside a MagicBlock Ephemeral Rollup.',
     stat: '1 crown',
     side: 'left',
   },
@@ -73,7 +73,7 @@ const COPY: Copy[] = [
 ];
 
 const CARDS = [
-  { at: [0.04, 0.3], k: 'Ephemeral Rollup', v: 'The arena under glass. The fall_rush program simulates the Final at 30 Hz on devnet-as (validator ' + VALIDATOR.slice(0, 4) + '…); a timed task calls tick().', link: ['program', explorer('address', PROGRAM)] },
+  { at: [0.04, 0.3], k: 'Ephemeral Rollup', v: 'The arena under glass. The fall_rush program simulates all 4 rounds at 30 Hz on devnet-as (validator ' + VALIDATOR.slice(0, 4) + '…); timed tasks call tick() and a permissionless crank helps with the 12-player rounds.', link: ['program', explorer('address', PROGRAM)] },
   { at: [0.24, 0.5], k: 'VRF', v: 'MagicBlock VRF rolls the deal: the maps, the hazard seeds and the capsule rarity. Nobody picks them.' },
   { at: [0.44, 0.7], k: 'Session keys', v: 'A guest wallet signs once. A session key winds up every move, bet and Chaos Drop after that. No popups.' },
   { at: [0.66, 0.96], k: 'Metaplex Core', v: 'The match receipt is committed to Solana and the program mints the Crown Capsule and capsule drops.', link: ['RUSH mint', explorer('address', RUSH_MINT)] },

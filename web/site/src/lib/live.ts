@@ -63,7 +63,7 @@ export function useLive(on = true, everyMs = 5000): Live {
           }
         }
         const servers = s.servers ?? [];
-        const fin = servers.find((x) => x.up && x.keeper?.stage === 'final' && x.keeper.worldTick != null);
+        const fin = servers.find((x) => x.up && (x.keeper?.stage === 'final' || x.keeper?.stage === 'onchain_match') && x.keeper.worldTick != null);
         if (!stop)
           setLive({
             ok: true,

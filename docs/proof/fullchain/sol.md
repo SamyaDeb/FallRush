@@ -44,3 +44,18 @@ Balance: 6.09127052 SOL
 
 Buffer Address                               | Authority                                    | Balance
 
+| 2026-11-25T22:21:09Z | before upgrade: .so 1205080 B (03e85a05ba73867f), program data 1198896 B | 10.431262742 SOL | 3.489881992 SOL |
+| 2026-11-25T22:21:12Z | extended program data by 10280 B | 10.379035342 SOL | 3.489881992 SOL |
+| 2026-11-25T22:21:56Z | deployed | 10.372706374 SOL | 3.489881992 SOL |
+
+Program Id: 4yehffTS5zxw9vqHpmiAgxoqqUDBVgrCTyH5eyL4Dsk4
+Owner: BPFLoaderUpgradeab1e11111111111111111111111
+ProgramData Address: AEuWzFJArNaBUN46kPju9xT2CJY1QAG33DfNgkRkCJZz
+Authority: 71Wd3Sut366NSg71bYMNdSKsjRZ2pHDV6j6GyLFKt4eJ
+Last Deployed In Slot: 526297547
+Data Length: 1209176 (0x127358) bytes
+Balance: 6.14349292 SOL
+
+
+Buffer Address                               | Authority                                    | Balance
+

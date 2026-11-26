@@ -1290,14 +1290,14 @@ namespace FallRush.Client
             else if (!string.IsNullOrEmpty(p.Url))
             {
                 _vrfUrl = p.Url;
-                SetChip(_vrfText, $"VRF ✓ MagicBlock VRF seeds the on-chain Final · {Short(p.Signature)}");
+                SetChip(_vrfText, $"VRF ✓ MagicBlock VRF seeds the on-chain match · {Short(p.Signature)}");
                 _vrfChip.GetComponentInChildren<Image>().color = UiKit.CardPastel(UiKit.CardHue.Apple);
                 _vrfButton.gameObject.SetActive(Application.platform == RuntimePlatform.WebGLPlayer || Application.isEditor);
             }
             else
             {
                 _vrfUrl = null;
-                SetChip(_vrfText, IsPracticeMatch(m) ? "Practice deal (local seed)" : dealt ? "Rounds 1–3: Classic deal (game server seed)" : "Dealing…");
+                SetChip(_vrfText, IsPracticeMatch(m) ? "Practice deal (local seed)" : dealt ? "Classic deal (game server seed)" : "Dealing…");
                 _vrfButton.gameObject.SetActive(false);
             }
 
@@ -1655,7 +1655,7 @@ namespace FallRush.Client
                 _practiceReceipt.ShowSteps(true, _chain.State == ChainState.SolanaConfirmed, links.SolanaUrl ?? links.RollupUrl, null);
             else
                 _practiceReceipt.ShowPractice(_chain.IsPractice ? "Practice: not recorded on chain" : "Classic match: results on the game server",
-                    IsPracticeMatch(m) ? "Ranked matches write a receipt to Solana (rollup, then Solana) with an explorer link." : "The on-chain receipt appears when the Final ran on the rollup.");
+                    IsPracticeMatch(m) ? "Ranked matches write a receipt to Solana (rollup, then Solana) with an explorer link." : "The on-chain receipt appears when the match ran on the rollup.");
             _back.interactable = !_backSent;
             UiKit.SetButtonText(_back, _backSent ? $"Waiting… (lobby in {Secs((long)m.PhaseEndTick - now)} s)" : $"Back to lobby ({Secs((long)m.PhaseEndTick - now)} s)");
         }

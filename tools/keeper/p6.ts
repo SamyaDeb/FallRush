@@ -5,8 +5,8 @@ import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 import type { AccountMeta, Keypair, TransactionInstruction } from "@solana/web3.js";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
-import { NET, base, er, wallet, pb, pe, pda, PROGRAM_ID, MAGIC_PROGRAM, MAGIC_CONTEXT, sendBase, sendEr, sleep, cu, BN, log, waitSig } from "./lib.ts";
-import { epda, MARKETS, CORE } from "./econ.ts";
+import { NET, base, er, wallet, pb, pe, pda, PROGRAM_ID, MAGIC_PROGRAM, MAGIC_CONTEXT, sendBase, sendEr, sleep, cu, BN, log, waitSig, EP } from "./lib.ts";
+import { epda, MARKETS, CORE, DELEGATION } from "./econ.ts";
 import { Transaction } from "@solana/web3.js";
 
 export const OP6 = { INIT: 1, ESCROW_OPEN: 2, COMMIT: 3, BOOK_OPEN: 4, PICK: 5, BOOK_CLOSE: 6, CLOSE: 7, REVEAL: 8, FINISH: 9, OPEN_SEASON: 10, RECORD: 11, INIT_PSEASON: 12, INIT_PROFILE: 13, CLOSE_SEASON: 14, MINT_TROPHY: 15, COMMIT_ECON: 16 };
@@ -183,13 +183,19 @@ export async function revealFromBook(arenaId: number, matchPda: PublicKey, logFi
 }
 /** Commits the arena's 5 markets + drop queue to Solana (the copies `record_season` reads), PER intents of `per`
  * accounts (the validator refuses an intent whose base transaction would not fit). */
+/** MagicBlock core 2.0: the validator's fee vault (`["magic-fee-vault", validator]`, delegation program). */
+export const magicFeeVault = (validator = EP.validator) => PublicKey.findProgramAddressSync([Buffer.from("magic-fee-vault"), validator.toBuffer()], DELEGATION)[0];
+/** fee-vault commits (program op a = 1): the arena's delegated DropQueue pays, so the 10 sponsored-commit cap is gone. */
+export const COMMIT_FEE_VAULT = (process.env.COMMIT_FEE_VAULT ?? "1") === "1";
 export async function commitEcon(arenaId: number, per = Number(process.env.COMMIT_PER ?? 1)) {
   const arena = pda.arena(arenaId);
   const all = [...Array.from({ length: MARKETS }, (_, k) => epda.market(arenaId, k)), epda.drops(arena)];
   const sigs: string[] = [];
   for (let i = 0; i < all.length; i += per) {
-    const accs = [...all.slice(i, i + per).map(w_), w_(MAGIC_CONTEXT), r_(MAGIC_PROGRAM)];
-    const r = await sendEr([cu(200_000), await p6Ix(wallet.publicKey, OP6.COMMIT_ECON, 0, 0, [], accs)], [wallet], "commit_econ", 10);
+    const accs = COMMIT_FEE_VAULT
+      ? [...all.slice(i, i + per).map(w_), w_(epda.drops(arena)), w_(MAGIC_CONTEXT), w_(magicFeeVault()), r_(MAGIC_PROGRAM)]
+      : [...all.slice(i, i + per).map(w_), w_(MAGIC_CONTEXT), r_(MAGIC_PROGRAM)];
+    const r = await sendEr([cu(200_000), await p6Ix(wallet.publicKey, OP6.COMMIT_ECON, COMMIT_FEE_VAULT ? 1 : 0, 0, [], accs)], [wallet], "commit_econ", 10);
     // harden #2: the failing tx's own signature (its ER logs say why), and which accounts it carried
     if (r.err) return { sig: sigs.join(","), err: r.err, failSig: r.sig, failAt: i };
     sigs.push(r.sig);

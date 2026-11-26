@@ -533,7 +533,7 @@ namespace FallRush.Client
         }
 
         [System.Serializable] private sealed class MmReply { public bool ok; public string url, gs, reason, error, lobbyTier, phase; public int humans, size; }
-        [System.Serializable] private sealed class RoomReply { public bool ok; public string code, url, gs, error, phase; public bool onchainFinal; public int humans; }
+        [System.Serializable] private sealed class RoomReply { public bool ok; public string code, url, gs, error, phase; public bool onchainFinal, onchainAll; public int humans; }
 
         private static bool HasApi => Application.platform == RuntimePlatform.WebGLPlayer || !string.IsNullOrEmpty(Arg("-fallrushApi"));
 
@@ -603,7 +603,7 @@ namespace FallRush.Client
 
             NetBootstrap.RoomCode = r.code;
             NetBootstrap.HubServerUrl = r.url;
-            _busyText.text = $"Room <color=#7B2FF7>{r.code}</color> is ready\n<size=15>{(r.onchainFinal ? "the Final runs on-chain" : "Classic arena")}</size>";
+            _busyText.text = $"Room <color=#7B2FF7>{r.code}</color> is ready\n<size=15>{(r.onchainAll ? "every round runs on-chain" : r.onchainFinal ? "the Final runs on-chain" : "Classic arena")}</size>";
             yield return new WaitForSecondsRealtime(0.6f);
             Connect();
         }

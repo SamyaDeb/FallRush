@@ -34,7 +34,7 @@ const STATUS_FILES: Record<string, string> = parseMap(process.env.STATUS_FILES);
 const ROOMS = process.env.ROOMS ?? "";
 const ROOMS_ON = process.env.ROOMS_ON !== "0" && !!ROOMS;
 const MM_ON = process.env.MM_ON !== "0";
-// submission: judge mode (POST /api/judge): a private room on an on-chain arena whose rounds 1–3 are fast-forwarded
+// submission: judge mode (POST /api/judge): a private room on an on-chain arena (full mode: all 4 rounds on-chain; hybrid fallback: rounds 1–3 fast-forwarded)
 const JUDGE_ON = process.env.JUDGE_ON !== "0" && ROOMS_ON;
 const JUDGE_PER_IP_HOUR = Number(process.env.JUDGE_PER_IP_HOUR ?? 4);
 const GS_PUBLIC: Record<string, string> = parseMap(process.env.GS_PUBLIC);
@@ -416,12 +416,12 @@ async function createRoom0(ip: string, botMix: number) {
   roomIp[ip].push(Date.now());
   statusCache.at = 0;
   console.log(`[rooms] ${r.code} on ${r.gs} (${pick.classic ? "classic" : "arena " + pick.arena}) mix ${r.botMix}`);
-  return { code: 200, body: { ok: true, code: r.code, url: pick.url, gs: pick.id, onchainFinal: !pick.classic, expiresAt: r.expiresAt } };
+  return { code: 200, body: { ok: true, code: r.code, url: pick.url, gs: pick.id, onchainFinal: !pick.classic, onchainAll: !!pick.onchainAll, expiresAt: r.expiresAt } };
 }
 /**
  * Submission (judge mode): one click → a private room on an idle ON-CHAIN arena (never a Classic-only server), flagged
- * `judge`: the game server starts as soon as the judge is in and fast-forwards rounds 1–3 (the receipt labels it), so the
- * judge plays the on-chain Final within about a minute. An arena is taken only if another arena or the Classic overflow
+ * `judge`: the game server starts as soon as the judge is in. On a full on-chain arena (`onchainAll`) the judge plays all 4
+ * rounds on the rollup; only in the hybrid fallback does it fast-forward rounds 1–3 (the receipt labels it). An arena is taken only if another arena or the Classic overflow
  * server stays open to the public.
  */
 const judgeIp: Record<string, number[]> = {};
@@ -433,7 +433,7 @@ function createJudge(ip: string) {
 async function createJudge0(ip: string) {
   if (!JUDGE_ON) return { code: 503, body: { ok: false, error: "judge mode is off right now: use Play" } };
   const mine = [...rooms.values()].find((r) => r.ip === ip && r.judge && !r.seen);
-  if (mine) { const st0 = await status(); const sv0: any = st0.servers.find((x: any) => x.id === mine.gs); return { code: 200, body: { ok: true, code: mine.code, url: sv0?.url ?? null, gs: mine.gs, arena: sv0?.arena ?? null, onchainFinal: true, expiresAt: mine.expiresAt, reused: true } }; }
+  if (mine) { const st0 = await status(); const sv0: any = st0.servers.find((x: any) => x.id === mine.gs); return { code: 200, body: { ok: true, code: mine.code, url: sv0?.url ?? null, gs: mine.gs, arena: sv0?.arena ?? null, onchainFinal: true, onchainAll: !!sv0?.onchainAll, expiresAt: mine.expiresAt, reused: true } }; }
   judgeIp[ip] = recent(judgeIp[ip], 3_600_000);
   if (judgeIp[ip].length >= JUDGE_PER_IP_HOUR) return { code: 429, body: { ok: false, error: "too many judge matches from this network: try again later, or use Play" } };
   await sweepRooms();
@@ -454,7 +454,7 @@ async function createJudge0(ip: string) {
   judgeIp[ip].push(Date.now());
   statusCache.at = 0;
   console.log(`[rooms] judge ${r.code} on ${r.gs} (arena ${pick.arena})`);
-  return { code: 200, body: { ok: true, code: r.code, url: pick.url, gs: pick.id, arena: pick.arena, onchainFinal: true, expiresAt: r.expiresAt } };
+  return { code: 200, body: { ok: true, code: r.code, url: pick.url, gs: pick.id, arena: pick.arena, onchainFinal: true, onchainAll: !!pick.onchainAll, expiresAt: r.expiresAt } };
 }
 const roomMiss: Record<string, number[]> = {};
 async function roomInfo(code: string, ip: string) {

@@ -55,12 +55,14 @@ test("mmSeeds: q2 / q3 with ≥ 2 alive and a human alive; none on a bot-only re
   assert.deepEqual(P.mmSeeds(view({}), { judge: false, full: true, humanSlots: [3] }), [{ tag: "q3", k: 4 }]);
   assert.deepEqual(P.mmSeeds(view({}), { judge: false, full: true, humanSlots: [0] }), []); // human 0 eliminated
   assert.deepEqual(P.mmSeeds(view({}), { judge: false, full: true, humanSlots: null }), [{ tag: "q3", k: 4 }]); // unknown roster
-  assert.deepEqual(P.mmSeeds(view({}), { judge: true, full: true, humanSlots: [3] }), []); // judge: no qualify pools
+  assert.deepEqual(P.mmSeeds(view({}), { judge: true, full: true, humanSlots: [3] }), [{ tag: "q3", k: 4 }]); // full judge match: rounds are played
+  assert.deepEqual(P.mmSeeds(view({}), { judge: true, full: false, humanSlots: [3] }), []); // hybrid judge: rounds 1–3 fast-forwarded, no qualify pools
 });
-test("mmSeeds: champion + q1 at the start (judge: champion only)", () => {
+test("mmSeeds: champion + q1 at the start (hybrid judge: champion only)", () => {
   const s = view({ status: "dealt", currentRound: 0, alive: [0, 1, 2] });
   assert.deepEqual(P.mmSeeds(s, { judge: false, full: true, humanSlots: [0] }), [{ tag: "champion", k: 0 }, { tag: "q1", k: 2 }]);
-  assert.deepEqual(P.mmSeeds(s, { judge: true, full: true, humanSlots: [0] }), [{ tag: "champion", k: 0 }]);
+  assert.deepEqual(P.mmSeeds(s, { judge: true, full: true, humanSlots: [0] }), [{ tag: "champion", k: 0 }, { tag: "q1", k: 2 }]);
+  assert.deepEqual(P.mmSeeds(s, { judge: true, full: false, humanSlots: [0] }), [{ tag: "champion", k: 0 }]);
 });
 test("mmSeeds: FinalWinner in full mode (no 0x40 flag) at R4 before RUSH; hybrid keeps the 0x40 gate", () => {
   const r4 = view({ status: "roundActive", currentRound: 4, flags: 0x20, alive: [3, 7, 9] });
@@ -348,4 +350,13 @@ test("orphanDetector: 0 = off (a dropped server socket never aborts a live chain
   const d = P.orphanDetector("aa", 0);
   assert.equal(d({ t: 1000, inMatch: false, match: "" }, 1000), false);
   assert.equal(d({ t: 60_000, inMatch: false, match: "" }, 60_000), false);
+});
+
+// ------------------------------------------------------------------ seasons runway
+test("dropqTopup: tops up below 3 matches of fees, to 12; keeps the wallet reserve", () => {
+  const rent = 2_763_520;
+  assert.equal(P.dropqTopup(rent + 18_000_000, rent, 3e9), 0); // exactly 3 matches: enough
+  assert.equal(P.dropqTopup(rent + 17_999_999, rent, 3e9), 72_000_000 - 17_999_999);
+  assert.equal(P.dropqTopup(rent, rent, 3e9), 72_000_000); // only rent
+  assert.equal(P.dropqTopup(rent, rent, 500_000_000 + 71_999_999), 0); // the wallet would drop under 0.5 SOL
 });

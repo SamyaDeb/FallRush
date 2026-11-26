@@ -428,7 +428,7 @@ pub fn dispatch<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'info>]
         op::INIT_PROFILE => op_init_small(signer, accs, a, false),
         op::CLOSE_SEASON => op_close_season(accs),
         op::MINT_TROPHY => op_mint_trophy(accs, a),
-        op::COMMIT_ECON => op_commit_econ(signer, accs),
+        op::COMMIT_ECON => op_commit_econ(signer, accs, a),
         _ => err!(FallRushError::InvalidSlot),
     }
 }
@@ -954,12 +954,16 @@ fn op_mint_trophy<'info>(accs: &'info [AccountInfo<'info>], kind: u64) -> Result
 }
 
 #[inline(never)]
-fn op_commit_econ<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'info>]) -> Result<()> {
-    // `[market k / drop queue (w)…, magic_context (w), magic_program]`: one intent per transaction must fit a base
-    // transaction (validator limit), so the keeper commits the 5 markets + drop queue a few at a time
+fn op_commit_econ<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'info>], a: u64) -> Result<()> {
+    // a = 0: `[market k / drop queue (w)…, magic_context (w), magic_program]` (sponsored commits: MagicBlock core 2.0
+    // stops these after 10 per account).
+    // a = 1 (fee vault): `[market k / drop queue (w)…, drop queue payer (w), magic_context (w), magic_fee_vault (w),
+    // magic_program]`: the arena's delegated DropQueue PDA pays through the validator's fee vault (no 10-commit cap).
+    // One intent per transaction must fit a base transaction (validator limit), so the keeper commits a few at a time.
     let n = accs.len();
-    require!(n >= 3 && n <= 2 + MARKETS + 1, FallRushError::InvalidSlot);
-    for info in &accs[..n - 2] {
+    let fixed = if a == 1 { 4 } else { 2 };
+    require!(a <= 1 && n >= fixed + 1 && n <= fixed + MARKETS + 1, FallRushError::InvalidSlot);
+    for info in &accs[..n - fixed] {
         let d = info.try_borrow_data()?;
         require!(d.len() >= 8, FallRushError::InvalidSlot);
         if d[..8] == *Market::DISCRIMINATOR {
@@ -976,7 +980,20 @@ fn op_commit_econ<'info>(signer: &Signer<'info>, accs: &'info [AccountInfo<'info
             keq!(econ::pda(&[econ::DROPQ_SEED, arena.as_ref()]).0, info.key(), FallRushError::InvalidSlot);
         }
     }
-    crate::magic::commit(&signer.to_account_info(), &accs[n - 2], &accs[n - 1], &accs[..n - 2], false)
+    if a == 0 {
+        return crate::magic::commit(&signer.to_account_info(), &accs[n - 2], &accs[n - 1], &accs[..n - 2], false);
+    }
+    let payer = &accs[n - 4];
+    let arena = {
+        let d = payer.try_borrow_data()?;
+        require!(d.len() >= 40 && d[..8] == *DropQueue::DISCRIMINATOR, FallRushError::InvalidSlot);
+        Pubkey::new_from_array(d[8..40].try_into().unwrap())
+    };
+    let (pk, bump) = econ::pda(&[econ::DROPQ_SEED, arena.as_ref()]);
+    keq!(pk, payer.key(), FallRushError::InvalidSlot);
+    let bs = [bump];
+    let seeds: [&[u8]; 3] = [econ::DROPQ_SEED, arena.as_ref(), &bs];
+    crate::magic::commit_with_fee_vault(payer, &seeds, &accs[n - 3], &accs[n - 2], &accs[n - 1], &accs[..n - 4])
 }
 
 fn dec_u32(v: u32, out: &mut [u8; 16]) -> &str {

@@ -22,6 +22,7 @@ import * as S from "./p6.ts";
 import { sampleCu } from "./cusample.ts";
 import { startCrank } from "./crank.ts";
 import * as P from "./policy.ts";
+import { lamportsDelegatedTransferIx } from "./topup.ts";
 
 const ARENA = Number(process.env.ARENA ?? 2);
 const LOG_DIR = process.env.LOG_DIR ?? "/logs";
@@ -490,10 +491,11 @@ async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog
       try { out.sigs.writeReceipt = (await act("write_receipt", async () => E.writeReceipt(ARENA, matchPda, maps), mlog)).sig; }
       catch (e: any) { if (statusName(m) !== "aborted") throw e; out.receiptError = String(e?.message ?? e).slice(0, 300); }
     }
+    if (SEASONS && !status.seasonsPaused && rc && !(out.sigs.commitEcon) && S.COMMIT_FEE_VAULT) await dropqRunway(mlog);
     if (SEASONS && !status.seasonsPaused && rc && !(out.sigs.commitEcon)) {
       // P6: the 5 markets + drop queue to Solana (the copies record_season checks against the receipt's bets hash)
       const c: any = await S.commitEcon(ARENA).catch((x) => ({ sig: "", err: String(x) }));
-      logTo(mlog, { act: "commit_econ", sig: c.sig, err: c.err, failSig: c.failSig }); if (!c.err) out.sigs.commitEcon = c.sig; else out.commitEconError = { err: String(c.err).slice(0, 200), failSig: c.failSig ?? null };
+      logTo(mlog, { act: "commit_econ", sig: c.sig, err: c.err, failSig: c.failSig }); if (!c.err) out.sigs.commitEcon = c.sig; else { out.commitEconError = { err: String(c.err).slice(0, 200), failSig: c.failSig ?? null }; status.seasonsPaused = true; status.seasonsPausedReason = "commit_econ failed"; log({ ev: "seasons_paused", why: "commit_econ failed", err: out.commitEconError }); }
     }
     rc = await E.matchReceipt(er, matchPda);
     m = await erMatch(matchPda);
@@ -569,7 +571,7 @@ async function finish(matchPda: PublicKey, maps: PublicKey[], mdir: string, mlog
     out.assets = r2 ? [...(r2.flags & 4 ? [E.epda.crown(matchPda).toBase58()] : []), ...[...Array(12).keys()].filter((s) => (r2.mintedMask >> s) & 1).map((s) => E.epda.capsule(matchPda, s).toBase58())] : [];
   }
   out.receipt = JSON.parse(JSON.stringify(await E.matchReceipt(base, matchPda), (_k, v) => (typeof v === "bigint" ? v.toString() : v instanceof PublicKey ? v.toBase58() : v)));
-  if (SEASONS && !status.seasonsPaused && !out.judge) await seasons(matchPda, mlog, out).catch((e) => { out.seasonError = String(e?.message ?? e).slice(0, 300); log({ ev: "season_failed", err: out.seasonError }); });
+  if (SEASONS && !status.seasonsPaused && !(out.judge && !out.onchainAll)) await seasons(matchPda, mlog, out).catch((e) => { out.seasonError = String(e?.message ?? e).slice(0, 300); log({ ev: "season_failed", err: out.seasonError }); });
 }
 
 /** P6: record a finalized, completed match into its seasons (weekly + the active test season), permissionless. */
@@ -914,9 +916,27 @@ if (SEASONS) {
     const infos = await base.getMultipleAccountsInfo(metas, "confirmed");
     const nonces = infos.map((i) => P.delegationNonce(i?.data as Buffer | undefined));
     status.commitNonces = nonces;
-    if (P.commitCapped(nonces)) { status.seasonsPaused = true; status.seasonsPausedReason = "commit cap"; log({ ev: "seasons_paused", why: "commit cap", nonces }); console.log(`[keeper a${ARENA}] seasons paused: commit cap (nonces ${nonces.join(",")})`); }
+    // fee-vault commits (S.COMMIT_FEE_VAULT, program op a = 1) are not capped: the arena's DropQueue pays
+    if (P.commitCapped(nonces) && !S.COMMIT_FEE_VAULT) { status.seasonsPaused = true; status.seasonsPausedReason = "commit cap"; log({ ev: "seasons_paused", why: "commit cap", nonces }); console.log(`[keeper a${ARENA}] seasons paused: commit cap (nonces ${nonces.join(",")})`); }
   } catch (e) { log({ ev: "commit_cap_check_failed", err: String(e).slice(0, 200) }); }
 } else status.seasonsPausedReason = "SEASONS=0";
+/** Seasons runway: the arena's DropQueue pays the fee-vault commits on the rollup; top it up from the game authority
+ * (MagicBlock lamports delegated transfer) when it holds fewer than DROPQ_MIN_MATCHES matches of commit fees. */
+async function dropqRunway(mlog?: string) {
+  try {
+    const dq = E.epda.drops(arena);
+    const info = await er.getAccountInfo(dq);
+    if (!info) return;
+    const rent = await base.getMinimumBalanceForRentExemption(info.data.length);
+    const want = P.dropqTopup(info.lamports, rent, await base.getBalance(wallet.publicKey));
+    status.dropqLamports = info.lamports;
+    if (want <= 0) return;
+    const sig = await sendBase([lamportsDelegatedTransferIx(wallet.publicKey, dq, BigInt(want))], [wallet], "dropq_topup");
+    const ev = { act: "dropq_topup", lamports: want, before: info.lamports, sig };
+    log(ev); if (mlog) logTo(mlog, ev);
+  } catch (e: any) { log({ ev: "dropq_topup_failed", err: String(e?.message ?? e).slice(0, 200) }); }
+}
+if (SEASONS && S.COMMIT_FEE_VAULT && !status.seasonsPaused) await dropqRunway();
 // resume from on-chain state: the arena's current Match, unless it is finished (on Solana, nothing owed)
 {
   const a: any = await arenaAcc();
