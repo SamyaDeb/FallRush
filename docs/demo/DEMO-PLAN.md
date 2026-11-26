@@ -234,7 +234,7 @@ Anything that fails is a production fix, made under the VPS rules and only with 
    - a "15-match load test" (it was hybrid-era, 8 completed).
 
    Reword them, unless the rehearsal makes them true.
-2. **Possible trust hole (unverified):**
+2. **FIXED 2026-11-26 14:13 UTC:** the hole was real. Program 75d7597b is live on devnet; see `docs/proof/fullchain/TRUST-FIX.md`. "The program decides who wins" can now be said plainly. The original note, kept for the record:
    - The legacy server-key instructions (`record_qualified`, `record_eliminated`, `complete_round`, `complete_match`, lib.rs:244–393) check only the server key, the status and the sequence number. Nothing in them is gated on full on-chain mode.
    - If the Match passes those status checks during an on-chain round, the server key could record eliminations or a champion, and settlement would pay that slot.
    - That would contradict "the server can't pick a winner". Claude must test this on a local validator, and if it's real, gate those instructions in full mode (a program upgrade, your call).
