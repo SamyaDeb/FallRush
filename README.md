@@ -13,8 +13,7 @@ A 12-player knockout party game in your browser. On our on-chain arenas, every r
 </div>
 
 <!-- {{HERO_GIF}}: replace the next line with ![Fall Rush gameplay](docs/media/hero.gif) -->
-![The on-chain Final, Lid Flip, with the Chaos Drop menu open](<img width="1452" height="794" alt="Screenshot 2026-11-26 at 7 28 19 PM" src="https://github.com/user-attachments/assets/a19e8203-b499-4756-a4a7-8aef90be0b29" />
-)
+![The on-chain Final: Lid Flip with the Chaos Drop menu open](https://github.com/user-attachments/assets/a19e8203-b499-4756-a4a7-8aef90be0b29)
 
 | Compete | Bet | Sabotage | Own |
 |---|---|---|---|
