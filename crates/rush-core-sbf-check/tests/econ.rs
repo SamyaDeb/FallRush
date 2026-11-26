@@ -663,3 +663,112 @@ fn submit_input_past_ticks_skipped() {
     assert!(submit(&mut t, 91, 1).is_err(), "window unchanged: start < tick - 8 refused");
     println!("submit_input: late batch accepted, queued future inputs kept: OK");
 }
+
+// Match.event_seq (borsh, discriminator included)
+const M_SEQ: usize = 134;
+
+impl T {
+    fn seq(&self) -> u32 {
+        let d = self.svm.get_account(&self.m).unwrap().data;
+        u32::from_le_bytes(d[M_SEQ..M_SEQ + 4].try_into().unwrap())
+    }
+
+    /// A legacy authority-recorded event (`start_round` / `record_*` / `complete_*`), signed by the game authority.
+    fn legacy(&mut self, name: &str, args: &[u8]) -> Result<u64, String> {
+        let mut data = d8("global", name).to_vec();
+        data.extend_from_slice(args);
+        data.extend_from_slice(&self.seq().to_le_bytes());
+        let mut accounts = vec![AccountMeta::new(self.auth.pubkey(), true), ro(pda(&[b"config"], &PID)), w(self.m)];
+        if name == "complete_round" {
+            if self.svm.get_account(&MAGIC_PROGRAM).map_or(true, |a| !a.executable) {
+                let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+                self.svm.add_program(MAGIC_PROGRAM, &std::fs::read(root.join("crates/target/deploy/rush_core_sbf_check.so")).expect("cargo build-sbf of rush-core-sbf-check")).unwrap();
+            }
+            accounts.extend([ro(MAGIC_PROGRAM), w(MAGIC_CONTEXT)]);
+        }
+        let a = self.auth.insecure_clone();
+        self.send(&[Instruction { program_id: PID, accounts, data }], &[&a])
+    }
+
+    /// The game authority forges round 1: every slot but `champ` eliminated, `champ` qualified, the round completed,
+    /// the match completed (champion = `champ`). `complete_round` ends in its Magic commit CPI (no Magic program in
+    /// LiteSVM): once it passed the program's own checks, its state change is applied by hand.
+    fn forge_round1(&mut self, champ: u8) -> Result<(), String> {
+        for s in 0..12u8 {
+            if s != champ {
+                self.legacy("record_eliminated", &[1, s, 1])?;
+            }
+        }
+        self.legacy("record_qualified", &[1, champ, 1])?;
+        let e = self.legacy("complete_round", &[1]).err().unwrap_or_default();
+        if !(e.is_empty() || e.contains(&MAGIC_PROGRAM.to_string())) {
+            return Err(e);
+        }
+        let c = champ as usize;
+        self.patch_match(move |d| {
+            d[M_SLOTS + 4 * c] = 1;
+            d[M_STATUS] = ST_ROUND_RESOLVED;
+            let s = u32::from_le_bytes(d[M_SEQ..M_SEQ + 4].try_into().unwrap()) + 1;
+            d[M_SEQ..M_SEQ + 4].copy_from_slice(&s.to_le_bytes());
+        });
+        self.legacy("complete_match", &[])?;
+        Ok(())
+    }
+}
+
+/// Security: in a fullchain match (`start_sim`, every round computed by the program) the game authority cannot
+/// record round results with the legacy Classic events, so it cannot pick the champion that `settle` pays and the
+/// Crown goes to. Control: the same events still work in a Classic match.
+#[test]
+fn legacy_events_blocked_in_fullchain() {
+    let mut t = T::new();
+    let (a, b) = (t.wallet(), t.wallet());
+    let (ak, bk) = (a.pubkey(), b.pubkey());
+    t.write_arena(sim_running(), (1 << 3) | (1 << 5), &[(3, ak), (5, bk)]);
+    t.bet(&a, 0, 3, 100 * ONE).unwrap();
+    t.bet(&b, 0, 5, 10 * ONE).unwrap();
+    // start_sim + the director's first mirror (ROUND_INTRO of round 1): RoundActive, round 1, SIM_STARTED
+    t.patch_match(|d| { d[M_FLAGS] |= SIM_STARTED; d[M_ROUND] = 1; d[M_STATUS] = ST_ROUND_ACTIVE; });
+    let forged = t.forge_round1(5);
+    let d = t.svm.get_account(&t.m).unwrap().data;
+    println!("fullchain forge: {forged:?}; status {} champion {}", d[M_STATUS], d[M_CHAMP]);
+    if forged.is_ok() {
+        let (a0, b0) = (t.balance(&ak), t.balance(&bk));
+        for k in 0..5 {
+            t.settle(k, &[ak, bk]).unwrap();
+        }
+        println!("EXPLOIT: markets settled: a {:+} RUSH, b {:+} RUSH", (t.balance(&ak) as i64 - a0 as i64) / ONE as i64, (t.balance(&bk) as i64 - b0 as i64) / ONE as i64);
+        t.receipt().unwrap();
+        let tre = pda(&[b"treasury"], &PID);
+        t.svm.airdrop(&tre, 1_000_000_000).unwrap();
+        let crown = pda(&[b"crown", t.m.as_ref()], &PID);
+        let accs = vec![w(t.m), w(crown), ro(bk), w(tre), ro(pda(&[b"assets"], &PID)), ro(CORE), ro(SYS)];
+        let au = t.auth.insecure_clone();
+        let r = t.econ(&au, op::MINT_REWARDS, 0, 0, accs);
+        let owner = t.svm.get_account(&crown).map(|c| c.data[1..33] == bk.to_bytes()[..]);
+        println!("EXPLOIT: Crown mint {r:?}, Crown owned by the forged champion's wallet: {owner:?}");
+        panic!("the game authority forged a fullchain match result");
+    }
+    assert!(forged.unwrap_err().contains("LegacyEventInChainMode"), "refused by the chain-mode gate");
+    assert_eq!((d[M_STATUS], d[M_CHAMP]), (ST_ROUND_ACTIVE, 255), "Match untouched");
+    // every legacy event is refused in fullchain, whatever its other preconditions
+    t.patch_match(|d| { d[M_STATUS] = ST_ROUND_RESOLVED; });
+    for (n, args) in [("start_round", vec![2u8]), ("complete_match", vec![])] {
+        assert!(t.legacy(n, &args).unwrap_err().contains("LegacyEventInChainMode"), "{n}");
+    }
+    t.patch_match(|d| { d[M_STATUS] = ST_ROUND_ACTIVE; });
+    assert!(t.legacy("record_qualified", &[1, 5, 1]).unwrap_err().contains("LegacyEventInChainMode"), "record_qualified");
+    assert!(t.legacy("complete_round", &[1]).unwrap_err().contains("LegacyEventInChainMode"), "complete_round");
+    // hybrid Final mode (start_final sets SIM_STARTED | FINAL_MODE): the on-chain Final is gated too
+    t.patch_match(|d| { d[M_FLAGS] |= FINAL_MODE; d[M_ROUND] = 4; });
+    assert!(t.legacy("record_eliminated", &[4, 3, 1]).unwrap_err().contains("LegacyEventInChainMode"), "Final mode");
+    assert!(t.settle(0, &[ak, bk]).is_err(), "Champion market not settleable (match not over)");
+    // control: a Classic match (no SIM_STARTED) still records its rounds with the same events
+    t.m = t.create_match();
+    t.write_arena(sim_running(), 0, &[]);
+    t.patch_match(|d| { d[M_STATUS] = 2; }); // Dealt (the VRF callback is signed by the VRF identity only)
+    t.legacy("start_round", &[1]).unwrap();
+    t.forge_round1(5).unwrap();
+    assert_eq!(t.svm.get_account(&t.m).unwrap().data[M_CHAMP], 5, "Classic: authority-recorded champion");
+    println!("legacy events refused in fullchain + Final mode, still accepted in Classic: OK");
+}

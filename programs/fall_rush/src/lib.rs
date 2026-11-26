@@ -244,6 +244,7 @@ pub mod fall_rush {
     pub fn start_round(ctx: Context<GameplayEvent>, round: u8, seq: u32) -> Result<()> {
         let m = &mut ctx.accounts.match_account;
         m.check_seq(seq)?;
+        m.require_authority_rounds()?;
         require!(
             m.status == MatchStatus::Dealt || m.status == MatchStatus::RoundResolved,
             FallRushError::InvalidStatus
@@ -273,6 +274,7 @@ pub mod fall_rush {
     ) -> Result<()> {
         let m = &mut ctx.accounts.match_account;
         m.check_seq(seq)?;
+        m.require_authority_rounds()?;
         m.require_active_round(round)?;
         let i = m.alive_slot(slot)?;
         let qualified = m.count_slots(SLOT_QUALIFIED);
@@ -311,6 +313,7 @@ pub mod fall_rush {
     ) -> Result<()> {
         let m = &mut ctx.accounts.match_account;
         m.check_seq(seq)?;
+        m.require_authority_rounds()?;
         m.require_active_round(round)?;
         let i = m.alive_slot(slot)?;
         m.slots[i] = SlotResult {
@@ -337,6 +340,7 @@ pub mod fall_rush {
         {
             let m = &mut ctx.accounts.match_account;
             m.check_seq(seq)?;
+            m.require_authority_rounds()?;
             m.require_active_round(round)?;
             require!(
                 m.count_slots(SLOT_ALIVE) == 0,
@@ -371,6 +375,7 @@ pub mod fall_rush {
     pub fn complete_match(ctx: Context<GameplayEvent>, seq: u32) -> Result<()> {
         let m = &mut ctx.accounts.match_account;
         m.check_seq(seq)?;
+        m.require_authority_rounds()?;
         require!(
             m.status == MatchStatus::RoundResolved,
             FallRushError::InvalidStatus

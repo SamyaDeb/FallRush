@@ -102,4 +102,7 @@ pub enum FallRushError {
     AlreadyRecorded,
     #[msg("Committed market / drop copies do not match the receipt")]
     BadCopies,
+    // ---- harden (appended: earlier codes unchanged)
+    #[msg("Round results of an on-chain simulated match come from the program, not authority events")]
+    LegacyEventInChainMode,
 }

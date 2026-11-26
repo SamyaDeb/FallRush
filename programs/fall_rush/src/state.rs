@@ -277,6 +277,14 @@ impl Match {
         Ok(self.round_targets[(round - 1) as usize])
     }
 
+    /// The legacy authority events (`start_round`, `record_*`, `complete_*`) only record Classic rounds: once the
+    /// program simulates the match (`start_sim`: every round; `start_final`: the Final) its director is the only
+    /// source of results, so the game authority can never write slots or the champion that markets and the Crown use.
+    pub fn require_authority_rounds(&self) -> Result<()> {
+        require!(!crate::sim::chain_final(self), FallRushError::LegacyEventInChainMode);
+        Ok(())
+    }
+
     pub fn require_active_round(&self, round: u8) -> Result<()> {
         require!(
             self.status == MatchStatus::RoundActive,
