@@ -38,6 +38,12 @@ Because the result comes from the program, spectators can bet on it. The program
 
 No wallet is needed. The page makes a guest wallet and a MagicBlock session key, which sign your inputs, bets and drops in the background.
 
+## Architecture
+
+![Fall Rush architecture: players and spectators, the fall_rush program in a MagicBlock Ephemeral Rollup, the Private ER, Solana devnet, our untrusted server, and the replay check](docs/media/architecture.png)
+
+The game server only seats players. From roster lock, the `fall_rush` program on the rollup runs every round, settles every market and writes the receipt; Solana keeps the Match, the receipt, Seasons and the NFTs.
+
 ## Try it in two minutes
 
 1. **Play.** Open **[fallrush.fun/play?judge=1](https://fallrush.fun/play?judge=1)** on a desktop. You get your own room and a full 4-round on-chain match (about 6–7 minutes). Use WASD to move, Space to jump and Shift to dive. The **◆ Rollup ✓** badge in the corner means the program is running the round.
@@ -129,29 +135,7 @@ It runs on devnet. The rollup RPC doesn't keep transactions forever, so if an ex
 | Program instructions | 37 |
 
 <details>
-<summary><b>How a match runs (diagram)</b></summary>
-
-```mermaid
-flowchart LR
-  subgraph Browser["Browser (Unity WebGL)"]
-    U["Game client<br/>rush-core WASM prediction"]
-    B["Guest wallet + session key"]
-  end
-  subgraph Host["Our server (untrusted helpers)"]
-    GS["Lobby + matchmaking"]
-    K["Keeper: sets up the match,<br/>cranks, archives"]
-  end
-  subgraph ER["MagicBlock Ephemeral Rollup"]
-    P["fall_rush program<br/>rush-core as sBPF, 30 Hz<br/>4 rounds, markets, drops, receipt"]
-  end
-  TEE["Private ER (TEE)<br/>sealed Champion book"]
-  SOL[("Solana devnet<br/>Match, receipt<br/>Crown + capsules")]
-  B -->|"inputs, bets, drops<br/>(session key)"| P
-  P -->|world state| U
-  B -->|sealed pick| TEE
-  GS -->|roster lock| K -->|"start_sim, crank"| P
-  P -->|"commit each round, then<br/>undelegate + Magic Action mint"| SOL
-```
+<summary><b>How a match runs, step by step</b></summary>
 
 1. **Lobby.** You join with a name and bots fill the 12 seats. The keeper creates the `Match` on Solana, delegates it to the rollup, requests the VRF deal and opens the markets.
 2. **Roster lock.** Each player's session key joins on-chain and the keeper calls `start_sim`. From here the program's round director runs the match: *Capsule Run* (12 race, 8 qualify), *Goo Tower* (8 climb, 5 survive), *Star Fountain* (5 grab stars, 3 go through), *Lid Flip* (3 finalists, 1 champion). It loads each round's map from a sealed map blob, whose sha256 it checks. After each round the keeper sends `commit_round` (anyone can), which commits the Match to Solana.

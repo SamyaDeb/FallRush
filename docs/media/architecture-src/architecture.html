@@ -1,0 +1,119 @@
+<!-- Source of docs/media/architecture.png. Render: put rough.js (roughjs@4.6.6 bundled/rough.js, MIT) and Virgil-Regular.woff2 (Excalidraw, SIL OFL 1.1) next to this file, then
+     "Brave Browser" --headless=new --force-device-scale-factor=2 --window-size=1800,1040 --virtual-time-budget=4000 --allow-file-access-from-files --screenshot=architecture.png file://$PWD/architecture.html -->
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face { font-family: Virgil; src: url(Virgil-Regular.woff2) format("woff2"); }
+html, body { margin: 0; background: #fff; }
+svg text { font-family: Virgil; fill: #111; }
+</style>
+<script src="rough.js"></script>
+</head><body>
+<svg id="s" xmlns="http://www.w3.org/2000/svg" width="1800" height="1040" viewBox="0 0 1800 1040"></svg>
+<script>
+const W = 1800, H = 1040;
+const svg = document.getElementById('s');
+const rc = rough.svg(svg);
+const INK = '#111';
+let seed = 7;
+const o = (x = {}) => ({ stroke: INK, strokeWidth: 1.8, roughness: 1.3, bowing: 1.2, seed: seed++, ...x });
+const add = (n) => { svg.appendChild(n); return n; };
+const NS = 'http://www.w3.org/2000/svg';
+
+function text(x, y, lines, { size = 22, anchor = 'middle', gap = 1.25 } = {}) {
+  const t = document.createElementNS(NS, 'text');
+  t.setAttribute('x', x); t.setAttribute('y', y); t.setAttribute('font-size', size); t.setAttribute('text-anchor', anchor);
+  [].concat(lines).forEach((l, i) => {
+    const s = document.createElementNS(NS, 'tspan');
+    s.setAttribute('x', x); s.setAttribute('dy', i === 0 ? 0 : size * gap); s.textContent = l; t.appendChild(s);
+  });
+  return add(t);
+}
+function box(x, y, w, h, opts = {}) { return add(rc.rectangle(x, y, w, h, o(opts))); }
+// a container: box + title on its top edge
+function frame(x, y, w, h, title, opts = {}) {
+  box(x, y, w, h, { strokeLineDash: [10, 8], ...opts });
+  const tw = title.length * 11.5 + 24;
+  add(rc.rectangle(x + 18, y - 17, tw, 34, o({ fill: '#fff', fillStyle: 'solid', strokeWidth: 1.4 })));
+  text(x + 18 + tw / 2, y + 7, title, { size: 21 });
+}
+function card(x, y, w, h, lines, opts = {}) {
+  box(x, y, w, h, opts);
+  const size = opts.size || 20, n = [].concat(lines).length;
+  text(x + w / 2, y + h / 2 - ((n - 1) * size * 1.25) / 2 + size * 0.35, lines, { size });
+}
+function head(x2, y2, x1, y1) {
+  const a = Math.atan2(y2 - y1, x2 - x1), L = 18, s = 0.45;
+  add(rc.line(x2, y2, x2 - L * Math.cos(a - s), y2 - L * Math.sin(a - s), o({ strokeWidth: 2 })));
+  add(rc.line(x2, y2, x2 - L * Math.cos(a + s), y2 - L * Math.sin(a + s), o({ strokeWidth: 2 })));
+}
+function arrow(pts, label, lx, ly, { both = false, size = 18, lanchor = 'middle' } = {}) {
+  if (pts.length === 2) add(rc.line(pts[0][0], pts[0][1], pts[1][0], pts[1][1], o({ strokeWidth: 2 })));
+  else add(rc.curve(pts, o({ strokeWidth: 2 })));
+  const n = pts.length;
+  head(pts[n - 1][0], pts[n - 1][1], pts[n - 2][0], pts[n - 2][1]);
+  if (both) head(pts[0][0], pts[0][1], pts[1][0], pts[1][1]);
+  if (label) text(lx, ly, label, { size, anchor: lanchor });
+}
+function cylinder(x, y, w, h) {
+  const ry = 22;
+  add(rc.ellipse(x + w / 2, y + ry, w, ry * 2, o()));
+  add(rc.line(x, y + ry, x, y + h - ry, o()));
+  add(rc.line(x + w, y + ry, x + w, y + h - ry, o()));
+  add(rc.path(`M ${x} ${y + h - ry} A ${w / 2} ${ry} 0 0 0 ${x + w} ${y + h - ry}`, o()));
+}
+
+// ---------------------------------------------------------------- title
+text(40, 44, 'Fall Rush: every round runs inside a MagicBlock Ephemeral Rollup', { size: 32, anchor: 'start' });
+
+// ---------------------------------------------------------------- players (left)
+frame(40, 120, 430, 560, 'Players and spectators');
+card(70, 160, 370, 110, ['Unity WebGL game', 'rush-core (WASM) predicts', 'every Rushling locally']);
+card(70, 300, 370, 110, ['Guest wallet +', 'MagicBlock session key', 'signs everything, no popups']);
+card(70, 440, 370, 110, ['Phone: /live', 'bet on markets,', 'drop chaos into the Final']);
+card(70, 580, 370, 72, ['Receipt + replay in the browser'], { size: 19 });
+
+// ---------------------------------------------------------------- rollup (center)
+frame(640, 120, 560, 560, 'MagicBlock Ephemeral Rollup', { strokeWidth: 2.4 });
+box(675, 165, 490, 300, { strokeWidth: 3 });
+text(920, 215, 'fall_rush program', { size: 30 });
+text(920, 262, ['rush-core compiled to sBPF', 'steps the world 30 times a second', '', 'Capsule Run → Goo Tower →', 'Star Fountain → Lid Flip', 'markets · Chaos Drops · receipt'], { size: 21 });
+card(675, 495, 235, 90, ['Task scheduler', 'calls tick()'], { size: 19 });
+card(930, 495, 235, 90, ['VRF', 'deal + capsule rarity'], { size: 19 });
+text(920, 630, 'free, fast, 400k CU per tick', { size: 18 });
+
+// ---------------------------------------------------------------- right column
+card(1390, 135, 370, 120, ['Private ER (TEE)', 'sealed Champion book', 'hidden until betting closes']);
+cylinder(1390, 330, 370, 300);
+text(1575, 405, ['Solana devnet', '', 'Match + receipt', 'Seasons', 'Crown + capsule NFTs', 'RUSH SPL token'], { size: 21 });
+
+// ---------------------------------------------------------------- our server (bottom left)
+frame(40, 790, 800, 200, 'Our server (untrusted helpers)');
+card(70, 840, 250, 110, ['Lobby +', 'matchmaking']);
+card(440, 830, 370, 130, ['Keeper', 'creates + delegates the Match,', 'cranks, archives inputs']);
+arrow([[320, 895], [440, 895]], 'roster lock', 380, 880, { size: 17 });
+
+// ---------------------------------------------------------------- replay (bottom right)
+card(1100, 860, 380, 110, ['Anyone: replay-check', 'same inputs → same bytes', 'as the rollup produced']);
+
+// ---------------------------------------------------------------- arrows
+// players ↔ rollup
+arrow([[675, 215], [440, 215]], 'world state, 30 Hz', 540, 202, { size: 17 });
+arrow([[440, 355], [675, 355]], ['inputs', '(session key)'], 545, 322, { size: 17 });
+arrow([[440, 495], [675, 445]], ['bets +', 'Chaos Drops'], 560, 505, { size: 17 });
+// sealed pick: browser → TEE over the top of the rollup
+arrow([[430, 160], [470, 104], [700, 86], [1100, 84], [1390, 170]], 'sealed Champion pick', 1215, 86, { size: 18 });
+// TEE → program
+arrow([[1390, 225], [1165, 260]], ['reveal at close,', 'checked vs', 'commitments'], 1295, 278, { size: 16 });
+// program → Solana
+arrow([[1165, 385], [1390, 425]], ['commit after', 'every round'], 1295, 360, { size: 16 });
+arrow([[1165, 445], [1390, 525]], ['undelegate +', 'Magic Action', 'mints the Crown'], 1290, 545, { size: 16 });
+// keeper → program
+arrow([[700, 830], [820, 688]], ['start_sim,', 'crank()'], 790, 760, { size: 18, lanchor: 'start' });
+// keeper → replay
+arrow([[810, 925], [1100, 915]], 'archive', 955, 905, { size: 17 });
+// Solana → replay
+arrow([[1575, 630], [1400, 860]], 'map blobs + receipt', 1525, 760, { size: 17, lanchor: 'start' });
+document.title = 'ready';
+</script>
+</body></html>
