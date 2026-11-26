@@ -120,7 +120,7 @@ export default function Story({ webgl, live }: { webgl: boolean; live: Live }) {
         const ch = CHAPTERS[i];
         const card = el.querySelector<HTMLElement>(`[data-ch="${c.id}"]`)!;
         const title = card.querySelector<HTMLElement>('.st-title')!;
-        // copy lands after the round card has wiped off, and leaves before the next one arrives
+        // copy lands after the cloud bank has cleared, and leaves before the next one arrives
         const inAt = ch.a === 0 ? 0 : ch.a + ZONE * 0.75;
         const outAt = ch.b - ZONE - 0.022;
         if (i === 0) gsap.set(card, { autoAlpha: 1 });
@@ -167,7 +167,8 @@ export default function Story({ webgl, live }: { webgl: boolean; live: Live }) {
         if (lastAlive !== -1 && !reduced) gsap.fromTo(aliveRef.current, { scale: 1.7, rotate: -12 }, { scale: 1, rotate: 0, duration: 0.5, ease: 'elastic.out(1, 0.4)' });
         lastAlive = alive;
       }
-      // round cards: slide in from the right, cover the screen while the camera cuts, slide off to the left
+      // round transitions: a cloud bank rises from below, covers the screen while the camera cuts, drifts off the top
+      // (flying down through a cloud layer); loose front puffs move faster than the bank for depth
       for (let i = 1; i < CHAPTERS.length; i++) {
         const el = wipeRefs.current[i];
         if (!el) continue;
@@ -185,8 +186,13 @@ export default function Story({ webgl, live }: { webgl: boolean; live: Live }) {
           el.style.transform = 'none';
         } else {
           el.style.opacity = '1';
-          el.style.transform = `translate3d(${e * 118}%, 0, 0) skewX(${-8 * e}deg)`;
-          (el.firstElementChild as HTMLElement).style.transform = `translate3d(${e * 40}%, 0, 0)`;
+          el.style.transform = `translate3d(0, calc(${e * 100}% + ${e * 300}px), 0)`;
+          const [mass, top, bot] = el.children as unknown as HTMLElement[];
+          const t = mass.firstElementChild as HTMLElement;
+          t.style.transform = `translate3d(0, ${e * -38}vh, 0) scale(${1 - Math.abs(e) * 0.18})`;
+          t.style.opacity = String(Math.max(0, 1 - Math.abs(e) * 1.6));
+          top.style.transform = `translate3d(${e * -6}%, ${e * -18}vh, 0) scale(${1 + Math.abs(e) * 0.25})`;
+          bot.style.transform = `translate3d(${e * 6}%, ${e * -18}vh, 0) scale(${1 + Math.abs(e) * 0.25})`;
         }
         const b = CHAPTERS[i].a;
         if (lastP < b - ZONE * HOLD && p >= b - ZONE * HOLD) play('count', { vol: 0.5 });
@@ -230,11 +236,15 @@ export default function Story({ webgl, live }: { webgl: boolean; live: Live }) {
             if (!rc || i === 0) return null;
             return (
               <div key={c.id} ref={(n) => void (wipeRefs.current[i] = n)} className={'st-wipe ' + rc.theme} aria-hidden="true" style={{ visibility: 'hidden' }}>
-                <div className="wipe-in">
-                  <span className="wipe-eyebrow">{rc.eyebrow}</span>
-                  <span className="wipe-title">{rc.title}</span>
-                  <span className="wipe-line">{rc.line}</span>
+                <div className="cl-mass">
+                  <div className="wipe-in">
+                    <span className="wipe-eyebrow">{rc.eyebrow}</span>
+                    <span className="wipe-title">{rc.title}</span>
+                    <span className="wipe-line">{rc.line}</span>
+                  </div>
                 </div>
+                <div className="cl-band top" />
+                <div className="cl-band bot" />
               </div>
             );
           })}

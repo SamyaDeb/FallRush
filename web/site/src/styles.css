@@ -599,33 +599,64 @@ html.mallet-cursor input, html.mallet-cursor textarea { cursor: text !important;
 /* the HUD sits under the top bar */
 .st-hud { top: 88px; }
 
-/* round cards (game-show wipe between chapters) */
+/* round transitions: a cloud bank the camera drops through between chapters (no cards) */
 .st-wipe {
-  position: absolute; inset: -4% -12%; z-index: 6; display: grid; place-items: center; pointer-events: none;
-  will-change: transform; border-left: 10px solid var(--ink); border-right: 10px solid var(--ink);
+  --cl: #ffffff; --cl2: #eaf4fd; --tint: rgba(123, 47, 247, 0.07); --title: #fff;
+  position: absolute; left: -8%; right: -8%; top: 0; height: 100%; z-index: 6; pointer-events: none; will-change: transform;
 }
-.st-wipe.pink { background: repeating-linear-gradient(-55deg, #ff3ea5 0 70px, #ff5bb3 70px 140px); }
-.st-wipe.sun { background: repeating-linear-gradient(-55deg, #ffd21f 0 70px, #ffdc4a 70px 140px); }
-.st-wipe.night {
+.st-wipe.pink { --cl2: #fdeaf4; --tint: rgba(255, 62, 165, 0.08); --title: #ff5bb3; }
+.st-wipe.sun { --cl2: #fff6d9; --tint: rgba(255, 196, 0, 0.1); --title: #ffd21f; }
+.st-wipe.night { --cl: #f1ecff; --cl2: #ddd2fb; --tint: rgba(91, 240, 181, 0.12); --title: #5bf0b5; }
+.st-wipe.gold { --cl: #fffaf0; --cl2: #ffefc4; --tint: rgba(255, 196, 0, 0.14); --title: #ffd21f; }
+/* the body of the bank: soft lumps of shade so it reads as cloud, not a flat sheet */
+.cl-mass {
+  position: absolute; inset: 0; display: grid; place-items: center;
   background:
-    linear-gradient(rgba(91, 240, 181, 0.16) 2px, transparent 2px) 0 0 / 60px 60px,
-    linear-gradient(90deg, rgba(91, 240, 181, 0.16) 2px, transparent 2px) 0 0 / 60px 60px, #140a2e;
+    radial-gradient(38% 28% at 18% 26%, var(--cl2) 0, transparent 70%),
+    radial-gradient(34% 26% at 82% 70%, var(--cl2) 0, transparent 70%),
+    radial-gradient(50% 30% at 50% 100%, var(--tint) 0, transparent 70%),
+    radial-gradient(30% 22% at 70% 18%, var(--tint) 0, transparent 70%),
+    var(--cl);
 }
-.st-wipe.gold { background: repeating-conic-gradient(from 0deg at 50% 50%, #ffd21f 0 10deg, #ffc400 10deg 20deg); }
-.wipe-in { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; will-change: transform; padding: 0 20px; }
+/* scalloped edges fixed to the bank */
+.cl-mass::before, .cl-mass::after {
+  content: ''; position: absolute; left: 0; right: 0; height: 130px;
+  background:
+    radial-gradient(circle at 50% 100%, var(--cl) 0 57%, transparent 58%) 0 100% / 180px 120px repeat-x,
+    radial-gradient(circle at 50% 100%, var(--cl) 0 57%, transparent 58%) 90px 100% / 260px 170px repeat-x,
+    linear-gradient(var(--cl), var(--cl)) 0 100% / 100% 50px no-repeat;
+}
+.cl-mass::before { bottom: calc(100% - 2px); }
+.cl-mass::after { top: calc(100% - 2px); transform: scaleY(-1); }
+/* loose front puffs: big, lead the bank in and trail it out (they move faster, see Story.tsx) */
+.cl-band {
+  position: absolute; left: -10%; right: -10%; height: 340px; will-change: transform;
+  background:
+    radial-gradient(circle at 50% 100%, var(--cl) 0 56%, transparent 57%) 40px 100% / 330px 250px repeat-x,
+    radial-gradient(circle at 50% 100%, var(--cl) 0 56%, transparent 57%) 210px 100% / 460px 340px repeat-x,
+    linear-gradient(var(--cl), var(--cl)) 0 100% / 100% 110px no-repeat;
+  filter: drop-shadow(0 -8px 0 rgba(123, 47, 247, 0.1));
+}
+.cl-band.top { bottom: calc(100% - 60px); }
+.cl-band.bot {
+  top: calc(100% - 60px); filter: drop-shadow(0 8px 0 rgba(123, 47, 247, 0.1));
+  background:
+    radial-gradient(circle at 50% 0, var(--cl) 0 56%, transparent 57%) 40px 0 / 330px 250px repeat-x,
+    radial-gradient(circle at 50% 0, var(--cl) 0 56%, transparent 57%) 210px 0 / 460px 340px repeat-x,
+    linear-gradient(var(--cl), var(--cl)) 0 0 / 100% 110px no-repeat;
+}
+.wipe-in { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; will-change: transform, opacity; padding: 0 20px; }
 .wipe-eyebrow {
   font-family: var(--display); font-size: clamp(16px, 1.6vw, 22px); letter-spacing: 0.14em; color: #fff; background: var(--ink);
-  border-radius: 999px; padding: 8px 20px; box-shadow: 0 5px 0 rgba(0, 0, 0, 0.25);
+  border-radius: 999px; padding: 8px 20px; box-shadow: 0 5px 0 rgba(42, 18, 80, 0.2);
 }
 .wipe-title {
-  font-family: var(--display); font-size: clamp(64px, 11vw, 170px); line-height: 0.9; color: #fff;
+  font-family: var(--display); font-size: clamp(64px, 11vw, 170px); line-height: 0.9; color: var(--title);
   paint-order: stroke fill; -webkit-text-stroke: 0.08em var(--ink);
-  text-shadow: 0 0.06em 0 var(--ink), 0 0.12em 0 rgba(42, 18, 80, 0.35);
+  text-shadow: 0 0.06em 0 var(--ink), 0 0.12em 0 rgba(42, 18, 80, 0.25);
 }
-.st-wipe.sun .wipe-title, .st-wipe.gold .wipe-title { color: #fff; }
-.st-wipe.night .wipe-title { color: #5bf0b5; -webkit-text-stroke-color: #000; }
-.st-wipe.night .wipe-eyebrow { background: #5bf0b5; color: #140a2e; }
-.wipe-line { font-family: var(--display); font-size: clamp(18px, 2vw, 28px); color: var(--ink); background: #fff; border: 3px solid var(--ink); border-radius: 16px; padding: 6px 18px; box-shadow: 0 5px 0 var(--ink); }
+.st-wipe.night .wipe-eyebrow { background: #140a2e; color: #5bf0b5; }
+.wipe-line { font-family: var(--display); font-size: clamp(18px, 2vw, 28px); color: var(--ink); opacity: 0.8; }
 
 /* the top bar */
 .topbar { position: fixed; left: 0; right: 0; top: 12px; z-index: 900; display: flex; justify-content: center; padding: 0 16px; pointer-events: none; transform: translateY(-150%); transition: transform 0.45s cubic-bezier(0.2, 1.4, 0.4, 1); }
