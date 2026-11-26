@@ -243,9 +243,6 @@ export default function Home() {
               </div>
             </div>
 
-            <p className="tagline">
-              The knockout party game that runs <b>on-chain</b>, every round. Pack the lobby, survive the rounds, take the crown. No wallet, no popups.
-            </p>
             {stage === 'button' && (
               <div className="cta">
                 <a href={PLAY_URL} className="btn btn-play mag">
@@ -263,11 +260,6 @@ export default function Home() {
                   ▶ Play the beta
                 </a>
               </div>
-            )}
-            {!failed && (
-              <button type="button" className="linkbtn drive" aria-pressed={playing} onClick={() => setPlaying((p) => !p)}>
-                {playing ? 'Exit (Esc)' : 'or take Bolt for a spin here (WASD / tap) · click a Rushling to bonk it'}
-              </button>
             )}
             {stage === 'opening' && (
               <div role="status" aria-live="polite" className="status">
