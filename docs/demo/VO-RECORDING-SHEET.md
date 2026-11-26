@@ -7,7 +7,7 @@ Read the lines below. Marks:
 
 Speak at about 2 words a second, slower than feels natural. Do 3 takes of each line. Claude keeps the calmest.
 
-> Lines marked **[if]** depend on what the rehearsal shows. Claude tells you by 19:30 UTC which version to read. The numbers on screen are never spoken.
+> **Locked 2026-11-26 ~15:30 UTC.** The rehearsal and hero match (J8wZ…iKKz) proved the Chaos Drop and the sealed pick in a full on-chain match. Read the **full** L6. No human won a Final on camera, so read the **fallback** L8 (unless your beta session gets a human Crown: then send me the match id and read the full L8). The numbers on screen are never spoken.
 
 ## Before you start
 - Use a quiet room. A closet or a blanket over your head kills the echo.
@@ -33,8 +33,8 @@ Click a link. / You're IN. // No wallet to install. / No popups. / A session key
 **L5a · Hero proof (0:34)**
 Every thirty-three milliseconds, / our program steps the physics. // Not a server. / The PROGRAM.
 
-**L5b (0:38, over the Space-jump)**
-I press jump. / Watch my height change / on chain.
+**L5b (0:38, over the readout)**
+That's my player's height, / read straight from the chain. / Watch it change.
 
 **L5c**
 One full twelve-player tick costs MORE compute / than one transaction allows. // So we cut each tick into SLICES. / Our keeper and MagicBlock's scheduler deliver them, / and ANYONE can send one. / Same result, / every time.
